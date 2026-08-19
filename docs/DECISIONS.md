@@ -84,11 +84,11 @@ As of commit `58ce333` (2026-07-31), `public/_redirects` rewrites `/` to
 still exists but is no longer reachable at `/`.
 
 ### Consequences
-`README.md` has not been updated to reflect this and is misleading on this
-specific point as of this writing — trust `public/_redirects` and
-`web/src/app/page.tsx`'s own comments over the README. If `public/index.html`
-is ever fully retired, `README.md`'s repo-layout section should be updated
-too. See "Root routing" in `docs/ARCHITECTURE.md`.
+`README.md` now notes this explicitly (fixed 2026-08-19, along with two other
+stale README claims — the Worker→Pages migration and an outdated "Phase 1"
+feature-status line). If `public/index.html` is ever fully retired,
+`README.md`'s repo-layout section should be updated again. See "Root
+routing" in `docs/ARCHITECTURE.md`.
 
 ---
 

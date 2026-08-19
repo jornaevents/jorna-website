@@ -76,6 +76,8 @@ always "none, verify manually" until a test runner is added.
 - **Depends on:** `lib/jorna.ts`, `lib/types.ts`, `lib/address.ts`
   (`isCompleteLocation`).
 - **Consumers:** `lib/attention.ts` reads `planning.ts` for the nav badge.
+- **Full detail (booking status model, checkout/escrow, confirm/release):**
+  `docs/BOOKING_FLOW.md`.
 
 ## Vendor flow
 
@@ -101,6 +103,8 @@ always "none, verify manually" until a test runner is added.
 - **Related:** `web/src/app/vendor/stripe-onboard/` (+ `refresh/`, `return/`)
   — Stripe Connect onboarding redirect targets; the onboarding wizard's last
   step links to `/my-earnings` to start that flow, but doesn't build it.
+- **Full detail (approve/decline, check-in, earnings/Stripe gate):**
+  `docs/BOOKING_FLOW.md`.
 
 ## Messaging & negotiation
 
@@ -110,9 +114,13 @@ always "none, verify manually" until a test runner is added.
   `web/src/components/AskVendor.tsx`, `NegotiationPanel.tsx`,
   `DateChangePanel.tsx`, `DateChangeRequest.tsx`, `ServiceSwapPanel.tsx`.
 - **Depends on:** `lib/jorna.ts`, `lib/types.ts`.
-- **Design context (not yet fully built at time of writing):**
-  `MESSAGING_PROPOSAL.md`, `RESCHEDULE_PROPOSAL.md` — check these before
-  assuming current behavior is final; they're specs, not history.
+- **Design context, already built despite the docs' own framing:**
+  `MESSAGING_PROPOSAL.md` and `RESCHEDULE_PROPOSAL.md` both open with
+  "decisions made; not yet built," but both shipped within a day of being
+  written and were never updated afterward — treat them as rationale for *why*
+  this works the way it does, not as a statement that it's unbuilt. See "A
+  note on the proposal docs" in `docs/BOOKING_FLOW.md` for the one real gap
+  (negotiation history rendering in two places) this staleness caused.
 
 ## Booking, events & check-in
 

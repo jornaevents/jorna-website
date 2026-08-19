@@ -53,14 +53,15 @@ guaranteed current; verify against the running API if a change depends on it.
 
 ## Root routing (a non-obvious current state)
 
-`README.md` describes `public/index.html` as the marketing page served at
-`/`. That was true until `public/_redirects` was changed (commit `58ce333`,
-2026-07-31): `/` now rewrites (HTTP 200, not a redirect) to `/app/`, which
-renders `web/src/app/page.tsx` → `web/src/app/home/page.tsx` — the Next app's
-own Home screen. `public/index.html` still exists on disk but is currently
+`public/index.html` was originally the marketing page served at `/`. That was
+true until `public/_redirects` was changed (commit `58ce333`, 2026-07-31):
+`/` now rewrites (HTTP 200, not a redirect) to `/app/`, which renders
+`web/src/app/page.tsx` → `web/src/app/home/page.tsx` — the Next app's own
+Home screen. `public/index.html` still exists on disk but is currently
 reachable only via a direct `/index.html` request, not at the site root.
-**Trust `public/_redirects` and `web/src/app/page.tsx` over the README on
-this point** — the README has not been updated since the change.
+`README.md` now reflects this; **trust `public/_redirects` and
+`web/src/app/page.tsx` as the actual behavior** if the two ever disagree
+again after a future change.
 
 ## Request/data flow
 
@@ -101,6 +102,15 @@ render identically. Always go through the `priceLine`-style helpers in
 `web/src/lib/types.ts` / `pricing.ts` rather than formatting these fields by
 hand.
 
+## Booking lifecycle
+
+The full client (host) and vendor journeys — bundle → send → negotiate → pay
+→ escrow → check-in → confirm/release, plus the vendor's onboarding/
+availability/earnings side — are documented in `docs/BOOKING_FLOW.md`,
+including the booking status model (`status` and `payment_status` are two
+independent fields, not one enum — the single most non-obvious fact about
+this data model).
+
 ## Design tokens (deliberately duplicated)
 
 The color/typography tokens exist in **two places** and are kept in sync by
@@ -108,10 +118,29 @@ hand, not by a shared build step:
 - `public/index.html` — inline `:root` + a `prefers-color-scheme: dark` block
   (the marketing page has no build step by design).
 - `web/src/app/globals.css` — the same palette as Tailwind v4 `@theme`
-  variables, consumed by the app.
+  variables (`--color-*`, consumed as `bg-maroon`/`text-gold`/etc.), plus
+  `--font-serif`/`--font-sans` and `--container-wide`/`--container-page`.
 
-Changing brand colors means editing both files. See `DESIGN_BRIEF.md` for the
-full token rationale.
+Changing brand colors means editing both files.
+
+**Light/dark mechanism:** a `data-theme="light"|"dark"` attribute on the root
+element is the primary switch (set by a small inline theme script so there's
+no flash-of-wrong-theme); `@media (prefers-color-scheme: dark)` is only a
+fallback for when no explicit `data-theme` is set. Native form controls
+(date pickers, scrollbars) get their own `color-scheme` per `data-theme` too
+— see the comment block in `globals.css` above the `input[type="date"]`
+rules for why (iOS/macOS Safari otherwise ignores the app's chosen theme for
+those controls specifically).
+
+**Fonts** are system stacks only — a high-contrast serif (Didot/Bodoni/
+Hoefler/Palatino) for headings, a humanist sans (Avenir Next/Segoe UI) for
+body — nothing is fetched over the network, on either the marketing page or
+the app.
+
+Both palettes (light values, dark values, and the rationale/tone brief) are
+listed in full in `DESIGN_BRIEF.md`, which is kept in sync with
+`globals.css` by convention (verify against `globals.css` if a color looks
+off — it's the source of truth, `DESIGN_BRIEF.md` is the readable reference).
 
 ## External services
 
