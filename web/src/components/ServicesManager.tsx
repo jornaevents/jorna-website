@@ -11,7 +11,7 @@
 // Takes the vendor and the taxonomy rather than fetching them: the page above
 // already has both, and a second copy of either could disagree with the first.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   createService,
@@ -26,6 +26,7 @@ import {
 } from "@/lib/jorna";
 import {
   priceUnitLabel,
+  usableMedia,
   type MediaItem,
   type ServiceItem,
   type TaxonomyCategory,
@@ -122,8 +123,6 @@ export function ServicesManager({
   // screen the same way rather than making the vendor come back for it.
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [newVideos, setNewVideos] = useState<File[]>([]);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const videoInput = useRef<HTMLInputElement>(null);
 
   async function refresh() {
     const res = await listServices({ vendor_id: vendor.vendor_id, limit: 100 });
@@ -289,7 +288,14 @@ export function ServicesManager({
     }
   }
 
-  async function addPhotos(serviceId: string, files: FileList | null) {
+  // Takes the input element itself (not just its FileList) so the value reset
+  // below clears the exact input the user picked from. Every service card
+  // renders its own file input, so a ref shared across the list would land on
+  // whichever card happened to mount last — clearing the wrong one left a
+  // just-used input still holding its old value, which silently swallows a
+  // retry: selecting the same file again fires no change event.
+  async function addPhotos(serviceId: string, input: HTMLInputElement) {
+    const files = input.files;
     if (!files?.length) return;
     setUploadingFor(serviceId);
     setError(null);
@@ -300,7 +306,7 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload those photos.");
     } finally {
       setUploadingFor(null);
-      if (fileInput.current) fileInput.current.value = "";
+      input.value = "";
     }
   }
 
@@ -313,7 +319,8 @@ export function ServicesManager({
     }
   }
 
-  async function addVideos(serviceId: string, files: FileList | null) {
+  async function addVideos(serviceId: string, input: HTMLInputElement) {
+    const files = input.files;
     if (!files?.length) return;
     setUploadingVideoFor(serviceId);
     setError(null);
@@ -324,7 +331,7 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload that video.");
     } finally {
       setUploadingVideoFor(null);
-      if (videoInput.current) videoInput.current.value = "";
+      input.value = "";
     }
   }
 
@@ -657,7 +664,7 @@ export function ServicesManager({
 
                 {/* Photos & videos */}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {(s.media ?? []).map((item: MediaItem) => {
+                  {usableMedia(s.media).map((item: MediaItem) => {
                     // A video's file can't go in an <img> — its server-generated
                     // poster frame stands in for it here.
                     const thumbSrc = item.type === "video" ? item.thumbnail_url : item.url;
@@ -704,23 +711,21 @@ export function ServicesManager({
                   <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
                     {uploadingFor === s.service_id ? "Uploading…" : "+ Add photos"}
                     <input
-                      ref={fileInput}
                       type="file"
                       accept="image/*"
                       multiple
                       className="hidden"
-                      onChange={(e) => addPhotos(s.service_id, e.target.files)}
+                      onChange={(e) => addPhotos(s.service_id, e.currentTarget)}
                     />
                   </label>
                   <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
                     {uploadingVideoFor === s.service_id ? "Uploading…" : "+ Add video"}
                     <input
-                      ref={videoInput}
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
                       multiple
                       className="hidden"
-                      onChange={(e) => addVideos(s.service_id, e.target.files)}
+                      onChange={(e) => addVideos(s.service_id, e.currentTarget)}
                     />
                   </label>
                 </div>

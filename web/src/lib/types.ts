@@ -239,6 +239,17 @@ export interface MediaItem {
   thumbnail_url?: string | null;
 }
 
+/** A service's media, minus any entry with no actual file behind it. The
+ *  backend has, in practice, returned array slots with an empty `url` (a
+ *  photo that failed to finish uploading, a delete that didn't fully clean
+ *  up) — those aren't a real photo or video, just a gap, and rendering them
+ *  as-is means an `<img>`/`<video>` with no src: a blank tile in the gallery.
+ *  Every place that renders `ServiceItem.media` should filter through this
+ *  first rather than mapping the array directly. */
+export function usableMedia(media?: MediaItem[] | null): MediaItem[] {
+  return (media ?? []).filter((item) => Boolean(item?.url));
+}
+
 export interface ServiceItem {
   service_id: string;
   vendor_id: string;

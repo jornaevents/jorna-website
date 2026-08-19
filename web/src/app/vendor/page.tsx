@@ -8,6 +8,7 @@ import { getVendor, getVendorReviews, listServices } from "@/lib/jorna";
 import {
   categoryLabel,
   priceUnitLabel,
+  usableMedia,
   type Review,
   type ServiceItem,
   type VendorDetail,
@@ -67,7 +68,7 @@ function StatTile({ value, label }: { value: React.ReactNode; label: string }) {
 
 function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boolean }) {
   const unit = priceUnitLabel(service.price_unit);
-  const first = service.media?.[0];
+  const first = usableMedia(service.media)[0];
   // A video's own file can't go in an <img> — show its poster frame instead.
   const photo = first ? (first.type === "video" ? first.thumbnail_url : first.url) : null;
   return (

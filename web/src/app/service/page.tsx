@@ -9,6 +9,7 @@ import {
   categoryLabel,
   priceUnitKind,
   priceUnitLabel,
+  usableMedia,
   type MediaItem,
   type Review,
   type ServiceItem,
@@ -422,7 +423,7 @@ function ServiceInner() {
     };
   }, [serviceId]);
 
-  const media = useMemo(() => (service?.media ?? []).filter(Boolean), [service]);
+  const media = useMemo(() => usableMedia(service?.media), [service]);
 
   if (loading) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
 
