@@ -50,7 +50,7 @@ import {
 } from "@/lib/planning";
 import { priceUnitKind, type BundleDetail, type BundleBooking } from "@/lib/types";
 import { AddressFields } from "@/components/AddressFields";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field, TimeQuickPicks } from "@/components/ui";
 
 /**
  * How long a pause counts as "done typing".
@@ -330,18 +330,24 @@ export function DraftDetails({
               When does it run?
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field
-                label="Starts"
-                type="time"
-                value={hoursStart}
-                onChange={(e) => setHoursStart(e.target.value)}
-              />
-              <Field
-                label="Ends"
-                type="time"
-                value={hoursEnd}
-                onChange={(e) => setHoursEnd(e.target.value)}
-              />
+              <div>
+                <Field
+                  label="Starts"
+                  type="time"
+                  value={hoursStart}
+                  onChange={(e) => setHoursStart(e.target.value)}
+                />
+                <TimeQuickPicks value={hoursStart} onPick={setHoursStart} />
+              </div>
+              <div>
+                <Field
+                  label="Ends"
+                  type="time"
+                  value={hoursEnd}
+                  onChange={(e) => setHoursEnd(e.target.value)}
+                />
+                <TimeQuickPicks value={hoursEnd} onPick={setHoursEnd} />
+              </div>
             </div>
             <p className="mt-2 text-xs text-ink-faint">
               Goes to every vendor who doesn&apos;t have their own hours below.
@@ -356,28 +362,50 @@ export function DraftDetails({
               {b.service_name || "Hourly service"} — charged by the hour
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field
-                label="Starts"
-                type="time"
-                value={times[b.booking_id]?.start ?? ""}
-                onChange={(e) =>
-                  setTimes((t) => ({
-                    ...t,
-                    [b.booking_id]: { ...t[b.booking_id], start: e.target.value },
-                  }))
-                }
-              />
-              <Field
-                label="Ends"
-                type="time"
-                value={times[b.booking_id]?.end ?? ""}
-                onChange={(e) =>
-                  setTimes((t) => ({
-                    ...t,
-                    [b.booking_id]: { ...t[b.booking_id], end: e.target.value },
-                  }))
-                }
-              />
+              <div>
+                <Field
+                  label="Starts"
+                  type="time"
+                  value={times[b.booking_id]?.start ?? ""}
+                  onChange={(e) =>
+                    setTimes((t) => ({
+                      ...t,
+                      [b.booking_id]: { ...t[b.booking_id], start: e.target.value },
+                    }))
+                  }
+                />
+                <TimeQuickPicks
+                  value={times[b.booking_id]?.start ?? ""}
+                  onPick={(time) =>
+                    setTimes((t) => ({
+                      ...t,
+                      [b.booking_id]: { ...t[b.booking_id], start: time },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Field
+                  label="Ends"
+                  type="time"
+                  value={times[b.booking_id]?.end ?? ""}
+                  onChange={(e) =>
+                    setTimes((t) => ({
+                      ...t,
+                      [b.booking_id]: { ...t[b.booking_id], end: e.target.value },
+                    }))
+                  }
+                />
+                <TimeQuickPicks
+                  value={times[b.booking_id]?.end ?? ""}
+                  onPick={(time) =>
+                    setTimes((t) => ({
+                      ...t,
+                      [b.booking_id]: { ...t[b.booking_id], end: time },
+                    }))
+                  }
+                />
+              </div>
             </div>
           </div>
         ))}

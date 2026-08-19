@@ -14,7 +14,7 @@ import {
   type BundleDetail,
   type ServiceItem,
 } from "@/lib/types";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field, TimeQuickPicks } from "@/components/ui";
 import { ClientOnlyRoute } from "@/components/ClientOnlyRoute";
 
 function money(n: number) {
@@ -373,20 +373,26 @@ function BookInner() {
           ) : null}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
-              label="Start time"
-              type="time"
-              required={planAlreadySent}
-              value={timeStart}
-              onChange={(e) => setTimeStart(e.target.value)}
-            />
-            <Field
-              label="End time"
-              type="time"
-              required={planAlreadySent}
-              value={timeEnd}
-              onChange={(e) => setTimeEnd(e.target.value)}
-            />
+            <div>
+              <Field
+                label="Start time"
+                type="time"
+                required={planAlreadySent}
+                value={timeStart}
+                onChange={(e) => setTimeStart(e.target.value)}
+              />
+              <TimeQuickPicks value={timeStart} onPick={setTimeStart} />
+            </div>
+            <div>
+              <Field
+                label="End time"
+                type="time"
+                required={planAlreadySent}
+                value={timeEnd}
+                onChange={(e) => setTimeEnd(e.target.value)}
+              />
+              <TimeQuickPicks value={timeEnd} onPick={setTimeEnd} />
+            </div>
           </div>
 
           <Field

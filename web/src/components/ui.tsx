@@ -191,6 +191,36 @@ export function Chip({
   );
 }
 
+/** Round-hour options for a time field, e.g. under a "Start time" input. Purely
+    a shortcut — clicking one fills the field, but nothing is set until the
+    client actually picks a time, so an unanswered field stays unanswered. */
+const ROUND_TIMES = ["10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
+
+function roundTimeLabel(t: string) {
+  const hour24 = Number(t.slice(0, 2));
+  const suffix = hour24 < 12 ? "AM" : "PM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12} ${suffix}`;
+}
+
+export function TimeQuickPicks({
+  value,
+  onPick,
+}: {
+  value: string;
+  onPick: (time: string) => void;
+}) {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {ROUND_TIMES.map((t) => (
+        <Chip key={t} active={value === t} onClick={() => onPick(t)}>
+          {roundTimeLabel(t)}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function Rule() {
   return (
     <div className="mx-auto flex w-40 items-center gap-3">
