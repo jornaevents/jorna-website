@@ -236,7 +236,7 @@ function sharpen(task: PlanTask, days: number | null): PlanTask {
 /** What one booking still needs. At most one task each, most pressing first. */
 function bookingTask(b: BundleBooking): PlanTask | null {
   const pay = b.payment_status ?? "unpaid";
-  const service = b.service_name || "a service";
+  const service = b.service_name || "a package";
   const vendor = b.vendor_name || "the vendor";
 
   // Money is held and the event is over — the client's confirm is the only

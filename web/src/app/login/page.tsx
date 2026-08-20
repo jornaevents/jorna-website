@@ -30,7 +30,7 @@ type Role = "host" | "vendor";
 
 const ROLES: { value: Role; label: string; hint: string }[] = [
   { value: "host", label: "Host", hint: "Plan a celebration and book a team." },
-  { value: "vendor", label: "Vendor", hint: "List your services and get booked." },
+  { value: "vendor", label: "Vendor", hint: "List your packages and get booked." },
 ];
 
 /**

@@ -512,7 +512,7 @@ export default function HomePage() {
             <div className="flex flex-col justify-center p-8 md:p-12">
               <p className="eyebrow mb-3">For vendors</p>
               <h2 className="serif text-3xl text-ground md:text-4xl">
-                List your services. Get booked. Get paid.
+                List your packages. Get booked. Get paid.
               </h2>
               <p className="mt-4 leading-relaxed text-ground/75">
                 Jorna brings the hosts to you. No chasing leads, no awkward payment

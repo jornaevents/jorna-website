@@ -277,7 +277,7 @@ function MarketplaceInner() {
       {addedBundleId ? (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green/30 bg-green/10 px-4 py-3 text-sm">
           <p className="text-ink-soft">
-            <span className="text-ink">{addedName || "That service"}</span> was added
+            <span className="text-ink">{addedName || "That package"}</span> was added
             to your plan as a draft — no request sent yet.
           </p>
           <Link
@@ -292,10 +292,10 @@ function MarketplaceInner() {
       <header className="text-center">
         <span className="eyebrow">Marketplace</span>
         <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold sm:text-5xl">
-          Every service on Jorna
+          Every package on Jorna
         </h1>
         <p className="mx-auto mt-3 max-w-[52ch] text-ink-soft">
-          Search by name or service, or filter by city, date, category, rating, and price.
+          Search by name or package, or filter by city, date, category, rating, and price.
         </p>
       </header>
 

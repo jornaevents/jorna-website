@@ -91,8 +91,8 @@ export function ServicesManager({
   categories: TaxonomyCategory[];
   /** Fetched by the page in its own pass, so this doesn't add a request. */
   initial: ServiceItem[];
-  /** Open the "new service" form immediately instead of waiting for "Add a
-   *  service" — used by the vendor-onboarding wizard, where this component
+  /** Open the "new package" form immediately instead of waiting for "Add a
+   *  package" — used by the vendor-onboarding wizard, where this component
    *  IS the step rather than an add-on to an existing list. Read once, as the
    *  initial state, so opening the form costs no extra render. */
   autoStartNew?: boolean;
@@ -241,9 +241,9 @@ export function ServicesManager({
           try {
             await uploadServiceImages(created.service_id, newPhotos);
           } catch {
-            // The service itself is saved by this point — say that plainly
+            // The package itself is saved by this point — say that plainly
             // instead of letting the outer catch claim it wasn't.
-            setError("Service saved, but the photos didn't upload. Add them from the list below.");
+            setError("Package saved, but the photos didn't upload. Add them from the list below.");
           }
         }
         if (newVideos.length) {
@@ -253,7 +253,7 @@ export function ServicesManager({
             setError((prev) =>
               prev
                 ? `${prev} The videos didn't upload either — add them from the list below.`
-                : "Service saved, but the videos didn't upload. Add them from the list below.",
+                : "Package saved, but the videos didn't upload. Add them from the list below.",
             );
           }
         }
@@ -269,7 +269,7 @@ export function ServicesManager({
       // step), and that should happen after, not mid-update.
       if (creating) onServiceAdded?.();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't save that service.");
+      setError(err instanceof ApiError ? err.message : "Couldn't save that package.");
     } finally {
       setBusy(false);
     }
@@ -282,7 +282,7 @@ export function ServicesManager({
       await refresh();
       setConfirmDelete(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't delete that service.");
+      setError(err instanceof ApiError ? err.message : "Couldn't delete that package.");
     } finally {
       setBusy(false);
     }
@@ -348,12 +348,12 @@ export function ServicesManager({
     <section id="services" className="mt-9 scroll-mt-20">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="serif text-2xl text-ink">Services</h2>
+          <h2 className="serif text-2xl text-ink">Packages</h2>
           <p className="mt-1 text-sm text-ink-soft">
             What clients can book. Each one has its own price and terms.
           </p>
         </div>
-        {editing === null ? <Button onClick={startNew}>Add a service</Button> : null}
+        {editing === null ? <Button onClick={startNew}>Add a package</Button> : null}
       </div>
 
       {error ? (
@@ -365,11 +365,11 @@ export function ServicesManager({
       {editing !== null ? (
         <Card className="mt-5 p-6">
           <h3 className="serif text-xl text-ink">
-            {editing === "new" ? "New service" : "Edit service"}
+            {editing === "new" ? "New package" : "Edit package"}
           </h3>
           <form onSubmit={save} className="mt-4 grid gap-4">
             <Field
-              label="Service name"
+              label="Package name"
               placeholder="Full-Day Wedding Coverage"
               required
               value={form.name}
@@ -594,7 +594,7 @@ export function ServicesManager({
                     />
                   </label>
                   <span className="mt-1 block text-xs text-ink-faint">
-                    Up to 50MB and 30 seconds each, up to 3 per service.
+                    Up to 50MB and 30 seconds each, up to 3 per package.
                   </span>
                 </div>
               </div>
@@ -608,7 +608,7 @@ export function ServicesManager({
                 className="mt-1"
               />
               <span className="text-sm text-ink-soft">
-                Open to offers on this service
+                Open to offers on this package
                 <span className="block text-xs text-ink-faint">
                   Clients can propose a price and you settle it before booking.
                 </span>
@@ -617,7 +617,7 @@ export function ServicesManager({
 
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : editing === "new" ? "Add service" : "Save changes"}
+                {busy ? "Saving…" : editing === "new" ? "Add package" : "Save changes"}
               </Button>
               <Button variant="ghost" type="button" onClick={() => setEditing(null)}>
                 Cancel
@@ -629,7 +629,7 @@ export function ServicesManager({
 
       {services.length === 0 && editing === null ? (
         <p className="mt-8 text-center text-ink-soft">
-          No services yet. Clients can&apos;t book you until you list at least one.
+          No packages yet. Clients can&apos;t book you until you list at least one.
         </p>
       ) : (
         <div className="mt-5 grid gap-3">

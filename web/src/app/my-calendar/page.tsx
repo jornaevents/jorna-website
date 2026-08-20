@@ -555,7 +555,7 @@ export default function VendorCalendarPage() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <p className="font-medium text-ink">
-                              {b.service_name || "Service"}
+                              {b.service_name || "Package"}
                               {b.client_name ? (
                                 <span className="font-normal text-ink-soft">
                                   {" "}
@@ -626,7 +626,7 @@ export default function VendorCalendarPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 text-sm font-medium text-ink">
-                      {job.booking.service_name || "Service"}
+                      {job.booking.service_name || "Package"}
                     </p>
                     {/* The same dot as the grid and the legend, so a gold day
                         and a gold row are visibly the same fact. */}

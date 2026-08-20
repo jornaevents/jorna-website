@@ -249,7 +249,7 @@ function BookingGuests({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="80"
-        aria-label={`Guests for ${booking.service_name || "this service"}`}
+        aria-label={`Guests for ${booking.service_name || "this package"}`}
         className="w-24 rounded-lg border border-card-edge bg-ground-2 px-2.5 py-1 text-sm tabular-nums text-ink outline-none focus:border-gold"
       />
       <Button size="md" disabled={busy} onClick={save}>
@@ -486,7 +486,7 @@ function BookingRow({
         <div className="flex min-w-0 gap-3">
           <Avatar name={booking.vendor_name} size={40} />
           <div className="min-w-0">
-            <h3 className="serif text-lg text-ink">{booking.service_name || "Service"}</h3>
+            <h3 className="serif text-lg text-ink">{booking.service_name || "Package"}</h3>
             <p className="mt-0.5 text-sm text-ink-soft">
               {booking.vendor_name}
               {booking.service_category
@@ -528,7 +528,7 @@ function BookingRow({
         <p className="mt-3 rounded-lg bg-gold/10 px-3 py-2 text-xs text-ink-soft">
           {/* Reached only when the quantity is still pending, so the caption is
               the rate label rather than a total. */}
-          This service is priced {price.caption || "per unit"}. Its total needs a guest count
+          This package is priced {price.caption || "per unit"}. Its total needs a guest count
           or date range before it can be paid —{" "}
           <a href="#still-needed" className="font-medium text-gold hover:underline">
             add that above
@@ -580,7 +580,7 @@ function BookingRow({
             <p className="text-xs text-ink-soft">
               {awaiting
                 ? `Withdraw your request to ${booking.vendor_name || "this vendor"}? They'll stop seeing it, and the rest of your plan carries on. You can book them again later.`
-                : `Remove ${booking.service_name || "this service"} from the bundle? The rest of your bundle is unaffected.`}
+                : `Remove ${booking.service_name || "this package"} from the bundle? The rest of your bundle is unaffected.`}
             </p>
             <div className="mt-3 flex gap-2">
               <Button size="md" disabled={busy} onClick={() => onRemove(booking)}>
@@ -610,7 +610,7 @@ function BookingRow({
             <MessageVendorButton bookingId={booking.booking_id} />
             {booking.service_category && !awaiting ? (
               <Button variant="ghost" size="md" onClick={() => onSwap(booking)}>
-                Swap service
+                Swap package
               </Button>
             ) : null}
             <Button
@@ -2041,7 +2041,7 @@ function BundleInner() {
           onClose={() => setSwapping(null)}
           onSwapped={async () => {
             setSwapping(null);
-            setNotice({ text: "Service swapped — your date, time, and guest count carried over.", ok: true });
+            setNotice({ text: "Package swapped — your date, time, and guest count carried over.", ok: true });
             await load();
           }}
         />

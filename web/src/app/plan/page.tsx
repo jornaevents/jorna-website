@@ -57,7 +57,7 @@ function SkeletonBundles() {
           jumps from centre to left the moment the bundles arrive. */}
       <h2 className="serif text-3xl text-ink">Assembling three vendor teams…</h2>
       <p className="mt-2 text-sm text-ink-soft">
-        Matching services to your date, budget, and vibe.
+        Matching packages to your date, budget, and vibe.
       </p>
       <div className="mt-6 grid gap-4 pt-4 md:grid-cols-3">
         {[0, 1, 2].map((i) => (

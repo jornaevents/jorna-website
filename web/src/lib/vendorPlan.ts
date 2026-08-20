@@ -264,7 +264,7 @@ export function vendorTasks(
 
   for (const b of bookings) {
     if (isDeadVendorBooking(b)) continue;
-    const service = b.service_name || "a service";
+    const service = b.service_name || "a package";
     const client = b.client_name || "A client";
 
     // Someone is waiting on an answer.
@@ -633,9 +633,9 @@ export function listingHealth(opts: {
   if (services.length === 0) {
     issues.push({
       id: "no-services",
-      issue: "You have no services listed",
+      issue: "You have no packages listed",
       consequence: "There's nothing for a host to book, so you won't appear in search.",
-      cta: "Add a service",
+      cta: "Add a package",
       href: "/vendor-profile#services",
       severity: "critical",
     });
@@ -655,13 +655,13 @@ export function listingHealth(opts: {
 
   const noPhotos = services.filter((s) => !s.media?.length);
   if (noPhotos.length > 0) {
-    const first = noPhotos[0].name || "A service";
+    const first = noPhotos[0].name || "A package";
     issues.push({
       id: "no-photos",
       issue:
         noPhotos.length === 1
           ? `“${first}” has no photos`
-          : `${noPhotos.length} services have no photos`,
+          : `${noPhotos.length} packages have no photos`,
       consequence: "A listing with no photo is the one people scroll past.",
       cta: "Add photos",
       href: "/vendor-profile#services",

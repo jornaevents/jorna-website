@@ -252,7 +252,7 @@ export function DateChangePanel({
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="min-w-0 truncate text-ink">
-                      {b.service_name || "Service"}
+                      {b.service_name || "Package"}
                       <span className="text-ink-faint"> · {b.vendor_name}</span>
                     </span>
                     <span className={`shrink-0 text-xs font-semibold ${v.tone}`}>

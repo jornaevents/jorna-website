@@ -193,12 +193,12 @@ export default function ProfilePage() {
             <Row href="/my-bookings" title="Requests" sub="Accept or decline booking requests" />
             <Row href="/my-availability" title="Hours" sub="Your weekly availability" />
             <Row href="/my-earnings" title="Earnings" sub="Payouts, escrow, and payment setup" />
-            <Row href="/vendor-profile" title="Your listing" sub="Services, prices and how clients see you" />
+            <Row href="/vendor-profile" title="Your listing" sub="Packages, prices and how clients see you" />
           </div>
         ) : (
           <Card className="p-5">
             <p className="text-sm text-ink-soft">
-              Offer your services on Jorna — get discovered by people who are
+              Offer your packages on Jorna — get discovered by people who are
               actively planning, and get paid safely through escrow.
             </p>
             <LinkButton href="/vendor-onboarding" className="mt-4">
@@ -232,7 +232,7 @@ export default function ProfilePage() {
           <>
             <p className="mt-1 max-w-[60ch] text-sm text-ink-soft">
               This removes your account, your celebrations and every booking on
-              them{vendor ? ", along with your vendor profile, services and hours" : ""}.
+              them{vendor ? ", along with your vendor profile, packages and hours" : ""}.
               Vendors you&apos;ve booked lose the request too. It cannot be undone
               and there is no way to get any of it back.
             </p>

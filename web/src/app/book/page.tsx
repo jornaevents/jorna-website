@@ -78,7 +78,7 @@ function BookInner() {
       })
       .catch((err) =>
         !cancelled &&
-        setError(err instanceof ApiError ? err.message : "Couldn't load this service."),
+        setError(err instanceof ApiError ? err.message : "Couldn't load this package."),
       )
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -93,7 +93,7 @@ function BookInner() {
   if (error || !service) {
     return (
       <div className="py-20 text-center">
-        <p className="text-ink-soft">{error ?? "Service not found."}</p>
+        <p className="text-ink-soft">{error ?? "Package not found."}</p>
         <Link href="/marketplace" className="mt-4 inline-block text-sm text-gold hover:underline">
           Back to marketplace
         </Link>
@@ -233,7 +233,7 @@ function BookInner() {
     // needed" card chases the gap — blocking there turned an optional field
     // into a wall in front of the one action on the page.
     if (planAlreadySent && needsGuests && !(Number(guests) > 0)) {
-      setError("This service is priced per person — add a guest count so we can total it.");
+      setError("This package is priced per person — add a guest count so we can total it.");
       return;
     }
     setBusy(true);
@@ -312,7 +312,7 @@ function BookInner() {
           {filledFrom ? (
             <p className="-mt-1 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
               Filled in from this plan: <span className="text-ink">{filledFrom.join(" · ")}</span>.
-              Change anything below that&apos;s different for this service.
+              Change anything below that&apos;s different for this package.
             </p>
           ) : null}
 
@@ -420,7 +420,7 @@ function BookInner() {
             hint={
               needsGuests
                 ? planAlreadySent
-                  ? "This service is priced per person, so the total needs it."
+                  ? "This package is priced per person, so the total needs it."
                   : "Priced per person — add it now or on your plan, before you send."
                 : undefined
             }

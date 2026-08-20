@@ -169,7 +169,7 @@ function Entry({
       <Avatar name={booking.vendor_name} size={32} />
 
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-ink">{booking.service_name || "Service"}</p>
+        <p className="font-medium text-ink">{booking.service_name || "Package"}</p>
         <p className="text-sm text-ink-soft">
           {booking.vendor_name}
           {booking.service_category

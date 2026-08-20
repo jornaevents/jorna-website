@@ -294,7 +294,7 @@ function PricePanel({ service }: { service: ServiceItem }) {
 
       <div className="mt-5 grid gap-2">
         <LinkButton href={`/book?service=${service.service_id}`} size="lg">
-          Request this service
+          Request this package
         </LinkButton>
         {/* Beside the request, not instead of it. A client who isn't ready to
             book had one option on this page and it was a commitment — so the
@@ -393,7 +393,7 @@ function ServiceInner() {
   // setting that state in an effect body cascades a render for nothing.
   const [loading, setLoading] = useState(Boolean(serviceId));
   const [error, setError] = useState<string | null>(
-    serviceId ? null : "No service specified.",
+    serviceId ? null : "No package specified.",
   );
 
   useEffect(() => {
@@ -415,7 +415,7 @@ function ServiceInner() {
       })
       .catch((err) =>
         !cancelled &&
-        setError(err instanceof ApiError ? err.message : "Couldn't load this service."),
+        setError(err instanceof ApiError ? err.message : "Couldn't load this package."),
       )
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -430,7 +430,7 @@ function ServiceInner() {
   if (error || !service) {
     return (
       <div className="py-20 text-center">
-        <p className="text-ink-soft">{error ?? "Service not found."}</p>
+        <p className="text-ink-soft">{error ?? "Package not found."}</p>
         <Link href="/marketplace" className="mt-4 inline-block text-sm text-gold hover:underline">
           Back to marketplace
         </Link>
@@ -505,7 +505,7 @@ function ServiceInner() {
 
           {service.description ? (
             <section className="mt-10">
-              <span className="eyebrow">About this {isVenue ? "venue" : "service"}</span>
+              <span className="eyebrow">About this {isVenue ? "venue" : "package"}</span>
               <p className="mt-3 max-w-[65ch] whitespace-pre-line leading-relaxed text-ink-soft">
                 {service.description}
               </p>

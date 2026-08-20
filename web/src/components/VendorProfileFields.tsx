@@ -83,7 +83,7 @@ export function VendorIdentityFields({
         </select>
         <span className="mt-1 block text-xs text-ink-faint">
           Pick every category you sell in, then any specialities within it —
-          each service you add still gets its own, starting from these.
+          each package you add still gets its own, starting from these.
         </span>
       </label>
 
@@ -216,7 +216,7 @@ export function VendorReachFields({
         <span className="text-sm text-ink-soft">
           I&apos;m open to discussing price
           <span className="block text-xs text-ink-faint">
-            Whether a client can actually make an offer is set per service.
+            Whether a client can actually make an offer is set per package.
           </span>
         </span>
       </label>

@@ -359,7 +359,7 @@ export function DraftDetails({
         {hourly.map((b: BundleBooking) => (
           <div key={b.booking_id}>
             <p className="mb-2 text-sm font-medium text-ink-soft">
-              {b.service_name || "Hourly service"} — charged by the hour
+              {b.service_name || "Hourly package"} — charged by the hour
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>

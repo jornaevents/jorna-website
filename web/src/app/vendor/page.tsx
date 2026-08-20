@@ -317,13 +317,13 @@ function VendorInner() {
       {/* Services */}
       <section className="mt-10">
         <h2 className="serif text-2xl text-ink">
-          Services{" "}
+          Packages{" "}
           {services.length > 0 ? (
             <span className="text-ink-faint">· {services.length}</span>
           ) : null}
         </h2>
         {services.length === 0 ? (
-          <p className="mt-3 text-ink-soft">This vendor hasn&apos;t listed any services yet.</p>
+          <p className="mt-3 text-ink-soft">This vendor hasn&apos;t listed any packages yet.</p>
         ) : (
           <div className="mt-4 grid gap-3">
             {services.map((s) => (

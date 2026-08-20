@@ -94,7 +94,7 @@ export function ServiceSwapPanel({
       // exists returns that same booking. If that happened, removing the
       // "old" booking would delete the very one we just got back.
       if (res.booking_id === booking.booking_id) {
-        setError("That's already the service booked for this slot.");
+        setError("That's already the package booked for this slot.");
         setBusyId(null);
         return;
       }
@@ -102,7 +102,7 @@ export function ServiceSwapPanel({
       await removeBookingFromBundle(bundleId, booking.booking_id);
       onSwapped();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't swap the service.");
+      setError(err instanceof ApiError ? err.message : "Couldn't swap the package.");
       setBusyId(null);
     }
   }
@@ -114,7 +114,7 @@ export function ServiceSwapPanel({
       <Card className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-b-2xl">
         <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-line-soft bg-card p-4">
           <div>
-            <h2 className="serif text-xl text-ink">Swap this service</h2>
+            <h2 className="serif text-xl text-ink">Swap this package</h2>
             <p className="mt-0.5 text-xs text-ink-faint">
               {slot ? categoryLabel(slot) : "Same slot"} · keeps your date, time,
               and guest count
@@ -140,7 +140,7 @@ export function ServiceSwapPanel({
             <p className="py-8 text-center text-ink-soft">Loading alternatives…</p>
           ) : candidates.length === 0 ? (
             <p className="py-8 text-center text-ink-soft">
-              No other {slot ? categoryLabel(slot) : "services"} available right now.
+              No other {slot ? categoryLabel(slot) : "packages"} available right now.
             </p>
           ) : (
             <div className="grid gap-2">

@@ -289,7 +289,7 @@ export default function VendorOnboardingPage() {
       {step === "service" && vendor ? (
         <>
           <h1 className="serif mt-5 text-center text-4xl text-maroon dark:text-gold">
-            List your services
+            List your packages
           </h1>
           <p className="mt-2 text-center text-ink-soft">
             What clients can book — add one for every specialty from step 1.

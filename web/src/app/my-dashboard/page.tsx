@@ -388,7 +388,7 @@ export default function VendorDashboardPage() {
           This is the vendor dashboard
         </h1>
         <p className="mx-auto mt-3 max-w-[44ch] text-ink-soft">
-          You don&apos;t have a vendor profile yet. Set one up to list services, take
+          You don&apos;t have a vendor profile yet. Set one up to list packages, take
           bookings, and get paid through escrow.
         </p>
         <LinkButton href="/vendor-profile" className="mt-6">
@@ -664,7 +664,7 @@ function BookingRow({
     <div className="border-t border-line-soft px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <div className="min-w-0">
-          <p className="font-medium text-ink">{b.service_name || "Service"}</p>
+          <p className="font-medium text-ink">{b.service_name || "Package"}</p>
           <p className="mt-0.5 text-xs text-ink-faint">
             {[
               prettyDate(b.date_iso),

@@ -188,7 +188,7 @@ export default function MyBookingsPage() {
         </h1>
         <p className="mt-3 text-ink-soft">
           Booking requests show up here once you have a vendor profile and at
-          least one service.
+          least one package.
         </p>
         <LinkButton href="/vendor-profile" className="mt-6">
           Create vendor profile
@@ -275,7 +275,7 @@ export default function MyBookingsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="serif text-lg text-ink">
-                      {b.service_name || "Service"}
+                      {b.service_name || "Package"}
                     </h3>
                     <p className="mt-0.5 text-sm text-ink-soft">
                       {b.client_name || "A client"}
