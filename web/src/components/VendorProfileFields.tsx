@@ -128,7 +128,7 @@ export function VendorIdentityFields({
                   type="button"
                   onClick={() => remove(s)}
                   aria-label={`Remove ${specLabel(s, categories)}`}
-                  className="grid size-4 place-items-center rounded-full hover:bg-maroon/15 dark:hover:bg-gold/20"
+                  className="relative grid size-4 place-items-center rounded-full after:absolute after:-inset-3 after:content-[''] hover:bg-maroon/15 dark:hover:bg-gold/20"
                 >
                   ✕
                 </button>

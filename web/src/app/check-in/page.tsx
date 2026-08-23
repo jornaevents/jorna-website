@@ -16,6 +16,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
+import { getLocation, LocationError } from "@/lib/checkin";
 import { checkInWithToken, getCheckInInvite, type CheckInInvite } from "@/lib/jorna";
 import { Button, Card } from "@/components/ui";
 
@@ -73,42 +74,26 @@ function CheckInInner() {
     };
   }, [token]);
 
-  function checkIn() {
-    if (!navigator.geolocation) {
-      setError("This browser can't share a location, so it can't verify you're at the venue.");
-      return;
-    }
+  async function checkIn() {
     setBusy(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const result = await checkInWithToken(
-            token,
-            pos.coords.latitude,
-            pos.coords.longitude,
-          );
-          setDone(result.message ?? "You're checked in.");
-        } catch (err) {
-          // The backend's own wording, which names the distance when that's
-          // the problem — more use than anything this page could invent.
-          setError(
+    try {
+      const pos = await getLocation();
+      const result = await checkInWithToken(token, pos.coords.latitude, pos.coords.longitude);
+      setDone(result.message ?? "You're checked in.");
+    } catch (err) {
+      setError(
+        err instanceof LocationError
+          ? err.message
+          : // The backend's own wording, which names the distance when that's
+            // the problem — more use than anything this page could invent.
             err instanceof ApiError
-              ? err.message
-              : "Couldn't check you in — make sure you're at the venue.",
-          );
-        } finally {
-          setBusy(false);
-        }
-      },
-      () => {
-        setBusy(false);
-        setError(
-          "Couldn't read your location. Allow it in your browser and try again — checking in proves you're at the venue.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15000 },
-    );
+            ? err.message
+            : "Couldn't check you in — make sure you're at the venue.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (!token) {

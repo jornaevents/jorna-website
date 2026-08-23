@@ -11,6 +11,7 @@ import {
   type ServiceItem,
 } from "@/lib/types";
 import { Button, Card } from "./ui";
+import { useOverlay } from "./useOverlay";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -40,6 +41,7 @@ export function ServiceSwapPanel({
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useOverlay<HTMLDivElement>(true, onClose);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,7 +112,14 @@ export function ServiceSwapPanel({
   const slot = booking.service_subcategory || booking.service_category;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Swap this package"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 outline-none sm:items-center sm:p-4"
+    >
       <Card className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-b-2xl">
         <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-line-soft bg-card p-4">
           <div>

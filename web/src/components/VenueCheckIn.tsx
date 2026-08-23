@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api";
 import { checkInBooking } from "@/lib/jorna";
+import { getLocation, LocationError } from "@/lib/checkin";
 import { formatCheckInTime, type BundleBooking } from "@/lib/types";
 import { hasLiveVenue, isDeadBooking as isDead } from "@/lib/planning";
 import { Button, Card } from "@/components/ui";
@@ -64,40 +65,39 @@ export function VenueCheckIn({
     );
   }
 
-  function checkIn() {
-    if (!navigator.geolocation) {
-      setError("This browser can't share a location, so it can't verify you're at the venue.");
-      return;
-    }
+  async function checkIn() {
     setBusy(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const results = await Promise.allSettled(
-          pending.map((b) =>
-            checkInBooking(b.booking_id, pos.coords.latitude, pos.coords.longitude),
-          ),
-        );
-        const failed = results.filter((r) => r.status === "rejected");
-        if (failed.length === results.length) {
-          // Every call failed the same way (distance, or a vanished venue) —
-          // surface the backend's own wording rather than inventing one.
-          const first = (failed[0] as PromiseRejectedResult).reason;
-          setError(
-            first instanceof ApiError
-              ? first.message
-              : "Couldn't check you in — make sure you're at the venue.",
-          );
-        }
-        setBusy(false);
-        await onCheckedIn();
-      },
-      () => {
-        setBusy(false);
-        setError("Couldn't read your location. You'll need to allow it to check in.");
-      },
-      { enableHighAccuracy: true, timeout: 15000 },
+    let pos: GeolocationPosition;
+    try {
+      pos = await getLocation();
+    } catch (err) {
+      setBusy(false);
+      setError(
+        err instanceof LocationError
+          ? err.message
+          : "Couldn't read your location. Make sure location services are on and try again.",
+      );
+      return;
+    }
+    const results = await Promise.allSettled(
+      pending.map((b) =>
+        checkInBooking(b.booking_id, pos.coords.latitude, pos.coords.longitude),
+      ),
     );
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length === results.length) {
+      // Every call failed the same way (distance, or a vanished venue) —
+      // surface the backend's own wording rather than inventing one.
+      const first = (failed[0] as PromiseRejectedResult).reason;
+      setError(
+        first instanceof ApiError
+          ? first.message
+          : "Couldn't check you in — make sure you're at the venue.",
+      );
+    }
+    setBusy(false);
+    await onCheckedIn();
   }
 
   return (

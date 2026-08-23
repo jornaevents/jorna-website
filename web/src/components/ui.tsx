@@ -180,7 +180,7 @@ export function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
+      className={`inline-flex min-h-11 items-center justify-center rounded-full border px-3.5 py-1.5 text-sm transition ${
         active
           ? "border-gold bg-gold/15 text-maroon dark:text-gold"
           : "border-card-edge bg-ground-2 text-ink-soft hover:border-gold/50"
@@ -196,7 +196,7 @@ export function Chip({
     client actually picks a time, so an unanswered field stays unanswered. */
 const ROUND_TIMES = ["10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
-function roundTimeLabel(t: string) {
+export function roundTimeLabel(t: string) {
   const hour24 = Number(t.slice(0, 2));
   const suffix = hour24 < 12 ? "AM" : "PM";
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
@@ -211,7 +211,7 @@ export function TimeQuickPicks({
   onPick: (time: string) => void;
 }) {
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
+    <div className="mt-1.5 flex flex-wrap gap-2">
       {ROUND_TIMES.map((t) => (
         <Chip key={t} active={value === t} onClick={() => onPick(t)}>
           {roundTimeLabel(t)}

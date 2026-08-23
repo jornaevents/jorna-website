@@ -266,7 +266,7 @@ function ConversationInner() {
                     <OfferCard message={m} mine={mine} />
                   ) : (
                     <div
-                      className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+                      className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${
                         mine
                           ? "bg-maroon text-ground dark:bg-gold dark:text-[#2A0C19]"
                           : "bg-card text-ink"

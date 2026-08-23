@@ -11,23 +11,16 @@
 // components/nav.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { NavBadge, NEEDS_YOU, useAppNav } from "./nav";
 import { Card } from "./ui";
+import { useOverlay } from "./useOverlay";
 
 export function MobileNavMenu() {
   const { items, attention, isActive } = useAppNav();
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  const sheetRef = useOverlay<HTMLDivElement>(open, () => setOpen(false));
 
   if (!items) return null;
 
@@ -35,7 +28,7 @@ export function MobileNavMenu() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="relative flex size-9 items-center justify-center text-ink-soft transition hover:text-ink md:hidden"
+        className="relative flex size-11 items-center justify-center text-ink-soft transition hover:text-ink md:hidden"
         aria-label="Menu"
         aria-expanded={open}
       >
@@ -72,7 +65,15 @@ export function MobileNavMenu() {
             >
               {/* Stops the backdrop's close-on-click from also firing for
                   clicks inside the sheet. */}
-              <div className="w-full" onClick={(e) => e.stopPropagation()}>
+              <div
+                ref={sheetRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Menu"
+                tabIndex={-1}
+                className="w-full outline-none"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Card className="max-h-[85vh] w-full overflow-y-auto rounded-b-none">
                   <div className="flex items-center justify-between gap-3 border-b border-line-soft p-4">
                     <span className="serif text-lg text-ink">Menu</span>

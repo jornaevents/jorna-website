@@ -56,6 +56,17 @@ const RATINGS = [
 
 /** Fields the typed query is matched against. iOS also matches a vendor's bio
  *  and subcategory; a search row carries neither, so those are simply absent. */
+/** Today as a local-timezone ISO date. `toISOString()` reads UTC, which is
+ *  "yesterday" for part of the day anywhere east of Greenwich — the same
+ *  off-by-one class of bug fixed in `planning.ts`/`vendorPlan.ts`'s day-range
+ *  helpers, here on the single-day form the date filter's `min` needs. */
+function todayLocalIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 function matches(item: VendorSearchItem, q: string) {
   return [
     `${item.first_name} ${item.last_name}`,
@@ -365,7 +376,7 @@ function MarketplaceInner() {
                 label="Date"
                 type="date"
                 value={date}
-                min={new Date().toISOString().slice(0, 10)}
+                min={todayLocalIso()}
                 onChange={(e) => setDate(e.target.value)}
               />
               {date ? (
