@@ -1,0 +1,22 @@
+# Cloudflare Pages custom response headers. Applies to every route served from
+# this project (marketing page + /app). See docs/ARCHITECTURE.md "External
+# services" for what each allowed host below is for.
+#
+# connect-src is pinned to the exact hosts the app talks to (docs/API.md,
+# lib/api.ts, lib/supabase.ts, lib/firebaseConfig.ts) — tightest directive,
+# since it's the one that stops a script from exfiltrating data to an
+# attacker's server. img-src/media-src are left broader (any https host) on
+# purpose: vendor-uploaded photos/videos are served from wherever the backend
+# puts them, and this repo has no visibility into that storage host. Tighten
+# those two once the backend's media host is confirmed.
+#
+# If NEXT_PUBLIC_API_BASE_URL is ever pointed at a different backend host than
+# the Railway default, this file needs the same update (same hand-sync
+# tradeoff already accepted for design tokens — see docs/DECISIONS.md).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self'; connect-src 'self' https://desiconnect-production.up.railway.app wss://desiconnect-production.up.railway.app https://ddfjhfqrrgvzphwiinch.supabase.co https://fcm.googleapis.com https://firebaseinstallations.googleapis.com; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), usb=(), payment=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
