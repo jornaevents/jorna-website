@@ -33,6 +33,7 @@ import {
   type VendorDetail,
 } from "@/lib/types";
 import { geocodeUsAddress } from "@/lib/geocode";
+import { checkImageFiles, checkVideoFiles, describeRejections } from "@/lib/uploads";
 import { Button, Card, Field } from "./ui";
 
 function money(n: number) {
@@ -300,8 +301,12 @@ export function ServicesManager({
     setUploadingFor(serviceId);
     setError(null);
     try {
-      await uploadServiceImages(serviceId, Array.from(files));
-      await refresh();
+      const { ok, rejected } = checkImageFiles(Array.from(files));
+      if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
+      if (ok.length) {
+        await uploadServiceImages(serviceId, ok);
+        await refresh();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't upload those photos.");
     } finally {
@@ -325,8 +330,12 @@ export function ServicesManager({
     setUploadingVideoFor(serviceId);
     setError(null);
     try {
-      await uploadServiceVideos(serviceId, Array.from(files));
-      await refresh();
+      const { ok, rejected } = await checkVideoFiles(Array.from(files));
+      if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
+      if (ok.length) {
+        await uploadServiceVideos(serviceId, ok);
+        await refresh();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't upload that video.");
     } finally {
@@ -342,6 +351,20 @@ export function ServicesManager({
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't remove that video.");
     }
+  }
+
+  // Checked at picking time, not at save time — a rejected file should never
+  // sit unexplained in "3 selected" until the form is submitted.
+  function pickNewPhotos(files: FileList | null) {
+    const { ok, rejected } = checkImageFiles(Array.from(files ?? []));
+    if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
+    setNewPhotos(ok);
+  }
+
+  async function pickNewVideos(files: FileList | null) {
+    const { ok, rejected } = await checkVideoFiles(Array.from(files ?? []));
+    if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
+    setNewVideos(ok);
   }
 
   return (
@@ -575,7 +598,7 @@ export function ServicesManager({
                       accept="image/*"
                       multiple
                       className="hidden"
-                      onChange={(e) => setNewPhotos(Array.from(e.target.files ?? []))}
+                      onChange={(e) => pickNewPhotos(e.target.files)}
                     />
                   </label>
                 </div>
@@ -590,7 +613,7 @@ export function ServicesManager({
                       accept="video/mp4,video/quicktime,video/webm"
                       multiple
                       className="hidden"
-                      onChange={(e) => setNewVideos(Array.from(e.target.files ?? []))}
+                      onChange={(e) => void pickNewVideos(e.target.files)}
                     />
                   </label>
                   <span className="mt-1 block text-xs text-ink-faint">
@@ -663,7 +686,7 @@ export function ServicesManager({
                 </div>
 
                 {/* Photos & videos */}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   {usableMedia(s.media).map((item: MediaItem) => {
                     // A video's file can't go in an <img> — its server-generated
                     // poster frame stands in for it here.
@@ -700,7 +723,7 @@ export function ServicesManager({
                               ? removeVideo(s.service_id, item.url)
                               : removePhoto(s.service_id, item.url)
                           }
-                          className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground"
+                          className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground after:absolute after:-inset-2 after:content-['']"
                           aria-label={`Remove ${item.type}`}
                         >
                           ✕

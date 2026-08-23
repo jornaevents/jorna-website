@@ -49,8 +49,29 @@ import {
   type BookingGapField,
 } from "@/lib/planning";
 import { priceUnitKind, type BundleDetail, type BundleBooking } from "@/lib/types";
+import { crossesMidnight, hoursBetween } from "@/lib/pricing";
 import { AddressFields } from "@/components/AddressFields";
-import { Button, Card, Field, TimeQuickPicks } from "@/components/ui";
+import { Button, Card, Field, roundTimeLabel, TimeQuickPicks } from "@/components/ui";
+
+/**
+ * This card autosaves with no submit step to gate (see the header comment),
+ * so an overnight window can't be blocked the way `/book` blocks it — this is
+ * the same warning as a heads-up instead, so 8 PM–12 PM still reads back as
+ * "that's tomorrow noon" rather than silently becoming an 18-hour booking.
+ */
+function OvernightNote({ start, end }: { start: string; end: string }) {
+  if (!crossesMidnight(start, end)) return null;
+  const hours = hoursBetween(start, end);
+  return (
+    <p className="mt-2 rounded-lg bg-gold/10 px-3 py-2 text-xs text-ink-soft">
+      <strong className="text-ink">
+        {roundTimeLabel(start)} to {roundTimeLabel(end)} runs into the next day
+      </strong>
+      {hours != null ? ` — ${hours} hours total.` : "."} If that&apos;s not what you meant,
+      change the end time to earlier the same evening.
+    </p>
+  );
+}
 
 /**
  * How long a pause counts as "done typing".
@@ -349,6 +370,7 @@ export function DraftDetails({
                 <TimeQuickPicks value={hoursEnd} onPick={setHoursEnd} />
               </div>
             </div>
+            <OvernightNote start={hoursStart} end={hoursEnd} />
             <p className="mt-2 text-xs text-ink-faint">
               Goes to every vendor who doesn&apos;t have their own hours below.
               You can give them different times once they&apos;ve accepted.
@@ -407,6 +429,10 @@ export function DraftDetails({
                 />
               </div>
             </div>
+            <OvernightNote
+              start={times[b.booking_id]?.start ?? ""}
+              end={times[b.booking_id]?.end ?? ""}
+            />
           </div>
         ))}
       </div>

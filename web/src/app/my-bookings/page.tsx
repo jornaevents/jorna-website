@@ -1,17 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
   confirmBookingEvent,
   getMyVendor,
+  getStripeStatus,
   listVendorBookings,
   respondToChange,
   setBookingStatus,
 } from "@/lib/jorna";
-import { checkInAtVenue } from "@/lib/checkin";
+import { checkInAtVenue, LocationError } from "@/lib/checkin";
+import { paymentsSetup } from "@/lib/vendorPlan";
 import {
   BOOKING_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -19,6 +22,7 @@ import {
   eventIsOver,
   formatCheckInTime,
   priceLine,
+  type StripeStatus,
   type VendorBooking,
   type VendorDetail,
 } from "@/lib/types";
@@ -75,6 +79,11 @@ export default function MyBookingsPage() {
   const [confirmDecline, setConfirmDecline] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("pending");
+  // Whether accepting here would actually get this vendor paid — the Stripe
+  // gate used to only surface on /my-dashboard, so a vendor who works from
+  // this page could accept any number of bookings without ever seeing it.
+  const [stripe, setStripe] = useState<StripeStatus | null>(null);
+  const [stripeChecked, setStripeChecked] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/my-bookings");
@@ -92,7 +101,13 @@ export default function MyBookingsPage() {
       .then(async (mine) => {
         if (cancelled) return;
         setVendor(mine);
-        if (mine) await load(mine.vendor_id);
+        if (mine) {
+          await load(mine.vendor_id);
+          getStripeStatus(mine.vendor_id)
+            .then((s) => !cancelled && setStripe(s))
+            .catch(() => !cancelled && setStripe(null))
+            .finally(() => !cancelled && setStripeChecked(true));
+        }
       })
       .catch((err) =>
         !cancelled &&
@@ -152,7 +167,12 @@ export default function MyBookingsPage() {
       await load(vendor.vendor_id);
       setNotice("Confirmed. The payment releases once the client confirms too.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : fallback);
+      // A LocationError explains a permission/GPS problem specifically —
+      // showing the generic fallback instead left a blocked vendor no wiser
+      // about why "make sure you're at the venue" kept failing when they were.
+      setError(
+        err instanceof ApiError || err instanceof LocationError ? err.message : fallback,
+      );
     } finally {
       setBusyId(null);
     }
@@ -199,6 +219,8 @@ export default function MyBookingsPage() {
 
   const shown = bookings.filter((b) => matches(filter, b));
   const pendingCount = bookings.filter((b) => matches("pending", b)).length;
+  const setup = paymentsSetup(stripe);
+  const paymentsBlocked = stripeChecked && !setup.ready;
 
   return (
     <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">
@@ -214,6 +236,18 @@ export default function MyBookingsPage() {
             : "Nothing waiting on you right now."}
         </p>
       </header>
+
+      {paymentsBlocked ? (
+        <div className="mt-6 rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-ink-soft">
+          <p>
+            <strong className="text-ink">{setup.title}.</strong> {setup.detail} You can still
+            accept requests below, but you won&apos;t be paid for them until this is sorted.
+          </p>
+          <Link href="/my-earnings" className="mt-1.5 inline-block font-semibold text-gold hover:underline">
+            {setup.cta} →
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -336,21 +370,28 @@ export default function MyBookingsPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-3 flex flex-wrap justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="md"
-                        onClick={() => setConfirmDecline(b.booking_id)}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        size="md"
-                        disabled={busyId === b.booking_id}
-                        onClick={() => decide(b, "approved")}
-                      >
-                        {busyId === b.booking_id ? "Accepting…" : "Accept"}
-                      </Button>
+                    <div className="mt-3">
+                      {paymentsBlocked ? (
+                        <p className="mb-2 text-right text-xs text-gold">
+                          Accepting won&apos;t pay out yet — {setup.title.toLowerCase()}.
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="md"
+                          onClick={() => setConfirmDecline(b.booking_id)}
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          size="md"
+                          disabled={busyId === b.booking_id}
+                          onClick={() => decide(b, "approved")}
+                        >
+                          {busyId === b.booking_id ? "Accepting…" : "Accept"}
+                        </Button>
+                      </div>
                     </div>
                   )
                 ) : null}

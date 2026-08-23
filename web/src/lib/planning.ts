@@ -696,15 +696,31 @@ export function runSheetIsDue(days: ScheduleDay[], within = RUN_SHEET_DAYS): boo
   return n != null && n <= within;
 }
 
-/** Inclusive list of ISO days from `start` to `end`, capped so a bad range can't run away. */
+function isoOfLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * Inclusive list of ISO days from `start` to `end`, capped so a bad range can't
+ * run away.
+ *
+ * Builds each day from local date parts (`isoOfLocalDate`) rather than
+ * `toISOString().slice(0, 10)` — that round-trips through UTC, so east of
+ * Greenwich a local midnight lands on the previous UTC day and every date in
+ * the range comes out one day early. Same bug already found and fixed in
+ * `vendorPlan.ts`'s `spanDays`; this mirrors that fix so the client-side run
+ * sheet and the vendor's calendar agree on which days a booking covers.
+ */
 function daysBetween(start: string, end?: string | null): string[] {
   if (!end || end === "TBD" || end === start) return [start];
-  const from = Date.parse(`${start}T00:00:00`);
-  const to = Date.parse(`${end}T00:00:00`);
-  if (Number.isNaN(from) || Number.isNaN(to) || to < from) return [start];
+  const from = new Date(`${start}T00:00:00`);
+  const to = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return [start];
   const days: string[] = [];
-  for (let t = from; t <= to && days.length < 31; t += 86_400_000) {
-    days.push(new Date(t).toISOString().slice(0, 10));
+  for (const d = new Date(from); d <= to && days.length < 31; d.setDate(d.getDate() + 1)) {
+    days.push(isoOfLocalDate(d));
   }
   return days;
 }

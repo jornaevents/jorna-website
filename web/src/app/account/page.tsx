@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { changePassword, updateMe, uploadAvatar } from "@/lib/jorna";
+import { checkImageFiles, describeRejections } from "@/lib/uploads";
 import { Button, Card, Field } from "@/components/ui";
 import { CityCombobox } from "@/components/CityCombobox";
 
@@ -72,10 +73,16 @@ export default function AccountPage() {
 
   async function onAvatar(file: File | undefined) {
     if (!file) return;
+    const { ok, rejected } = checkImageFiles([file]);
+    if (rejected.length) {
+      setProfileErr(`Skipped: ${describeRejections(rejected)}.`);
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
     setUploading(true);
     setProfileErr(null);
     try {
-      const updated = await uploadAvatar(file);
+      const updated = await uploadAvatar(ok[0]);
       setUser(updated);
     } catch (err) {
       setProfileErr(err instanceof ApiError ? err.message : "Couldn't upload that photo.");

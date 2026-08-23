@@ -40,6 +40,22 @@ function prettyDate(iso?: string | null): string | null {
     : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+/**
+ * There's one clock for the whole request, not one for the vendor's answer
+ * and a fresh one for the client's consent — a vendor who takes 5 of the 7
+ * days to accept-with-reprice leaves the client 2, not another 7. So this
+ * reads the same `expires_at` regardless of which side is currently up.
+ */
+function expiryLabel(expiresAt?: string | null): string | null {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  const days = Math.ceil(ms / 86_400_000);
+  if (days <= 0) return "Expires today";
+  if (days === 1) return "1 day left to answer";
+  return `${days} days left to answer`;
+}
+
 /** How a single vendor has answered, in a word and a colour. */
 function verdict(cr: ChangeRequest): { text: string; tone: string } {
   if (awaitingClientConsent(cr)) {
@@ -85,6 +101,12 @@ export function DateChangePanel({
     (b) => b.change_request?.status === "pending",
   );
   const anyOpen = outstanding.length > 0;
+  // "Pending" covers two very different waits — a vendor hasn't answered yet,
+  // or a vendor already has and it's the client who owes a click (and a
+  // charge). Conflating them told a client to sit tight on a request that was
+  // actually theirs to finish.
+  const needingConsent = outstanding.filter((b) => awaitingClientConsent(b.change_request!));
+  const anyNeedsConsent = needingConsent.length > 0;
 
   // Only bookings a vendor has actually agreed to can be asked to move. The
   // server says the same, so offering it more widely would only earn a refusal.
@@ -119,12 +141,18 @@ export function DateChangePanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="serif text-lg text-ink">
-            {anyOpen ? "Waiting on your vendors" : "Need to move the date?"}
+            {anyNeedsConsent
+              ? "A vendor needs your approval"
+              : anyOpen
+                ? "Waiting on your vendors"
+                : "Need to move the date?"}
           </h2>
           <p className="mt-1 max-w-[62ch] text-sm text-ink-soft">
-            {anyOpen
-              ? `Each vendor answers for themselves. They have ${CHANGE_RESPONSE_DAYS} days — nothing is charged or refunded until they do.`
-              : `Your vendors hold this date, so moving it is something they agree to rather than something you can change. Ask them all at once; each answers for themselves.`}
+            {anyNeedsConsent
+              ? `The new date costs more for ${needingConsent.length === 1 ? "one vendor" : `${needingConsent.length} vendors`} — approve the new price below to lock in the move. Nothing is charged until you do, but it doesn't happen on its own either.`
+              : anyOpen
+                ? `Each vendor answers for themselves. They have ${CHANGE_RESPONSE_DAYS} days — nothing is charged or refunded until they do.`
+                : `Your vendors hold this date, so moving it is something they agree to rather than something you can change. Ask them all at once; each answers for themselves.`}
           </p>
         </div>
         {!anyOpen && !proposing ? (
@@ -283,7 +311,15 @@ export function DateChangePanel({
                       >
                         {busy === cr.change_request_id ? "Confirming…" : "Approve & move"}
                       </Button>
+                      {expiryLabel(cr.expires_at) ? (
+                        <span className="w-full text-xs text-gold">
+                          {expiryLabel(cr.expires_at)} — after that this vendor keeps the
+                          original date.
+                        </span>
+                      ) : null}
                     </div>
+                  ) : cr.status === "pending" && expiryLabel(cr.expires_at) ? (
+                    <p className="mt-1 text-xs text-ink-faint">{expiryLabel(cr.expires_at)}</p>
                   ) : null}
 
                   {canRefund ? (

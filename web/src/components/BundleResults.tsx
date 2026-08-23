@@ -10,6 +10,7 @@
 // (see chatbot_service._price_for) and says which figures are still rates, so
 // this can show what a bundle actually costs — and admit when it can't.
 
+import { useState } from "react";
 import {
   categoryLabel,
   priceLine,
@@ -56,6 +57,7 @@ function BundleCard({
   onChoose?: (option: BundleOption) => void;
   choosing?: boolean;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const { bundle } = option;
   const unfilled = bundle.unfilled_categories ?? [];
   const count = bundle.items.length;
@@ -200,14 +202,35 @@ function BundleCard({
       ) : null}
 
       {onChoose ? (
-        <Button
-          className="mt-5 w-full"
-          variant={recommended ? "primary" : "ghost"}
-          disabled={choosing || !option.bundle_id}
-          onClick={() => onChoose(option)}
-        >
-          {choosing ? "Setting up…" : "Choose this bundle"}
-        </Button>
+        confirming && !choosing ? (
+          <div className="mt-5 grid gap-2">
+            <p className="text-xs text-ink-soft">
+              This discards the other two options — you won&apos;t be able to
+              come back and compare them.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                variant={recommended ? "primary" : "ghost"}
+                onClick={() => onChoose(option)}
+              >
+                Yes, choose this
+              </Button>
+              <Button variant="quiet" onClick={() => setConfirming(false)}>
+                Keep comparing
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            className="mt-5 w-full"
+            variant={recommended ? "primary" : "ghost"}
+            disabled={choosing || !option.bundle_id}
+            onClick={() => setConfirming(true)}
+          >
+            {choosing ? "Setting up…" : "Choose this bundle"}
+          </Button>
+        )
       ) : null}
     </Card>
   );

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { createBooking, getService, listBundles } from "@/lib/jorna";
-import { daysBetweenInclusive, estimateTotal, hoursBetween } from "@/lib/pricing";
+import { crossesMidnight, daysBetweenInclusive, estimateTotal, hoursBetween } from "@/lib/pricing";
 import {
   categoryLabel,
   priceUnitKind,
@@ -14,7 +14,7 @@ import {
   type BundleDetail,
   type ServiceItem,
 } from "@/lib/types";
-import { Button, Card, Field, TimeQuickPicks } from "@/components/ui";
+import { Button, Card, Field, roundTimeLabel, TimeQuickPicks } from "@/components/ui";
 import { ClientOnlyRoute } from "@/components/ClientOnlyRoute";
 
 function money(n: number) {
@@ -47,6 +47,9 @@ function BookInner() {
   // never asked. Empty is honest, and the plan chases it before sending.
   const [timeStart, setTimeStart] = useState("");
   const [timeEnd, setTimeEnd] = useState("");
+  // Cleared whenever the times change, so acknowledging one overnight window
+  // doesn't silently carry over to a different pair of times.
+  const [overnightAck, setOvernightAck] = useState(false);
   const [location, setLocation] = useState("");
   const [guests, setGuests] = useState("");
   const [bundleChoice, setBundleChoice] = useState(NEW_BUNDLE);
@@ -60,6 +63,10 @@ function BookInner() {
       router.replace(`/login?next=/book${serviceId ? `?service=${serviceId}` : ""}`);
     }
   }, [authLoading, user, router, serviceId]);
+
+  useEffect(() => {
+    setOvernightAck(false);
+  }, [timeStart, timeEnd]);
 
   useEffect(() => {
     if (!serviceId || !user) return;
@@ -236,6 +243,10 @@ function BookInner() {
       setError("This package is priced per person — add a guest count so we can total it.");
       return;
     }
+    if (crossesMidnight(timeStart, timeEnd) && !overnightAck) {
+      setError("Confirm the overnight time window above before sending.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -262,6 +273,8 @@ function BookInner() {
   }
 
   const total = estimate();
+  const overnight = crossesMidnight(timeStart, timeEnd);
+  const blockedByOvernight = overnight && !overnightAck;
 
   return (
     <div className="mx-auto w-[min(var(--container-page),100%-2rem)] py-10">
@@ -395,6 +408,27 @@ function BookInner() {
             </div>
           </div>
 
+          {overnight ? (
+            <label className="flex items-start gap-2.5 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={overnightAck}
+                onChange={(e) => setOvernightAck(e.target.checked)}
+              />
+              <span>
+                <strong className="text-ink">
+                  {roundTimeLabel(timeStart)} to {roundTimeLabel(timeEnd)} spans into the next
+                  day
+                </strong>
+                {hoursBetween(timeStart, timeEnd) != null
+                  ? ` — that's ${hoursBetween(timeStart, timeEnd)} hours total.`
+                  : "."}{" "}
+                Check this to confirm that&apos;s what you meant, not a typo for the same evening.
+              </span>
+            </label>
+          ) : null}
+
           <Field
             label="Location"
             placeholder="Venue or address"
@@ -456,7 +490,7 @@ function BookInner() {
               and a single send when the plan is already out with its vendors. */}
           {planAlreadySent ? (
             <>
-              <Button type="submit" size="lg" disabled={busy || draftBusy}>
+              <Button type="submit" size="lg" disabled={busy || draftBusy || blockedByOvernight}>
                 {busy ? "Sending request…" : "Send this request"}
               </Button>
               <p className="text-center text-xs text-ink-faint">
@@ -467,7 +501,7 @@ function BookInner() {
             </>
           ) : (
             <>
-              <Button type="submit" size="lg" disabled={busy || draftBusy}>
+              <Button type="submit" size="lg" disabled={busy || draftBusy || blockedByOvernight}>
                 {busy ? "Adding…" : "Add to plan"}
               </Button>
               {/* type="button" so it never trips the form's required fields —

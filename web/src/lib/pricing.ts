@@ -123,6 +123,23 @@ export function hoursBetween(
   return hours > 0 && hours <= 24 ? hours : null;
 }
 
+/**
+ * True when an end time at or before the start time is being read as "the
+ * next day" rather than as a mistake — the same branch `hoursBetween` takes
+ * silently. Lets a caller warn before treating, say, 8 PM–12 PM as an
+ * 18-hour overnight booking instead of a fumbled "midnight."
+ */
+export function crossesMidnight(
+  timeStart?: string | null,
+  timeEnd?: string | null,
+): boolean {
+  if (!timeStart || !timeEnd) return false;
+  const [sh, sm] = timeStart.split(":").map(Number);
+  const [eh, em] = timeEnd.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return false;
+  return eh + em / 60 - (sh + sm / 60) <= 0;
+}
+
 /** "150 guests" / "6 hours" / "3 days" — names the quantity an estimate used, so
  *  a total is never shown without saying what it assumed. */
 export function quantityPhrase(kind: PriceUnitKind, quantity: Quantity): string | null {

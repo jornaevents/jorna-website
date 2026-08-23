@@ -57,8 +57,24 @@ export function NegotiationPanel({
     }
   }, [bookingId]);
 
+  // Initial load, plus a poll and a refetch-on-return so a turn taken while
+  // this tab was in the background (or just sitting open) shows up without a
+  // manual reload. There's no live socket for negotiations the way chat has
+  // one, so this mirrors conversation/page.tsx's poll fallback rather than
+  // its socket.
   useEffect(() => {
     void load();
+    const poll = setInterval(() => void load(), 8000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [load]);
 
   async function run(action: () => Promise<Negotiation>, settled = false) {
