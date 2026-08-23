@@ -13,10 +13,7 @@ here.
                          serves everything in public/
 ┌───────────────────────────────────────────────────────────────┐
 │  public/                                                       │
-│    index.html        legacy hand-written marketing page        │
-│                       (no build step — currently NOT served     │
-│                       at "/", see "Root routing" below)         │
-│    help/index.html    static help page                          │
+│    help/index.html    static help page (no build step)          │
 │    app/                GENERATED — Next.js static export,       │
 │                         gitignored, rebuilt by `npm run build`  │
 │    _redirects          Pages rewrite rules (order matters)      │
@@ -51,17 +48,18 @@ hand-maintained — there is no code generation. Treat backend behavior
 described in `types.ts`/`jorna.ts` comments as accurate-at-last-edit, not
 guaranteed current; verify against the running API if a change depends on it.
 
-## Root routing (a non-obvious current state)
+## Root routing
 
-`public/index.html` was originally the marketing page served at `/`. That was
-true until `public/_redirects` was changed (commit `58ce333`, 2026-07-31):
-`/` now rewrites (HTTP 200, not a redirect) to `/app/`, which renders
-`web/src/app/page.tsx` → `web/src/app/home/page.tsx` — the Next app's own
-Home screen. `public/index.html` still exists on disk but is currently
-reachable only via a direct `/index.html` request, not at the site root.
-`README.md` now reflects this; **trust `public/_redirects` and
-`web/src/app/page.tsx` as the actual behavior** if the two ever disagree
-again after a future change.
+`public/index.html` was originally a hand-written marketing page served at
+`/`, separate from the Next app under `/app`. As of commit `58ce333`
+(2026-07-31), `public/_redirects` rewrites `/` (HTTP 200, not a redirect) to
+`/app/`, which renders `web/src/app/page.tsx` → `web/src/app/home/page.tsx`
+— the Next app's own Home screen. `public/index.html` was deleted in that
+same commit and is not coming back — the app's Home page is the permanent
+site root, a settled decision as of 2026-08-22, not an interim state. See
+`docs/DECISIONS.md` for the full history. **Trust `public/_redirects` and
+`web/src/app/page.tsx` as the actual behavior** if this doc and the code
+ever disagree after a future change.
 
 ## Request/data flow
 
@@ -111,17 +109,18 @@ including the booking status model (`status` and `payment_status` are two
 independent fields, not one enum — the single most non-obvious fact about
 this data model).
 
-## Design tokens (deliberately duplicated)
+## Design tokens
 
-The color/typography tokens exist in **two places** and are kept in sync by
-hand, not by a shared build step:
-- `public/index.html` — inline `:root` + a `prefers-color-scheme: dark` block
-  (the marketing page has no build step by design).
-- `web/src/app/globals.css` — the same palette as Tailwind v4 `@theme`
-  variables (`--color-*`, consumed as `bg-maroon`/`text-gold`/etc.), plus
-  `--font-serif`/`--font-sans` and `--container-wide`/`--container-page`.
-
-Changing brand colors means editing both files.
+Color/typography tokens live in one place: `web/src/app/globals.css`, as
+Tailwind v4 `@theme` variables (`--color-*`, consumed as
+`bg-maroon`/`text-gold`/etc.), plus `--font-serif`/`--font-sans` and
+`--container-wide`/`--container-page`. Until 2026-07-31 these were also
+duplicated inline in `public/index.html` (the marketing page had no build
+step by design, so it couldn't consume the Tailwind theme); that file no
+longer exists (see "Root routing" above), so `globals.css` is now the sole
+source — nothing to hand-sync anymore. `public/help/index.html` is the one
+remaining no-build-step static file, and does not currently share these
+tokens.
 
 **Light/dark mechanism:** a `data-theme="light"|"dark"` attribute on the root
 element is the primary switch (set by a small inline theme script so there's

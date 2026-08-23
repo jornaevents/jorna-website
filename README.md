@@ -1,24 +1,28 @@
 # jornaevents.com
 
-The Jorna site: the **marketing page** at `/` plus the **Jorna web app** at
-`/app`, served as a static export from one Cloudflare Pages project
-(`jorna-events`) out of one repo. (Previously a Cloudflare Worker; migrated
-off Workers Static Assets — see `docs/DECISIONS.md` for why.)
+The Jorna site: the **Jorna web app**, served at both `/` and `/app`, plus a
+small hand-written **help page** at `/help`. Everything is a static export
+from one Cloudflare Pages project (`jorna-events`) out of one repo.
+(Previously a Cloudflare Worker; migrated off Workers Static Assets — see
+`docs/DECISIONS.md` for why.)
 
 ```
-public/index.html    the marketing page (hand-written, no build step)
 public/app/          the web app's static export — GENERATED, gitignored
+public/help/         static help page (hand-written, no build step)
+public/_redirects    rewrites "/" to "/app/" — see "Root routing" below
 web/                 the web app source (Next.js)
 wrangler.jsonc       Cloudflare Pages config (serves ./public)
 ```
 
-Note: `/` currently serves the web app's own Home page, not
-`public/index.html` — see "Root routing" in `docs/ARCHITECTURE.md`.
+## Root routing
 
-## The marketing page
-
-Still one self-contained file. Open `public/index.html` and edit — CSS and JS
-are inline. Preview by double-clicking it; it renders straight from disk.
+`/` rewrites (HTTP 200, not a redirect) to `/app/`, which renders
+`web/src/app/page.tsx` → the app's own Home screen (`web/src/app/home/`).
+There is no separate marketing page anymore — the standalone
+`public/index.html` that used to serve `/` was deleted (commit `58ce333`,
+2026-07-31) once the app's own Home page took over the site root
+permanently. See "Root routing" in `docs/ARCHITECTURE.md` for the mechanics
+of the rewrite.
 
 ## The web app (`/app`)
 
@@ -61,11 +65,10 @@ ship whatever stale build happens to be on disk.
 
 ## Design notes
 
-- The app reuses the marketing palette: the same maroon/gold/cream tokens are
-  defined as Tailwind v4 theme variables in `web/src/app/globals.css`.
-- Marketing palette lives in `:root` in `public/index.html`, with a
-  `prefers-color-scheme: dark` block overriding it. Change a color there, not inline.
+- Brand tokens (maroon/gold/cream, light + dark) are Tailwind v4 `@theme`
+  variables in `web/src/app/globals.css` — the single source now that there's
+  no separate marketing page to keep in sync by hand.
 - Fonts are system stacks (Didot/Palatino serif for headings, Avenir Next/Segoe UI
   for body) — nothing is fetched over the network.
-- The client/vendor tabs and the scroll-reveal animation are the only JS on the
-  marketing page, at the bottom of the file.
+- `public/help/index.html` is still a hand-written, no-build-step static file —
+  open and edit it directly, same as the old marketing page used to be.

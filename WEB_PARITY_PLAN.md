@@ -11,14 +11,19 @@ each one should leave the app in a working state.
 
 ## Done
 
-- [x] **Navigation mirrors the iOS tab bar.** A role-aware bottom tab bar
-  (`AppTabBar`), shown only when signed in:
-  - Client: Home (browse) · Build · Bundles · Messages · Profile
+- [x] **Navigation mirrors the iOS tab bar's destinations**, though not its
+  literal form any more — a role-aware bottom tab bar (`AppTabBar`) was the
+  original approach but was later replaced by `MobileNavMenu` (a hamburger
+  opening a full destination list), because a client's 7 destinations didn't
+  fit one row at a readable label size. See `docs/MODULE_MAP.md` "App shell &
+  routing."
+  - Client: Home (browse) · Build · Bundles · Messages · Profile (+ more, via
+    the menu)
   - Vendor: Home (browse) · Bookings · Messages · Profile
   - Role = has a vendor profile (`getMyVendor != null`), same signal as iOS.
   - Header slimmed to wordmark + escape + auth; `/profile` is the account hub
     (planning links for all; selling links for vendors, "start selling" for
-    clients). `/messages` is a placeholder until Phase C.
+    clients). `/messages` is a real inbox — see Phase C below, done.
 
 
 - [x] Design system, auth (email/password), typed API client with token refresh
@@ -81,7 +86,8 @@ take money; B5–B6 complete their side.
     400s the user can't act on. Changing category clears the speciality rather
     than sending a stale pair.
 
-- [x] **B2. Services CRUD** — `/my-services`
+- [x] **B2. Services CRUD** — originally its own `/my-services` page, since
+  folded into `/vendor-profile` (see `ServicesManager.tsx`'s header comment)
   - List, create, edit, delete; photos added and removed inline.
   - Rate + unit (flat/person/hour/day) with a note that anything but flat needs a
     quantity from the client before it can be paid. `negotiable` per service.

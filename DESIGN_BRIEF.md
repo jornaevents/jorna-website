@@ -185,7 +185,8 @@ established, design…"*
 ### Vendor journey
 
 **17. Become a vendor / edit profile** (`/vendor-profile`)
-**18. My services** (`/my-services`)
+**18. My services** — folded into `/vendor-profile` (`ServicesManager.tsx`),
+not a separate route any more
 > List, plus create/edit with rate + unit (flat / per person / per hour / per
 > day), a negotiable toggle, photo management, and the venue-only case that
 > **requires an address and map coordinates**.

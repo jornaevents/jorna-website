@@ -1,9 +1,11 @@
 # Deploying jornaevents.com
 
-The site (marketing page at `/` + the web app under `/app`) is a static export
-in `public/`, hosted on **Cloudflare Pages** (project `jorna-events`). The apex
-`jornaevents.com` is a custom domain on that project. The old Workers
-Static Assets deployment (`misty-water-0dbb`) is deleted.
+The site (the web app, serving both `/` and `/app`, plus a small static
+`/help` page) is a static export in `public/`, hosted on **Cloudflare Pages**
+(project `jorna-events`). The apex `jornaevents.com` is a custom domain on
+that project. The old Workers Static Assets deployment (`misty-water-0dbb`)
+is deleted. There is no separate marketing page anymore — see "Root routing"
+in `docs/ARCHITECTURE.md`.
 
 > **Why Pages, not Workers.** It was on Workers Static Assets, whose many-file
 > asset serving intermittently dropped every `/app` route (marketing page stayed
@@ -16,10 +18,12 @@ Static Assets deployment (`misty-water-0dbb`) is deleted.
 npm run deploy
 ```
 
-Builds the app into `public/app`, runs `wrangler pages deploy public`, then
-fetches every route on `https://jornaevents.com` and re-deploys until they all
-serve 200 for three consecutive sweeps (see `scripts/deploy.mjs`).
-`npm run deploy:once` is the raw single-shot.
+Installs `web/`'s dependencies fresh from the lockfile (`npm ci`, not
+whatever a developer's local `node_modules` happens to hold), builds the app
+into `public/app`, runs `wrangler pages deploy public`, then fetches every
+route on `https://jornaevents.com` and re-deploys until they all serve 200
+for three consecutive sweeps (see `scripts/deploy.mjs`). `npm run deploy:once`
+is the raw single-shot and skips the `npm ci` step.
 
 ## Gotcha: don't byte-compare the apex against `*.pages.dev`
 

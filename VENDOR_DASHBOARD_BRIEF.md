@@ -1,5 +1,14 @@
 # Vendor dashboard — design brief for Figma Make
 
+**Shipped** (2026-08-22 note): this brief's design was ported and is live at
+`/my-dashboard` (`web/src/app/my-dashboard/page.tsx`, whose own header
+comment cites this brief and the 2026-07-27 Figma Make export by name). Same
+staleness pattern as `MESSAGING_PROPOSAL.md`/`RESCHEDULE_PROPOSAL.md` (see
+`docs/BOOKING_FLOW.md`): treat what follows as design rationale for the page
+that exists, not as an open task — the "existing vendor pages" list near the
+end of this doc predates the dashboard it's itself describing and should
+read `/my-dashboard` alongside the rest.
+
 Everything below is checked against the real API and the real tokens in
 [`web/src/app/globals.css`](web/src/app/globals.css), as of 2026-07-27. Nothing
 in the prompt asks for a number the backend can't supply — see
@@ -206,5 +215,6 @@ system. That's how the client marketing page was brought over; see the
 `Home is the marketing screen now` commit.
 
 Existing vendor pages the dashboard should absorb or link to, not duplicate:
-`/my-bookings`, `/my-services`, `/my-availability`, `/my-earnings`,
-`/vendor-profile`.
+`/my-bookings`, `/vendor-profile` (services CRUD folded in here, not a
+separate `/my-services`), `/my-availability`, `/my-earnings`. (`/my-dashboard`
+itself now exists too, per the note at the top of this doc.)

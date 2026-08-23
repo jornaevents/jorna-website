@@ -80,8 +80,11 @@ apply to WS handshakes). See `web/src/lib/chat.ts` for the consumer.
 - Full endpoint list: read `web/src/lib/jorna.ts` directly — it's short
   per-function and organized by feature area with section comments.
 - Response shapes: `web/src/lib/types.ts`.
-- Not-yet-built API needs (proposed, decisions made but unimplemented):
-  `MESSAGING_PROPOSAL.md`, `RESCHEDULE_PROPOSAL.md`.
+- `MESSAGING_PROPOSAL.md` and `RESCHEDULE_PROPOSAL.md` read as "not yet
+  built," but both shipped shortly after being written and neither doc was
+  updated — the messaging, negotiation, and reschedule endpoints they
+  describe are live. Treat them as design rationale, not a to-do list; see
+  "A note on the proposal docs" in `docs/BOOKING_FLOW.md`.
 - `VendorDetail.specializations` / the `specializations` field on
   `VendorCreateInput`/`VendorUpdateInput` (`web/src/lib/types.ts`) are sent
   and read optimistically — the frontend now lets a vendor multi-select

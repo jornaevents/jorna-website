@@ -7,15 +7,17 @@ There is no automated test suite in this repo — the "Tests" line below is
 included for every module so it doesn't need re-checking each time; it's
 always "none, verify manually" until a test runner is added.
 
-## Marketing page
+## Help page
 
-- **Responsible for:** the hand-written homepage at `/index.html` and the
-  static `/help` page. No framework, no build step.
-- **Code:** `public/index.html`, `public/help/index.html`.
+- **Responsible for:** the static `/help` page. No framework, no build step.
+  (The standalone marketing page that used to live at `public/index.html`
+  was deleted 2026-07-31 — `/` is now permanently the app's own Home page,
+  see "Root routing" in `docs/ARCHITECTURE.md`. This module is just `/help`
+  now.)
+- **Code:** `public/help/index.html`.
 - **Entry points:** open the HTML file directly; edit CSS/JS inline.
-- **Consumers:** currently reachable only via a direct `/index.html` request —
-  see "Root routing" in `docs/ARCHITECTURE.md`.
-- **Related:** design tokens must stay in sync with `web/src/app/globals.css`.
+- **Related:** does not currently share tokens with
+  `web/src/app/globals.css`.
 
 ## App shell & routing
 
@@ -25,7 +27,9 @@ always "none, verify manually" until a test runner is added.
 - **Code:** `web/src/app/layout.tsx`, `web/src/app/page.tsx`,
   `web/src/app/home/`, `public/_redirects`.
 - **Entry points:** `RootLayout` wraps every page with `AuthProvider`,
-  `SiteHeader`, `SiteFooter`, `AppTabBar`, `PushRuntime`.
+  `SiteHeader`, `SiteFooter`, `PushRuntime`. Mobile nav is
+  `MobileNavMenu.tsx` (a slide-out sheet, not a bottom tab bar — it replaced
+  one because seven client destinations didn't fit a single row).
 - **Depends on:** `lib/auth.tsx`.
 - **Related modules:** Shared UI shell (below).
 
@@ -71,8 +75,9 @@ always "none, verify manually" until a test runner is added.
   the "what's still outstanding" task rules for clients.
 - **Code:** `web/src/lib/planning.ts` (task rules — single source of truth,
   see `docs/ARCHITECTURE.md`), `web/src/app/bundle/`, `bundles/`, `plan/`,
-  `my-dashboard/`, `web/src/components/BundleResults.tsx`,
-  `PlanProgress.tsx`, `DraftDetails.tsx`.
+  `web/src/components/BundleResults.tsx`, `PlanProgress.tsx`,
+  `DraftDetails.tsx`. (`my-dashboard/` is the *vendor* dashboard, not this
+  flow's — see "Vendor flow" below.)
 - **Depends on:** `lib/jorna.ts`, `lib/types.ts`, `lib/address.ts`
   (`isCompleteLocation`).
 - **Consumers:** `lib/attention.ts` reads `planning.ts` for the nav badge.
@@ -85,10 +90,11 @@ always "none, verify manually" until a test runner is added.
   bookings, earnings, and the vendor equivalent of the task-rules module.
 - **Code:** `web/src/lib/vendorPlan.ts` (task rules), `web/src/app/vendor/`,
   `vendor-profile/`, `my-availability/`, `my-bookings/`, `my-calendar/`,
-  `my-earnings/`, `web/src/components/ServicesManager.tsx`,
+  `my-earnings/`, `my-dashboard/` (the vendor dashboard — ported from
+  `VENDOR_DASHBOARD_BRIEF.md`, see that doc's shipped-note), `web/src/components/ServicesManager.tsx`,
   `VendorCard.tsx`, `VendorNav.tsx`.
 - **First-time setup:** `web/src/app/vendor-onboarding/` — a resumable
-  3-step wizard (category+bio, reach, first service) that both the
+  3-step wizard (identity+bio, reach, first service) that both the
   register-as-vendor flow and "Start selling" route to instead of
   `vendor-profile/` directly. It shares field UI with `vendor-profile/` via
   `web/src/components/VendorProfileFields.tsx`, and reuses `ServicesManager`

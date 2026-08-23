@@ -71,7 +71,7 @@ Next.js server runs anywhere.
 
 ---
 
-## Decision: the site root now serves the app's Home route, not the legacy static page
+## Decision: the site root permanently serves the app's Home route; the legacy static page is retired
 
 ### Context
 Originally, `public/index.html` was a hand-written marketing page served at
@@ -81,14 +81,22 @@ Originally, `public/index.html` was a hand-written marketing page served at
 As of commit `58ce333` (2026-07-31), `public/_redirects` rewrites `/` to
 `/app/` (HTTP 200 rewrite, not a redirect), which renders
 `web/src/app/page.tsx` → the app's own `home/page.tsx`. `public/index.html`
-still exists but is no longer reachable at `/`.
+itself was deleted in that same commit — confirmed as of 2026-08-22 it is
+not on disk and not in `git ls-files`, and this is a permanent decision, not
+an interim state: the app's Home page is the site's front door going
+forward, with no plan to restore the standalone file.
 
 ### Consequences
-`README.md` now notes this explicitly (fixed 2026-08-19, along with two other
-stale README claims — the Worker→Pages migration and an outdated "Phase 1"
-feature-status line). If `public/index.html` is ever fully retired,
-`README.md`'s repo-layout section should be updated again. See "Root
-routing" in `docs/ARCHITECTURE.md`.
+`README.md` and `docs/ARCHITECTURE.md`/`docs/MODULE_MAP.md` were corrected
+(2026-08-22) to stop describing `public/index.html` as present-but-
+unreachable — several revisions after the file was actually deleted had
+still described it that way, which is itself a caution: re-verify this kind
+of claim against `git ls-files`/`ls public/`, not just against the last doc
+that mentioned it. The "design tokens duplicated by hand" tradeoff described
+elsewhere in this file no longer applies for the marketing page specifically
+— `web/src/app/globals.css` is now the only place brand tokens live.
+`public/help/index.html` is the one remaining hand-written, no-build-step
+static file. See "Root routing" in `docs/ARCHITECTURE.md`.
 
 ---
 
@@ -133,22 +141,25 @@ disagree, which is the exact bug this convention exists to prevent.
 
 ---
 
-## Decision: marketing design tokens duplicated rather than shared
+## Decision (superseded 2026-08-22): marketing design tokens duplicated rather than shared
 
 ### Context
-The marketing page (`public/index.html`) is deliberately kept as a
-build-step-free static file, but the app (`web/`) uses Tailwind v4 and needs
+The marketing page (`public/index.html`) was deliberately kept as a
+build-step-free static file, but the app (`web/`) uses Tailwind v4 and needed
 the same palette.
 
 ### Decision
-The same color/font tokens are defined twice: inline in `public/index.html`
-and as Tailwind `@theme` variables in `web/src/app/globals.css`. They are
-kept in sync by hand, not by a shared source file.
+The same color/font tokens were defined twice: inline in `public/index.html`
+and as Tailwind `@theme` variables in `web/src/app/globals.css`, kept in sync
+by hand rather than by a shared source file.
 
 ### Consequences
-A palette change must be made in both places. This is a known, accepted
-tradeoff for keeping the marketing page dependency-free — not an oversight.
-See `DESIGN_BRIEF.md` for the full token list and intent.
+**Superseded**: `public/index.html` was deleted in commit `58ce333`
+(2026-07-31; see the root-routing decision above) and the app's Home page is
+now the permanent site root. `web/src/app/globals.css` is the sole source of
+brand tokens — there is nothing left to hand-sync. `DESIGN_BRIEF.md` still
+lists the full token set as a readable reference; verify against
+`globals.css` if a color looks off, same as before.
 
 ---
 
