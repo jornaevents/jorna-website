@@ -10,11 +10,21 @@
 # puts them, and this repo has no visibility into that storage host. Tighten
 # those two once the backend's media host is confirmed.
 #
+# script-src needs 'unsafe-inline' for the same reason style-src does: Next's
+# static export injects inline <script> tags (hydration bootstrap, streamed
+# RSC payload) that differ per page, so a nonce or sha256 allowlist isn't
+# workable for a statically-hosted _headers file — there's no server to mint
+# a per-request nonce, and per-page hashes would have to be recomputed on
+# every build. Without it the CSP silently blocks every inline script and
+# React never hydrates: the HTML still serves (curl/200 checks pass) but no
+# button, auth check, or data fetch on the page ever runs. Caught 2026-08-25
+# after script-src briefly shipped without it.
+#
 # If NEXT_PUBLIC_API_BASE_URL is ever pointed at a different backend host than
 # the Railway default, this file needs the same update (same hand-sync
 # tradeoff already accepted for design tokens — see docs/DECISIONS.md).
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self'; connect-src 'self' https://desiconnect-production.up.railway.app wss://desiconnect-production.up.railway.app https://ddfjhfqrrgvzphwiinch.supabase.co https://fcm.googleapis.com https://firebaseinstallations.googleapis.com; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self'; connect-src 'self' https://desiconnect-production.up.railway.app wss://desiconnect-production.up.railway.app https://ddfjhfqrrgvzphwiinch.supabase.co https://fcm.googleapis.com https://firebaseinstallations.googleapis.com; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
