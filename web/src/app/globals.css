@@ -24,8 +24,15 @@
   --color-line-soft: rgba(107, 18, 38, 0.09);
   --color-card-edge: rgba(107, 18, 38, 0.12);
 
-  --font-serif: "Didot", "Bodoni 72", "Hoefler Text", "Iowan Old Style",
-    "Palatino Linotype", Palatino, Georgia, serif;
+  /* One typeface for the whole app. This used to be a separate high-contrast
+     serif stack for headings (Didot/Bodoni/Hoefler/Palatino) — on a system
+     with none of those installed, the fallback chain read as a generic serif
+     (Times New Roman on Windows), which landed as inconsistent and less
+     readable than the sans body text. --font-serif is kept as an alias
+     (rather than deleted) so the 40+ components already using the `.serif`
+     class / `font-serif` token don't need individual edits — they all now
+     render in the same face as everything else. */
+  --font-serif: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   --shadow-card: 0 1px 2px rgba(74, 11, 26, 0.05),

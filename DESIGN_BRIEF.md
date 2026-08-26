@@ -60,10 +60,19 @@ colours the code doesn't have is a design nobody ships.
 > - Maroon `#8A1B34`, deep `#3A0C1B`; gold `#E0B457`, bright `#F0C971`; green `#7FB48E`
 > - Hairlines `rgba(224,180,87,0.20)` / `0.11` / `0.16`
 >
-> **Type.** Headings in a high-contrast Didot-style serif (Didot, Bodoni 72,
-> Hoefler Text, Palatino — system serifs, nothing downloaded). Body and UI in a
-> humanist sans (Avenir Next, Segoe UI, system-ui). Headings are maroon in light
-> and gold in dark. Generous line height; body no smaller than 16px on mobile.
+> **Type** (updated 2026-08-25 — was a two-font pairing, see below). One
+> humanist sans (Avenir Next, Segoe UI, system-ui) for headings, body, and UI
+> alike — nothing downloaded, nothing fetched over the network. Headings are
+> maroon in light and gold in dark. Generous line height; body no smaller than
+> 16px on mobile.
+>
+> Headings previously used a separate high-contrast Didot-style serif (Didot,
+> Bodoni 72, Hoefler Text, Palatino). Dropped because on a system with none of
+> those installed, the fallback chain read as a generic, less-readable serif
+> (Times New Roman on Windows) sitting inconsistently next to the sans body
+> text — one typeface everywhere reads more consistent and is more reliably
+> legible across platforms than a serif/sans pairing that depends on which
+> fonts happen to be installed.
 >
 > **Shape and depth.** Rounded but not pill-soft: 16–20px on cards, fully rounded
 > on buttons and chips. One shadow only, very soft and low:

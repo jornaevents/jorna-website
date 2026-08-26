@@ -131,10 +131,16 @@ fallback for when no explicit `data-theme` is set. Native form controls
 rules for why (iOS/macOS Safari otherwise ignores the app's chosen theme for
 those controls specifically).
 
-**Fonts** are system stacks only — a high-contrast serif (Didot/Bodoni/
-Hoefler/Palatino) for headings, a humanist sans (Avenir Next/Segoe UI) for
-body — nothing is fetched over the network, on either the marketing page or
-the app.
+**Fonts** are a single system sans stack (Avenir Next/Segoe UI/system-ui) for
+everything — headings and body alike, on both `globals.css` and
+`public/help/index.html` — nothing is fetched over the network. Headings
+previously used a separate high-contrast serif stack (Didot/Bodoni/Hoefler/
+Palatino); on a system with none of those fonts installed the fallback chain
+read as a generic, less-readable serif (Times New Roman on Windows), so it
+was dropped in favor of one consistent typeface everywhere. `--font-serif`
+still exists in `globals.css` as an alias of `--font-sans` (not deleted)
+purely so the 40+ components already using the `.serif` class don't each
+need an edit — it's not a second typeface.
 
 Both palettes (light values, dark values, and the rationale/tone brief) are
 listed in full in `DESIGN_BRIEF.md`, which is kept in sync with

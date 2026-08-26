@@ -82,9 +82,11 @@
 
   img { max-width: 100%; }
 
+  /* Same face as the body text — see the matching note in
+     web/src/app/globals.css for why this used to be a separate serif stack
+     and isn't any more. */
   .serif, h1, h2, h3, .stat-num {
-    font-family: "Didot", "Bodoni 72", "Hoefler Text", "Iowan Old Style",
-                 "Palatino Linotype", Palatino, Georgia, serif;
+    font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   }
 
   h1, h2, h3 { text-wrap: balance; line-height: 1.12; margin: 0; font-weight: 500; }
@@ -239,7 +241,7 @@
   }
   .step::before {
     counter-increment: step; content: counter(step, decimal-leading-zero);
-    font-family: "Didot","Palatino Linotype",Palatino,Georgia,serif;
+    font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
     font-size: 1.5rem; line-height: 1;
     color: var(--gold);
     padding-top: .28rem;
