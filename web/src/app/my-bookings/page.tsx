@@ -331,6 +331,11 @@ export default function MyBookingsPage() {
                         .join(" · ")}
                     </p>
                     <p className="mt-1.5 text-sm font-medium text-ink-soft">{state}</p>
+                    {b.client_note ? (
+                      <p className="mt-2 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
+                        “{b.client_note}”
+                      </p>
+                    ) : null}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="serif text-lg text-ink">{money(price.amount)}</p>

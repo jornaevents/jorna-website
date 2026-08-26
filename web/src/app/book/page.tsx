@@ -52,6 +52,7 @@ function BookInner() {
   const [overnightAck, setOvernightAck] = useState(false);
   const [location, setLocation] = useState("");
   const [guests, setGuests] = useState("");
+  const [note, setNote] = useState("");
   const [bundleChoice, setBundleChoice] = useState(NEW_BUNDLE);
   // What the chosen plan just filled in, phrased for the client. Null when
   // they're starting a new plan and there was nothing to inherit.
@@ -215,6 +216,7 @@ function BookInner() {
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
+        client_note: note.trim() || null,
       });
       // Back to browsing: a draft is how a plan gets assembled, and assembling
       // means adding the next thing.
@@ -262,6 +264,7 @@ function BookInner() {
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
+        client_note: note.trim() || null,
       });
       router.push(`/bundle?id=${res.bundle_id}`);
     } catch (err) {
@@ -460,6 +463,13 @@ function BookInner() {
             }
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
+          />
+
+          <Field
+            label="Anything the vendor should know? (optional)"
+            placeholder="We need setup access an hour early"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
           />
 
           {total !== null ? (

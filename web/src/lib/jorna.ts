@@ -142,6 +142,11 @@ export interface BookingCreateInput {
   venue_longitude?: number | null;
   /** Omit to have the backend create a bundle for this booking. */
   bundle_id?: string | null;
+  /** Shown to the vendor alongside the request, before they accept/decline.
+   *  Sent optimistically — same caveat as VendorCreateInput.specializations
+   *  in docs/API.md — until the backend confirms it persists and returns
+   *  this on VendorBooking/BundleBooking. */
+  client_note?: string | null;
 }
 
 export interface BookingCreateResult {

@@ -331,6 +331,10 @@ export interface BundleBooking {
   service_subcategory?: string | null;
   vendor_name?: string | null;
   vendor_id?: string | null;
+  /** What the client told this vendor when requesting the booking (set on
+   *  createBooking, before any vendor decision) — sent and read optimistically,
+   *  same as VendorDetail.specializations; see the note in docs/API.md. */
+  client_note?: string | null;
   price: number;
   amount_cents?: number | null;
   price_unit?: string | null;
@@ -871,6 +875,8 @@ export interface VendorBooking {
   time_start?: string | null;
   time_end?: string | null;
   location?: string | null;
+  /** What the client said when requesting this — see BundleBooking.client_note. */
+  client_note?: string | null;
   venue_latitude?: number | null;
   venue_longitude?: number | null;
   /** The point check-in is measured against: the venue's pin, or the event's

@@ -677,6 +677,11 @@ function BookingRow({
           {b.location ? (
             <p className="mt-0.5 truncate text-xs text-ink-faint">{b.location}</p>
           ) : null}
+          {b.client_note ? (
+            <p className="mt-1.5 rounded-lg bg-panel px-2.5 py-1.5 text-xs text-ink-soft">
+              “{b.client_note}”
+            </p>
+          ) : null}
         </div>
         <div className="shrink-0 text-right">
           <p className="font-semibold tabular-nums text-ink">{money(price.amount)}</p>
