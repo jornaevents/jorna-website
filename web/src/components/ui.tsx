@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "ghost" | "quiet";
@@ -143,15 +144,25 @@ export function Avatar({
   name?: string | null;
   size?: number;
 }) {
+  const [failed, setFailed] = useState(false);
+  // Resets the failure if `src` itself changes (e.g. right after uploading a
+  // new photo over an instance that already gave up on the old one) — a
+  // stale `failed` would otherwise hide a perfectly good new image forever.
+  const [checkedSrc, setCheckedSrc] = useState(src);
+  if (src !== checkedSrc) {
+    setCheckedSrc(src);
+    setFailed(false);
+  }
   const initial = (name?.trim()?.[0] ?? "·").toUpperCase();
   const dim = { width: size, height: size };
-  if (src) {
+  if (src && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
         src={src}
         alt=""
         style={dim}
+        onError={() => setFailed(true)}
         className="shrink-0 rounded-full object-cover ring-1 ring-card-edge"
       />
     );

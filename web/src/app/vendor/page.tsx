@@ -40,12 +40,14 @@ const IconInstagram = (
 
 /** A rounded-square avatar for the storefront — photo, else serif monogram. */
 function StorefrontAvatar({ src, name }: { src?: string | null; name: string }) {
-  if (src) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
         src={src}
         alt={name}
+        onError={() => setFailed(true)}
         className="size-28 shrink-0 rounded-2xl object-cover ring-1 ring-card-edge"
       />
     );
@@ -67,10 +69,12 @@ function StatTile({ value, label }: { value: React.ReactNode; label: string }) {
 }
 
 function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boolean }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const unit = priceUnitLabel(service.price_unit);
   const first = usableMedia(service.media)[0];
   // A video's own file can't go in an <img> — show its poster frame instead.
-  const photo = first ? (first.type === "video" ? first.thumbnail_url : first.url) : null;
+  const photo =
+    !photoFailed && (first ? (first.type === "video" ? first.thumbnail_url : first.url) : null);
   return (
     <Card className="overflow-hidden transition hover:border-gold/40">
       <div className="flex flex-col sm:flex-row">
@@ -80,6 +84,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
             src={photo}
             alt={service.name}
             loading="lazy"
+            onError={() => setPhotoFailed(true)}
             className="h-40 w-full object-cover sm:h-auto sm:w-48"
           />
         ) : (

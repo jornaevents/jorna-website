@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { categoryLabel, type VendorSearchItem } from "@/lib/types";
 import { Card, Stars } from "./ui";
@@ -15,13 +16,18 @@ function money(n?: number | null) {
  * with the service and attributes it to the vendor.
  */
 export function VendorCard({ item }: { item: VendorSearchItem }) {
+  // Some vendor photos are external links (e.g. imported from Instagram)
+  // rather than files this app hosts itself — those can 404 or expire on
+  // their own schedule with nothing wrong on this end. Falling back to the
+  // monogram on a failed load beats the browser's broken-image icon.
+  const [photoFailed, setPhotoFailed] = useState(false);
   const name = `${item.first_name ?? ""} ${item.last_name ?? ""}`.trim();
   const price = money(item.service_price);
   const monogram = (name || item.service_name || "·").charAt(0).toUpperCase();
   // The listing's own photo first — the card leads with the service, so that's
   // what a client is scrolling past photos of. Falls back to the vendor's
   // avatar for a listing with no photo yet, and only then to the monogram.
-  const photo = item.service_photo_url || item.pfp_url;
+  const photo = !photoFailed && (item.service_photo_url || item.pfp_url);
   const distance =
     item.distance_miles != null ? `${Math.round(item.distance_miles)} mi away` : null;
 
@@ -45,6 +51,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
             src={photo}
             alt={item.service_name || name}
             loading="lazy"
+            onError={() => setPhotoFailed(true)}
             className="size-full object-cover transition duration-300 group-hover:scale-[1.04]"
           />
         ) : (

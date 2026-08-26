@@ -82,6 +82,14 @@ function PlayBadge({ size = "size-8" }: { size?: string }) {
  */
 function Gallery({ media, name }: { media: MediaItem[]; name: string }) {
   const [active, setActive] = useState(0);
+  // Some listings' photos are external links (imported from Instagram, say)
+  // rather than files this app hosts — those can 404 or expire on their own
+  // schedule. Tracked by URL rather than index so a thumbnail already known
+  // to be dead doesn't get retried the moment it's clicked into the hero
+  // slot.
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
+  const markFailed = (url: string) =>
+    setFailedUrls((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
 
   // No media: a band, not a hole. This kept the 4:3 frame the real gallery
   // uses, which on the page's 1100px column is over 800px of empty gradient —
@@ -100,6 +108,7 @@ function Gallery({ media, name }: { media: MediaItem[]; name: string }) {
 
   const activeItem = media[active];
   const rest = media.slice(0, 5).filter((_, i) => i !== active);
+  const activeFailed = activeItem.type !== "video" && failedUrls.has(activeItem.url);
 
   return (
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
@@ -111,11 +120,14 @@ function Gallery({ media, name }: { media: MediaItem[]; name: string }) {
           controls
           className="aspect-[4/3] w-full rounded-2xl bg-black object-contain"
         />
+      ) : activeFailed ? (
+        <Monogram name={name} className="aspect-[4/3] w-full rounded-2xl" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={activeItem.url}
           alt={name}
+          onError={() => markFailed(activeItem.url)}
           className="aspect-[4/3] w-full rounded-2xl object-cover"
         />
       )}
@@ -126,6 +138,7 @@ function Gallery({ media, name }: { media: MediaItem[]; name: string }) {
             // A video's own file can't be dropped into an <img> — the thumbnail
             // ffmpeg extracted server-side stands in for it here.
             const thumbSrc = item.type === "video" ? item.thumbnail_url : item.url;
+            const thumbFailed = Boolean(thumbSrc && failedUrls.has(thumbSrc));
             return (
               <button
                 key={item.url}
@@ -134,12 +147,13 @@ function Gallery({ media, name }: { media: MediaItem[]; name: string }) {
                 aria-label={`Show ${item.type} ${index + 1} of ${media.length}`}
                 className="relative overflow-hidden rounded-xl ring-1 ring-card-edge transition hover:ring-gold focus-visible:ring-2 focus-visible:ring-gold"
               >
-                {thumbSrc ? (
+                {thumbSrc && !thumbFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={thumbSrc}
                     alt=""
                     loading="lazy"
+                    onError={() => markFailed(thumbSrc)}
                     className="aspect-[4/3] size-full object-cover"
                   />
                 ) : (
