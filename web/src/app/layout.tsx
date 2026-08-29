@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { PushRuntime } from "@/components/PushRuntime";
+import { SentryRuntime } from "@/components/SentryRuntime";
 
 export const metadata: Metadata = {
   title: "Jorna — Plan your celebration",
@@ -26,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
+        <SentryRuntime />
         <AuthProvider>
           <SiteHeader />
           <main className="flex-1">{children}</main>
