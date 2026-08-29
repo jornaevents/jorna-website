@@ -94,14 +94,24 @@ the root-routing point in `docs/DECISIONS.md`, and these are two more.
 npm run install:app              # first time: install web/ dependencies
 npm --prefix web run dev         # dev server at localhost:3000/app
 npm --prefix web run lint        # eslint (web app only)
+npm --prefix web run typecheck   # tsc --noEmit
+npm --prefix web run test        # vitest (pure-logic unit tests only)
 npm run build                    # next build + export into public/app
 npm run deploy                   # build + verified deploy to Cloudflare Pages
 npm run deploy:once              # build + single-shot deploy, unverified
 ```
 
-There is no automated test suite in this repo (no test runner in either
-`package.json`). Verify changes by running the dev server and exercising the
-affected flow in a browser, plus lint/TypeScript.
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, and build on
+every push/PR to `main`. The test suite is intentionally narrow — Vitest unit
+tests for pure logic in `web/src/lib` (pricing, planning/vendorPlan rules),
+not component or end-to-end tests — so still verify UI changes by running the
+dev server and exercising the affected flow in a browser.
+
+Note: `web/eslint.config.mjs` downgrades `react-hooks/set-state-in-effect`
+to a warning rather than error — see the comment there and
+[issue #2](https://github.com/dabkeyanik/jorna-website/issues/2) before
+"fixing" any of those warnings casually; each one needs individual review; a
+blanket rewrite risks changing auth/booking/payment behavior.
 
 ## Maintaining this context layer
 

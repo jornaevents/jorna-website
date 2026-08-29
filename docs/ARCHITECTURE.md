@@ -156,6 +156,29 @@ off — it's the source of truth, `DESIGN_BRIEF.md` is the readable reference).
 | Firebase Cloud Messaging | Web push notifications | `web/src/lib/firebaseConfig.ts`, `push.ts` |
 | Stripe Connect | Vendor payouts / checkout, driven server-side | reached only through backend endpoints in `jorna.ts` |
 | Cloudflare Pages | Hosting for everything in `public/` | `wrangler.jsonc`, `scripts/deploy.mjs` |
+| Sentry | Client-side error monitoring | `NEXT_PUBLIC_SENTRY_DSN`, `web/src/lib/sentry.ts` |
+
+## Error monitoring
+
+`web/src/lib/sentry.ts` initializes `@sentry/browser` (not `@sentry/nextjs` —
+this app is fully static-exported via `output: "export"`, so there's no
+Next.js server/edge runtime for the Node-oriented parts of that SDK to run
+in). `initSentry()` runs at module-evaluation time in
+`web/src/components/SentryRuntime.tsx`, mounted app-wide in
+`web/src/app/layout.tsx` next to `PushRuntime`, so it fires as early as
+possible on page load.
+
+**No-op unless `NEXT_PUBLIC_SENTRY_DSN` is set** — matching the backend's
+Sentry pattern (`Desiconnect/server/app/observability.py`), so local dev and
+any deploy without a configured DSN behave exactly as before. The env var
+must be `NEXT_PUBLIC_`-prefixed for Next.js to inline it into the static
+build (see `web/src/lib/api.ts`/`supabase.ts` for the same convention).
+`sendDefaultPii` is left off, matching the backend's privacy stance.
+
+Setting the real DSN requires creating a Sentry project (out of this repo's
+scope — needs dashboard access) and setting `NEXT_PUBLIC_SENTRY_DSN` as a
+Cloudflare Pages build environment variable so it's baked into the static
+export at build time; a runtime-only env var won't reach the client bundle.
 
 ## Before making a cross-cutting change
 

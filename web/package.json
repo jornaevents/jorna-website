@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/export-to-public.mjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@sentry/browser": "^10.72.0",
     "@supabase/supabase-js": "^2.110.7",
     "firebase": "^12.16.0",
     "next": "16.3.3",
@@ -22,6 +25,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }
