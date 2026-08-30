@@ -531,7 +531,7 @@ export default function HomePage() {
               </ul>
               <div className="mt-8">
                 <Link
-                  href={user ? "/vendor-onboarding" : "/login?mode=register"}
+                  href={user ? "/vendor-onboarding" : "/login?mode=register&role=vendor"}
                   className="inline-flex items-center justify-center rounded-full bg-ground px-7 py-3.5 font-semibold text-maroon transition hover:brightness-95"
                 >
                   Become a vendor

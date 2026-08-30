@@ -143,8 +143,9 @@ export function categoryLabel(key: string): string {
 /** A vendor's specializations, as the onboarding wizard and profile settings
  *  form need them: a list, never empty for a vendor who's finished setup.
  *  Falls back to a single-item list built from `category`/`subcategory` for
- *  a record the backend hasn't returned `specializations` for yet — see the
- *  comment on that field. */
+ *  a record that predates the backend's `specializations` column, or was
+ *  created before that column's migration was deployed; see the comment on
+ *  that field. */
 export function vendorSpecializations(vendor: {
   category?: string | null;
   subcategory?: string | null;
@@ -193,7 +194,7 @@ export interface VendorSearchItem {
 }
 
 /** One category, optionally narrowed to a speciality within it — what a
- *  vendor now picks any number of during onboarding. See `specializations`
+ *  vendor picks any number of during onboarding. See `specializations`
  *  below for why this is a list rather than a single pair. */
 export interface VendorSpecialization {
   category: string;
@@ -210,11 +211,13 @@ export interface VendorDetail {
    *  can pick from during onboarding. */
   category?: string | null;
   subcategory?: string | null;
-  /** Every category(+speciality) a vendor sells under, not just the first —
-   *  onboarding now offers a multi-select instead of one pair. This assumes
-   *  backend support that didn't exist when `category`/`subcategory` were
-   *  added; until the backend returns it, `vendorSpecializations()` below
-   *  reconstructs a one-item list from those two fields instead. */
+  /** Every category(+speciality) a vendor sells under, not just the first. A
+   *  2026-08-29 onboarding QA pass found the backend silently dropped
+   *  everything past the first entry; Desiconnect migration 0045 adds a
+   *  matching column and wires it through create/update/read. Once that's
+   *  deployed this round-trips for real — until then, or for a record that
+   *  predates it, `vendorSpecializations()` below reconstructs a one-item
+   *  list from `category`/`subcategory` on reload. */
   specializations?: VendorSpecialization[];
   rating?: number | null;
   num_events?: number | null;
@@ -627,9 +630,10 @@ export interface VendorCreateInput {
   category?: string;
   subcategory?: string | null;
   /** The full multi-select list; `category`/`subcategory` above mirror its
-   *  first entry, since that's the pair the backend is confirmed to persist
-   *  today. Sent alongside rather than instead of them until the backend
-   *  adds a matching column — see the comment on `VendorDetail.specializations`. */
+   *  first entry. Sent alongside rather than instead of them — the backend
+   *  persists both independently (see the comment on
+   *  `VendorDetail.specializations`), so they stay in sync rather than one
+   *  being derived from the other. */
   specializations?: VendorSpecialization[];
 }
 
