@@ -6,7 +6,6 @@ export const test = base.extend<{ api: ApiMock }>({
   // Second param renamed from Playwright's usual "use" — eslint's
   // react-hooks plugin treats any identifier starting with "use" as a hook
   // call, which misfires here since this file has nothing to do with React.
-  // eslint-disable-next-line no-empty-pattern
   api: async ({ page }, provide) => {
     const api = new ApiMock(page);
     await api.install();

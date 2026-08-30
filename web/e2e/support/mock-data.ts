@@ -116,6 +116,85 @@ export function mockBundleBooking(overrides: Record<string, unknown> = {}) {
   };
 }
 
+export function mockTaxonomyCategories() {
+  return [
+    {
+      value: "photography",
+      label: "Photography",
+      subcategories: [{ value: "wedding-photography", label: "Wedding Photography" }],
+    },
+    { value: "catering", label: "Catering", subcategories: [] },
+  ];
+}
+
+export function mockVendorDetail(overrides: Record<string, unknown> = {}) {
+  return {
+    vendor_id: "vendor-1",
+    user_id: "user-1",
+    bio: "Full-service wedding photography team.",
+    category: "photography",
+    subcategory: null,
+    specializations: [{ category: "photography", subcategory: null }],
+    rating: 4.8,
+    num_events: 40,
+    travel_radius_miles: 50,
+    open_to_long_distance: false,
+    open_to_price_negotiation: true,
+    ...overrides,
+  };
+}
+
+export function mockStripeStatus(overrides: Record<string, unknown> = {}) {
+  return {
+    stripe_account_id: null,
+    stripe_onboarding_complete: false,
+    details_submitted: false,
+    payouts_enabled: false,
+    disabled_reason: null,
+    requirements_due: [],
+    pending_verification: false,
+    ...overrides,
+  };
+}
+
+export function mockEarnings(overrides: Record<string, unknown> = {}) {
+  return {
+    vendor_id: "vendor-1",
+    total_released_cents: 500000,
+    in_escrow_cents: 250000,
+    upcoming_cents: 100000,
+    upcoming_count: 1,
+    disputed_cents: 0,
+    refunded_cents: 0,
+    platform_fees_cents: 50000,
+    history: [],
+    ...overrides,
+  };
+}
+
+export function mockVendorBooking(overrides: Record<string, unknown> = {}) {
+  return {
+    booking_id: "vbooking-1",
+    user_id: "client-1",
+    client_name: "Priya Shah",
+    service_id: "service-1",
+    service_name: "Full Day Wedding Photography",
+    service_category: "photography",
+    price: 2500,
+    price_unit: "flat",
+    price_pending_quantity: false,
+    guest_count: 150,
+    event_name: "Priya's Wedding",
+    date_iso: "2026-11-14",
+    time_start: "17:00",
+    time_end: "23:00",
+    location: "Chicago, IL",
+    status: "pending",
+    payment_status: "unpaid",
+    ...overrides,
+  };
+}
+
 export function mockBundleDetail(overrides: Record<string, unknown> = {}) {
   return {
     bundle_id: "bundle-1",

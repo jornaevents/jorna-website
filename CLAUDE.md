@@ -121,9 +121,10 @@ path params, `api.error()` for non-2xx); `web/e2e/support/fixtures.ts`'s
 `loginAs()` seeds a signed-in session by writing `auth.tsx`'s localStorage
 keys directly, skipping the real login form for tests that don't need to
 exercise it. Add a spec next to the existing ones (`home`, `auth`,
-`marketplace`, `booking`) when a flow is worth covering beyond a manual
-dev-server check — favor the ones with real logic (gating, redirects,
-status-dependent rendering) over pure layout.
+`marketplace`, `booking`, `vendor-onboarding`, `vendor-bookings`,
+`vendor-earnings`) when a flow is worth covering beyond a manual dev-server
+check — favor the ones with real logic (gating, redirects, status-dependent
+rendering) over pure layout.
 
 Note: `web/eslint.config.mjs` downgrades `react-hooks/set-state-in-effect`
 to a warning rather than error — see the comment there and
