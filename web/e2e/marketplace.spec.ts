@@ -1,5 +1,5 @@
 import { test, expect } from "./support/fixtures";
-import { mockVendorSearchItem, mockVendorSearchResponse } from "./support/mock-data";
+import { mockVendorSearchResponse } from "./support/mock-data";
 
 test.describe("marketplace search", () => {
   test("shows results returned by /vendors/search", async ({ page, api }) => {
