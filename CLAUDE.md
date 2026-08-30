@@ -96,16 +96,34 @@ npm --prefix web run dev         # dev server at localhost:3000/app
 npm --prefix web run lint        # eslint (web app only)
 npm --prefix web run typecheck   # tsc --noEmit
 npm --prefix web run test        # vitest (pure-logic unit tests only)
+npm run test:e2e                 # playwright — see web/e2e/
 npm run build                    # next build + export into public/app
 npm run deploy                   # build + verified deploy to Cloudflare Pages
 npm run deploy:once              # build + single-shot deploy, unverified
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, and build on
-every push/PR to `main`. The test suite is intentionally narrow — Vitest unit
-tests for pure logic in `web/src/lib` (pricing, planning/vendorPlan rules),
-not component or end-to-end tests — so still verify UI changes by running the
-dev server and exercising the affected flow in a browser.
+CI (`.github/workflows/ci.yml`) has two jobs on every push/PR to `main`:
+`build` (lint, typecheck, Vitest, `next build`) and `e2e` (Playwright,
+below). The Vitest suite stays narrow on purpose — pure-logic unit tests for
+`web/src/lib` (pricing, planning/vendorPlan rules) — component-level and
+user-flow coverage lives in Playwright instead, so a UI change should get an
+E2E test or a manual pass through the dev server, not a component test here.
+
+**End-to-end tests** (`web/e2e/`, `web/playwright.config.ts`) drive a real
+Chromium against `next dev`, with every backend call intercepted at the
+network layer — `NEXT_PUBLIC_API_BASE_URL` points `next dev` at a fake,
+non-resolving host (`web/e2e/support/api-base.ts`) so a route with no
+registered mock fails loudly (404) instead of silently reaching the real
+production backend (see `web/src/lib/api.ts`'s default `API_BASE` — that's
+what a run with the real env var would hit). `web/e2e/support/api-mock.ts`
+is the per-test mock router (`api.get/post/patch/put/delete`, `:id`-style
+path params, `api.error()` for non-2xx); `web/e2e/support/fixtures.ts`'s
+`loginAs()` seeds a signed-in session by writing `auth.tsx`'s localStorage
+keys directly, skipping the real login form for tests that don't need to
+exercise it. Add a spec next to the existing ones (`home`, `auth`,
+`marketplace`, `booking`) when a flow is worth covering beyond a manual
+dev-server check — favor the ones with real logic (gating, redirects,
+status-dependent rendering) over pure layout.
 
 Note: `web/eslint.config.mjs` downgrades `react-hooks/set-state-in-effect`
 to a warning rather than error — see the comment there and

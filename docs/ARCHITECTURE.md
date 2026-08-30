@@ -189,6 +189,9 @@ export at build time; a runtime-only env var won't reach the client bundle.
 - If it touches deploy behavior, read `DEPLOY.md` — the deploy script exists
   specifically to work around a Cloudflare upload reliability issue; don't
   bypass it with a bare `wrangler deploy`.
-- There is currently no automated test suite (no test runner is installed in
-  either `package.json`). Verification is manual (`npm --prefix web run dev`)
-  plus `npm --prefix web run lint` and TypeScript's own build-time checking.
+- Automated coverage is split in two: Vitest unit tests for pure logic in
+  `web/src/lib` (`npm --prefix web run test`), and Playwright E2E tests
+  driving a real browser against mocked backend responses (`npm run test:e2e`,
+  see `web/e2e/` and the "End-to-end tests" note in `CLAUDE.md`). Neither
+  substitutes for the other — a UI/flow change still deserves either a new
+  E2E spec or a manual pass with `npm --prefix web run dev`.
