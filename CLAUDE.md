@@ -102,6 +102,13 @@ npm run deploy                   # build + verified deploy to Cloudflare Pages
 npm run deploy:once              # build + single-shot deploy, unverified
 ```
 
+A husky pre-commit hook (`.husky/pre-commit`, config in `lint-staged.config.mjs`)
+runs eslint on staged `web/` files plus a full `typecheck` before every
+commit — `npm install` at the repo root wires it up via the `prepare`
+script. It's a fast local gate, not a substitute for CI: it doesn't run
+Vitest or Playwright. `.github/dependabot.yml` opens weekly update PRs for
+`web/`, the root (wrangler), and GitHub Actions.
+
 CI (`.github/workflows/ci.yml`) has two jobs on every push/PR to `main`:
 `build` (lint, typecheck, Vitest, `next build`) and `e2e` (Playwright,
 below). The Vitest suite stays narrow on purpose — pure-logic unit tests for
