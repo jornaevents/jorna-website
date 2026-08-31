@@ -109,12 +109,20 @@ script. It's a fast local gate, not a substitute for CI: it doesn't run
 Vitest or Playwright. `.github/dependabot.yml` opens weekly update PRs for
 `web/`, the root (wrangler), and GitHub Actions.
 
-CI (`.github/workflows/ci.yml`) has two jobs on every push/PR to `main`:
-`build` (lint, typecheck, Vitest, `next build`) and `e2e` (Playwright,
-below). The Vitest suite stays narrow on purpose — pure-logic unit tests for
-`web/src/lib` (pricing, planning/vendorPlan rules) — component-level and
-user-flow coverage lives in Playwright instead, so a UI change should get an
-E2E test or a manual pass through the dev server, not a component test here.
+CI (`.github/workflows/ci.yml`) has three jobs: `build` (lint, typecheck,
+Vitest, `next build`) and `e2e` (Playwright, below) run on every push/PR to
+`main`; `deploy` runs only after both pass on an actual push to `main` and
+ships to Cloudflare Pages (see `DEPLOY.md`) — merging a PR is what puts a
+change into production, there's no separate manual deploy step in the
+normal flow. The Vitest suite stays narrow on purpose — pure-logic unit
+tests for `web/src/lib` (pricing, planning/vendorPlan rules) — component-
+level and user-flow coverage lives in Playwright instead, so a UI change
+should get an E2E test or a manual pass through the dev server, not a
+component test here.
+
+`main` is a protected branch (GitHub branch protection: PR required, status
+checks must pass, no force-push/delete) — a direct `git push` to `main` is
+rejected. Branch per change, open a PR, merge once CI is green.
 
 **End-to-end tests** (`web/e2e/`, `web/playwright.config.ts`) drive a real
 Chromium against `next dev`, with every backend call intercepted at the
