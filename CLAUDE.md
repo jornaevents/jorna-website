@@ -143,7 +143,7 @@ rendering) over pure layout.
 
 Note: `web/eslint.config.mjs` downgrades `react-hooks/set-state-in-effect`
 to a warning rather than error — see the comment there and
-[issue #2](https://github.com/dabkeyanik/jorna-website/issues/2) before
+[issue #2](https://github.com/jornaevents-commits/jorna-website/issues/2) before
 "fixing" any of those warnings casually; each one needs individual review; a
 blanket rewrite risks changing auth/booking/payment behavior.
 
