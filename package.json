@@ -14,7 +14,7 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
-    "wrangler": "^4.112.0"
+    "wrangler": "^4.127.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
