@@ -57,12 +57,16 @@ export function geocodeUsAddress(address: string): Promise<GeocodeHit | null> {
     const callback = `__jornaGeo${++seq}`;
     const script = document.createElement("script");
 
-    // Every exit runs this: the global and the tag are both removed, so a slow
-    // reply arriving after a timeout has nothing left to call. Declared rather
-    // than assigned, so it can name the timer set below it.
+    // Every exit runs this. The callback is replaced, not deleted: the
+    // <script> tag is a real in-flight request once appended, and removing
+    // the tag doesn't cancel it — a reply that lands after we've already
+    // timed out or resolved would otherwise call a global that no longer
+    // exists, throwing an uncaught ReferenceError instead of landing on a
+    // response nothing's waiting for. Declared rather than assigned, so it
+    // can name the timer set below it.
     function done(fn: () => void) {
       clearTimeout(timer);
-      delete (window as unknown as Record<string, unknown>)[callback];
+      (window as unknown as Record<string, unknown>)[callback] = () => {};
       script.remove();
       fn();
     }
