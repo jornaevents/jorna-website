@@ -97,12 +97,21 @@ jobs:
         run: npm ci
 
       # npm run deploy (scripts/deploy.mjs) builds, runs `wrangler pages
-      # deploy`, then polls every route on jornaevents.com until it's
-      # stably serving 200 — see DEPLOY.md. It exits non-zero on a bad
-      # deploy, which fails this job visibly instead of leaving prod
-      # half-broken with a green Action.
+      # deploy`, then polls every route until it's stably serving 200 — see
+      # DEPLOY.md. It exits non-zero on a bad deploy, which fails this job
+      # visibly instead of leaving prod half-broken with a green Action.
+      #
+      # DEPLOY_DOMAIN overrides the default jornaevents.com target: that
+      # zone's bot/WAF protection 403s every request from GitHub Actions'
+      # runner IPs (confirmed — the wrangler upload itself succeeds, only
+      # the runner's own verification fetches get blocked; the same route
+      # is a clean 200 from any other network). jorna-events.pages.dev is
+      # the same Cloudflare Pages deployment without that zone's WAF rules,
+      # so it verifies the deploy actually went live without depending on
+      # runner IPs being allowed through jornaevents.com's bot protection.
       - name: Deploy
         run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_DOMAIN: https://jorna-events.pages.dev
