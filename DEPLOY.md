@@ -29,9 +29,22 @@ npm run deploy
 Installs `web/`'s dependencies fresh from the lockfile (`npm ci`, not
 whatever a developer's local `node_modules` happens to hold), builds the app
 into `public/app`, runs `wrangler pages deploy public`, then fetches every
-route on `https://jornaevents.com` and re-deploys until they all serve 200
-for three consecutive sweeps (see `scripts/deploy.mjs`). `npm run deploy:once`
-is the raw single-shot and skips the `npm ci` step.
+route and re-deploys until they all serve 200 for three consecutive sweeps
+(see `scripts/deploy.mjs`). `npm run deploy:once` is the raw single-shot and
+skips the `npm ci` step.
+
+**Verification target differs between CI and a human running it locally.**
+`scripts/deploy.mjs` defaults to verifying against `https://jornaevents.com`,
+overridable via `DEPLOY_DOMAIN`. The `deploy` job in CI sets
+`DEPLOY_DOMAIN=https://jorna-events.pages.dev` because the `jornaevents.com`
+zone's bot/WAF protection 403s every request from GitHub Actions' runner
+IPs — confirmed by hand: the `wrangler` upload itself always succeeds, only
+the runner's own follow-up verification fetches got blocked, and the exact
+same routes were a clean 200 from every other network tested. `pages.dev` is
+the same Cloudflare Pages deployment without that zone's WAF rules, so it
+still proves the deploy went live; running `npm run deploy` locally verifies
+the real production domain as before (unaffected, since your own network
+isn't blocked).
 
 ## Gotcha: don't byte-compare the apex against `*.pages.dev`
 
