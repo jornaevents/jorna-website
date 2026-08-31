@@ -14,7 +14,7 @@ import {
   type BundleDetail,
   type ServiceItem,
 } from "@/lib/types";
-import { Button, Card, Field, roundTimeLabel, TimeQuickPicks } from "@/components/ui";
+import { Button, Card, Field, roundTimeLabel, TimeField } from "@/components/ui";
 import { ClientOnlyRoute } from "@/components/ClientOnlyRoute";
 
 function money(n: number) {
@@ -245,6 +245,13 @@ function BookInner() {
       setError("This package is priced per person — add a guest count so we can total it.");
       return;
     }
+    // The time fields are custom controls (see TimeField), not a native input,
+    // so there's no HTML5 `required` to lean on the way the date field still
+    // does — this is that check's replacement for start/end time.
+    if (planAlreadySent && (!timeStart || !timeEnd)) {
+      setError("Add a start and end time before sending this request.");
+      return;
+    }
     if (crossesMidnight(timeStart, timeEnd) && !overnightAck) {
       setError("Confirm the overnight time window above before sending.");
       return;
@@ -389,26 +396,8 @@ function BookInner() {
           ) : null}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <Field
-                label="Start time"
-                type="time"
-                required={planAlreadySent}
-                value={timeStart}
-                onChange={(e) => setTimeStart(e.target.value)}
-              />
-              <TimeQuickPicks value={timeStart} onPick={setTimeStart} />
-            </div>
-            <div>
-              <Field
-                label="End time"
-                type="time"
-                required={planAlreadySent}
-                value={timeEnd}
-                onChange={(e) => setTimeEnd(e.target.value)}
-              />
-              <TimeQuickPicks value={timeEnd} onPick={setTimeEnd} />
-            </div>
+            <TimeField label="Start time" value={timeStart} onChange={setTimeStart} />
+            <TimeField label="End time" value={timeEnd} onChange={setTimeEnd} />
           </div>
 
           {overnight ? (

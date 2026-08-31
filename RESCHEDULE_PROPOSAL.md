@@ -1,7 +1,17 @@
 # Rescheduling a paid booking — build spec
 
-Item 16 in `CLIENT_FLOW_PLAN.md`. **Decisions made; not yet built.** Awaiting a
-go-ahead before anything touches escrow.
+**Shipped** (2026-08-28 note): despite the "decisions made; not yet built"
+line below, this was built and is live — see `CLIENT_FLOW_PLAN.md` item 16
+("Built and live") and `docs/BOOKING_FLOW.md`'s client journey step 7.
+`proposeChange()` / `respondToChange()` / `consentToChangePrice()` /
+`refundAfterFailedReschedule()` (`web/src/lib/jorna.ts`) and
+`DateChangePanel.tsx` / `DateChangeRequest.tsx` implement everything below,
+including the flat 10% cancellation fee, the 7-day vendor deadline, and
+re-pricing with client consent on a rise. Treat what follows as design
+rationale for why it works this way, not as a statement it's unbuilt.
+
+Item 16 in `CLIENT_FLOW_PLAN.md`. **Decisions made and built** — see the
+shipped note above.
 
 ---
 

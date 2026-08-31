@@ -54,7 +54,7 @@ export default function VendorProfilePage() {
   const [instagram, setInstagram] = useState("");
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/vendor-profile");
+    if (!authLoading && !user) router.replace("/login?next=/vendor-profile&role=vendor");
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -97,6 +97,11 @@ export default function VendorProfilePage() {
       cancelled = true;
     };
   }, [user, router]);
+
+  function updateSpecializations(next: VendorSpecialization[]) {
+    setSpecializations(next);
+    if (next.length > 0) setError(null);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -168,7 +173,7 @@ export default function VendorProfilePage() {
             categories={categories}
             specializations={specializations}
             bio={bio}
-            onSpecializationsChange={setSpecializations}
+            onSpecializationsChange={updateSpecializations}
             onBioChange={setBio}
           />
 
@@ -184,7 +189,10 @@ export default function VendorProfilePage() {
           />
 
           {error ? (
-            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+            <p
+              role="alert"
+              className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+            >
               {error}
             </p>
           ) : null}

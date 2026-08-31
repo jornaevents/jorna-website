@@ -26,7 +26,7 @@ import {
   type ChangeRequest,
 } from "@/lib/types";
 import { isDeadBooking } from "@/lib/planning";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field, TimeField } from "@/components/ui";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -188,18 +188,8 @@ export function DateChangePanel({
               value={dateEnd}
               onChange={(e) => setDateEnd(e.target.value)}
             />
-            <Field
-              label="Starts (optional)"
-              type="time"
-              value={timeStart}
-              onChange={(e) => setTimeStart(e.target.value)}
-            />
-            <Field
-              label="Ends (optional)"
-              type="time"
-              value={timeEnd}
-              onChange={(e) => setTimeEnd(e.target.value)}
-            />
+            <TimeField label="Starts (optional)" value={timeStart} onChange={setTimeStart} />
+            <TimeField label="Ends (optional)" value={timeEnd} onChange={setTimeEnd} />
           </div>
           <div className="mt-3">
             <Field

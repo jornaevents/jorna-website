@@ -51,7 +51,7 @@ import {
 import { priceUnitKind, type BundleDetail, type BundleBooking } from "@/lib/types";
 import { crossesMidnight, hoursBetween } from "@/lib/pricing";
 import { AddressFields } from "@/components/AddressFields";
-import { Button, Card, Field, roundTimeLabel, TimeQuickPicks } from "@/components/ui";
+import { Button, Card, Field, roundTimeLabel, TimeField } from "@/components/ui";
 
 /**
  * This card autosaves with no submit step to gate (see the header comment),
@@ -351,24 +351,8 @@ export function DraftDetails({
               When does it run?
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Field
-                  label="Starts"
-                  type="time"
-                  value={hoursStart}
-                  onChange={(e) => setHoursStart(e.target.value)}
-                />
-                <TimeQuickPicks value={hoursStart} onPick={setHoursStart} />
-              </div>
-              <div>
-                <Field
-                  label="Ends"
-                  type="time"
-                  value={hoursEnd}
-                  onChange={(e) => setHoursEnd(e.target.value)}
-                />
-                <TimeQuickPicks value={hoursEnd} onPick={setHoursEnd} />
-              </div>
+              <TimeField label="Starts" value={hoursStart} onChange={setHoursStart} />
+              <TimeField label="Ends" value={hoursEnd} onChange={setHoursEnd} />
             </div>
             <OvernightNote start={hoursStart} end={hoursEnd} />
             <p className="mt-2 text-xs text-ink-faint">
@@ -384,50 +368,26 @@ export function DraftDetails({
               {b.service_name || "Hourly package"} — charged by the hour
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Field
-                  label="Starts"
-                  type="time"
-                  value={times[b.booking_id]?.start ?? ""}
-                  onChange={(e) =>
-                    setTimes((t) => ({
-                      ...t,
-                      [b.booking_id]: { ...t[b.booking_id], start: e.target.value },
-                    }))
-                  }
-                />
-                <TimeQuickPicks
-                  value={times[b.booking_id]?.start ?? ""}
-                  onPick={(time) =>
-                    setTimes((t) => ({
-                      ...t,
-                      [b.booking_id]: { ...t[b.booking_id], start: time },
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Field
-                  label="Ends"
-                  type="time"
-                  value={times[b.booking_id]?.end ?? ""}
-                  onChange={(e) =>
-                    setTimes((t) => ({
-                      ...t,
-                      [b.booking_id]: { ...t[b.booking_id], end: e.target.value },
-                    }))
-                  }
-                />
-                <TimeQuickPicks
-                  value={times[b.booking_id]?.end ?? ""}
-                  onPick={(time) =>
-                    setTimes((t) => ({
-                      ...t,
-                      [b.booking_id]: { ...t[b.booking_id], end: time },
-                    }))
-                  }
-                />
-              </div>
+              <TimeField
+                label="Starts"
+                value={times[b.booking_id]?.start ?? ""}
+                onChange={(time) =>
+                  setTimes((t) => ({
+                    ...t,
+                    [b.booking_id]: { ...t[b.booking_id], start: time },
+                  }))
+                }
+              />
+              <TimeField
+                label="Ends"
+                value={times[b.booking_id]?.end ?? ""}
+                onChange={(time) =>
+                  setTimes((t) => ({
+                    ...t,
+                    [b.booking_id]: { ...t[b.booking_id], end: time },
+                  }))
+                }
+              />
             </div>
             <OvernightNote
               start={times[b.booking_id]?.start ?? ""}
