@@ -68,3 +68,31 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 14
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: [build, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      # npm run deploy (scripts/deploy.mjs) builds, runs `wrangler pages
+      # deploy`, then polls every route on jornaevents.com until it's
+      # stably serving 200 — see DEPLOY.md. It exits non-zero on a bad
+      # deploy, which fails this job visibly instead of leaving prod
+      # half-broken with a green Action.
+      - name: Deploy
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

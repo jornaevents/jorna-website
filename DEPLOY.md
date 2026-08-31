@@ -14,6 +14,14 @@ in `docs/ARCHITECTURE.md`.
 
 ## Deploy
 
+**Automatic:** merging a PR into `main` deploys. `.github/workflows/ci.yml`'s
+`deploy` job runs `npm run deploy` once `build` and `e2e` both pass, using a
+`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` repo secret pair (Pages:Edit
+scope) instead of a local `wrangler login` session. `main` is a protected
+branch (GitHub branch protection, PR required), so this is the only path a
+change reaches production through.
+
+**Manual** (hotfix, or deploying from a machine when CI itself is down):
 ```bash
 npm run deploy
 ```
