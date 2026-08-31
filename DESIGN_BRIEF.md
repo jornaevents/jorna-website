@@ -112,7 +112,10 @@ established, design…"*
 
 ### The public site (nobody is signed in)
 
-**1. Landing page** — *this does not exist yet; it's new work.*
+**1. Landing page** — *shipped, as the app's own Home screen
+(`web/src/app/home/page.tsx`), which now serves `/` directly (see
+`docs/DECISIONS.md`, "the site root permanently serves the app's Home
+route"). Kept here as the spec it was built to.*
 > A marketing landing page at jornaevents.com. Sections: a hero with the one-line
 > promise (plan an entire celebration, one matched team of vendors, paid safely
 > through escrow) and a primary "Get started" plus secondary "Browse vendors"; a
