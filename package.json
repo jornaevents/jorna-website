@@ -8,9 +8,12 @@
     "build": "npm --prefix web run build",
     "test:e2e": "npm --prefix web run test:e2e",
     "deploy": "node scripts/deploy.mjs",
-    "deploy:once": "npm run build && wrangler pages deploy public --project-name jorna-events --branch main --commit-dirty=true"
+    "deploy:once": "npm run build && wrangler pages deploy public --project-name jorna-events --branch main --commit-dirty=true",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
     "wrangler": "^4.112.0"
   },
   "allowScripts": {
