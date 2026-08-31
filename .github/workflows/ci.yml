@@ -84,7 +84,17 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      # `wrangler` is a root-level devDependency (wrangler.jsonc lives at
+      # the repo root, not in web/) and scripts/deploy.mjs invokes it via
+      # `npx --no-install`, which refuses to auto-install — it only works
+      # on a dev machine because a root `npm install` already happened at
+      # least once (that's also what wires up husky). CI needs it explicit.
+      - name: Install root dependencies
+        run: npm ci
 
       # npm run deploy (scripts/deploy.mjs) builds, runs `wrangler pages
       # deploy`, then polls every route on jornaevents.com until it's
