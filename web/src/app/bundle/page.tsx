@@ -379,8 +379,11 @@ function statusLine(b: BundleBooking, draft: boolean): { text: string; tone: str
     return { text: "Awaiting vendor approval", tone: "text-gold" };
   }
   return {
+    // Rejected used to share the faintest tone with routine, already-settled
+    // states — the one status change here a client hasn't necessarily seen
+    // yet read as the least noticeable line on the page.
     text: BOOKING_STATUS_LABELS[b.status] ?? b.status,
-    tone: b.status === "rejected" ? "text-ink-faint" : "text-ink-soft",
+    tone: b.status === "rejected" ? "text-maroon dark:text-gold" : "text-ink-soft",
   };
 }
 
@@ -552,6 +555,7 @@ function BookingRow({
           haven't been told (booking_service skips the notification on a draft). */}
       {booking.open_to_price_negotiation &&
       !isBeyondActionable(booking) &&
+      !isDeadBooking(booking) &&
       !awaiting &&
       !draft ? (
         showNeg ? (

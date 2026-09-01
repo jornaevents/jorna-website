@@ -182,7 +182,8 @@ export function VendorReachFields({
         <Field
           label="Travel radius (miles)"
           type="number"
-          min={0}
+          min={1}
+          max={500}
           value={radius}
           onChange={(e) => onRadiusChange(e.target.value)}
         />

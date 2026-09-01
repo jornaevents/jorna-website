@@ -332,10 +332,10 @@ export function deleteMe(): Promise<void> {
 }
 
 /** Upload a profile picture (multipart, field `file`). Returns the updated user. */
-export function uploadAvatar(file: File): Promise<User> {
+export function uploadAvatar(file: File): Promise<{ pfp_url: string }> {
   const form = new FormData();
   form.append("file", file);
-  return apiUpload<User>("/me/avatar", form, { method: "PUT" });
+  return apiUpload<{ pfp_url: string }>("/me/avatar", form, { method: "PUT" });
 }
 
 /**
@@ -635,8 +635,8 @@ export function openBookingThread(bookingId: string): Promise<ConversationSummar
 export function getConversationMessages(
   conversationId: string,
   params: { limit?: number; offset?: number } = {},
-): Promise<{ messages: GroupMessage[]; total: number }> {
-  return apiFetch<{ messages: GroupMessage[]; total: number }>(
+): Promise<{ items: GroupMessage[]; total: number; limit: number; offset: number }> {
+  return apiFetch<{ items: GroupMessage[]; total: number; limit: number; offset: number }>(
     `/conversations/${conversationId}/messages${query({ ...params })}`,
   );
 }

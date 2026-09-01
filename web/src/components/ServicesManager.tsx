@@ -403,7 +403,7 @@ export function ServicesManager({
               <Field
                 label="Price"
                 type="number"
-                min={0}
+                min={0.01}
                 step="0.01"
                 required
                 value={form.price || ""}

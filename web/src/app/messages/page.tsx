@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { listConversations } from "@/lib/jorna";
+import { loadIsVendor } from "@/lib/role";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton } from "@/components/ui";
 
@@ -83,10 +84,16 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [isVendor, setIsVendor] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/messages");
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadIsVendor().then(setIsVendor);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -163,7 +170,7 @@ export default function MessagesPage() {
             <LinkButton href="/marketplace" variant="ghost">
               Browse vendors
             </LinkButton>
-            <LinkButton href="/bundles" variant="ghost">
+            <LinkButton href={isVendor ? "/my-dashboard" : "/bundles"} variant="ghost">
               Dashboard
             </LinkButton>
           </div>

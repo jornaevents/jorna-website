@@ -14,13 +14,14 @@ import { useAuth } from "@/lib/auth";
 import { loadAttention, type AttentionItem } from "@/lib/attention";
 import { loadIsVendor } from "@/lib/role";
 import { PushOptIn } from "@/components/PushOptIn";
-import { Card, LinkButton } from "@/components/ui";
+import { Button, Card, LinkButton } from "@/components/ui";
 
 export default function ActivityPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<AttentionItem[] | null>(null);
   const [isVendor, setIsVendor] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/activity");
@@ -37,16 +38,21 @@ export default function ActivityPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    // Force: this is the page you open *to* check, so it shouldn't show a
-    // minute-old cache. It refreshes the badge's cache on the way through.
-    setItems(await loadAttention({ force: true }));
+    setError(null);
+    try {
+      // Force: this is the page you open *to* check, so it shouldn't show a
+      // minute-old cache. It refreshes the badge's cache on the way through.
+      setItems(await loadAttention({ force: true }));
+    } catch {
+      setError("Couldn't load what's waiting on you.");
+    }
   }, [user]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  if (authLoading || !user || items === null) {
+  if (authLoading || !user || (items === null && !error)) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
 
@@ -57,7 +63,14 @@ export default function ActivityPage() {
 
       <PushOptIn />
 
-      {items.length === 0 ? (
+      {error ? (
+        <Card className="mt-8 p-6 text-center">
+          <p className="text-ink-soft">{error}</p>
+          <Button size="md" className="mt-4" onClick={() => void load()}>
+            Try again
+          </Button>
+        </Card>
+      ) : items && items.length === 0 ? (
         <Card className="mt-8 p-6 text-center">
           <p className="text-ink-soft">You&apos;re all caught up.</p>
           {/* Where to go next depends on which app you're in. A vendor with
@@ -88,7 +101,7 @@ export default function ActivityPage() {
         </Card>
       ) : (
         <div className="mt-8 grid gap-2">
-          {items.map((item) => (
+          {(items ?? []).map((item) => (
             <Link
               key={item.id}
               href={item.href}
