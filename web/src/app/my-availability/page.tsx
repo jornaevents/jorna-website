@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getMyAvailability, getMyVendor, setMyAvailability } from "@/lib/jorna";
 import { WEEKDAYS, type AvailabilitySlot, type VendorDetail } from "@/lib/types";
-import { Button, Card, LinkButton } from "@/components/ui";
+import { Button, Card, LinkButton, TimeField } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
 
 type Window = { start_time: string; end_time: string };
@@ -144,18 +144,14 @@ export default function MyAvailabilityPage() {
               <div className="mt-3 grid gap-2">
                 {byDay[d].map((win, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="time"
+                    <TimeField
                       value={win.start_time}
-                      onChange={(e) => setField(d, idx, "start_time", e.target.value)}
-                      className="rounded-lg border border-card-edge bg-ground-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-gold"
+                      onChange={(v) => setField(d, idx, "start_time", v)}
                     />
                     <span className="text-ink-faint">to</span>
-                    <input
-                      type="time"
+                    <TimeField
                       value={win.end_time}
-                      onChange={(e) => setField(d, idx, "end_time", e.target.value)}
-                      className="rounded-lg border border-card-edge bg-ground-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-gold"
+                      onChange={(v) => setField(d, idx, "end_time", v)}
                     />
                     <button
                       type="button"

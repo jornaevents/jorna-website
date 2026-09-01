@@ -71,8 +71,15 @@ function LoginInner() {
   // worked, in both directions, for as long as you stayed on the page.
   const mode: "login" | "register" =
     isGoogleSignup || params.get("mode") === "register" ? "register" : "login";
-  // No default: the choice is required, the way iOS's two signup cards are.
-  const [role, setRole] = useState<Role | null>(null);
+  // No default beyond what the entry point already told us: a CTA like
+  // "Become a vendor" passes ?role=vendor so the choice this page would
+  // otherwise ask again is already made. Read once on mount, same as `next`
+  // below — unlike `mode`, this is also user-editable via the toggle, so it
+  // can't be re-derived from the URL on every render the way `mode` is.
+  const [role, setRole] = useState<Role | null>(() => {
+    const r = params.get("role");
+    return r === "vendor" || r === "host" ? r : null;
+  });
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +200,9 @@ function LoginInner() {
   // leaving a dead button to puzzle over.
   const subheading =
     mode === "login"
-      ? "Sign in to build and book your celebration."
+      ? role === "vendor"
+        ? "Sign in to manage your listing."
+        : "Sign in to build and book your celebration."
       : role === null
         ? "First — how will you use Jorna?"
         : isGoogleSignup

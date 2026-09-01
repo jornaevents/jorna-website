@@ -8,7 +8,7 @@ import { celebrationByKey } from "@/lib/celebrations";
 import { deleteBundle, generateBundles } from "@/lib/jorna";
 import { CATEGORY_LABELS, categoryLabel, type BundleOption } from "@/lib/types";
 import { unchosenBundleIds } from "@/lib/planning";
-import { Button, Card, Chip, Field } from "@/components/ui";
+import { Button, Card, Chip, Field, TimeField } from "@/components/ui";
 import { BundleResults } from "@/components/BundleResults";
 import { ClientOnlyRoute } from "@/components/ClientOnlyRoute";
 import { CityCombobox, type Coords } from "@/components/CityCombobox";
@@ -35,12 +35,6 @@ const IconCalendar = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={svg}>
     <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
     <path d="M3.5 9.5h17M8 3v4M16 3v4" />
-  </svg>
-);
-const IconClock = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={svg}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 7.5V12l3 1.8" />
   </svg>
 );
 const IconUsers = (
@@ -406,20 +400,8 @@ function PlanInner() {
             <div>
               <p className="mb-2 text-sm font-medium text-ink-soft">Time</p>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <Field
-                  label="Starts"
-                  type="time"
-                  icon={IconClock}
-                  value={timeStart}
-                  onChange={(e) => setTimeStart(e.target.value)}
-                />
-                <Field
-                  label="Ends"
-                  type="time"
-                  icon={IconClock}
-                  value={timeEnd}
-                  onChange={(e) => setTimeEnd(e.target.value)}
-                />
+                <TimeField label="Starts" value={timeStart} onChange={setTimeStart} />
+                <TimeField label="Ends" value={timeEnd} onChange={setTimeEnd} />
               </div>
             </div>
           </div>

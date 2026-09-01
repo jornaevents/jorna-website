@@ -74,8 +74,14 @@ export default function VendorOnboardingPage() {
   const [instagram, setInstagram] = useState("");
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/vendor-onboarding");
+    if (!authLoading && !user) {
+      router.replace("/login?next=/vendor-onboarding&role=vendor");
+    }
   }, [authLoading, user, router]);
+
+  // Bumped by the "Try again" button below to re-run the load effect after a
+  // failed load, without duplicating the fetch logic.
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -88,10 +94,17 @@ export default function VendorOnboardingPage() {
           // An account is one or the other (see ClientOnlyRoute) — converting
           // out from under an open request or an escrowed booking would strand
           // it with no client nav left to manage that from, so check before
-          // the point of no return rather than after.
-          const bundles = await listBundles().catch(() => []);
-          if (cancelled) return;
-          setStep(hasActiveBookings(bundles) ? "blocked" : "identity");
+          // the point of no return rather than after. Fail closed: a network
+          // hiccup here must not read as "nothing to check".
+          try {
+            const bundles = await listBundles();
+            if (cancelled) return;
+            setStep(hasActiveBookings(bundles) ? "blocked" : "identity");
+          } catch (err) {
+            if (!cancelled) {
+              setError(err instanceof ApiError ? err.message : "Couldn't check your account.");
+            }
+          }
           return;
         }
         setVendor(mine);
@@ -125,7 +138,12 @@ export default function VendorOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router]);
+  }, [user, router, retryTick]);
+
+  function updateSpecializations(next: VendorSpecialization[]) {
+    setSpecializations(next);
+    if (next.length > 0) setError(null);
+  }
 
   async function submitIdentity(e: React.FormEvent) {
     e.preventDefault();
@@ -137,22 +155,29 @@ export default function VendorOnboardingPage() {
     setError(null);
     try {
       const [primary] = specializations;
-      const created = await createVendor({
+      const payload = {
         bio,
         category: primary.category,
         subcategory: primary.subcategory ?? undefined,
         specializations,
-      });
-      // The account just became a vendor's — nav and ClientOnlyRoute read a
-      // 60s-cached answer to "is this a vendor," and this is the one moment
-      // that answer actually changes. Without this, the client tabs (and the
-      // client-only routes behind them) would still be reachable for up to a
-      // minute after this succeeds.
-      clearRoleCache();
-      setVendor(created);
+      };
+      if (vendor) {
+        // Reached via Back from step 2 — the vendor record already exists, so
+        // this edits it instead of trying (and failing) to create a second one.
+        setVendor(await updateMyVendor(payload));
+      } else {
+        const created = await createVendor(payload);
+        // The account just became a vendor's — nav and ClientOnlyRoute read a
+        // 60s-cached answer to "is this a vendor," and this is the one moment
+        // that answer actually changes. Without this, the client tabs (and the
+        // client-only routes behind them) would still be reachable for up to a
+        // minute after this succeeds.
+        clearRoleCache();
+        setVendor(created);
+      }
       setStep("reach");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't create your vendor profile.");
+      setError(err instanceof ApiError ? err.message : "Couldn't save your vendor profile.");
     } finally {
       setBusy(false);
     }
@@ -178,8 +203,29 @@ export default function VendorOnboardingPage() {
     }
   }
 
-  if (authLoading || !user || loading || !step) {
+  if (authLoading || !user || loading) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  }
+
+  if (!step) {
+    return (
+      <div className="py-20 text-center">
+        <p role="alert" className="text-ink-soft">
+          {error ?? "Couldn't load your profile."}
+        </p>
+        <Button
+          type="button"
+          className="mt-4"
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            setRetryTick((t) => t + 1);
+          }}
+        >
+          Try again
+        </Button>
+      </div>
+    );
   }
 
   const stepNumber = STEP_NUMBER[step];
@@ -236,11 +282,14 @@ export default function VendorOnboardingPage() {
                 categories={categories}
                 specializations={specializations}
                 bio={bio}
-                onSpecializationsChange={setSpecializations}
+                onSpecializationsChange={updateSpecializations}
                 onBioChange={setBio}
               />
               {error ? (
-                <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+                <p
+                  role="alert"
+                  className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+                >
                   {error}
                 </p>
               ) : null}
@@ -258,8 +307,8 @@ export default function VendorOnboardingPage() {
             Where do you work?
           </h1>
           <p className="mt-2 text-center text-ink-soft">
-            Helps clients searching by distance find you. Both optional — skip
-            them if you&apos;re not sure yet.
+            Helps clients searching by distance find you. Both optional —
+            leave them blank if you&apos;re not sure yet.
           </p>
           <Card className="mt-8 p-6">
             <form onSubmit={submitReach} className="grid gap-4">
@@ -274,12 +323,22 @@ export default function VendorOnboardingPage() {
                 onInstagramChange={setInstagram}
               />
               {error ? (
-                <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+                <p
+                  role="alert"
+                  className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+                >
                   {error}
                 </p>
               ) : null}
               <Button type="submit" size="lg" disabled={busy}>
                 {busy ? "Saving…" : "Continue"}
+              </Button>
+              <Button
+                type="button"
+                variant="quiet"
+                onClick={() => setStep("identity")}
+              >
+                Back
               </Button>
             </form>
           </Card>
@@ -314,25 +373,40 @@ export default function VendorOnboardingPage() {
                 gets you found in each.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+              <Button type="button" variant="quiet" onClick={() => setStep("reach")}>
+                Back
+              </Button>
+              <LinkButton href="/vendor-profile" variant="quiet" size="md">
+                I&apos;ll add packages later
+              </LinkButton>
+            </div>
+          )}
         </>
       ) : null}
 
       {step === "done" ? (
         <div className="py-10 text-center">
-          <p className="eyebrow">You&apos;re live</p>
+          <p className="eyebrow">You&apos;re set up</p>
           <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold">
-            Clients can find you now
+            Two more things get you booked
           </h1>
           <p className="mx-auto mt-3 max-w-md text-ink-soft">
-            One thing left: without payment setup, you can be booked but never
-            paid — it takes a few minutes with Stripe.
+            Without payment setup, you can be booked but never paid. Without
+            weekly hours, clients searching by date won&apos;t find you.
+            Both take a few minutes.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <LinkButton href="/my-earnings" size="lg">
               Set up payments
             </LinkButton>
-            <LinkButton href="/vendor-profile" variant="ghost" size="lg">
+            <LinkButton href="/my-availability" variant="ghost" size="lg">
+              Set weekly hours
+            </LinkButton>
+          </div>
+          <div className="mt-4">
+            <LinkButton href="/vendor-profile" variant="quiet" size="md">
               Go to your listing
             </LinkButton>
           </div>

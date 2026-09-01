@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getVendor, getVendorReviews, listServices } from "@/lib/jorna";
 import {
@@ -165,6 +166,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
 function VendorInner() {
   const params = useSearchParams();
   const vendorId = params.get("id");
+  const { user } = useAuth();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -228,6 +230,9 @@ function VendorInner() {
   }
 
   const name = `${vendor.f_name ?? ""} ${vendor.l_name ?? ""}`.trim();
+  // A vendor previewing "what clients see" on their own page shouldn't be
+  // offered the client-side CTAs, or a way to report/block themselves.
+  const isOwnVendor = user?.user_id === vendor.user_id;
 
   const tiles: { value: React.ReactNode; label: string }[] = [];
   if (vendor.rating) {
@@ -374,25 +379,29 @@ function VendorInner() {
         )}
       </section>
 
-      <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
-        <p className="text-ink-soft">
-          Want this vendor on your team? Build a bundle and we&apos;ll match them to your date and
-          budget.
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <LinkButton href="/plan">Build my bundle</LinkButton>
-          <AskVendor vendorId={vendor.vendor_id} />
-        </div>
-      </div>
+      {!isOwnVendor ? (
+        <>
+          <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
+            <p className="text-ink-soft">
+              Want this vendor on your team? Build a bundle and we&apos;ll match them to your date
+              and budget.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <LinkButton href="/plan">Build my bundle</LinkButton>
+              <AskVendor vendorId={vendor.vendor_id} />
+            </div>
+          </div>
 
-      <div className="mt-6">
-        <ModerationMenu
-          targetType="vendor"
-          targetId={vendor.vendor_id}
-          blockUserId={vendor.user_id}
-          label={name || "this vendor"}
-        />
-      </div>
+          <div className="mt-6">
+            <ModerationMenu
+              targetType="vendor"
+              targetId={vendor.vendor_id}
+              blockUserId={vendor.user_id}
+              label={name || "this vendor"}
+            />
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

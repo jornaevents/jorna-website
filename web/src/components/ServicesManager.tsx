@@ -142,6 +142,9 @@ export function ServicesManager({
     setNewVideos([]);
     setEditing("new");
     setError(null);
+    // Otherwise a match from whatever venue was last geocoded — possibly a
+    // different service entirely — leaks into this blank form.
+    setMatched(null);
   }
 
   function startEdit(s: ServiceItem) {
@@ -162,6 +165,7 @@ export function ServicesManager({
     setNewVideos([]);
     setEditing(s.service_id);
     setError(null);
+    setMatched(null);
   }
 
   /**
@@ -380,7 +384,10 @@ export function ServicesManager({
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+        <p
+          role="alert"
+          className="mt-4 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+        >
           {error}
         </p>
       ) : null}
@@ -406,7 +413,7 @@ export function ServicesManager({
                 min={0.01}
                 step="0.01"
                 required
-                value={form.price || ""}
+                value={form.price ?? ""}
                 onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
               />
               <label className="block">
@@ -642,7 +649,14 @@ export function ServicesManager({
               <Button type="submit" disabled={busy}>
                 {busy ? "Saving…" : editing === "new" ? "Add package" : "Save changes"}
               </Button>
-              <Button variant="ghost" type="button" onClick={() => setEditing(null)}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  setEditing(null);
+                  setMatched(null);
+                }}
+              >
                 Cancel
               </Button>
             </div>

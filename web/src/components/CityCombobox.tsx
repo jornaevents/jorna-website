@@ -4,7 +4,7 @@
 // picking one reports its coordinates so the caller can send lat/lng. Free text
 // is always allowed — typing something not in the list just reports null coords.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { CITIES, type City } from "@/lib/cities";
 
 export interface Coords {
@@ -32,6 +32,7 @@ export function CityCombobox({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
   const matches = useMemo<City[]>(() => {
     const q = value.trim().toLowerCase();
@@ -84,6 +85,7 @@ export function CityCombobox({
             required={required}
             role="combobox"
             aria-expanded={showList}
+            aria-controls={listId}
             aria-autocomplete="list"
             autoComplete="off"
             onChange={(e) => {
@@ -112,6 +114,7 @@ export function CityCombobox({
 
         {showList ? (
           <ul
+            id={listId}
             role="listbox"
             className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-card-edge bg-card py-1 shadow-[var(--shadow-card)]"
           >

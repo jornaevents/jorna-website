@@ -680,6 +680,17 @@ export function listingHealth(opts: {
     });
   }
 
+  if (vendor && !vendor.pfp_url) {
+    issues.push({
+      id: "no-profile-photo",
+      issue: "No profile photo",
+      consequence: "You show up as a monogram everywhere clients see your name.",
+      cta: "Add one",
+      href: "/account",
+      severity: "warning",
+    });
+  }
+
   if (vendor && vendor.travel_radius_miles == null && !vendor.open_to_long_distance) {
     issues.push({
       id: "no-radius",

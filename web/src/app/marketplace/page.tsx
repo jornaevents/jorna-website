@@ -32,7 +32,7 @@ import { searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
 import { categoryLabel, type VendorSearchItem } from "@/lib/types";
 import { TILES } from "@/lib/categoryTiles";
-import { Button, Chip, Field } from "@/components/ui";
+import { Button, Chip, Field, TimeField } from "@/components/ui";
 import { CityCombobox } from "@/components/CityCombobox";
 import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
 
@@ -398,18 +398,8 @@ function MarketplaceInner() {
 
           {date ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:max-w-[50%]">
-              <Field
-                label="From (optional)"
-                type="time"
-                value={timeStart}
-                onChange={(e) => setTimeStart(e.target.value)}
-              />
-              <Field
-                label="Until (optional)"
-                type="time"
-                value={timeEnd}
-                onChange={(e) => setTimeEnd(e.target.value)}
-              />
+              <TimeField label="From (optional)" value={timeStart} onChange={setTimeStart} />
+              <TimeField label="Until (optional)" value={timeEnd} onChange={setTimeEnd} />
             </div>
           ) : null}
 
