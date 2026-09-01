@@ -117,7 +117,7 @@ function ConversationInner() {
     if (!conversationId) return;
     try {
       const res = await getConversationMessages(conversationId, { limit: 100 });
-      upsert(res.messages);
+      upsert(res.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load this conversation.");
     } finally {

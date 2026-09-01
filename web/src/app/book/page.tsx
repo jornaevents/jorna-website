@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
-import { createBooking, getService, listBundles } from "@/lib/jorna";
+import { createBooking, getService, getVendorAvailability, listBundles } from "@/lib/jorna";
 import { crossesMidnight, daysBetweenInclusive, estimateTotal, hoursBetween } from "@/lib/pricing";
+import { hasConflictOn } from "@/lib/availability";
 import {
   categoryLabel,
   priceUnitKind,
@@ -58,6 +59,7 @@ function BookInner() {
   // they're starting a new plan and there was nothing to inherit.
   const [filledFrom, setFilledFrom] = useState<string[] | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [dateConflict, setDateConflict] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,6 +70,28 @@ function BookInner() {
   useEffect(() => {
     setOvernightAck(false);
   }, [timeStart, timeEnd]);
+
+  // A soft warning, not a hard block: lib/availability's own notes say this
+  // endpoint fails open (untyped, often empty), so a wrong guess about the
+  // shape must cost a missed warning, never a client wrongly blocked from
+  // sending a request the vendor could actually take.
+  useEffect(() => {
+    if (!service || !dateIso) {
+      setDateConflict(false);
+      return;
+    }
+    let cancelled = false;
+    getVendorAvailability(service.vendor_id, dateIso, (multiDay && dateEnd) || dateIso)
+      .then((avail) => {
+        if (cancelled) return;
+        const window = timeStart && timeEnd ? { start: timeStart, end: timeEnd } : null;
+        setDateConflict(hasConflictOn(avail, dateIso, window));
+      })
+      .catch(() => !cancelled && setDateConflict(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [service, dateIso, dateEnd, multiDay, timeStart, timeEnd]);
 
   useEffect(() => {
     if (!serviceId || !user) return;
@@ -395,6 +419,13 @@ function BookInner() {
             </button>
           ) : null}
 
+          {dateConflict ? (
+            <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-ink-soft">
+              {service.vendor_name || "This vendor"} doesn&apos;t look free on this date, going
+              by their calendar — you can still send the request, but check with them first.
+            </p>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TimeField label="Start time" value={timeStart} onChange={setTimeStart} />
             <TimeField label="End time" value={timeEnd} onChange={setTimeEnd} />
@@ -457,6 +488,7 @@ function BookInner() {
           <Field
             label="Anything the vendor should know? (optional)"
             placeholder="We need setup access an hour early"
+            hint="Shown on the booking request — for an ongoing conversation, message the vendor directly instead."
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />

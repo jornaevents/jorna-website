@@ -289,7 +289,7 @@ export default function VendorCalendarPage() {
     const me = await getMyVendor().catch(() => null);
     if (!me) return { vendor: null as null };
     const [bk, avail] = await Promise.all([
-      listVendorBookings(me.vendor_id, { limit: 200 })
+      listVendorBookings(me.vendor_id, { limit: 100 })
         .then((r) => r.items)
         .catch(() => [] as VendorBooking[]),
       getMyAvailability().catch(() => [] as AvailabilitySlot[]),
