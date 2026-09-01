@@ -69,6 +69,77 @@ jobs:
           path: web/playwright-report/
           retention-days: 14
 
+  preview:
+    name: Deploy PR preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      # Same reason as the `deploy` job below: wrangler is a root
+      # devDependency invoked via `npx --no-install`.
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install app dependencies
+        run: npm run install:app
+
+      - name: Build
+        run: npm run build
+
+      # A non-production --branch value makes this a Cloudflare Pages
+      # *preview* deployment — left alone by the `deploy` job below, which
+      # only promotes to production on --branch main. This does not reuse
+      # scripts/deploy.mjs: that script hardcodes --branch main and its
+      # multi-attempt stability-polling verification is tuned for
+      # production, not a one-shot preview build.
+      - name: Deploy preview
+        run: npx --no-install wrangler pages deploy public --project-name jorna-events --branch "pr-${{ github.event.pull_request.number }}" --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const url = `https://pr-${prNumber}.jorna-events.pages.dev`;
+            const marker = "<!-- pr-preview-comment -->";
+            const body = `${marker}\n🔗 Preview: ${url}\n\nUses the production backend/DB — see [DEPLOY.md](../blob/main/DEPLOY.md) before exercising booking/payment flows.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: prNumber,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
   deploy:
     name: Deploy to Cloudflare Pages
     needs: [build, e2e]

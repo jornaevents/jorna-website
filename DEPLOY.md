@@ -66,22 +66,31 @@ Note also that `/app/*` pages are client-rendered behind `<Suspense>`, so their
 served HTML contains none of the UI text — grepping the HTML for a string you
 just added will find nothing on either host. It lives in the JS bundle.
 
-## `*.pages.dev` is not a usable staging URL
+## Per-PR staging previews
 
-Backend CORS allows `https://jornaevents.com` and **rejects**
-`https://jorna-events.pages.dev` — verified by preflight:
+Every PR gets its own live preview, deployed by the `preview` job in
+`.github/workflows/ci.yml`: `wrangler pages deploy public --branch
+pr-<PR number>` — a non-production `--branch` value makes Cloudflare Pages
+create a **preview** deployment instead of promoting to production, at
+`https://pr-<n>.jorna-events.pages.dev`. It does not touch `jornaevents.com`
+or the bare `jorna-events.pages.dev` domain, both still owned solely by the
+`deploy` job on merge to `main`. The job posts (and updates, on new pushes)
+a sticky PR comment with the link.
 
-```
-$ curl -i -X OPTIONS -H "Origin: https://jornaevents.com" \
+This used to be a dead end — backend CORS rejected any `*.pages.dev` origin,
+so a preview rendered but every API call failed. The backend now sets
+`ALLOWED_ORIGIN_REGEX=^https://([a-z0-9-]+\.)?jorna-events\.pages\.dev$` on
+Railway (ORed with `ALLOWED_ORIGINS` by `CORSMiddleware`), which covers any
+`pr-<n>.jorna-events.pages.dev` preview without editing Railway per PR.
+
+**Not a fully isolated staging environment**: previews call the same
+production backend and production database as `jornaevents.com` — there's
+no separate staging API or DB. Good for checking that a change renders and
+behaves correctly against real data; a preview that walks through a booking
+or payment flow is still writing to production. Verify with:
+
+```bash
+curl -i -X OPTIONS -H "Origin: https://pr-999.jorna-events.pages.dev" \
     -H "Access-Control-Request-Method: POST" $API/auth/login
-HTTP/1.1 200 OK
-access-control-allow-origin: https://jornaevents.com
-
-$ curl -i -X OPTIONS -H "Origin: https://jorna-events.pages.dev" ...
-HTTP/1.1 400 Bad Request
+# expect: access-control-allow-origin: https://pr-999.jorna-events.pages.dev
 ```
-
-The pages.dev deployment renders but cannot reach the API — every sign-in,
-booking, and listing call fails CORS. To use it as a real staging environment,
-add that origin to `ALLOWED_ORIGINS` on Railway (the backend reads it from the
-environment; it is not in the repo).
