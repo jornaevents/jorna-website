@@ -179,6 +179,10 @@ function BookingWhen({
  * The API has taken a per-booking guest_count all along. This is the field that
  * was never offered. Only where it's still the client's to set: once a vendor
  * has been told a number, `locked_fields` says so and the server refuses.
+ *
+ * Also covers per-performer pricing (entertainment groups billed by how many
+ * performers they're asked to provide) — same mechanics, `performer_count`
+ * instead of `guest_count`.
  */
 function BookingGuests({
   booking,
@@ -187,22 +191,26 @@ function BookingGuests({
   booking: BundleBooking;
   onSaved: () => void | Promise<void>;
 }) {
+  const kind = priceUnitKind(booking.price_unit);
+  const isPerformer = kind === "performer";
+  const count = isPerformer ? booking.performer_count : booking.guest_count;
+  const noun = isPerformer ? "performer" : "guest";
+  const field = isPerformer ? "performer_count" : "guest_count";
+
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(
-    booking.guest_count != null ? String(booking.guest_count) : "",
-  );
+  const [value, setValue] = useState(count != null ? String(count) : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const locked = (booking.locked_fields ?? []).includes("guest_count");
-  if (priceUnitKind(booking.price_unit) !== "person") return null;
+  const locked = (booking.locked_fields ?? []).includes(field);
+  if (kind !== "person" && !isPerformer) return null;
   if (isBeyondActionable(booking) || isDeadBooking(booking)) return null;
 
   if (locked) {
     return (
       <p className="mt-2 text-xs text-ink-faint">
-        {booking.guest_count} guests — {booking.vendor_name || "your vendor"} has
-        this number, so it&apos;s settled.
+        {count} {noun}s — {booking.vendor_name || "your vendor"} has this number,
+        so it&apos;s settled.
       </p>
     );
   }
@@ -212,7 +220,7 @@ function BookingGuests({
     setError(null);
     try {
       await updateBooking(booking.booking_id, {
-        guest_count: Number(value) > 0 ? Number(value) : null,
+        [field]: Number(value) > 0 ? Number(value) : null,
       });
       setEditing(false);
       await onSaved();
@@ -226,15 +234,13 @@ function BookingGuests({
   if (!editing) {
     return (
       <p className="mt-2 text-xs text-ink-soft">
-        {booking.guest_count
-          ? `${booking.guest_count} guests for this one`
-          : "No guest count yet"}{" "}
+        {count ? `${count} ${noun}s for this one` : `No ${noun} count yet`}{" "}
         <button
           type="button"
           onClick={() => setEditing(true)}
           className="font-semibold text-gold hover:underline"
         >
-          {booking.guest_count ? "Change" : "Add"}
+          {count ? "Change" : "Add"}
         </button>
       </p>
     );
@@ -249,7 +255,7 @@ function BookingGuests({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="80"
-        aria-label={`Guests for ${booking.service_name || "this package"}`}
+        aria-label={`${noun[0].toUpperCase()}${noun.slice(1)}s for ${booking.service_name || "this package"}`}
         className="w-24 rounded-lg border border-card-edge bg-ground-2 px-2.5 py-1 text-sm tabular-nums text-ink outline-none focus:border-gold"
       />
       <Button size="md" disabled={busy} onClick={save}>
@@ -259,7 +265,9 @@ function BookingGuests({
         Cancel
       </Button>
       <span className="text-xs text-ink-faint">
-        Just this booking — a mehndi and a reception rarely share a headcount.
+        {isPerformer
+          ? "Just this booking — how many performers this vendor needs to provide."
+          : "Just this booking — a mehndi and a reception rarely share a headcount."}
       </span>
       {error ? (
         <span className="text-xs text-maroon dark:text-gold">{error}</span>
@@ -474,6 +482,8 @@ function BookingRow({
   // status line now says what's happening instead.
   const payable = booking.status === "approved" && pay === "unpaid";
   const blockedOnQuantity = payable && booking.price_pending_quantity;
+  const pendingQuantityNoun =
+    priceUnitKind(booking.price_unit) === "performer" ? "a performer count" : "a guest count or date range";
 
   // Escrow actions only exist while the money is held on the platform.
   const held = pay === "paid";
@@ -531,8 +541,8 @@ function BookingRow({
         <p className="mt-3 rounded-lg bg-gold/10 px-3 py-2 text-xs text-ink-soft">
           {/* Reached only when the quantity is still pending, so the caption is
               the rate label rather than a total. */}
-          This package is priced {price.caption || "per unit"}. Its total needs a guest count
-          or date range before it can be paid —{" "}
+          This package is priced {price.caption || "per unit"}. Its total needs {pendingQuantityNoun}
+          before it can be paid —{" "}
           <a href="#still-needed" className="font-medium text-gold hover:underline">
             add that above
           </a>
@@ -1753,8 +1763,8 @@ function BundleInner() {
               {cash.unpricedCount === 1
                 ? "One booking isn't priced yet"
                 : `${cash.unpricedCount} bookings aren't priced yet`}{" "}
-              — they charge by the guest, hour or day, so they aren&apos;t in the
-              figure above.{" "}
+              — they charge by the guest, performer, hour or day, so they
+              aren&apos;t in the figure above.{" "}
               <a href="#still-needed" className="font-medium text-gold hover:underline">
                 Add what&apos;s missing
               </a>

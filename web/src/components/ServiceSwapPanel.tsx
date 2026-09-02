@@ -87,6 +87,7 @@ export function ServiceSwapPanel({
         location: booking.location ?? "",
         // Carry the quantity across, or a rate-priced replacement can't be paid.
         guest_count: booking.guest_count ?? null,
+        performer_count: booking.performer_count ?? null,
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleId,
@@ -126,7 +127,7 @@ export function ServiceSwapPanel({
             <h2 className="serif text-xl text-ink">Swap this package</h2>
             <p className="mt-0.5 text-xs text-ink-faint">
               {slot ? categoryLabel(slot) : "Same slot"} · keeps your date, time,
-              and guest count
+              and quantity
             </p>
           </div>
           <button
@@ -160,6 +161,7 @@ export function ServiceSwapPanel({
                 const kind = priceUnitKind(s.price_unit);
                 const missingQty =
                   (kind === "person" && !booking.guest_count) ||
+                  (kind === "performer" && !booking.performer_count) ||
                   (kind === "day" && !booking.date_end && !booking.date_iso);
                 return (
                   <div

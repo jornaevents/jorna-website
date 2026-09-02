@@ -61,15 +61,22 @@ function formatExperienceYears(raw: string): string {
 // The rate's multiplier. "event" is a flat price — everything else needs a
 // quantity from the client at booking time before it can be paid.
 const PRICE_UNITS = [
-  { value: "event", label: "Flat price per event" },
+  { value: "event", label: "Price per event" },
   { value: "person", label: "Per person" },
+  { value: "performer", label: "Per performer" },
   { value: "hour", label: "Per hour" },
   { value: "day", label: "Per day" },
 ];
 
-const blank: ServiceInput = {
+// Same as ServiceInput, but price can sit empty while the vendor is mid-edit
+// (a plain `number` can't represent "cleared the field, haven't typed a new
+// one yet" without collapsing to 0) — save() coerces back to a number before
+// this goes anywhere near the API.
+type FormState = Omit<ServiceInput, "price"> & { price: number | "" };
+
+const blank: FormState = {
   name: "",
-  price: 0,
+  price: "",
   experience: "",
   // Per hour, matching the iOS create screen — the same vendor should not get a
   // different starting point depending on where they list. It is also the safer
@@ -109,7 +116,7 @@ export function ServicesManager({
   const [matched, setMatched] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | "new" | null>(autoStartNew ? "new" : null);
-  const [form, setForm] = useState<ServiceInput>(
+  const [form, setForm] = useState<FormState>(
     autoStartNew
       ? { ...blank, category: vendor.category ?? "", subcategory: vendor.subcategory ?? "" }
       : blank,
@@ -411,10 +418,12 @@ export function ServicesManager({
                 label="Price"
                 type="number"
                 min={0.01}
-                step="0.01"
+                step="any"
                 required
-                value={form.price ?? ""}
-                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                value={form.price}
+                onChange={(e) =>
+                  setForm({ ...form, price: e.target.value === "" ? "" : Number(e.target.value) })
+                }
               />
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-ink-soft">

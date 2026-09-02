@@ -53,6 +53,7 @@ function BookInner() {
   const [overnightAck, setOvernightAck] = useState(false);
   const [location, setLocation] = useState("");
   const [guests, setGuests] = useState("");
+  const [performers, setPerformers] = useState("");
   const [note, setNote] = useState("");
   const [bundleChoice, setBundleChoice] = useState(NEW_BUNDLE);
   // What the chosen plan just filled in, phrased for the client. Null when
@@ -136,6 +137,7 @@ function BookInner() {
   const kind = priceUnitKind(service.price_unit);
   const unitLabel = priceUnitLabel(service.price_unit);
   const needsGuests = kind === "person";
+  const needsPerformers = kind === "performer";
   const perDay = kind === "day";
 
   // Show what they'll actually be charged. The arithmetic lives in lib/pricing
@@ -146,6 +148,7 @@ function BookInner() {
       guests: Number(guests),
       days: daysBetweenInclusive(dateIso, (multiDay && dateEnd) || dateIso),
       hours: hoursBetween(timeStart, timeEnd),
+      performers: Number(performers),
     });
   }
 
@@ -237,6 +240,7 @@ function BookInner() {
         time_end: timeEnd,
         location: location.trim(),
         guest_count: guests ? Number(guests) : null,
+        performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
@@ -269,6 +273,10 @@ function BookInner() {
       setError("This package is priced per person — add a guest count so we can total it.");
       return;
     }
+    if (planAlreadySent && needsPerformers && !(Number(performers) > 0)) {
+      setError("This package is priced per performer — add a performer count so we can total it.");
+      return;
+    }
     // The time fields are custom controls (see TimeField), not a native input,
     // so there's no HTML5 `required` to lean on the way the date field still
     // does — this is that check's replacement for start/end time.
@@ -292,6 +300,7 @@ function BookInner() {
         time_end: timeEnd,
         location: location.trim(),
         guest_count: guests ? Number(guests) : null,
+        performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
@@ -484,6 +493,22 @@ function BookInner() {
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
           />
+
+          {needsPerformers ? (
+            <Field
+              label={planAlreadySent ? "Performer count (required)" : "Performer count (optional)"}
+              type="number"
+              min={1}
+              required={planAlreadySent}
+              hint={
+                planAlreadySent
+                  ? "This package is priced per performer, so the total needs it."
+                  : "Priced per performer — add it now or on your plan, before you send."
+              }
+              value={performers}
+              onChange={(e) => setPerformers(e.target.value)}
+            />
+          ) : null}
 
           <Field
             label="Anything the vendor should know? (optional)"

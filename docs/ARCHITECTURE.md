@@ -100,6 +100,13 @@ render identically. Always go through the `priceLine`-style helpers in
 `web/src/lib/types.ts` / `pricing.ts` rather than formatting these fields by
 hand.
 
+`price_unit` is one of five kinds (`PriceUnitKind` in `types.ts`): `event`
+(flat), `person`, `hour`, `day`, and `performer` (entertainment groups billed
+by how many performers they're asked to provide). `person` and `performer`
+each pair with their own quantity field on the booking (`guest_count` /
+`performer_count`) — the rest of the pricing/planning helpers treat both the
+same way: a rate with nothing to multiply by isn't a total.
+
 ## Booking lifecycle
 
 The full client (host) and vendor journeys — bundle → send → negotiate → pay

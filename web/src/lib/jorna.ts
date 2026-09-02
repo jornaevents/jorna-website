@@ -138,6 +138,9 @@ export interface BookingCreateInput {
   date_end?: string | null;
   /** Required for per-person services, or the total can't be resolved. */
   guest_count?: number | null;
+  /** Required for per-performer services (entertainment groups billed by
+   *  how many performers they're asked to provide), same reasoning. */
+  performer_count?: number | null;
   venue_latitude?: number | null;
   venue_longitude?: number | null;
   /** Omit to have the backend create a bundle for this booking. */
@@ -196,6 +199,7 @@ export interface BookingUpdateInput {
   date_iso?: string | null;
   date_end?: string | null;
   guest_count?: number | null;
+  performer_count?: number | null;
   time_start?: string | null;
   time_end?: string | null;
   location?: string | null;
