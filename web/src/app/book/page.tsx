@@ -136,8 +136,8 @@ function BookInner() {
 
   const kind = priceUnitKind(service.price_unit);
   const unitLabel = priceUnitLabel(service.price_unit);
-  const needsGuests = kind === "person";
-  const needsPerformers = kind === "performer";
+  const needsGuests = kind === "person" || Boolean(service.require_guest_count);
+  const needsPerformers = kind === "performer" || Boolean(service.require_performer_count);
   const perDay = kind === "day";
 
   // Show what they'll actually be charged. The arithmetic lives in lib/pricing
@@ -486,8 +486,12 @@ function BookInner() {
             hint={
               needsGuests
                 ? planAlreadySent
-                  ? "This package is priced per person, so the total needs it."
-                  : "Priced per person — add it now or on your plan, before you send."
+                  ? kind === "person"
+                    ? "This package is priced per person, so the total needs it."
+                    : "The vendor requires a guest count on every request."
+                  : kind === "person"
+                    ? "Priced per person — add it now or on your plan, before you send."
+                    : "The vendor requires this — add it now or on your plan, before you send."
                 : undefined
             }
             value={guests}
@@ -502,8 +506,12 @@ function BookInner() {
               required={planAlreadySent}
               hint={
                 planAlreadySent
-                  ? "This package is priced per performer, so the total needs it."
-                  : "Priced per performer — add it now or on your plan, before you send."
+                  ? kind === "performer"
+                    ? "This package is priced per performer, so the total needs it."
+                    : "The vendor requires a performer count on every request."
+                  : kind === "performer"
+                    ? "Priced per performer — add it now or on your plan, before you send."
+                    : "The vendor requires this — add it now or on your plan, before you send."
               }
               value={performers}
               onChange={(e) => setPerformers(e.target.value)}

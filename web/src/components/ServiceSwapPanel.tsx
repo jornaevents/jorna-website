@@ -160,8 +160,9 @@ export function ServiceSwapPanel({
                 // doesn't have — it would land unpayable.
                 const kind = priceUnitKind(s.price_unit);
                 const missingQty =
-                  (kind === "person" && !booking.guest_count) ||
-                  (kind === "performer" && !booking.performer_count) ||
+                  ((kind === "person" || Boolean(s.require_guest_count)) && !booking.guest_count) ||
+                  ((kind === "performer" || Boolean(s.require_performer_count)) &&
+                    !booking.performer_count) ||
                   (kind === "day" && !booking.date_end && !booking.date_iso);
                 return (
                   <div
