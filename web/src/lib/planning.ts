@@ -810,8 +810,15 @@ export function bookingGaps(
     gaps.push({ field: "hours", label: "a start and end time" });
   }
 
-  // The pricing unit still decides which quantity is needed on top.
-  if (priceUnitKind(b.price_unit) === "person" && !(b.guest_count ?? 0)) {
+  // The pricing unit decides which quantity is needed to compute a total —
+  // but a vendor can also opt in to requiring one regardless of price unit
+  // (Service.require_guest_count / require_performer_count), because "what I
+  // need to decide whether to accept" isn't always the same as "what I need
+  // to price it". The two reasons are independent, so both can apply to the
+  // same booking at once (e.g. a flat-rate service that wants a headcount
+  // AND a performer count) — this pushes both gaps when that happens.
+  const kind = priceUnitKind(b.price_unit);
+  if ((kind === "person" || b.require_guest_count) && !(b.guest_count ?? 0)) {
     // The booking's own count, and not the event's. Unlike the date and the
     // address, this one is arithmetic: the backend resolves the total from the
     // booking it prices, so an event-level headcount satisfied this check
@@ -821,7 +828,7 @@ export function bookingGaps(
     // have fixed it.
     gaps.push({ field: "guests", label: "a guest count" });
   }
-  if (priceUnitKind(b.price_unit) === "performer" && !(b.performer_count ?? 0)) {
+  if ((kind === "performer" || b.require_performer_count) && !(b.performer_count ?? 0)) {
     // Same reasoning as the guest count above — the booking's own count, not
     // an event-level figure, since a performer count has no event-level
     // equivalent to fall back on.

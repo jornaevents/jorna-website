@@ -88,6 +88,8 @@ const blank: FormState = {
   price_unit: "hour",
   description: "",
   negotiable: false,
+  require_guest_count: false,
+  require_performer_count: false,
 };
 
 export function ServicesManager({
@@ -166,6 +168,8 @@ export function ServicesManager({
       subcategory: s.subcategory ?? "",
       description: s.description ?? "",
       negotiable: Boolean(s.negotiable),
+      require_guest_count: Boolean(s.require_guest_count),
+      require_performer_count: Boolean(s.require_performer_count),
       location: s.location ?? "",
       venue_latitude: s.venue_latitude ?? null,
       venue_longitude: s.venue_longitude ?? null,
@@ -642,6 +646,42 @@ export function ServicesManager({
                 </div>
               </div>
             ) : null}
+
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={form.price_unit === "person" || Boolean(form.require_guest_count)}
+                disabled={form.price_unit === "person"}
+                onChange={(e) => setForm({ ...form, require_guest_count: e.target.checked })}
+                className="mt-1"
+              />
+              <span className="text-sm text-ink-soft">
+                Always require a guest count
+                <span className="block text-xs text-ink-faint">
+                  {form.price_unit === "person"
+                    ? "Already required — this package is priced per person."
+                    : "A client can't send a request without one, even though this package doesn't price by guest."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={form.price_unit === "performer" || Boolean(form.require_performer_count)}
+                disabled={form.price_unit === "performer"}
+                onChange={(e) => setForm({ ...form, require_performer_count: e.target.checked })}
+                className="mt-1"
+              />
+              <span className="text-sm text-ink-soft">
+                Always require a performer count
+                <span className="block text-xs text-ink-faint">
+                  {form.price_unit === "performer"
+                    ? "Already required — this package is priced per performer."
+                    : "A client can't send a request without one, even though this package doesn't price by performer."}
+                </span>
+              </span>
+            </label>
 
             <label className="flex items-start gap-2.5">
               <input

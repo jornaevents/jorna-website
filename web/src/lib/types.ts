@@ -268,6 +268,11 @@ export interface ServiceItem {
   subcategory?: string | null;
   description?: string | null;
   negotiable?: boolean;
+  // Opt-in on top of whatever the price unit already demands — a vendor can
+  // require a headcount/performer count for send-readiness purposes even when
+  // pricing doesn't need one (see bookingGaps() in lib/planning.ts).
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   // Venue services carry an address + map pin; the event's check-in anchor is
   // derived from the venue booking, so these get mirrored onto the booking.
   location?: string | null;
@@ -348,6 +353,9 @@ export interface BundleBooking {
   date_end?: string | null;
   guest_count?: number | null;
   performer_count?: number | null;
+  // Denormalized from the service, same as price_unit — see bookingGaps().
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   /** Whether this service is open to price negotiation (service.negotiable). */
   open_to_price_negotiation?: boolean;
   /**
@@ -874,6 +882,8 @@ export interface VendorBooking {
   price_pending_quantity?: boolean;
   guest_count?: number | null;
   performer_count?: number | null;
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   bundle_id?: string | null;
   event_name?: string | null;
   date_iso?: string | null;

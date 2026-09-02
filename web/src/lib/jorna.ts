@@ -400,6 +400,9 @@ export interface ServiceInput {
   subcategory?: string | null;
   description?: string | null;
   negotiable?: boolean;
+  /** Opt-in requirement on top of whatever price_unit already demands. */
+  require_guest_count?: boolean;
+  require_performer_count?: boolean;
   /** Required for venue-category services, along with the coordinates. */
   location?: string | null;
   venue_latitude?: number | null;

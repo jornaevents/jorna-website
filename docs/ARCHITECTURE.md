@@ -107,6 +107,14 @@ each pair with their own quantity field on the booking (`guest_count` /
 `performer_count`) — the rest of the pricing/planning helpers treat both the
 same way: a rate with nothing to multiply by isn't a total.
 
+A vendor can also opt in to *requiring* a guest count and/or a performer
+count on send, independent of price unit (`Service.require_guest_count` /
+`require_performer_count`, set on the package form) — e.g. a flat-priced
+caterer who still wants a headcount before deciding whether to accept. This
+is purely additive to `bookingGaps()` in `lib/planning.ts`: it only ever adds
+a requirement on top of whatever the price unit already demands, never
+removes one, and both quantities can be required on the same booking at once.
+
 ## Booking lifecycle
 
 The full client (host) and vendor journeys — bundle → send → negotiate → pay

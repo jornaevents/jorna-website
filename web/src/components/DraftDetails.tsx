@@ -315,7 +315,7 @@ export function DraftDetails({
             type="number"
             min={1}
             placeholder="200"
-            hint="Something in this plan is priced per person."
+            hint="Something in this plan needs a headcount."
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
           />

@@ -183,27 +183,35 @@ function BookingWhen({
  * Also covers per-performer pricing (entertainment groups billed by how many
  * performers they're asked to provide) — same mechanics, `performer_count`
  * instead of `guest_count`.
+ *
+ * A booking's *need* for a given quantity is decided by the caller, not this
+ * component — a vendor can opt in to requiring a guest count and/or a
+ * performer count independently of price unit (Service.require_guest_count /
+ * require_performer_count), so a single booking can need both at once. The
+ * caller renders one of these per applicable `field`.
  */
 function BookingGuests({
   booking,
+  field: quantityField,
   onSaved,
 }: {
   booking: BundleBooking;
+  /** Which quantity this instance edits — the caller decides how many of
+   *  these to render (0, 1, or 2) based on price unit + the opt-in flags. */
+  field: "guests" | "performers";
   onSaved: () => void | Promise<void>;
 }) {
-  const kind = priceUnitKind(booking.price_unit);
-  const isPerformer = kind === "performer";
+  const isPerformer = quantityField === "performers";
   const count = isPerformer ? booking.performer_count : booking.guest_count;
   const noun = isPerformer ? "performer" : "guest";
-  const field = isPerformer ? "performer_count" : "guest_count";
+  const bookingField = isPerformer ? "performer_count" : "guest_count";
 
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(count != null ? String(count) : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const locked = (booking.locked_fields ?? []).includes(field);
-  if (kind !== "person" && !isPerformer) return null;
+  const locked = (booking.locked_fields ?? []).includes(bookingField);
   if (isBeyondActionable(booking) || isDeadBooking(booking)) return null;
 
   if (locked) {
@@ -220,7 +228,7 @@ function BookingGuests({
     setError(null);
     try {
       await updateBooking(booking.booking_id, {
-        [field]: Number(value) > 0 ? Number(value) : null,
+        [bookingField]: Number(value) > 0 ? Number(value) : null,
       });
       setEditing(false);
       await onSaved();
@@ -513,7 +521,13 @@ function BookingRow({
               {status.text}
             </span>
             <BookingWhen booking={booking} eventDateIso={event?.date_iso} />
-            <BookingGuests booking={booking} onSaved={onUpdated} />
+            {priceUnitKind(booking.price_unit) === "person" || booking.require_guest_count ? (
+              <BookingGuests booking={booking} field="guests" onSaved={onUpdated} />
+            ) : null}
+            {priceUnitKind(booking.price_unit) === "performer" ||
+            booking.require_performer_count ? (
+              <BookingGuests booking={booking} field="performers" onSaved={onUpdated} />
+            ) : null}
           </div>
         </div>
         <div className="text-right">
