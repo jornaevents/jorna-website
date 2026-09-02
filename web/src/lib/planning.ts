@@ -269,10 +269,12 @@ function bookingTask(b: BundleBooking): PlanTask | null {
   // a client to do the one thing every other screen is built to prevent.
   if (b.status === "approved" && pay === "unpaid") {
     if (b.price_pending_quantity) {
+      const quantityGap =
+        priceUnitKind(b.price_unit) === "performer" ? "a performer count" : "a guest count or dates";
       return {
         id: `quantity-${b.booking_id}`,
         kind: "quantity",
-        title: `${service} needs a guest count or dates`,
+        title: `${service} needs ${quantityGap}`,
         vendor,
         note: `it's priced ${priceUnitLabel(b.price_unit) || "per unit"}, so its total can't be worked out until then.`,
         tone: "normal",
@@ -760,7 +762,7 @@ export function missingCategories(
 // person wants a headcount, per hour wants a start and end, per day wants the
 // dates it spans. A flat-rate service wants none of them.
 
-export type BookingGapField = "date" | "location" | "guests" | "hours";
+export type BookingGapField = "date" | "location" | "guests" | "hours" | "performers";
 
 export interface BookingGap {
   field: BookingGapField;
@@ -818,6 +820,12 @@ export function bookingGaps(
     // price_pending_quantity — unpayable, and past the only screen that could
     // have fixed it.
     gaps.push({ field: "guests", label: "a guest count" });
+  }
+  if (priceUnitKind(b.price_unit) === "performer" && !(b.performer_count ?? 0)) {
+    // Same reasoning as the guest count above — the booking's own count, not
+    // an event-level figure, since a performer count has no event-level
+    // equivalent to fall back on.
+    gaps.push({ field: "performers", label: "a performer count" });
   }
   // Per day is covered by the date above; a single-day booking is a valid span,
   // so date_end being absent isn't a gap.
@@ -924,7 +932,7 @@ export function sendReadiness(bundle: BundleDetail): SendReadiness {
     .map((booking) => ({ booking, gaps: bookingGaps(booking, bundle.event) }))
     .filter((r) => r.gaps.length > 0);
 
-  const order: BookingGapField[] = ["date", "location", "guests", "hours"];
+  const order: BookingGapField[] = ["date", "location", "guests", "performers", "hours"];
   const seen = new Set<BookingGapField>();
   for (const r of blocked) for (const g of r.gaps) seen.add(g.field);
 
@@ -940,6 +948,7 @@ export const GAP_LABELS: Record<BookingGapField, string> = {
   date: "a date",
   location: "a full address",
   guests: "a guest count",
+  performers: "a performer count",
   hours: "start and end times",
 };
 

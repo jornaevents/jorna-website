@@ -260,7 +260,15 @@ function PricePanel({ service }: { service: ServiceItem }) {
   const settled = settledBy(kind);
   const limits = key ? QUANTITY_LIMITS[kind as keyof typeof QUANTITY_LIMITS] : null;
   const stepperLabel =
-    kind === "person" ? "Guests" : kind === "day" ? "Days" : kind === "hour" ? "Hours" : "";
+    kind === "person"
+      ? "Guests"
+      : kind === "day"
+        ? "Days"
+        : kind === "hour"
+          ? "Hours"
+          : kind === "performer"
+            ? "Performers"
+            : "";
 
   return (
     <Card className="p-6">
@@ -323,6 +331,11 @@ function PricePanel({ service }: { service: ServiceItem }) {
           View vendor profile
         </LinkButton>
       </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+        Changes to this booking — at the event, or after the request is
+        finalized — are at your vendor&apos;s discretion.
+      </p>
     </Card>
   );
 }

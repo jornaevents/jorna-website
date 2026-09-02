@@ -61,15 +61,24 @@ function formatExperienceYears(raw: string): string {
 // The rate's multiplier. "event" is a flat price — everything else needs a
 // quantity from the client at booking time before it can be paid.
 const PRICE_UNITS = [
-  { value: "event", label: "Flat price per event" },
+  { value: "event", label: "Price per event" },
   { value: "person", label: "Per person" },
+  { value: "performer", label: "Per performer" },
   { value: "hour", label: "Per hour" },
   { value: "day", label: "Per day" },
 ];
 
-const blank: ServiceInput = {
+// Same as ServiceInput, but price is the raw text the vendor is typing, not
+// a number — a native number input's own min/step validation fights a vendor
+// trying to clear a pre-filled price and type a new one (it can snap back to
+// "0" rather than let the field sit empty mid-edit). Plain text sidesteps
+// that entirely; save() parses and validates it before this goes anywhere
+// near the API.
+type FormState = Omit<ServiceInput, "price"> & { price: string };
+
+const blank: FormState = {
   name: "",
-  price: 0,
+  price: "",
   experience: "",
   // Per hour, matching the iOS create screen — the same vendor should not get a
   // different starting point depending on where they list. It is also the safer
@@ -109,7 +118,7 @@ export function ServicesManager({
   const [matched, setMatched] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | "new" | null>(autoStartNew ? "new" : null);
-  const [form, setForm] = useState<ServiceInput>(
+  const [form, setForm] = useState<FormState>(
     autoStartNew
       ? { ...blank, category: vendor.category ?? "", subcategory: vendor.subcategory ?? "" }
       : blank,
@@ -150,7 +159,7 @@ export function ServicesManager({
   function startEdit(s: ServiceItem) {
     setForm({
       name: s.name,
-      price: s.price,
+      price: String(s.price),
       experience: parseExperienceYears(s.experience),
       price_unit: s.price_unit ?? "event",
       category: s.category ?? "",
@@ -223,6 +232,11 @@ export function ServicesManager({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    const price = Number(form.price);
+    if (!form.price.trim() || !(price > 0)) {
+      setError("Enter a price greater than $0.");
+      return;
+    }
     if (isVenue && (form.venue_latitude == null || form.venue_longitude == null)) {
       setError(
         "A venue needs its map coordinates — that's what vendor check-in is measured against.",
@@ -234,7 +248,7 @@ export function ServicesManager({
     try {
       const payload: ServiceInput = {
         ...form,
-        price: Number(form.price),
+        price,
         experience: formatExperienceYears(form.experience),
         subcategory: form.subcategory || null,
         location: form.location || null,
@@ -409,12 +423,11 @@ export function ServicesManager({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field
                 label="Price"
-                type="number"
-                min={0.01}
-                step="0.01"
-                required
-                value={form.price ?? ""}
-                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                type="text"
+                inputMode="decimal"
+                placeholder="45"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
               />
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-ink-soft">

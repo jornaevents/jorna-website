@@ -347,6 +347,7 @@ export interface BundleBooking {
   // the replacement booking stays payable.
   date_end?: string | null;
   guest_count?: number | null;
+  performer_count?: number | null;
   /** Whether this service is open to price negotiation (service.negotiable). */
   open_to_price_negotiation?: boolean;
   /**
@@ -872,6 +873,7 @@ export interface VendorBooking {
   price_unit?: string | null;
   price_pending_quantity?: boolean;
   guest_count?: number | null;
+  performer_count?: number | null;
   bundle_id?: string | null;
   event_name?: string | null;
   date_iso?: string | null;
@@ -1008,7 +1010,7 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
  * that quantity up front or its total can't be resolved and checkout refuses
  * (see resolve_total_cents / price_pending_quantity on the backend).
  */
-export type PriceUnitKind = "person" | "day" | "hour" | "event";
+export type PriceUnitKind = "person" | "day" | "hour" | "event" | "performer";
 
 /**
  * What quantity a rate multiplies by.
@@ -1027,6 +1029,12 @@ export function priceUnitKind(unit?: string | null): PriceUnitKind {
   if (u.startsWith("hour")) return "hour";
   if (u.startsWith("day")) return "day";
   if (u.startsWith("event")) return "event";
+  if (
+    u.startsWith("performer") ||
+    ["dancer", "dancers", "entertainer", "entertainers"].includes(u)
+  ) {
+    return "performer";
+  }
   if (u.startsWith("person") || ["head", "plate", "guest", "pax"].includes(u)) {
     return "person";
   }
@@ -1058,6 +1066,7 @@ export interface PricedBooking {
   price_unit?: string | null;
   price_pending_quantity?: boolean;
   guest_count?: number | null;
+  performer_count?: number | null;
   date_iso?: string | null;
   date_end?: string | null;
   time_start?: string | null;
@@ -1092,6 +1101,10 @@ export function priceQuantity(b: PricedBooking): { count: number; noun: string }
     case "person": {
       const guests = b.guest_count ?? 0;
       return guests > 0 ? one(guests, "guest") : null;
+    }
+    case "performer": {
+      const performers = b.performer_count ?? 0;
+      return performers > 0 ? one(performers, "performer") : null;
     }
     case "day": {
       const days = dayCount(b.date_iso, b.date_end);
