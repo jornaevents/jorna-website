@@ -866,6 +866,17 @@ export interface VendorAvailability {
   google_calendar_error?: string | null;
 }
 
+/**
+ * GET /vendors/{id}/calendar-status — owner-only. `write_enabled` is false
+ * for a vendor connected before booking write-back requested the broader
+ * scope; Google never widens a standing grant on its own, so this is the
+ * only reliable way to tell "connected" from "connected with write access."
+ */
+export interface CalendarStatus {
+  google_calendar_connected: boolean;
+  google_calendar_write_enabled: boolean;
+}
+
 // ── Vendor-side bookings ─────────────────────────────────────────────
 
 /** A booking as the vendor sees it (the fuller `_booking_dict` payload). */

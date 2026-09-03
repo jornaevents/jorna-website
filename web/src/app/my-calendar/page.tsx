@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
+  getCalendarStatus,
   getGoogleAuthUrl,
   getMyAvailability,
   getMyVendor,
@@ -119,13 +120,23 @@ function Legend({ google, view }: { google: boolean; view: "month" | "year" }) {
  * It's a whole-page redirect, not a popup: Google's consent screen is its own
  * page, and a popup is the version that gets blocked on a phone. The vendor
  * comes back to /calendar-connected.
+ *
+ * Three states, not two: a fresh connect now requests both the busy-times
+ * scope and the write-back one, but a vendor who connected before write-back
+ * existed is stuck on the narrower grant they agreed to at the time — Google
+ * never widens a standing grant on its own. `writeEnabled` tells them apart,
+ * and the fix for the middle one is the same button as the first: running
+ * the connect flow again re-shows Google's consent screen (prompt=consent),
+ * which is what lets them grant the rest of it.
  */
 function GoogleCalendarCard({
   vendorId,
   connected,
+  writeEnabled,
 }: {
   vendorId: string;
   connected: boolean;
+  writeEnabled: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,17 +166,23 @@ function GoogleCalendarCard({
           </h2>
           <p className="mt-1 max-w-[52ch] text-sm text-ink-soft">
             {connected
-              ? "Days you're busy in Google show here too, so a client can't book you into a gap that isn't one."
-              : "Your Google events become busy days here, so nobody books you into a gap that isn't one. Jorna reads the times only — never what the events are — and never writes to your calendar."}
+              ? writeEnabled
+                ? "Days you're busy in Google show here too, and your Jorna bookings are added to your calendar automatically, so a client can't book you into a gap that isn't one."
+                : "Days you're busy in Google show here too, so a client can't book you into a gap that isn't one. Jorna doesn't add your bookings to your calendar yet — reconnect to turn that on."
+              : "Your Google events become busy days here, so nobody books you into a gap that isn't one, and your Jorna bookings are added to your calendar in return. Jorna reads an event's time only, never what it is."}
           </p>
         </div>
-        {connected ? (
+        {connected && writeEnabled ? (
           <span className="shrink-0 rounded-full bg-green/15 px-3 py-1 text-xs font-semibold text-green">
             Connected
           </span>
         ) : (
           <Button disabled={busy} onClick={connect}>
-            {busy ? "Opening Google…" : "Connect"}
+            {busy
+              ? "Opening Google…"
+              : connected
+                ? "Reconnect"
+                : "Connect"}
           </Button>
         )}
       </div>
@@ -271,6 +288,7 @@ export default function VendorCalendarPage() {
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
   const [googleBusy, setGoogleBusy] = useState<Set<string>>(new Set());
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleWriteEnabled, setGoogleWriteEnabled] = useState(false);
   const [notVendor, setNotVendor] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -367,6 +385,23 @@ export default function VendorCalendarPage() {
       cancelled = true;
     };
   }, [vendorId, year]);
+
+  // Owner-only, so it's not on getVendorAvailability above (that's public) —
+  // a separate, simpler effect with nothing date-range-shaped to depend on.
+  // Failure just means the reconnect prompt doesn't show, not that anything
+  // breaks: connected still reads correctly off the availability call.
+  useEffect(() => {
+    if (!vendorId) return;
+    let cancelled = false;
+    getCalendarStatus(vendorId)
+      .then((s) => {
+        if (!cancelled) setGoogleWriteEnabled(Boolean(s.google_calendar_write_enabled));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId]);
 
   const days = useMemo(
     () => calendarMonth(bookings, year, month, googleBusy),
@@ -665,7 +700,13 @@ export default function VendorCalendarPage() {
       </section>
       </div>
 
-      {vendorId ? <GoogleCalendarCard vendorId={vendorId} connected={googleConnected} /> : null}
+      {vendorId ? (
+        <GoogleCalendarCard
+          vendorId={vendorId}
+          connected={googleConnected}
+          writeEnabled={googleWriteEnabled}
+        />
+      ) : null}
 
       {/* Not in the nav any more, but still what a host filtering by a date is
           matched against, so it keeps a way in from here. */}
