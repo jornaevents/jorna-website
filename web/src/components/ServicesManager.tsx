@@ -11,7 +11,7 @@
 // Takes the vendor and the taxonomy rather than fetching them: the page above
 // already has both, and a second copy of either could disagree with the first.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   createService,
@@ -39,6 +39,12 @@ import { Button, Card, Field } from "./ui";
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
 }
+
+// A locally-generated preview — an object URL for a File the vendor just
+// picked or dropped, not yet (or not ever going to be) on the server. Kept
+// distinct from MediaItem, which describes server-side media, since the two
+// shapes aren't interchangeable.
+type LocalPreview = { url: string; type: "image" | "video" };
 
 // experience is stored server-side as free text ("Text", not a number column)
 // so old listings can carry whatever a vendor once typed ("9+ years",
@@ -135,6 +141,62 @@ export function ServicesManager({
   // screen the same way rather than making the vendor come back for it.
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [newVideos, setNewVideos] = useState<File[]>([]);
+  // Object URLs for the staged files above — kept in state (rather than
+  // computed inline on every render) so they're only ever created/revoked
+  // when newPhotos/newVideos actually change, via the effects below.
+  const [newPhotoPreviews, setNewPhotoPreviews] = useState<string[]>([]);
+  const [newVideoPreviews, setNewVideoPreviews] = useState<string[]>([]);
+  // Local previews for an upload already in flight against a saved service,
+  // keyed by service_id — cleared (and their object URLs revoked) once that
+  // upload settles, success or failure, since refresh() brings the real
+  // thumbnail on success and the error banner already covers failure.
+  const [pendingPhotosFor, setPendingPhotosFor] = useState<Record<string, LocalPreview[]>>({});
+  const [pendingVideosFor, setPendingVideosFor] = useState<Record<string, LocalPreview[]>>({});
+  // Which dropzone (by a small string key — "new-photos", "new-videos", or
+  // `photos-${serviceId}` / `video-${serviceId}`) is currently being dragged
+  // over. A single keyed value rather than per-dropzone state, since the
+  // existing-package dropzones live inside services.map() and can't each
+  // hold their own hook.
+  const [dragActiveKey, setDragActiveKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urls = newPhotos.map((f) => URL.createObjectURL(f));
+    setNewPhotoPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [newPhotos]);
+
+  useEffect(() => {
+    const urls = newVideos.map((f) => URL.createObjectURL(f));
+    setNewVideoPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [newVideos]);
+
+  // Shared drag-and-drop wiring for all four pickers — spread onto a
+  // dropzone's <label>. A plain function rather than a custom hook so it's
+  // safe to call inside services.map() too.
+  function dropZoneProps(key: string, onFiles: (files: FileList) => void) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey(key);
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey((k) => (k === key ? null : k));
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey((k) => (k === key ? null : k));
+        if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
+      },
+    };
+  }
+
+  function dropZoneClass(key: string) {
+    return dragActiveKey === key
+      ? "border-gold bg-gold/5"
+      : "border-card-edge hover:border-gold";
+  }
 
   async function refresh() {
     const res = await listServices({ vendor_id: vendor.vendor_id, limit: 100 });
@@ -316,16 +378,23 @@ export function ServicesManager({
   // renders its own file input, so a ref shared across the list would land on
   // whichever card happened to mount last — clearing the wrong one left a
   // just-used input still holding its old value, which silently swallows a
-  // retry: selecting the same file again fires no change event.
-  async function addPhotos(serviceId: string, input: HTMLInputElement) {
-    const files = input.files;
+  // retry: selecting the same file again fires no change event. A drop has no
+  // backing input, so it passes the FileList straight through instead.
+  async function addPhotos(serviceId: string, source: HTMLInputElement | FileList) {
+    const files = source instanceof HTMLInputElement ? source.files : source;
     if (!files?.length) return;
     setUploadingFor(serviceId);
     setError(null);
+    let pending: LocalPreview[] = [];
     try {
       const { ok, rejected } = checkImageFiles(Array.from(files));
       if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
-      if (ok.length) {
+      pending = ok.map((f) => ({ url: URL.createObjectURL(f), type: "image" as const }));
+      if (pending.length) {
+        setPendingPhotosFor((prev) => ({
+          ...prev,
+          [serviceId]: [...(prev[serviceId] ?? []), ...pending],
+        }));
         await uploadServiceImages(serviceId, ok);
         await refresh();
       }
@@ -333,7 +402,17 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload those photos.");
     } finally {
       setUploadingFor(null);
-      input.value = "";
+      if (source instanceof HTMLInputElement) source.value = "";
+      if (pending.length) {
+        pending.forEach((p) => URL.revokeObjectURL(p.url));
+        setPendingPhotosFor((prev) => {
+          const remaining = (prev[serviceId] ?? []).filter((p) => !pending.includes(p));
+          const next = { ...prev };
+          if (remaining.length) next[serviceId] = remaining;
+          else delete next[serviceId];
+          return next;
+        });
+      }
     }
   }
 
@@ -346,15 +425,21 @@ export function ServicesManager({
     }
   }
 
-  async function addVideos(serviceId: string, input: HTMLInputElement) {
-    const files = input.files;
+  async function addVideos(serviceId: string, source: HTMLInputElement | FileList) {
+    const files = source instanceof HTMLInputElement ? source.files : source;
     if (!files?.length) return;
     setUploadingVideoFor(serviceId);
     setError(null);
+    let pending: LocalPreview[] = [];
     try {
       const { ok, rejected } = await checkVideoFiles(Array.from(files));
       if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
-      if (ok.length) {
+      pending = ok.map((f) => ({ url: URL.createObjectURL(f), type: "video" as const }));
+      if (pending.length) {
+        setPendingVideosFor((prev) => ({
+          ...prev,
+          [serviceId]: [...(prev[serviceId] ?? []), ...pending],
+        }));
         await uploadServiceVideos(serviceId, ok);
         await refresh();
       }
@@ -362,7 +447,17 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload that video.");
     } finally {
       setUploadingVideoFor(null);
-      input.value = "";
+      if (source instanceof HTMLInputElement) source.value = "";
+      if (pending.length) {
+        pending.forEach((p) => URL.revokeObjectURL(p.url));
+        setPendingVideosFor((prev) => {
+          const remaining = (prev[serviceId] ?? []).filter((p) => !pending.includes(p));
+          const next = { ...prev };
+          if (remaining.length) next[serviceId] = remaining;
+          else delete next[serviceId];
+          return next;
+        });
+      }
     }
   }
 
@@ -613,10 +708,39 @@ export function ServicesManager({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <p className="mb-1.5 text-sm font-medium text-ink-soft">Photos</p>
-                  <label className="inline-block cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {newPhotos.length
-                      ? `${newPhotos.length} selected — choose again to replace`
-                      : "+ Choose photos"}
+                  {newPhotos.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {newPhotos.map((_, i) => (
+                        <div key={i} className="relative">
+                          {newPhotoPreviews[i] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={newPhotoPreviews[i]}
+                              alt=""
+                              className="size-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="size-16 rounded-lg bg-panel" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewPhotos((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground after:absolute after:-inset-2 after:content-['']"
+                            aria-label="Remove photo"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label
+                    {...dropZoneProps("new-photos", (files) => pickNewPhotos(files))}
+                    className={`inline-block cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass("new-photos")}`}
+                  >
+                    {newPhotos.length ? "Choose again to replace" : "+ Choose or drop photos"}
                     <input
                       type="file"
                       accept="image/*"
@@ -628,10 +752,49 @@ export function ServicesManager({
                 </div>
                 <div>
                   <p className="mb-1.5 text-sm font-medium text-ink-soft">Videos</p>
-                  <label className="inline-block cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {newVideos.length
-                      ? `${newVideos.length} selected — choose again to replace`
-                      : "+ Choose videos"}
+                  {newVideos.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {newVideos.map((_, i) => (
+                        <div key={i} className="relative">
+                          {newVideoPreviews[i] ? (
+                            <video
+                              src={newVideoPreviews[i]}
+                              muted
+                              playsInline
+                              className="size-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="size-16 rounded-lg bg-panel" />
+                          )}
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 grid place-items-center"
+                          >
+                            <span className="grid size-5 place-items-center rounded-full bg-black/55 text-white">
+                              <svg viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 size-2.5">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewVideos((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground after:absolute after:-inset-2 after:content-['']"
+                            aria-label="Remove video"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label
+                    {...dropZoneProps("new-videos", (files) => void pickNewVideos(files))}
+                    className={`inline-block cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass("new-videos")}`}
+                  >
+                    {newVideos.length ? "Choose again to replace" : "+ Choose or drop videos"}
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
@@ -798,8 +961,41 @@ export function ServicesManager({
                       </div>
                     );
                   })}
-                  <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {uploadingFor === s.service_id ? "Uploading…" : "+ Add photos"}
+                  {(pendingPhotosFor[s.service_id] ?? []).map((item, i) => (
+                    <div key={`pending-photo-${i}`} className="relative opacity-60">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.url} alt="" className="size-16 rounded-lg object-cover" />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 grid place-items-center"
+                      >
+                        <span className="size-4 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+                      </span>
+                    </div>
+                  ))}
+                  {(pendingVideosFor[s.service_id] ?? []).map((item, i) => (
+                    <div key={`pending-video-${i}`} className="relative opacity-60">
+                      <video
+                        src={item.url}
+                        muted
+                        playsInline
+                        className="size-16 rounded-lg object-cover"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 grid place-items-center"
+                      >
+                        <span className="size-4 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+                      </span>
+                    </div>
+                  ))}
+                  <label
+                    {...dropZoneProps(`photos-${s.service_id}`, (files) =>
+                      void addPhotos(s.service_id, files),
+                    )}
+                    className={`cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass(`photos-${s.service_id}`)}`}
+                  >
+                    {uploadingFor === s.service_id ? "Uploading…" : "+ Add or drop photos"}
                     <input
                       type="file"
                       accept="image/*"
@@ -808,8 +1004,13 @@ export function ServicesManager({
                       onChange={(e) => addPhotos(s.service_id, e.currentTarget)}
                     />
                   </label>
-                  <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {uploadingVideoFor === s.service_id ? "Uploading…" : "+ Add video"}
+                  <label
+                    {...dropZoneProps(`video-${s.service_id}`, (files) =>
+                      void addVideos(s.service_id, files),
+                    )}
+                    className={`cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass(`video-${s.service_id}`)}`}
+                  >
+                    {uploadingVideoFor === s.service_id ? "Uploading…" : "+ Add or drop video"}
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
