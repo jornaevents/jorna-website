@@ -56,9 +56,20 @@ export function LinkButton({
   );
 }
 
-export function Card({ className = "", children }: { className?: string; children: ReactNode }) {
+export function Card({
+  className = "",
+  id,
+  children,
+}: {
+  className?: string;
+  /** For a deep link to scroll straight to one card among many — see the
+   *  booking rows on /bundle, which a conversation's offer link targets. */
+  id?: string;
+  children: ReactNode;
+}) {
   return (
     <div
+      id={id}
       className={`rounded-2xl border border-card-edge bg-card shadow-[var(--shadow-card)] ${className}`}
     >
       {children}

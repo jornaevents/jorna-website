@@ -469,7 +469,7 @@ function BookingRow({
   const gaps = bookingGaps(booking, event);
 
   return (
-    <Card className="p-4">
+    <Card id={`booking-${booking.booking_id}`} className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 gap-3">
           <Avatar name={booking.vendor_name} size={40} />
@@ -1314,6 +1314,18 @@ function BundleInner() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // A conversation's offer card links here with #booking-<id> to land on the
+  // specific booking rather than the top of the plan. The hash is in the URL
+  // before that row exists — this page loads its data after mount — so the
+  // browser's own anchor-scroll fires too early and finds nothing; this does
+  // it once the booking is actually in the DOM.
+  useEffect(() => {
+    if (!bundle) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [bundle]);
 
   /** Run an escrow action, then refresh so the new state is authoritative. */
   async function run(

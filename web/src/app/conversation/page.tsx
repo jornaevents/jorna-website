@@ -36,7 +36,20 @@ function money(cents?: number | null): string | null {
  * `content` is a full sentence underneath it, so a message whose kind this
  * build doesn't know still reads correctly.
  */
-function OfferCard({ message, mine }: { message: GroupMessage; mine: boolean }) {
+function OfferCard({
+  message,
+  mine,
+  conversation,
+}: {
+  message: GroupMessage;
+  mine: boolean;
+  /** This is always the booking thread the offer lives in — its bundle_id
+   *  and booking_id are what "Answer on the booking" needs to land on the
+   *  specific card rather than the general dashboard. bundle_id is null on
+   *  an older thread that hasn't been opened since the backend started
+   *  tracking it, in which case the link falls back to the dashboard. */
+  conversation: ConversationSummary | null;
+}) {
   const meta = message.meta ?? {};
   const amount = money(meta.amount_cents);
   const settled = meta.action === "accept" || meta.action === "reject";
@@ -70,7 +83,11 @@ function OfferCard({ message, mine }: { message: GroupMessage; mine: boolean }) 
           place to be holding money — the plan page owns that, and says so. */}
       {!settled ? (
         <Link
-          href="/bundles"
+          href={
+            conversation?.bundle_id && conversation.booking_id
+              ? `/bundle?id=${conversation.bundle_id}#booking-${conversation.booking_id}`
+              : "/bundles"
+          }
           className="mt-2 inline-block text-xs font-medium text-maroon hover:underline dark:text-gold"
         >
           Answer on the booking →
@@ -277,7 +294,7 @@ function ConversationInner() {
                     </span>
                   ) : null}
                   {m.kind === "offer" ? (
-                    <OfferCard message={m} mine={mine} />
+                    <OfferCard message={m} mine={mine} conversation={meta} />
                   ) : (
                     <div
                       className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${
