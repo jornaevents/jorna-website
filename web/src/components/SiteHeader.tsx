@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { MobileNavMenu } from "./MobileNavMenu";
-import { NavBadge, NEEDS_YOU, useAppNav } from "./nav";
+import { MESSAGES, NavBadge, NEEDS_YOU, useAppNav } from "./nav";
 import { Button, LinkButton } from "./ui";
 
 // The top bar: wordmark, then the primary navigation, then the auth action.
@@ -17,7 +17,7 @@ import { Button, LinkButton } from "./ui";
 // clutter. MobileNavMenu's sheet has the room to show them.
 export function SiteHeader() {
   const { user, loading, logout } = useAuth();
-  const { desktopItems: items, attention, home, isActive } = useAppNav();
+  const { desktopItems: items, attention, messagesUnread, home, isActive } = useAppNav();
 
   return (
     <header className="sticky top-0 z-20 border-b border-line-soft bg-ground/85 backdrop-blur">
@@ -64,13 +64,22 @@ export function SiteHeader() {
           >
             {items.map((item) => {
               const active = isActive(item);
-              const badge = item.href === NEEDS_YOU.href ? attention : 0;
+              const badge =
+                item.href === NEEDS_YOU.href
+                  ? attention
+                  : item.href === MESSAGES.href
+                    ? messagesUnread
+                    : 0;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  aria-label={badge > 0 ? `${item.label}, ${badge} waiting` : undefined}
+                  aria-label={
+                    badge > 0
+                      ? `${item.label}, ${badge} ${item.href === MESSAGES.href ? "unread" : "waiting"}`
+                      : undefined
+                  }
                   className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium transition ${
                     active ? "text-gold" : "text-ink-soft hover:text-ink"
                   }`}

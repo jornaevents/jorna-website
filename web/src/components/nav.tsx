@@ -12,13 +12,17 @@
 // (vendorID != nil). Shown only to a signed-in user; the whole app lives under
 // basePath "/app", which next/link applies to these hrefs.
 //
-// The badge counts exactly what /activity lists — both read lib/attention, whose
-// short TTL cache means navigating around doesn't re-derive it each time.
+// Two independent badges: Needs You counts exactly what /activity lists (both
+// read lib/attention, whose short TTL cache means navigating around doesn't
+// re-derive it each time); Messages counts unread messages, straight from
+// /conversations/unread-count — a new message isn't a task the way the
+// Needs-You items are, so it gets its own number rather than folding in.
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { loadAttention } from "@/lib/attention";
+import { getUnreadCount } from "@/lib/jorna";
 import { loadIsVendor } from "@/lib/role";
 
 export interface NavItem {
@@ -66,6 +70,13 @@ export const NEEDS_YOU: NavItem = {
   match: ["/activity"],
 };
 
+export const MESSAGES: NavItem = {
+  href: "/messages",
+  label: "Messages",
+  icon: icon(I.messages),
+  match: ["/messages"],
+};
+
 export const CLIENT_TABS: NavItem[] = [
   { href: "/home", label: "Home", icon: icon(I.home), match: ["/home", "/browse"] },
   { href: "/plan", label: "Builder", icon: icon(I.build), match: ["/plan"] },
@@ -82,7 +93,7 @@ export const CLIENT_TABS: NavItem[] = [
     match: ["/bundles", "/bundle", "/book", "/events", "/event"],
   },
   NEEDS_YOU,
-  { href: "/messages", label: "Messages", icon: icon(I.messages), match: ["/messages"] },
+  MESSAGES,
   { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
 ];
 
@@ -117,7 +128,7 @@ export const VENDOR_TABS: NavItem[] = [
     ],
   },
   NEEDS_YOU,
-  { href: "/messages", label: "Messages", icon: icon(I.messages), match: ["/messages"] },
+  MESSAGES,
   { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
 ];
 
@@ -175,7 +186,7 @@ export const VENDOR_DESKTOP_TABS: NavItem[] = [
     match: ["/vendor-profile", "/vendor", "/marketplace"],
   },
   NEEDS_YOU,
-  { href: "/messages", label: "Messages", icon: icon(I.messages), match: ["/messages"] },
+  MESSAGES,
   { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
 ];
 
@@ -190,6 +201,7 @@ export function useAppNav(): {
   items: NavItem[] | null;
   desktopItems: NavItem[] | null;
   attention: number;
+  messagesUnread: number;
   home: string;
   isActive: (item: NavItem) => boolean;
 } {
@@ -197,6 +209,7 @@ export function useAppNav(): {
   const pathname = usePathname() ?? "";
   const [isVendor, setIsVendor] = useState<boolean | null>(null);
   const [attention, setAttention] = useState(0);
+  const [messagesUnread, setMessagesUnread] = useState(0);
 
   useEffect(() => {
     if (!user) {
@@ -227,11 +240,29 @@ export function useAppNav(): {
     };
   }, [user, pathname]);
 
+  // Same re-check-on-navigation shape as attention above, but its own request:
+  // unread count isn't part of what lib/attention derives, so it can't share
+  // that cache.
+  useEffect(() => {
+    if (!user) {
+      setMessagesUnread(0);
+      return;
+    }
+    let cancelled = false;
+    getUnreadCount()
+      .then((r) => !cancelled && setMessagesUnread(r.unread_count))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname]);
+
   const signedOut = loading || !user;
   return {
     items: signedOut ? null : isVendor ? VENDOR_TABS : CLIENT_TABS,
     desktopItems: signedOut ? null : isVendor ? VENDOR_DESKTOP_TABS : CLIENT_TABS,
     attention,
+    messagesUnread,
     // Where the wordmark goes. A logo goes home, and home for a seller is their
     // dashboard — not the page selling the builder to everyone else.
     home: isVendor ? "/my-dashboard" : "/home",
@@ -240,7 +271,7 @@ export function useAppNav(): {
   };
 }
 
-/** The count bubble on Needs you. Nothing when there's nothing waiting. */
+/** The count bubble on Needs you or Messages. Nothing when there's nothing waiting. */
 export function NavBadge({ count, className = "" }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
