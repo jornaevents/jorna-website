@@ -95,18 +95,28 @@ export default function MessagesPage() {
     loadIsVendor().then(setIsVendor);
   }, [user]);
 
+  // Initial load, then a slow poll so a message that arrived elsewhere moves
+  // its row up and bumps its unread count without a manual revisit — the
+  // list view doesn't get its own socket the way one open thread does (see
+  // lib/chat), so this is the same backstop-poll idea conversation/page.tsx
+  // uses, just slower: a row being a beat late to reorder is a much smaller
+  // deal than a message being late to arrive.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    listConversations()
-      .then((c) => !cancelled && setConversations(c))
-      .catch((err) =>
-        !cancelled &&
-        setError(err instanceof ApiError ? err.message : "Couldn't load your messages."),
-      )
-      .finally(() => !cancelled && setLoading(false));
+    const load = () =>
+      listConversations()
+        .then((c) => !cancelled && setConversations(c))
+        .catch((err) =>
+          !cancelled &&
+          setError(err instanceof ApiError ? err.message : "Couldn't load your messages."),
+        )
+        .finally(() => !cancelled && setLoading(false));
+    void load();
+    const poll = setInterval(load, 25000);
     return () => {
       cancelled = true;
+      clearInterval(poll);
     };
   }, [user]);
 
