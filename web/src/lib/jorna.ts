@@ -7,6 +7,7 @@ import type {
   ChangeRequest,
   AvailabilitySlot,
   BlockedUser,
+  CalendarStatus,
   ConversationSummary,
   Earnings,
   EventCreateInput,
@@ -684,11 +685,14 @@ export function getVendorAvailability(
 // ── Google Calendar ──────────────────────────────────────────────────
 //
 // Reading a vendor's Google-busy days has worked for a while — the days and the
-// connected flag both arrive on getVendorAvailability above, which is why
-// there's no wrapper here for /calendar-status: it would answer a question the
-// calendar has already asked.
+// connected flag both arrive on getVendorAvailability above, so there's still
+// no wrapper here for that half of /calendar-status.
 //
-// This is the half that was missing: starting the link at all.
+// write_enabled is different: it's not on getVendorAvailability (that
+// endpoint is public, and whether a vendor's own connection can write to
+// their calendar isn't a browsing client's business), and it's genuinely new
+// information a vendor connected under the old read-only scope needs — hence
+// getCalendarStatus below, just for that.
 
 /**
  * The Google consent URL to send the vendor to. Their own vendor only — the
@@ -701,6 +705,17 @@ export function getVendorAvailability(
  */
 export function getGoogleAuthUrl(vendorId: string): Promise<{ auth_url: string }> {
   return apiFetch(`/vendors/${vendorId}/google-auth${query({ client: "web" })}`);
+}
+
+/**
+ * Whether the vendor's own Google connection covers write-back — their
+ * Jorna bookings appearing on their calendar, not just busy times showing
+ * up here. Their own vendor only, same reasoning as the URL above: which
+ * accounts a vendor has linked, and what those accounts can do, isn't
+ * something a browsing client asks about.
+ */
+export function getCalendarStatus(vendorId: string): Promise<CalendarStatus> {
+  return apiFetch<CalendarStatus>(`/vendors/${vendorId}/calendar-status`);
 }
 
 // ── Card on file ─────────────────────────────────────────────────────

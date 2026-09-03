@@ -186,10 +186,16 @@ export default function MyAvailabilityPage() {
         </Button>
       </div>
 
-      <p className="mt-8 rounded-2xl border border-card-edge bg-panel p-4 text-xs text-ink-faint">
-        Syncing your Google Calendar so busy times show automatically is coming to
-        the web soon.
-      </p>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-edge bg-panel p-4">
+        <p className="text-xs text-ink-faint">
+          These are your recurring weekly hours. Google Calendar sync — busy
+          times pulled in automatically, and your Jorna bookings added back —
+          lives on your calendar page.
+        </p>
+        <LinkButton href="/my-calendar" variant="ghost" size="md">
+          Go to Calendar
+        </LinkButton>
+      </div>
     </div>
   );
 }
