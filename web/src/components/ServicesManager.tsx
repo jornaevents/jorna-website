@@ -738,9 +738,12 @@ export function ServicesManager({
                   ) : null}
                   <label
                     {...dropZoneProps("new-photos", (files) => pickNewPhotos(files))}
-                    className={`inline-block cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass("new-photos")}`}
+                    className={`flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm text-ink-soft ${dropZoneClass("new-photos")}`}
                   >
-                    {newPhotos.length ? "Choose again to replace" : "+ Choose or drop photos"}
+                    <span aria-hidden="true" className="text-2xl leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{newPhotos.length ? "Choose again to replace" : "Choose or drop photos"}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -792,9 +795,12 @@ export function ServicesManager({
                   ) : null}
                   <label
                     {...dropZoneProps("new-videos", (files) => void pickNewVideos(files))}
-                    className={`inline-block cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass("new-videos")}`}
+                    className={`flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm text-ink-soft ${dropZoneClass("new-videos")}`}
                   >
-                    {newVideos.length ? "Choose again to replace" : "+ Choose or drop videos"}
+                    <span aria-hidden="true" className="text-2xl leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{newVideos.length ? "Choose again to replace" : "Choose or drop videos"}</span>
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
@@ -993,9 +999,12 @@ export function ServicesManager({
                     {...dropZoneProps(`photos-${s.service_id}`, (files) =>
                       void addPhotos(s.service_id, files),
                     )}
-                    className={`cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass(`photos-${s.service_id}`)}`}
+                    className={`flex size-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed px-1.5 text-center text-[11px] leading-tight text-ink-soft ${dropZoneClass(`photos-${s.service_id}`)}`}
                   >
-                    {uploadingFor === s.service_id ? "Uploading…" : "+ Add or drop photos"}
+                    <span aria-hidden="true" className="text-lg leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{uploadingFor === s.service_id ? "Uploading…" : "Add or drop photos"}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1008,9 +1017,12 @@ export function ServicesManager({
                     {...dropZoneProps(`video-${s.service_id}`, (files) =>
                       void addVideos(s.service_id, files),
                     )}
-                    className={`cursor-pointer rounded-lg border border-dashed px-3 py-2 text-xs text-ink-soft ${dropZoneClass(`video-${s.service_id}`)}`}
+                    className={`flex size-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed px-1.5 text-center text-[11px] leading-tight text-ink-soft ${dropZoneClass(`video-${s.service_id}`)}`}
                   >
-                    {uploadingVideoFor === s.service_id ? "Uploading…" : "+ Add or drop video"}
+                    <span aria-hidden="true" className="text-lg leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{uploadingVideoFor === s.service_id ? "Uploading…" : "Add or drop video"}</span>
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
