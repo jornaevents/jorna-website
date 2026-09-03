@@ -782,11 +782,36 @@ export function isUnset(value?: string | null): boolean {
   return !text || text.toUpperCase() === "TBD";
 }
 
+/**
+ * Which fields a package's price_unit and opt-in flags put in play — not
+ * whether they've been filled in yet (that's bookingGaps below, which layers
+ * "is it actually unset" on top of this same rule). Date, address, and hours
+ * are always in play, on every package regardless of price_unit; guests and
+ * performers are each triggered by price_unit or the vendor's own opt-in
+ * flag, independently — either alone is enough, and both can apply at once.
+ *
+ * Takes a bare service/package, not a booking, so this also answers "what
+ * will this package need" before a client has started a request — see
+ * service/page.tsx's Requirements section.
+ */
+export function requiredFields(service: {
+  price_unit?: string | null;
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
+}): BookingGapField[] {
+  const kind = priceUnitKind(service.price_unit);
+  const fields: BookingGapField[] = ["date", "location", "hours"];
+  if (kind === "person" || service.require_guest_count) fields.push("guests");
+  if (kind === "performer" || service.require_performer_count) fields.push("performers");
+  return fields;
+}
+
 export function bookingGaps(
   b: BundleBooking,
   event?: BundleEventInfo | null,
 ): BookingGap[] {
   const gaps: BookingGap[] = [];
+  const needed = requiredFields(b);
 
   if (isUnset(b.date_iso)) {
     gaps.push({ field: "date", label: "a date" });
@@ -817,8 +842,10 @@ export function bookingGaps(
   // to price it". The two reasons are independent, so both can apply to the
   // same booking at once (e.g. a flat-rate service that wants a headcount
   // AND a performer count) — this pushes both gaps when that happens.
-  const kind = priceUnitKind(b.price_unit);
-  if ((kind === "person" || b.require_guest_count) && !(b.guest_count ?? 0)) {
+  // `needed` (requiredFields, above) already carries this same rule — a
+  // service/package page uses it to say what's needed before a request even
+  // starts, and this is what enforces it once one does.
+  if (needed.includes("guests") && !(b.guest_count ?? 0)) {
     // The booking's own count, and not the event's. Unlike the date and the
     // address, this one is arithmetic: the backend resolves the total from the
     // booking it prices, so an event-level headcount satisfied this check
@@ -828,7 +855,7 @@ export function bookingGaps(
     // have fixed it.
     gaps.push({ field: "guests", label: "a guest count" });
   }
-  if ((kind === "performer" || b.require_performer_count) && !(b.performer_count ?? 0)) {
+  if (needed.includes("performers") && !(b.performer_count ?? 0)) {
     // Same reasoning as the guest count above — the booking's own count, not
     // an event-level figure, since a performer count has no event-level
     // equivalent to fall back on.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingGaps } from "./planning";
+import { bookingGaps, requiredFields } from "./planning";
 import type { BundleBooking } from "./types";
 
 function booking(overrides: Partial<BundleBooking> = {}): BundleBooking {
@@ -77,5 +77,41 @@ describe("bookingGaps — opt-in required fields", () => {
     expect(
       gapFields(booking({ price_unit: "person", require_guest_count: false })),
     ).toContain("guests");
+  });
+});
+
+describe("requiredFields — what a package's page tells a client before they start a request", () => {
+  it("always includes date, location, and hours regardless of price unit", () => {
+    for (const price_unit of ["event", "person", "hour", "day", "performer"]) {
+      const fields = requiredFields({ price_unit });
+      expect(fields).toContain("date");
+      expect(fields).toContain("location");
+      expect(fields).toContain("hours");
+    }
+  });
+
+  it("adds guests only for per-person pricing or the opt-in flag", () => {
+    expect(requiredFields({ price_unit: "person" })).toContain("guests");
+    expect(requiredFields({ price_unit: "event" })).not.toContain("guests");
+    expect(requiredFields({ price_unit: "event", require_guest_count: true })).toContain(
+      "guests",
+    );
+  });
+
+  it("adds performers only for per-performer pricing or the opt-in flag", () => {
+    expect(requiredFields({ price_unit: "performer" })).toContain("performers");
+    expect(requiredFields({ price_unit: "event" })).not.toContain("performers");
+    expect(
+      requiredFields({ price_unit: "event", require_performer_count: true }),
+    ).toContain("performers");
+  });
+
+  it("matches bookingGaps' notion of what's required, for the same inputs", () => {
+    // requiredFields answers "what's in play"; bookingGaps layers "is it
+    // actually filled in" on top — but for a blank booking (nothing filled
+    // in) every field requiredFields names should show up as a gap too.
+    const shape = { price_unit: "event", require_guest_count: true, require_performer_count: true };
+    const blank = booking({ ...shape, date_iso: "", location: "", time_start: "", time_end: "" });
+    expect(gapFields(blank).sort()).toEqual(requiredFields(shape).sort());
   });
 });

@@ -24,6 +24,7 @@ import {
   settledBy,
   type Quantity,
 } from "@/lib/pricing";
+import { GAP_LABELS, describeGaps, requiredFields } from "@/lib/planning";
 import { Avatar, Card, LinkButton, Stars } from "@/components/ui";
 import { AskVendor } from "@/components/AskVendor";
 
@@ -313,6 +314,20 @@ function PricePanel({ service }: { service: ServiceItem }) {
           A flat rate for the whole event, however long it runs.
         </p>
       )}
+
+      {/* What a request will ask for, before the client starts one — driven
+          by the same rule that gates sending it (bookingGaps, lib/planning),
+          so this can never promise less than the booking form will actually
+          demand. */}
+      <div className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5">
+        <p className="text-sm font-medium text-ink">To send a request, you&apos;ll need</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+          {describeGaps(
+            requiredFields(service).map((field) => ({ field, label: GAP_LABELS[field] })),
+          )}
+          .
+        </p>
+      </div>
 
       <div className="mt-5 grid gap-2">
         <LinkButton href={`/book?service=${service.service_id}`} size="lg">
