@@ -30,6 +30,7 @@ import { Button, Card, LinkButton } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { DateChangeRequest } from "@/components/DateChangeRequest";
+import { MessageVendorButton } from "@/components/MessageVendorButton";
 
 /** "2027-06-14" → "14 Jun 2027". Raw ISO reads like a database row. */
 function prettyDate(iso?: string | null): string | null {
@@ -348,6 +349,13 @@ export default function MyBookingsPage() {
                       </p>
                     ) : null}
                   </div>
+                </div>
+
+                {/* On the row, same as the client's side of this button — a
+                    question about this booking starts here, not in a tab
+                    listing every thread. */}
+                <div className="mt-3 flex justify-end">
+                  <MessageVendorButton bookingId={b.booking_id} />
                 </div>
 
                 {decidable ? (
