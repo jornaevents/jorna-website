@@ -252,6 +252,20 @@ function ConversationInner() {
           <div className="grid gap-2.5">
             {messages.map((m) => {
               const mine = m.sender_id === user.user_id;
+              // An event log line ("date change accepted"), not a message
+              // from either party — centered, unattributed, no left/right
+              // side to pick.
+              if (m.kind === "system") {
+                return (
+                  <div key={m.message_id} className="flex justify-center py-1">
+                    {/* bg-card, not bg-panel — the thread's own background is
+                        panel, and a pill matching it would be invisible. */}
+                    <span className="mx-auto max-w-[85%] rounded-full bg-card px-3 py-1 text-center text-xs text-ink-faint">
+                      {m.content}
+                    </span>
+                  </div>
+                );
+              }
               return (
                 <div
                   key={m.message_id}

@@ -24,11 +24,11 @@ import {
   forgetSavedCard,
   getBundleConversation,
   getSavedCard,
-  openBookingThread,
   startCardSetup,
   type SavedCard,
 } from "@/lib/jorna";
 import { ServiceSwapPanel } from "@/components/ServiceSwapPanel";
+import { MessageVendorButton } from "@/components/MessageVendorButton";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { VenueCheckIn } from "@/components/VenueCheckIn";
@@ -401,39 +401,6 @@ function statusLine(b: BundleBooking, draft: boolean): { text: string; tone: str
     text: BOOKING_STATUS_LABELS[b.status] ?? b.status,
     tone: b.status === "rejected" ? "text-maroon dark:text-gold" : "text-ink-soft",
   };
-}
-
-/**
- * Open this booking's private thread and go to it.
- *
- * A button rather than a link because the thread may not exist yet — the server
- * makes it on first ask and returns the same one after, so there is no "start a
- * chat" and "open the chat" to tell apart, here or in the client's head.
- */
-function MessageVendorButton({ bookingId }: { bookingId: string }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-
-  return (
-    <Button
-      variant="quiet"
-      size="md"
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const conv = await openBookingThread(bookingId);
-          router.push(`/conversation?id=${conv.conversation_id}`);
-        } catch {
-          // The plan page is not where a chat failure gets explained; the
-          // Messages tab lists every thread and is one tap away.
-          router.push("/messages");
-        }
-      }}
-    >
-      {busy ? "Opening…" : "Message"}
-    </Button>
-  );
 }
 
 function BookingRow({

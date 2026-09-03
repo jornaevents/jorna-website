@@ -123,8 +123,8 @@ export default function ActivityPage() {
       )}
 
       <p className="mt-8 text-center text-xs text-ink-faint">
-        This list is worked out live from your bookings and messages — Jorna
-        can&apos;t alert your browser while this tab is closed.
+        This list is worked out live from your bookings — Jorna can&apos;t
+        alert your browser while this tab is closed.
       </p>
     </div>
   );

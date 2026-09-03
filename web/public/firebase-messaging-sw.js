@@ -37,14 +37,22 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// Focus an existing tab (or open one) when the notification is clicked.
+// Focus an existing tab (or open one) when the notification is clicked,
+// navigating it to the conversation a message-type push carries — falls back
+// to the Needs-You feed for a push with no conversation (booking status,
+// check-in) or no data at all.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = "/app/activity/";
+  const conversationId = event.notification.data && event.notification.data.conversation_id;
+  const url = conversationId
+    ? `/app/conversation/?id=${encodeURIComponent(conversationId)}`
+    : "/app/activity/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const c of clients) {
-        if (c.url.includes("/app/") && "focus" in c) return c.focus();
+        if (c.url.includes("/app/") && "focus" in c) {
+          return "navigate" in c ? c.navigate(url).then((nc) => nc.focus()) : c.focus();
+        }
       }
       return self.clients.openWindow(url);
     }),
