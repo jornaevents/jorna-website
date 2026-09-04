@@ -6,13 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
+  cancelBooking,
   confirmBookingEvent,
   createCheckoutSession,
   deleteBundle,
   disputeBooking,
   getBundle,
   getGuestList,
-  refundBooking,
   listBundles,
   listEvents,
   removeBookingFromBundle,
@@ -42,11 +42,11 @@ import {
   autoReleaseOn,
   canConfirmBooking,
   eventHasStarted,
+  fullRefundTimeLeft,
+  isFullRefundNow,
   lastDay,
   priceLine,
   priceUnitKind,
-  refundWindowLeft,
-  withinRefundWindow,
   type BundleBooking,
   type BundleDetail,
   type BundleEventInfo,
@@ -304,7 +304,7 @@ function NoteLine({ note, className = "" }: { note: Note; className?: string }) 
   );
 }
 
-type PanelKind = "refund" | "dispute" | "remove";
+type PanelKind = "cancel" | "dispute" | "remove";
 type Panel = { bookingId: string; kind: PanelKind } | null;
 
 /**
@@ -314,7 +314,7 @@ type Panel = { bookingId: string; kind: PanelKind } | null;
 function isBeyondActionable(b: BundleBooking): boolean {
   if (b.status === "payment_confirmed") return true;
   const ps = (b.payment_status ?? "unpaid").toLowerCase();
-  return ["paid", "released", "refunded", "disputed"].includes(ps);
+  return ["paid", "released", "refunded", "cancelled", "disputed"].includes(ps);
 }
 
 /**
@@ -327,7 +327,7 @@ function isBeyondActionable(b: BundleBooking): boolean {
  * Deliberately not `isBeyondActionable` above, which answers a different
  * question (can this booking still be swapped) and omits "processing".
  */
-const MONEY_MOVED = ["processing", "paid", "released", "refunded", "disputed"];
+const MONEY_MOVED = ["processing", "paid", "released", "refunded", "cancelled", "disputed"];
 
 /** What's been paid on this plan, or null when nothing has. */
 function heldOnPlan(
@@ -379,7 +379,7 @@ function statusLine(b: BundleBooking, draft: boolean): { text: string; tone: str
     const tone =
       pay === "released"
         ? "text-green"
-        : pay === "refunded" || pay === "disputed"
+        : pay === "refunded" || pay === "cancelled" || pay === "disputed"
           ? "text-maroon dark:text-gold"
           : "text-gold";
     return { text: PAYMENT_STATUS_LABELS[pay] ?? pay, tone };
@@ -464,8 +464,14 @@ function BookingRow({
   const held = pay === "paid";
   const youConfirmed = Boolean(booking.customer_confirmed_at);
   const canConfirm = held && !youConfirmed && canConfirmBooking(booking);
-  const refundable = held && withinRefundWindow(booking.paid_at);
-  const refundLeft = refundable ? refundWindowLeft(booking.paid_at) : null;
+  // Cancelling is offered any time up to the event, not just inside the
+  // full-refund grace period — past it, it still does something (the vendor
+  // gets their share), just not a refund. Once the event has happened this
+  // isn't a cancellation any more; report a problem instead.
+  const cancellable = held && !eventHasStarted(booking);
+  const fullRefundNow = isFullRefundNow(booking.refund_preview);
+  const fullRefundLeft = fullRefundNow ? fullRefundTimeLeft(booking.refund_preview) : null;
+  const vendorPctNow = booking.refund_preview?.vendor_pct_now ?? 0;
   const gaps = bookingGaps(booking, event);
 
   return (
@@ -665,18 +671,19 @@ function BookingRow({
             </p>
           )}
 
-          {openPanel === "refund" ? (
+          {openPanel === "cancel" ? (
             <div className="rounded-lg bg-panel p-3">
               <p className="text-xs text-ink-soft">
-                Request a full refund of {money(booking.price)}? This cancels the
-                booking with this vendor. Only the rest of your bundle is unaffected.
+                {fullRefundNow
+                  ? `Cancel this booking? You'll be refunded ${money(booking.price)} in full — this is still within the free-cancellation window. Only this booking ends; the rest of your bundle is unaffected.`
+                  : `Cancel this booking? This is past the free-cancellation window, so nothing is refunded to you — ${money((booking.price * vendorPctNow) / 100)} (${vendorPctNow}%) goes to ${booking.vendor_name || "the vendor"} for holding the date. Only this booking ends; the rest of your bundle is unaffected.`}
               </p>
               <div className="mt-3 flex gap-2">
                 <Button size="md" disabled={busy} onClick={() => onRefund(booking)}>
-                  {busy ? "Requesting…" : "Confirm refund"}
+                  {busy ? "Cancelling…" : "Confirm cancellation"}
                 </Button>
                 <Button variant="ghost" size="md" onClick={onClosePanel}>
-                  Cancel
+                  Keep it
                 </Button>
               </div>
             </div>
@@ -708,23 +715,26 @@ function BookingRow({
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {refundable ? (
+              {cancellable ? (
                 <>
-                  {/* Named, because it expires. The window runs from paid_at —
-                      with a card on file, a moment the client didn't choose and
-                      may never have seen — and the button used to vanish
-                      without ever having said it was going to. */}
-                  {refundLeft ? (
-                    <span className="mr-auto text-xs text-ink-faint">
-                      Full refund available for another {refundLeft}
-                    </span>
-                  ) : null}
+                  {/* Named, because the terms change and used to just vanish
+                      without ever having said so. Inside the grace period,
+                      the countdown to full refund; past it, what cancelling
+                      would cost right now — recomputed live server-side
+                      (see cancellation_split), never a client-side guess. */}
+                  <span className="mr-auto text-xs text-ink-faint">
+                    {fullRefundNow
+                      ? fullRefundLeft
+                        ? `Full refund available for another ${fullRefundLeft}`
+                        : "Full refund available"
+                      : `Cancelling now: ${vendorPctNow}% goes to ${booking.vendor_name || "the vendor"}, nothing back to you`}
+                  </span>
                   <Button
                     variant="ghost"
                     size="md"
-                    onClick={() => onOpenPanel(booking.booking_id, "refund")}
+                    onClick={() => onOpenPanel(booking.booking_id, "cancel")}
                   >
-                    Request refund
+                    Cancel booking
                   </Button>
                 </>
               ) : null}
@@ -1555,9 +1565,11 @@ function BundleInner() {
       onRefund={(bk) =>
         run(
           bk,
-          () => refundBooking(bk.booking_id),
-          "Refund requested. It should appear on your statement within a few days.",
-          "Couldn't process the refund. Please try again.",
+          () => cancelBooking(bk.booking_id),
+          isFullRefundNow(bk.refund_preview)
+            ? "Cancelled. You've been refunded in full — it should appear on your statement within a few days."
+            : "Cancelled. Nothing was refunded — the vendor's share went to them for holding the date.",
+          "Couldn't cancel this booking. Please try again.",
         )
       }
       onDispute={(bk, reason) =>

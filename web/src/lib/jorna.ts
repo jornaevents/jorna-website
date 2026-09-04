@@ -29,6 +29,7 @@ import type {
   MediaItem,
   MultiBundleResponse,
   Paginated,
+  RefundPreview,
   Review,
   ServiceItem,
   VendorDetail,
@@ -874,9 +875,25 @@ export function resendCheckInEmail(
   return apiFetch(`/bookings/${bookingId}/resend-checkin`, { method: "POST" });
 }
 
-/** Full refund, available for 24 hours after payment. Customer only. */
-export function refundBooking(bookingId: string): Promise<unknown> {
-  return apiFetch(`/payments/bookings/${bookingId}/refund`, { method: "POST" });
+/**
+ * Cancel a paid booking. Full refund for 24h after the vendor accepted;
+ * after that, nothing back to the client — the payment splits between the
+ * platform and the vendor instead (see cancellation_split on the backend).
+ * Customer only.
+ */
+export function cancelBooking(
+  bookingId: string,
+): Promise<{ message: string; refund_cents: number; vendor_cancellation_cents: number; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/cancel`, { method: "POST" });
+}
+
+/**
+ * What cancelling this booking would pay out right now. Normally read
+ * straight off the booking (BundleBooking.refund_preview) — this is the
+ * standalone lookup for a caller that only has a booking id.
+ */
+export function getCancellationPreview(bookingId: string): Promise<RefundPreview> {
+  return apiFetch(`/payments/bookings/${bookingId}/cancellation-preview`);
 }
 
 /**

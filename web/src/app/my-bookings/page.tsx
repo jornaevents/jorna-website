@@ -289,16 +289,21 @@ export default function MyBookingsPage() {
                 : (BOOKING_STATUS_LABELS[b.status] ?? b.status);
             const decidable =
               b.status === "pending" || b.status === "negotiation_ongoing";
-            // Pulling out of one already accepted. Only while the money hasn't
-            // moved — past that the client is out of pocket for a date they're
-            // holding, and unwinding it is a refund with its own rules. Mirrors
-            // the server's MONEY_MOVED_STATUSES, so the button is never offered
-            // for a call that has to be refused.
+            // Pulling out of one already accepted. "paid" is the one
+            // money-moved state this is still allowed from — the server
+            // refunds the client in full automatically, since the vendor is
+            // the one breaking the commitment. Every other money-moved state
+            // stays blocked (a charge still in flight, funds already
+            // released, or a booking already refunded/cancelled/disputed
+            // isn't a plain "vendor changed their mind") — mirrors the
+            // server's own guard, so the button is never offered for a call
+            // that has to be refused.
             const cancellable =
               b.status === "approved" &&
-              !["processing", "paid", "released", "refunded", "disputed"].includes(
+              !["processing", "released", "refunded", "cancelled", "disputed"].includes(
                 (b.payment_status ?? "unpaid").toLowerCase(),
               );
+            const cancellingPaidBooking = b.payment_status === "paid";
             const price = priceLine(b);
             const dates =
               b.date_end && b.date_end !== b.date_iso
@@ -419,9 +424,11 @@ export default function MyBookingsPage() {
                     <div className="mt-3 rounded-lg bg-panel p-3">
                       <p className="text-xs text-ink-soft">
                         Cancel this booking? {b.client_name || "Your client"} is
-                        told straight away, and it comes off their plan. They
-                        haven&apos;t paid, so nothing is refunded — but they will
-                        have to find someone else
+                        told straight away, and it comes off their plan.{" "}
+                        {cancellingPaidBooking
+                          ? "They'll be refunded in full — you won't be paid for this one."
+                          : "They haven't paid, so nothing is refunded —"}{" "}
+                        but they will have to find someone else
                         {b.date_iso ? ` for ${prettyDate(b.date_iso)}` : ""}.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
