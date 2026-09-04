@@ -372,11 +372,18 @@ export interface BundleBooking {
    */
   timezone?: string | null;
   // Escrow lifecycle (ISO timestamps, null until they happen).
-  /** When Stripe payment succeeded. The 24h refund window runs from here. */
+  /** When Stripe payment succeeded. */
   paid_at?: string | null;
   customer_confirmed_at?: string | null;
   vendor_confirmed_at?: string | null;
   funds_released_at?: string | null;
+  /**
+   * What cancelling this booking would pay out right now — server-computed
+   * (see cancellation_split on the backend), so the countdown on screen is
+   * never a client-side reimplementation of the ramp. Only present while
+   * payment_status is "paid"; null otherwise.
+   */
+  refund_preview?: RefundPreview | null;
   // GPS venue check-ins — presence, not escrow. Neither releases funds; that's
   // customer_confirmed_at / vendor_confirmed_at.
   vendor_checked_in_at?: string | null;
@@ -401,8 +408,24 @@ export interface BundleBooking {
   locked_fields?: string[];
 }
 
-/** How long after paying a full refund is still available. */
-export const REFUND_WINDOW_HOURS = 24;
+/**
+ * What cancelling a booking would pay out right now, per the backend's
+ * cancellation_split: a full refund for 24h after the vendor accepts, then
+ * nothing back to the client — the payment splits between the platform and
+ * the vendor instead, on a ramp that favors the vendor the closer it gets to
+ * the event. See GET /payments/bookings/{id}/cancellation-preview and the
+ * embedded copy on the booking itself.
+ */
+export interface RefundPreview {
+  /** ISO timestamp — full refund available up to this instant. Null if the
+   *  booking hasn't been accepted yet (nothing has started the clock). */
+  full_refund_until: string | null;
+  /** The vendor's current cut, 0–99, if cancelled this instant. 0 while
+   *  still inside the full-refund window. */
+  vendor_pct_now: number;
+  /** What the client would get back this instant, in cents. */
+  client_refund_now_cents: number;
+}
 
 /**
  * How long after the event escrow releases on its own.
@@ -517,25 +540,28 @@ export function parseServerTime(ts?: string | null): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-/** True while the booking is still inside its 24h post-payment refund window. */
-export function withinRefundWindow(paidAt?: string | null): boolean {
-  const paid = parseServerTime(paidAt);
-  if (paid === null) return false;
-  return Date.now() - paid < REFUND_WINDOW_HOURS * 3600 * 1000;
+/** True while cancelling right now would still return the full amount. */
+export function isFullRefundNow(preview?: RefundPreview | null): boolean {
+  const until = parseServerTime(preview?.full_refund_until ?? null);
+  if (until === null) return false;
+  return Date.now() < until;
 }
 
 /**
- * How much of the refund window is left, in words. Null once it's gone.
+ * How much of the full-refund grace period is left, in words. Null once it's
+ * gone (the ramp has started) or never started (not yet accepted).
  *
- * The window runs from `paid_at` — and with a card on file that is a moment the
- * client didn't choose and may never have seen. Nothing counted it down;
- * "Request refund" simply stopped being rendered, so the option expired in
- * silence. A deadline worth having is a deadline worth stating.
+ * Read from the server's own `full_refund_until`, not recomputed from
+ * `paid_at` client-side — the grace period runs from vendor acceptance, and
+ * the exact cutoff (and everything past it) is the backend's cancellation_split
+ * to know, not a constant duplicated here. A deadline worth having is a
+ * deadline worth stating, so this is shown counting down rather than the
+ * option simply disappearing once it's gone.
  */
-export function refundWindowLeft(paidAt?: string | null): string | null {
-  const paid = parseServerTime(paidAt);
-  if (paid === null) return null;
-  const msLeft = REFUND_WINDOW_HOURS * 3600 * 1000 - (Date.now() - paid);
+export function fullRefundTimeLeft(preview?: RefundPreview | null): string | null {
+  const until = parseServerTime(preview?.full_refund_until ?? null);
+  if (until === null) return null;
+  const msLeft = until - Date.now();
   if (msLeft <= 0) return null;
   const hours = Math.floor(msLeft / 3_600_000);
   if (hours >= 1) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
@@ -1023,6 +1049,11 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: "Held in escrow",
   released: "Released to vendor",
   refunded: "Refunded",
+  // Set only by a post-grace client cancellation (cancel_booking):
+  // the client got nothing back, and the vendor was paid their share of the
+  // cancellation split — distinct from "refunded", which always means 100%
+  // came back to the client.
+  cancelled: "Cancelled",
   disputed: "Disputed",
 };
 

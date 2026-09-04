@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockBundleDetail, mockBundleOption } from "./support/mock-data";
+import { mockBundleBooking, mockBundleDetail, mockBundleOption } from "./support/mock-data";
 
 test.describe("bundle builder (/plan)", () => {
   test("requires at least one category before building, and makes no request without one", async ({
@@ -68,5 +68,88 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page).toHaveURL("https://checkout.stripe.com/mock-session");
     const checkoutCalls = api.requestsTo("POST", "/payments/bookings/booking-1/checkout-session");
     expect(checkoutCalls).toHaveLength(1);
+  });
+
+  test("cancelling within the grace period refunds in full", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_status: "paid",
+            refund_preview: {
+              full_refund_until: new Date(Date.now() + 20 * 3600 * 1000).toISOString(),
+              vendor_pct_now: 0,
+              client_refund_now_cents: 250000,
+            },
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled. Refunded in full.",
+      refund_cents: 250000,
+      vendor_cancellation_cents: 0,
+      payment_status: "refunded",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(page.getByText("Full refund available for another")).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/refunded \$2,500 in full/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/refunded in full/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
+  });
+
+  test("cancelling past the grace period pays the vendor their share instead", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_status: "paid",
+            refund_preview: {
+              full_refund_until: new Date(Date.now() - 3600 * 1000).toISOString(),
+              vendor_pct_now: 50,
+              client_refund_now_cents: 0,
+            },
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled. Nothing refunded.",
+      refund_cents: 0,
+      vendor_cancellation_cents: 125000,
+      payment_status: "cancelled",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(
+      page.getByText("Cancelling now: 50% goes to Anjali Kapoor, nothing back to you"),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/nothing is refunded to you/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/Nothing was refunded/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
   });
 });
