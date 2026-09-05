@@ -77,7 +77,17 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
   const photo =
     !photoFailed && (first ? (first.type === "video" ? first.thumbnail_url : first.url) : null);
   return (
-    <Card className="overflow-hidden transition hover:border-gold/40">
+    // The card itself is the link — a "stretched link" overlay covers the
+    // whole thing (group-hover carries the name's old hover color along with
+    // it) so a click anywhere on the panel opens the package, not just the
+    // name. "Book this" sits above that overlay (relative z-10) so it still
+    // opens its own destination rather than being swallowed by the card's.
+    <Card className="group relative overflow-hidden transition hover:border-gold/40">
+      <Link
+        href={`/service?id=${service.service_id}`}
+        className="absolute inset-0 z-0"
+        aria-label={service.name}
+      />
       <div className="flex flex-col sm:flex-row">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -95,13 +105,8 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
         )}
         <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="serif text-lg text-ink">
-              <Link
-                href={`/service?id=${service.service_id}`}
-                className="transition hover:text-maroon dark:hover:text-gold"
-              >
-                {service.name}
-              </Link>
+            <h3 className="serif text-lg text-ink transition group-hover:text-maroon dark:group-hover:text-gold">
+              {service.name}
             </h3>
             <div className="shrink-0 text-right">
               <p className="serif text-lg text-ink">{money(service.price)}</p>
@@ -151,7 +156,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
               <LinkButton
                 href={`/book?service=${service.service_id}`}
                 size="md"
-                className="ml-auto"
+                className="relative z-10 ml-auto"
               >
                 Book this
               </LinkButton>
