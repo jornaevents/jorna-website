@@ -22,7 +22,11 @@ import {
 import { Button, Card, LinkButton, Stars } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
 import { ServicesManager } from "@/components/ServicesManager";
-import { VendorIdentityFields, VendorReachFields } from "@/components/VendorProfileFields";
+import {
+  VendorIdentityFields,
+  VendorPaymentFields,
+  VendorReachFields,
+} from "@/components/VendorProfileFields";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso || iso === "TBD") return null;
@@ -52,6 +56,9 @@ export default function VendorProfilePage() {
   const [longDistance, setLongDistance] = useState(false);
   const [locationNegotiable, setLocationNegotiable] = useState(false);
   const [instagram, setInstagram] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "manual">("stripe");
+  const [venmoHandle, setVenmoHandle] = useState("");
+  const [zelleContact, setZelleContact] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/vendor-profile&role=vendor");
@@ -79,6 +86,9 @@ export default function VendorProfilePage() {
         setLongDistance(Boolean(mine.open_to_long_distance));
         setLocationNegotiable(Boolean(mine.open_to_price_negotiation));
         setInstagram(mine.instagram_username ?? "");
+        setPaymentMethod(mine.payment_method ?? "stripe");
+        setVenmoHandle(mine.venmo_handle ?? "");
+        setZelleContact(mine.zelle_contact ?? "");
         // Both best-effort: the profile stays editable when either fails.
         const [r, svc] = await Promise.all([
           getVendorReviews(mine.vendor_id).catch(() => null),
@@ -109,6 +119,12 @@ export default function VendorProfilePage() {
       setError("Pick at least one category first.");
       return;
     }
+    const trimmedVenmo = venmoHandle.trim();
+    const trimmedZelle = zelleContact.trim();
+    if (paymentMethod === "manual" && !trimmedVenmo && !trimmedZelle) {
+      setError("Add a Venmo handle or Zelle contact so clients know how to pay you directly.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setSaved(false);
@@ -123,6 +139,9 @@ export default function VendorProfilePage() {
         open_to_long_distance: longDistance,
         open_to_price_negotiation: locationNegotiable,
         instagram_username: instagram.trim().replace(/^@/, "") || null,
+        payment_method: paymentMethod,
+        venmo_handle: trimmedVenmo || null,
+        zelle_contact: trimmedZelle || null,
       });
       setVendor(updated);
       setSaved(true);
@@ -166,28 +185,50 @@ export default function VendorProfilePage() {
           service" link on the page's main content rather than under a form. */}
       <ServicesManager vendor={vendor} categories={categories} initial={services} />
 
-      <h2 className="serif mt-10 text-2xl text-ink">About your business</h2>
-      <Card className="mt-5 p-6">
-        <form onSubmit={submit} className="grid gap-4">
-          <VendorIdentityFields
-            categories={categories}
-            specializations={specializations}
-            bio={bio}
-            onSpecializationsChange={updateSpecializations}
-            onBioChange={setBio}
-          />
+      {/* One <form>/submit across every section below, same as before Payment
+          details existed — a vendor saves their whole listing at once, not
+          section by section. `contents` keeps the <form> itself out of the
+          layout so each section can still sit in its own <h2>+<Card>. */}
+      <form onSubmit={submit} className="contents">
+        <h2 className="serif mt-10 text-2xl text-ink">About your business</h2>
+        <Card className="mt-5 p-6">
+          <div className="grid gap-4">
+            <VendorIdentityFields
+              categories={categories}
+              specializations={specializations}
+              bio={bio}
+              onSpecializationsChange={updateSpecializations}
+              onBioChange={setBio}
+            />
 
-          <VendorReachFields
-            radius={radius}
-            longDistance={longDistance}
-            locationNegotiable={locationNegotiable}
-            instagram={instagram}
-            onRadiusChange={setRadius}
-            onLongDistanceChange={setLongDistance}
-            onLocationNegotiableChange={setLocationNegotiable}
-            onInstagramChange={setInstagram}
-          />
+            <VendorReachFields
+              radius={radius}
+              longDistance={longDistance}
+              locationNegotiable={locationNegotiable}
+              instagram={instagram}
+              onRadiusChange={setRadius}
+              onLongDistanceChange={setLongDistance}
+              onLocationNegotiableChange={setLocationNegotiable}
+              onInstagramChange={setInstagram}
+            />
+          </div>
+        </Card>
 
+        <h2 className="serif mt-10 text-2xl text-ink">Payment details</h2>
+        <Card className="mt-5 p-6">
+          <div className="grid gap-4">
+            <VendorPaymentFields
+              paymentMethod={paymentMethod}
+              venmoHandle={venmoHandle}
+              zelleContact={zelleContact}
+              onPaymentMethodChange={setPaymentMethod}
+              onVenmoHandleChange={setVenmoHandle}
+              onZelleContactChange={setZelleContact}
+            />
+          </div>
+        </Card>
+
+        <div className="mt-5 grid gap-4">
           {error ? (
             <p
               role="alert"
@@ -205,8 +246,8 @@ export default function VendorProfilePage() {
           <Button type="submit" size="lg" disabled={busy}>
             {busy ? "Saving…" : "Save changes"}
           </Button>
-        </form>
-      </Card>
+        </div>
+      </form>
 
       {/* Reputation, beside the bio and photos it's a consequence of. It was on
           the dashboard, which is otherwise entirely operational — what needs me,
