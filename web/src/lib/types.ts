@@ -232,6 +232,12 @@ export interface VendorDetail {
   phone?: string | null;
   instagram_username?: string | null;
   tags?: string[];
+  /** "stripe" (default) keeps the card-charge/escrow flow unchanged; "manual"
+   *  means this vendor is paid directly via Venmo/Zelle and Jorna never
+   *  touches the money — see venmo_handle/zelle_contact below. */
+  payment_method?: "stripe" | "manual";
+  venmo_handle?: string | null;
+  zelle_contact?: string | null;
 }
 
 export interface MediaItem {
@@ -682,6 +688,9 @@ export interface VendorUpdateInput {
   open_to_price_negotiation?: boolean;
   open_to_location_negotiation?: boolean;
   instagram_username?: string | null;
+  payment_method?: "stripe" | "manual";
+  venmo_handle?: string | null;
+  zelle_contact?: string | null;
 }
 
 // ── Moderation ───────────────────────────────────────────────────────
