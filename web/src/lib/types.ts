@@ -191,6 +191,9 @@ export interface VendorSearchItem {
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   tags?: string[];
+  /** "stripe" (protected, escrow-held) or "manual" (paid directly via
+   *  Venmo/Zelle) — see `paymentMethodBadge`. */
+  payment_method?: "stripe" | "manual" | null;
 }
 
 /** One category, optionally narrowed to a speciality within it — what a
@@ -1015,6 +1018,13 @@ export interface Earnings {
   disputed_cents: number;
   refunded_cents: number;
   platform_fees_cents: number;
+  /** Manual track — self-reported, confirmed by the vendor. Kept separate
+   *  from total_released_cents: this money was never verified by Jorna. */
+  self_reported_cents: number;
+  /** Manual track — the client says they paid, waiting on this vendor to
+   *  confirm receiving it. */
+  self_reported_pending_cents: number;
+  self_reported_pending_count: number;
   history: EarningsEntry[];
 }
 
@@ -1080,6 +1090,21 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   marked_paid: "Payment sent",
   confirmed_paid: "Payment received",
 };
+
+/**
+ * Label + tone for a vendor's payment track, shared across every place a
+ * client sees a vendor before booking (search cards, the profile header).
+ * Always shown both ways rather than only flagging "Direct" — a badge
+ * that's silently absent for the majority case reads as a bug, not as
+ * "this one's protected."
+ */
+export function paymentMethodBadge(
+  paymentMethod?: "stripe" | "manual" | null,
+): { label: string; tone: string } {
+  return paymentMethod === "manual"
+    ? { label: "Direct", tone: "text-gold" }
+    : { label: "Protected", tone: "text-green" };
+}
 
 /**
  * What quantity a service's rate is multiplied by. The booking must capture
