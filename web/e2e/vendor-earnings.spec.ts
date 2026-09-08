@@ -58,4 +58,30 @@ test.describe("vendor earnings (/my-earnings)", () => {
     await expect(page.getByText("$5,000")).toBeVisible(); // total_released_cents
     await expect(page.getByText("$2,500")).toBeVisible(); // in_escrow_cents
   });
+
+  test("shows self-reported manual-track income as its own tile", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get(
+      `/payments/vendors/${vendor.vendor_id}/stripe-status`,
+      mockStripeStatus({ stripe_account_id: "acct_1", stripe_onboarding_complete: true }),
+    );
+    api.get(
+      `/payments/vendors/${vendor.vendor_id}/earnings`,
+      mockEarnings({
+        self_reported_cents: 80000,
+        self_reported_pending_cents: 30000,
+        self_reported_pending_count: 1,
+      }),
+    );
+
+    await page.goto("my-earnings/");
+
+    await expect(page.getByText("Paid directly")).toBeVisible();
+    await expect(page.getByText("$800")).toBeVisible();
+    await expect(page.getByText("Awaiting your confirmation")).toBeVisible();
+    await expect(page.getByText("$300")).toBeVisible();
+    await expect(page.getByText("1 client says they've paid")).toBeVisible();
+  });
 });

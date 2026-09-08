@@ -167,6 +167,9 @@ export function mockEarnings(overrides: Record<string, unknown> = {}) {
     disputed_cents: 0,
     refunded_cents: 0,
     platform_fees_cents: 50000,
+    self_reported_cents: 0,
+    self_reported_pending_cents: 0,
+    self_reported_pending_count: 0,
     history: [],
     ...overrides,
   };

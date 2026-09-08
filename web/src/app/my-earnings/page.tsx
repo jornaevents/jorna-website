@@ -211,6 +211,33 @@ function EarningsInner() {
             </div>
           ) : null}
 
+          {/* Manual track — paid directly, Venmo/Zelle. Self-reported, so kept
+              apart from "Paid out" above rather than folded in as if verified. */}
+          {earnings.self_reported_cents > 0 || earnings.self_reported_pending_count > 0 ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {earnings.self_reported_cents > 0 ? (
+                <Stat
+                  label="Paid directly"
+                  value={money(earnings.self_reported_cents)}
+                  hint="Confirmed by you — not through Jorna"
+                  tone="green"
+                />
+              ) : null}
+              {earnings.self_reported_pending_count > 0 ? (
+                <Stat
+                  label="Awaiting your confirmation"
+                  value={money(earnings.self_reported_pending_cents)}
+                  hint={
+                    earnings.self_reported_pending_count === 1
+                      ? "1 client says they've paid"
+                      : `${earnings.self_reported_pending_count} clients say they've paid`
+                  }
+                  tone="gold"
+                />
+              ) : null}
+            </div>
+          ) : null}
+
           {/* The rate is derived from what has actually been taken. The API
               publishes no percentage — only a per-booking platform_fee_cents —
               so a hardcoded one would be a guess that goes quietly wrong the
