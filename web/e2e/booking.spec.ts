@@ -152,4 +152,75 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page.getByText(/Nothing was refunded/)).toBeVisible();
     expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
   });
+
+  test("a manual-track booking shows Venmo/Zelle details and can be marked paid", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_method: "manual",
+            payment_status: "unpaid",
+            vendor_venmo_handle: "@studio-anjali",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/mark-paid", {
+      message: "Marked as paid.",
+      payment_status: "marked_paid",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(page.getByText("Anjali Kapoor is paid directly, not through Jorna.")).toBeVisible();
+    await expect(page.getByText("@studio-anjali")).toBeVisible();
+
+    await page.getByRole("button", { name: "I sent payment" }).click();
+
+    await expect(page.getByText(/Marked as paid/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/mark-paid")).toHaveLength(1);
+  });
+
+  test("cancelling a manual-track booking shows no refund math", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_method: "manual",
+            payment_status: "confirmed_paid",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled.",
+      refund_cents: 0,
+      vendor_cancellation_cents: 0,
+      payment_status: "confirmed_paid",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/Jorna doesn't hold or refund it/)).toBeVisible();
+    await expect(page.getByText(/% goes to/)).not.toBeVisible();
+
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/Jorna doesn't hold or refund it/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
+  });
 });
