@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
   confirmBookingEvent,
+  confirmPaymentReceived,
   getMyVendor,
   getStripeStatus,
   listVendorBookings,
@@ -158,6 +159,7 @@ export default function MyBookingsPage() {
     b: VendorBooking,
     action: () => Promise<unknown>,
     fallback: string,
+    success = "Confirmed. The payment releases once the client confirms too.",
   ) {
     if (!vendor) return;
     setBusyId(b.booking_id);
@@ -166,7 +168,7 @@ export default function MyBookingsPage() {
     try {
       await action();
       await load(vendor.vendor_id);
-      setNotice("Confirmed. The payment releases once the client confirms too.");
+      setNotice(success);
     } catch (err) {
       // A LocationError explains a permission/GPS problem specifically —
       // showing the generic fallback instead left a blocked vendor no wiser
@@ -194,6 +196,17 @@ export default function MyBookingsPage() {
       b,
       () => confirmBookingEvent(b.booking_id),
       "Couldn't confirm — please try again.",
+    );
+  }
+
+  // Manual track only — the vendor's side of the "I sent payment" / "I
+  // received it" exchange. Self-reported; Jorna never touches this money.
+  function confirmReceived(b: VendorBooking) {
+    void release(
+      b,
+      () => confirmPaymentReceived(b.booking_id),
+      "Couldn't confirm — please try again.",
+      "Confirmed. The client can see you've got it.",
     );
   }
 
@@ -304,6 +317,11 @@ export default function MyBookingsPage() {
                 (b.payment_status ?? "unpaid").toLowerCase(),
               );
             const cancellingPaidBooking = b.payment_status === "paid";
+            // Manual track: the client self-reported paying directly, so
+            // Jorna has nothing to refund even though money did move.
+            const cancellingSelfReportedPaidBooking =
+              b.payment_method === "manual" &&
+              ["marked_paid", "confirmed_paid"].includes(b.payment_status ?? "");
             const price = priceLine(b);
             const dates =
               b.date_end && b.date_end !== b.date_iso
@@ -427,7 +445,9 @@ export default function MyBookingsPage() {
                         told straight away, and it comes off their plan.{" "}
                         {cancellingPaidBooking
                           ? "They'll be refunded in full — you won't be paid for this one."
-                          : "They haven't paid, so nothing is refunded —"}{" "}
+                          : cancellingSelfReportedPaidBooking
+                            ? "They told us they already paid you directly — cancelling won't refund that automatically, since it happened outside Jorna."
+                            : "They haven't paid, so nothing is refunded —"}{" "}
                         but they will have to find someone else
                         {b.date_iso ? ` for ${prettyDate(b.date_iso)}` : ""}.
                       </p>
@@ -563,6 +583,35 @@ export default function MyBookingsPage() {
                       <p className="text-xs text-ink-soft">
                         You can confirm after the event
                         {b.date_iso && b.date_iso !== "TBD" ? ` (${b.date_iso})` : ""}.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {/* Manual track: paid directly, not through Jorna. Nothing to
+                    check in or release here — just the client's own report
+                    that they've sent it, waiting on this vendor to say the
+                    same. */}
+                {b.payment_method === "manual" && b.status === "approved" ? (
+                  <div className="mt-3 border-t border-line-soft pt-3">
+                    {b.payment_status === "marked_paid" ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-ink-faint">
+                          {b.client_name || "Your client"} says they&apos;ve sent payment directly.
+                        </p>
+                        <Button
+                          size="md"
+                          disabled={busyId === b.booking_id}
+                          onClick={() => confirmReceived(b)}
+                        >
+                          {busyId === b.booking_id ? "Confirming…" : "I received it"}
+                        </Button>
+                      </div>
+                    ) : b.payment_status === "confirmed_paid" ? (
+                      <p className="text-xs text-green">You confirmed receiving payment.</p>
+                    ) : (
+                      <p className="text-xs text-ink-faint">
+                        Waiting on {b.client_name || "the client"} to pay you directly.
                       </p>
                     )}
                   </div>

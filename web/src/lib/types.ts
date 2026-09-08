@@ -390,6 +390,14 @@ export interface BundleBooking {
    * payment_status is "paid"; null otherwise.
    */
   refund_preview?: RefundPreview | null;
+  /** "stripe" (protected, escrow-held) or "manual" (paid directly via
+   *  Venmo/Zelle) — snapshotted from the vendor's setting when this booking
+   *  was sent. Missing/null predates the manual track; treat as "stripe". */
+  payment_method?: "stripe" | "manual" | null;
+  /** Only present on a manual-track booking — where to actually send the
+   *  money, since Jorna isn't collecting it. */
+  vendor_venmo_handle?: string | null;
+  vendor_zelle_contact?: string | null;
   // GPS venue check-ins — presence, not escrow. Neither releases funds; that's
   // customer_confirmed_at / vendor_confirmed_at.
   vendor_checked_in_at?: string | null;
@@ -952,6 +960,9 @@ export interface VendorBooking {
   change_request?: ChangeRequest | null;
   status: string;
   payment_status?: string | null;
+  /** "stripe" (protected) or "manual" (paid directly, Venmo/Zelle) — see
+   *  BundleBooking.payment_method. */
+  payment_method?: "stripe" | "manual" | null;
   amount_cents?: number | null;
   negotiable?: boolean;
   paid_at?: string | null;
@@ -1064,6 +1075,10 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   // came back to the client.
   cancelled: "Cancelled",
   disputed: "Disputed",
+  // Manual-track only — a self-reported two-sided attestation, not an
+  // escrow state. See jorna.ts markBookingPaid/confirmPaymentReceived.
+  marked_paid: "Payment sent",
+  confirmed_paid: "Payment received",
 };
 
 /**

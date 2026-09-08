@@ -15,6 +15,7 @@ import {
   getGuestList,
   listBundles,
   listEvents,
+  markBookingPaid,
   removeBookingFromBundle,
   renameBundle,
   selectBundle,
@@ -415,6 +416,7 @@ function BookingRow({
   onOpenPanel,
   onClosePanel,
   onRefund,
+  onMarkPaid,
   onDispute,
   onSwap,
   onRemove,
@@ -433,6 +435,8 @@ function BookingRow({
   onOpenPanel: (bookingId: string, kind: PanelKind) => void;
   onClosePanel: () => void;
   onRefund: (b: BundleBooking) => void;
+  /** Manual-track only: the client attesting they've paid the vendor directly. */
+  onMarkPaid: (b: BundleBooking) => void;
   onDispute: (b: BundleBooking, reason: string) => void;
   onSwap: (b: BundleBooking) => void;
   onRemove: (b: BundleBooking) => void;
@@ -473,6 +477,13 @@ function BookingRow({
   const fullRefundLeft = fullRefundNow ? fullRefundTimeLeft(booking.refund_preview) : null;
   const vendorPctNow = booking.refund_preview?.vendor_pct_now ?? 0;
   const gaps = bookingGaps(booking, event);
+
+  // Manual track: paid directly, Venmo/Zelle — Jorna never holds this money,
+  // so none of the escrow logic above (held/canConfirm/fullRefundNow) ever
+  // applies. A separate block below covers it.
+  const isManual = booking.payment_method === "manual";
+  const manualActive = isManual && booking.status === "approved";
+  const manualCancellable = manualActive && !eventHasStarted(booking);
 
   return (
     <Card id={`booking-${booking.booking_id}`} className="p-4">
@@ -751,6 +762,71 @@ function BookingRow({
                 </Button>
               ) : null}
             </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* This vendor is paid directly — Venmo/Zelle, not through Jorna. No
+          card, no charge, no escrow; just where to send it and each side
+          saying what happened. */}
+      {manualActive ? (
+        <div className="mt-3 border-t border-line-soft pt-3">
+          {openPanel === "cancel" ? (
+            <div className="rounded-lg bg-panel p-3">
+              <p className="text-xs text-ink-soft">
+                {`Cancel this booking? ${booking.vendor_name || "The vendor"} is told right away. Whatever you've paid them directly is between you and them — Jorna doesn't hold or refund it. Only this booking ends; the rest of your bundle is unaffected.`}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="md" disabled={busy} onClick={() => onRefund(booking)}>
+                  {busy ? "Cancelling…" : "Confirm cancellation"}
+                </Button>
+                <Button variant="ghost" size="md" onClick={onClosePanel}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-ink-soft">
+                {booking.vendor_name || "This vendor"} is paid directly, not through Jorna.
+              </p>
+              {booking.vendor_venmo_handle || booking.vendor_zelle_contact ? (
+                <div className="mt-2 rounded-lg bg-ground-2 px-3 py-2 text-sm text-ink">
+                  {booking.vendor_venmo_handle ? (
+                    <p>
+                      Venmo: <span className="font-medium">{booking.vendor_venmo_handle}</span>
+                    </p>
+                  ) : null}
+                  {booking.vendor_zelle_contact ? (
+                    <p>
+                      Zelle: <span className="font-medium">{booking.vendor_zelle_contact}</span>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                {manualCancellable ? (
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => onOpenPanel(booking.booking_id, "cancel")}
+                  >
+                    Cancel booking
+                  </Button>
+                ) : null}
+                {pay === "unpaid" ? (
+                  <Button disabled={busy} onClick={() => onMarkPaid(booking)}>
+                    {busy ? "Marking…" : "I sent payment"}
+                  </Button>
+                ) : pay === "marked_paid" ? (
+                  <p className="text-xs text-ink-faint">
+                    Waiting for {booking.vendor_name || "the vendor"} to confirm they received it.
+                  </p>
+                ) : pay === "confirmed_paid" ? (
+                  <p className="text-xs text-green">Payment confirmed.</p>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       ) : null}
@@ -1566,10 +1642,20 @@ function BundleInner() {
         run(
           bk,
           () => cancelBooking(bk.booking_id),
-          isFullRefundNow(bk.refund_preview)
-            ? "Cancelled. You've been refunded in full — it should appear on your statement within a few days."
-            : "Cancelled. Nothing was refunded — the vendor's share went to them for holding the date.",
+          bk.payment_method === "manual"
+            ? "Cancelled. Any payment you sent directly is between you and the vendor — Jorna doesn't hold or refund it."
+            : isFullRefundNow(bk.refund_preview)
+              ? "Cancelled. You've been refunded in full — it should appear on your statement within a few days."
+              : "Cancelled. Nothing was refunded — the vendor's share went to them for holding the date.",
           "Couldn't cancel this booking. Please try again.",
+        )
+      }
+      onMarkPaid={(bk) =>
+        run(
+          bk,
+          () => markBookingPaid(bk.booking_id),
+          `Marked as paid. We'll show it as confirmed once ${bk.vendor_name || "the vendor"} says they received it.`,
+          "Couldn't mark this as paid. Please try again.",
         )
       }
       onDispute={(bk, reason) =>
