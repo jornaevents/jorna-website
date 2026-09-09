@@ -54,10 +54,26 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+/** Awaiting this vendor's "I received it" on a manual (Venmo/Zelle) payment
+ *  the client says they've sent — same condition the confirm button itself
+ *  is gated on, below. */
+function awaitingPaymentConfirmation(b: VendorBooking): boolean {
+  return (
+    b.payment_method === "manual" &&
+    b.status === "approved" &&
+    b.payment_status === "marked_paid"
+  );
+}
+
 function matches(filter: Filter, b: VendorBooking): boolean {
   if (filter === "all") return true;
-  if (filter === "pending")
-    return b.status === "pending" || b.status === "negotiation_ongoing";
+  if (filter === "pending") {
+    return (
+      b.status === "pending" ||
+      b.status === "negotiation_ongoing" ||
+      awaitingPaymentConfirmation(b)
+    );
+  }
   return b.status === "approved" || b.status === "payment_confirmed";
 }
 
