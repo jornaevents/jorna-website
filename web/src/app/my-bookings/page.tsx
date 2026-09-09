@@ -496,6 +496,7 @@ export default function MyBookingsPage() {
                     <NegotiationPanel
                       bookingId={b.booking_id}
                       listedPrice={b.price}
+                      counterpartyName={b.client_name}
                       onSettled={() => {
                         setNotice("Price agreed — the booking is approved at the new price.");
                         void load(vendor.vendor_id);

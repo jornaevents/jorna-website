@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -598,6 +598,7 @@ function BookingRow({
             <NegotiationPanel
               bookingId={booking.booking_id}
               listedPrice={booking.price}
+              counterpartyName={booking.vendor_name}
               onSettled={onNegotiated}
             />
           </div>
@@ -1356,6 +1357,13 @@ function BundleInner() {
   const [panel, setPanel] = useState<Panel>(null);
   // A message about the whole plan — sending, renaming, swapping.
   const [notice, setNotice] = useState<Note | null>(null);
+  // The banner renders in one fixed spot regardless of which button (up or
+  // down the page) triggered it, so it needs to bring itself into view rather
+  // than rely on the click having happened nearby.
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice) noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [notice]);
   // The card we'll charge as vendors accept. Fetched for a plan that can be
   // sent, because that's the only screen where it changes what happens next.
   const [card, setCard] = useState<SavedCard | null>(null);
@@ -2062,7 +2070,11 @@ function BundleInner() {
         </div>
       ) : null}
 
-      {notice ? <NoteLine note={notice} className="mt-6" /> : null}
+      {notice ? (
+        <div ref={noticeRef}>
+          <NoteLine note={notice} className="mt-6" />
+        </div>
+      ) : null}
 
       {/* What's outstanding, before the ledger of who's on the team. Same rules
           as the "Needs you" badge — see lib/planning. */}
