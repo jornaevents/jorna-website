@@ -183,6 +183,12 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page.getByText("Anjali Kapoor is paid directly, not through Jorna.")).toBeVisible();
     await expect(page.getByText("@studio-anjali")).toBeVisible();
 
+    // Regression: the Stripe "Pay" button used to render right alongside
+    // this — the backend has no Stripe account for a manual-track vendor,
+    // so clicking it always 400'd instead of ever being a real second way
+    // to pay.
+    await expect(page.getByRole("button", { name: /^Pay \$/ })).not.toBeVisible();
+
     await page.getByRole("button", { name: "I sent payment" }).click();
 
     await expect(page.getByText(/Marked as paid/)).toBeVisible();
