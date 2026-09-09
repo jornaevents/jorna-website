@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingGaps, moneyForBundle, requiredFields } from "./planning";
+import { ATTENTION_KINDS, bookingGaps, moneyForBundle, planForBundle, requiredFields } from "./planning";
 import type { BundleBooking, BundleDetail } from "./types";
 
 function booking(overrides: Partial<BundleBooking> = {}): BundleBooking {
@@ -201,5 +201,42 @@ describe("bookingGaps — a date that's set but already gone", () => {
   it("does not flag today or a future date", () => {
     expect(gapFields(booking({ date_iso: isoDaysFromNow(0) }))).not.toContain("date");
     expect(gapFields(booking({ date_iso: isoDaysFromNow(30) }))).not.toContain("date");
+  });
+});
+
+describe("planForBundle — negotiation task", () => {
+  it("surfaces a task when it's the client's turn to answer an open offer", () => {
+    const plan = planForBundle(
+      bundle([
+        booking({
+          status: "negotiation_ongoing",
+          negotiation_awaiting_role: "client",
+        }),
+      ]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).toContain("negotiation");
+    expect(ATTENTION_KINDS).toContain("negotiation");
+  });
+
+  it("does not surface a task for the client's own unanswered offer", () => {
+    // negotiation_awaiting_role: "vendor" means the client already moved and
+    // is waiting — the same non-actionable shape the removed "vendor-reply"
+    // kind used to show, which is exactly what this field exists to avoid.
+    const plan = planForBundle(
+      bundle([
+        booking({
+          status: "negotiation_ongoing",
+          negotiation_awaiting_role: "vendor",
+        }),
+      ]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).not.toContain("negotiation");
+  });
+
+  it("does not surface a task once the negotiation has settled", () => {
+    const plan = planForBundle(
+      bundle([booking({ status: "approved", negotiation_awaiting_role: null })]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).not.toContain("negotiation");
   });
 });
