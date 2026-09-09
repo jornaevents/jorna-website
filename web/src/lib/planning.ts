@@ -119,6 +119,19 @@ export function hasLiveVenue(bookings: BundleBooking[]): boolean {
 }
 
 /**
+ * Does this plan have any booking that could actually be auto-charged to a
+ * saved card? A booking on the manual (Venmo/Zelle) track never is — that
+ * vendor is paid directly, outside Jorna — so a plan where every live booking
+ * is manual has no use for a card on file. Missing/null `payment_method`
+ * predates the manual track and reads as "stripe" (see `types.ts`), same as
+ * everywhere else that field is read. Dead bookings (declined, refunded, ...)
+ * can't be charged and don't count either way.
+ */
+export function bundleNeedsCard(bookings: BundleBooking[]): boolean {
+  return bookings.some((b) => !isDeadBooking(b) && b.payment_method !== "manual");
+}
+
+/**
  * Gaps in the event itself.
  *
  * The date and the place are wanted whatever is booked. A guest count is not:
