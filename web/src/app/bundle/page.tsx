@@ -57,6 +57,7 @@ import {
 } from "@/lib/types";
 import {
   bookingGaps,
+  bundleNeedsCard,
   celebrationProgress,
   describeGaps,
   isDeadBooking,
@@ -1641,6 +1642,7 @@ function BundleInner() {
       .map((b) => b.location ?? "")
       .join("|") || "no-venue";
   const readiness = sendReadiness(bundle);
+  const needsCard = bundleNeedsCard(bundle.bookings ?? []);
 
   // The same row wherever a booking appears — the sections below differ only in
   // which bookings they hold, not in what a booking can do.
@@ -1950,12 +1952,15 @@ function BundleInner() {
             />
           ) : null}
 
-          {/* The card that gets charged, on any sent plan. It used to live
-              inside the "waiting on your vendors" banner, which only appeared
-              while a vendor hadn't answered — so the moment the last one did,
-              the card being charged automatically became unnamed and
-              unchangeable. It belongs with the rest of the money. */}
-          {!draft ? (
+          {/* The card that gets charged, on a sent plan that has anything to
+              charge it for. It used to live inside the "waiting on your
+              vendors" banner, which only appeared while a vendor hadn't
+              answered — so the moment the last one did, the card being
+              charged automatically became unnamed and unchangeable. It
+              belongs with the rest of the money. Hidden entirely when every
+              booking is on the manual (Venmo/Zelle) track — there is no
+              charge a card could ever cover. */}
+          {!draft && needsCard ? (
             <CardOnFile
               card={card}
               busy={addingCard}
@@ -2004,14 +2009,16 @@ function BundleInner() {
               bookings, where they're always writable. */}
           <DraftDetails key={venueKey} bundle={bundle} onSaved={load} />
 
-          <CardOnFile
-            card={card}
-            busy={addingCard}
-            removing={removingCard}
-            onAdd={addCard}
-            onRemove={removeCard}
-            sent={false}
-          />
+          {needsCard ? (
+            <CardOnFile
+              card={card}
+              busy={addingCard}
+              removing={removingCard}
+              onAdd={addCard}
+              onRemove={removeCard}
+              sent={false}
+            />
+          ) : null}
 
           {/* Last, after the fields it depends on. It used to sit above them,
               inviting you to send a plan before filling in what sending needs. */}

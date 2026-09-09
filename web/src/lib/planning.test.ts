@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION_KINDS, bookingGaps, moneyForBundle, planForBundle, requiredFields } from "./planning";
+import {
+  ATTENTION_KINDS,
+  bookingGaps,
+  bundleNeedsCard,
+  moneyForBundle,
+  planForBundle,
+  requiredFields,
+} from "./planning";
 import type { BundleBooking, BundleDetail } from "./types";
 
 function booking(overrides: Partial<BundleBooking> = {}): BundleBooking {
@@ -238,5 +245,46 @@ describe("planForBundle — negotiation task", () => {
       bundle([booking({ status: "approved", negotiation_awaiting_role: null })]),
     );
     expect(plan.tasks.map((t) => t.kind)).not.toContain("negotiation");
+  });
+});
+
+describe("bundleNeedsCard — whether the plan has anything a saved card could pay for", () => {
+  it("needs a card when a live booking is on the stripe track", () => {
+    expect(bundleNeedsCard([booking({ payment_method: "stripe" })])).toBe(true);
+  });
+
+  it("does not need a card when every live booking is on the manual (Venmo/Zelle) track", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "manual" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("treats a missing payment_method as stripe, predating the manual track", () => {
+    expect(bundleNeedsCard([booking({ payment_method: undefined })])).toBe(true);
+  });
+
+  it("needs a card when the plan mixes manual and stripe vendors", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "stripe" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("ignores a declined stripe booking sitting alongside a manual one", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "stripe", status: "rejected" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("needs nothing from an empty plan", () => {
+    expect(bundleNeedsCard([])).toBe(false);
   });
 });
