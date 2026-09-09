@@ -450,6 +450,19 @@ function BookingRow({
   const price = priceLine(booking);
   const status = statusLine(booking, draft);
   const awaiting = isAwaitingVendor(booking, draft);
+  // `awaiting` folds "pending" and "negotiation_ongoing" together, which is
+  // right for the section grouping and the withdraw-request copy below (both
+  // read as "out with the vendor") — but wrong for the negotiation panel:
+  // once status is negotiation_ongoing there's a live counter-offer on the
+  // table, the one thing this booking needs from the client, not something
+  // to keep hidden behind an unclicked button. Narrow to just "no offer
+  // exists yet" for that one gate.
+  const awaitingFirstOffer = awaiting && booking.status !== "negotiation_ongoing";
+  // Forces the panel open the instant a negotiation is live, without
+  // changing showNeg's separate job of letting a client voluntarily start a
+  // *fresh* negotiation on a merely-approved, open_to_price_negotiation
+  // booking.
+  const negotiationOpen = showNeg || booking.status === "negotiation_ongoing";
   const busy = busyId === booking.booking_id;
   const openPanel = panel?.bookingId === booking.booking_id ? panel.kind : null;
 
@@ -560,13 +573,18 @@ function BookingRow({
           been asked, which let the button through on a booking no vendor has
           received. Haggling over a job nobody has been offered is a
           conversation out of order — and the backend confirms they genuinely
-          haven't been told (booking_service skips the notification on a draft). */}
+          haven't been told (booking_service skips the notification on a draft).
+          Gated on `awaitingFirstOffer` rather than `awaiting`: once the vendor
+          has actually sent a counter (status negotiation_ongoing), it's live
+          and actionable, not something to keep waiting on — that gap is what
+          made a vendor's counter-offer invisible here while /my-bookings
+          showed it immediately. */}
       {booking.open_to_price_negotiation &&
       !isBeyondActionable(booking) &&
       !isDeadBooking(booking) &&
-      !awaiting &&
+      !awaitingFirstOffer &&
       !draft ? (
-        showNeg ? (
+        negotiationOpen ? (
           <div className="mt-3">
             <NegotiationPanel
               bookingId={booking.booking_id}
