@@ -234,7 +234,13 @@ export default function MyBookingsPage() {
   const shown = bookings.filter((b) => matches(filter, b));
   const pendingCount = bookings.filter((b) => matches("pending", b)).length;
   const setup = paymentsSetup(stripe);
-  const paymentsBlocked = stripeChecked && !setup.ready;
+  // Stripe's gate has nothing to say to a vendor who already chose Direct —
+  // they don't need it — so this stays false for that track instead of
+  // nagging about a Stripe setup they deliberately opted out of. Mirrors
+  // the same `vendor.payment_method === "manual"` check my-earnings/page.tsx
+  // uses for its own version of this gate.
+  const paymentsBlocked =
+    stripeChecked && !setup.ready && vendor.payment_method !== "manual";
 
   return (
     <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">
