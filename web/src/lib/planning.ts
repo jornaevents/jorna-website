@@ -35,7 +35,12 @@ export type TaskKind =
   /** Priced per guest/day, so the total isn't known yet and can't be charged. */
   | "quantity"
   | "payment"
-  | "confirm";
+  | "confirm"
+  /** A price counter-offer is sitting on this booking and it's this client's
+   *  turn to answer it — unlike the removed "vendor-reply" kind, this is
+   *  always actionable: negotiation_awaiting_role already says whose turn it
+   *  is, so a booking only gets this task while it's really theirs to act on. */
+  | "negotiation";
 
 /**
  * The kinds lib/attention surfaces as "Needs you".
@@ -44,7 +49,7 @@ export type TaskKind =
  * make it count things that were never in it — this list is what the badge
  * already meant, held steady while the rules themselves moved here.
  */
-export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm"];
+export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm", "negotiation"];
 
 export interface PlanTask {
   id: string;
@@ -251,6 +256,22 @@ function bookingTask(b: BundleBooking): PlanTask | null {
       note: "this releases their payment.",
       tone: "urgent",
       cta: "Confirm",
+      bookingId: b.booking_id,
+    };
+  }
+
+  // A price counter-offer is open and it's this client's turn to answer it.
+  // negotiation_awaiting_role already resolves whose turn it is server-side,
+  // so this never fires for the client's own still-unanswered offer.
+  if (b.negotiation_awaiting_role === "client") {
+    return {
+      id: `negotiation-${b.booking_id}`,
+      kind: "negotiation",
+      title: `Review ${vendor}'s offer`,
+      vendor,
+      note: `on ${service}.`,
+      tone: "normal",
+      cta: "Review offer",
       bookingId: b.booking_id,
     };
   }
