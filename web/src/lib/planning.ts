@@ -829,6 +829,15 @@ export function bookingGaps(
 
   if (isUnset(b.date_iso)) {
     gaps.push({ field: "date", label: "a date" });
+  } else if ((daysUntil(b.date_iso) ?? 0) < 0) {
+    // A date that's merely set isn't the same question as one still ahead of
+    // us — this used to let a mistyped year (or a date that simply elapsed
+    // before Send was pressed) through the button that's supposed to grey
+    // out for exactly this. Same "same day still counts" boundary daysUntil
+    // already uses everywhere else on this page. Mirrors the backend's own
+    // is_in_the_past (plan_readiness.py) — the two gates are deliberately
+    // identical, field for field.
+    gaps.push({ field: "date", label: "a date that hasn't already passed" });
   }
 
   // The booking's own location, or the event's — a booking made from an event
