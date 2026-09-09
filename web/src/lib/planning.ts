@@ -428,8 +428,22 @@ export function moneyForBundle(bundle: BundleDetail): MoneyBreakdown {
 
     sum.committed += price;
     if (pay === "paid" || pay === "disputed") sum.inEscrow += price;
-    else if (pay === "released") sum.released += price;
-    else if (b.status === "approved") sum.outstanding += price;
+    // `confirmed_paid` is the manual (Venmo/Zelle) track's own "done" state —
+    // Jorna never held this money, so it has no escrow leg to sit in first,
+    // but it's exactly as settled as an escrow booking that's `released`:
+    // nothing left for the client to pay, nothing left for the vendor to
+    // wait on. Grouping it here is why "$X still to pay" stopped being true
+    // the moment both sides confirmed a manual payment.
+    else if (pay === "released" || pay === "confirmed_paid") sum.released += price;
+    // Money is already moving — a Stripe charge in flight, or a client's own
+    // "I sent it" on the manual track awaiting the vendor's confirmation — so
+    // there's nothing left for the *client* to pay. Not `outstanding`, and
+    // not `released` either: for `processing` nothing has landed yet, and for
+    // `marked_paid` the vendor hasn't confirmed receipt yet. Counted in
+    // `committed` only, until one side moves it further.
+    else if (pay === "processing" || pay === "marked_paid") {
+      // intentionally counted nowhere else
+    } else if (b.status === "approved") sum.outstanding += price;
   }
   return sum;
 }
