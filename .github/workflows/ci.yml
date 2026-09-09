@@ -55,6 +55,16 @@ jobs:
       - name: Install dependencies
         run: npm run install:app
 
+      # Google's own apt repo for Chrome has intermittently served a
+      # Packages.gz that doesn't match its Release file's advertised hash,
+      # which fails `apt-get update` outright and takes this whole job down
+      # before a single test runs — even though `--with-deps` never actually
+      # needs a package from this repo (Playwright installs its own bundled
+      # Chromium; this source is just preinstalled on the runner image).
+      # `-f` so this is a no-op once the repo's index is healthy again.
+      - name: Work around Google Chrome apt repo outages
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
+
       - name: Install Playwright browsers
         run: npx --prefix web playwright install --with-deps chromium
 
