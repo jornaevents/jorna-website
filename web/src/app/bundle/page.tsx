@@ -466,13 +466,22 @@ function BookingRow({
   const busy = busyId === booking.booking_id;
   const openPanel = panel?.bookingId === booking.booking_id ? panel.kind : null;
 
+  // Manual track: paid directly, Venmo/Zelle — declared here, ahead of
+  // `payable` below, because Stripe checkout must never be offered for one
+  // either. The backend has no Stripe account to charge for this vendor, so
+  // that "Pay" button would 400 every time — it isn't a fallback path, it's
+  // a dead one sitting right next to the Venmo/Zelle instructions meant to
+  // replace it.
+  const isManual = booking.payment_method === "manual";
+
   // Mirror the backend's checkout guards so we never offer a button that must
-  // fail: only an approved, not-yet-paid booking with a resolvable total.
+  // fail: only an approved, not-yet-paid, non-manual-track booking with a
+  // resolvable total.
   //
   // "processing" is excluded. A charge is already in flight — offering to start
   // a second one is how a client pays twice for the same booking, and the
   // status line now says what's happening instead.
-  const payable = booking.status === "approved" && pay === "unpaid";
+  const payable = booking.status === "approved" && pay === "unpaid" && !isManual;
   const blockedOnQuantity = payable && booking.price_pending_quantity;
   const pendingQuantityNoun =
     priceUnitKind(booking.price_unit) === "performer" ? "a performer count" : "a guest count or date range";
@@ -491,10 +500,10 @@ function BookingRow({
   const vendorPctNow = booking.refund_preview?.vendor_pct_now ?? 0;
   const gaps = bookingGaps(booking, event);
 
-  // Manual track: paid directly, Venmo/Zelle — Jorna never holds this money,
-  // so none of the escrow logic above (held/canConfirm/fullRefundNow) ever
-  // applies. A separate block below covers it.
-  const isManual = booking.payment_method === "manual";
+  // `isManual` itself now lives above, next to `payable` — Jorna never
+  // holds this money, so none of the escrow logic above (held/canConfirm/
+  // fullRefundNow) ever applies either. A separate block below covers how
+  // these are actually paid.
   const manualActive = isManual && booking.status === "approved";
   const manualCancellable = manualActive && !eventHasStarted(booking);
 
