@@ -9,6 +9,7 @@ import {
   getMyVendor,
   getStripeStatus,
   startStripeOnboarding,
+  updateMyVendor,
 } from "@/lib/jorna";
 import {
   PAYMENT_STATUS_LABELS,
@@ -17,7 +18,7 @@ import {
   type VendorDetail,
 } from "@/lib/types";
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
-import { Button, Card, LinkButton } from "@/components/ui";
+import { Button, Card, Field, LinkButton } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
 
 function money(cents: number) {
@@ -60,6 +61,15 @@ function EarningsInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The alternative to Stripe, offered right where the Stripe gate already
+  // is — a vendor stuck on setup shouldn't have to already know
+  // /vendor-profile has a way out.
+  const [showDirectForm, setShowDirectForm] = useState(false);
+  const [venmoHandle, setVenmoHandle] = useState("");
+  const [zelleContact, setZelleContact] = useState("");
+  const [savingDirect, setSavingDirect] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/my-earnings");
   }, [authLoading, user, router]);
@@ -82,6 +92,8 @@ function EarningsInner() {
       .then(async (mine) => {
         if (cancelled) return;
         setVendor(mine);
+        setVenmoHandle(mine?.venmo_handle ?? "");
+        setZelleContact(mine?.zelle_contact ?? "");
         if (mine) await load(mine.vendor_id);
       })
       .catch((err) =>
@@ -106,6 +118,31 @@ function EarningsInner() {
         err instanceof ApiError ? err.message : "Couldn't start payment setup.",
       );
       setBusy(false);
+    }
+  }
+
+  async function switchToDirect() {
+    if (!vendor) return;
+    const trimmedVenmo = venmoHandle.trim();
+    const trimmedZelle = zelleContact.trim();
+    if (!trimmedVenmo && !trimmedZelle) {
+      setDirectError("Add a Venmo handle or Zelle contact so clients know how to pay you.");
+      return;
+    }
+    setSavingDirect(true);
+    setDirectError(null);
+    try {
+      const updated = await updateMyVendor({
+        payment_method: "manual",
+        venmo_handle: trimmedVenmo || null,
+        zelle_contact: trimmedZelle || null,
+      });
+      setVendor(updated);
+      setShowDirectForm(false);
+    } catch (err) {
+      setDirectError(err instanceof ApiError ? err.message : "Couldn't save that.");
+    } finally {
+      setSavingDirect(false);
     }
   }
 
@@ -148,8 +185,15 @@ function EarningsInner() {
         </p>
       ) : null}
 
-      {/* Payments setup — the gate on getting paid at all */}
-      {!payments.ready ? (
+      {/* Payments setup — the gate on getting paid at all. Stripe's gate has
+          nothing to say to a vendor who already chose Direct — they don't
+          need it — so that track gets its own ready-state instead of a
+          Stripe nag they've deliberately opted out of. */}
+      {vendor.payment_method === "manual" ? (
+        <p className="mt-6 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">
+          You&apos;re set up to get paid directly via Venmo/Zelle — no Stripe needed.
+        </p>
+      ) : !payments.ready ? (
         <Card className="mt-7 p-6">
           <h2 className="serif text-xl text-ink">
             {justOnboarded ? "Finishing payment setup…" : payments.title}
@@ -162,6 +206,59 @@ function EarningsInner() {
           <Button className="mt-4" disabled={busy} onClick={onboard}>
             {busy ? "Opening Stripe…" : payments.cta}
           </Button>
+
+          <div className="mt-6 border-t border-line-soft pt-5">
+            {showDirectForm ? (
+              <>
+                <p className="text-sm font-medium text-ink">Get paid directly instead</p>
+                <p className="mt-1 text-xs text-ink-soft">
+                  No Stripe, no card fees — clients pay you via Venmo or Zelle, and
+                  cancelling loses the protection Stripe gives you today.
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Venmo handle"
+                    placeholder="@your-business"
+                    value={venmoHandle}
+                    onChange={(e) => setVenmoHandle(e.target.value)}
+                  />
+                  <Field
+                    label="Zelle contact"
+                    placeholder="you@business.com or a phone number"
+                    value={zelleContact}
+                    onChange={(e) => setZelleContact(e.target.value)}
+                  />
+                </div>
+                {directError ? (
+                  <p
+                    role="alert"
+                    className="mt-2 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+                  >
+                    {directError}
+                  </p>
+                ) : null}
+                <div className="mt-3 flex gap-2">
+                  <Button size="md" disabled={savingDirect} onClick={switchToDirect}>
+                    {savingDirect ? "Saving…" : "Switch to Direct"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => {
+                      setShowDirectForm(false);
+                      setDirectError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button variant="ghost" size="md" onClick={() => setShowDirectForm(true)}>
+                Get paid directly instead (Venmo/Zelle)
+              </Button>
+            )}
+          </div>
         </Card>
       ) : (
         <p className="mt-6 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">

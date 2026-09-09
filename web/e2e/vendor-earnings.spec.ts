@@ -84,4 +84,72 @@ test.describe("vendor earnings (/my-earnings)", () => {
     await expect(page.getByText("$300")).toBeVisible();
     await expect(page.getByText("1 client says they've paid")).toBeVisible();
   });
+
+  test("shows a manual-track vendor as already set up, no Stripe gate", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail({ payment_method: "manual", venmo_handle: "@studio-anjali" });
+    api.get("/vendors/me", vendor);
+    api.get(`/payments/vendors/${vendor.vendor_id}/stripe-status`, mockStripeStatus());
+    api.get(`/payments/vendors/${vendor.vendor_id}/earnings`, mockEarnings());
+
+    await page.goto("my-earnings/");
+
+    await expect(
+      page.getByText("You're set up to get paid directly via Venmo/Zelle — no Stripe needed."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Set up payments" })).not.toBeVisible();
+  });
+
+  test("lets a vendor stuck on Stripe setup switch to Direct instead", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get(`/payments/vendors/${vendor.vendor_id}/stripe-status`, mockStripeStatus());
+    api.get(`/payments/vendors/${vendor.vendor_id}/earnings`, mockEarnings());
+    api.patch(
+      "/vendors/me",
+      mockVendorDetail({
+        payment_method: "manual",
+        venmo_handle: "@studio-anjali",
+        zelle_contact: null,
+      }),
+    );
+
+    await page.goto("my-earnings/");
+    await expect(page.getByRole("heading", { name: "Set up payments" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Get paid directly instead (Venmo/Zelle)" }).click();
+    await page.getByLabel("Venmo handle").fill("@studio-anjali");
+    await page.getByRole("button", { name: "Switch to Direct" }).click();
+
+    await expect(
+      page.getByText("You're set up to get paid directly via Venmo/Zelle — no Stripe needed."),
+    ).toBeVisible();
+    const patchCalls = api.requestsTo("PATCH", "/vendors/me");
+    expect(patchCalls).toHaveLength(1);
+    expect(patchCalls[0].body).toMatchObject({
+      payment_method: "manual",
+      venmo_handle: "@studio-anjali",
+    });
+  });
+
+  test("requires a Venmo handle or Zelle contact before switching to Direct", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get(`/payments/vendors/${vendor.vendor_id}/stripe-status`, mockStripeStatus());
+    api.get(`/payments/vendors/${vendor.vendor_id}/earnings`, mockEarnings());
+
+    await page.goto("my-earnings/");
+    await page.getByRole("button", { name: "Get paid directly instead (Venmo/Zelle)" }).click();
+    await page.getByRole("button", { name: "Switch to Direct" }).click();
+
+    await expect(
+      page.getByText("Add a Venmo handle or Zelle contact so clients know how to pay you."),
+    ).toBeVisible();
+    expect(api.requestsTo("PATCH", "/vendors/me")).toHaveLength(0);
+  });
 });
