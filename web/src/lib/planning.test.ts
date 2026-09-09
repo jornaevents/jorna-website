@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bookingGaps, requiredFields } from "./planning";
-import type { BundleBooking } from "./types";
+import { bookingGaps, moneyForBundle, requiredFields } from "./planning";
+import type { BundleBooking, BundleDetail } from "./types";
 
 function booking(overrides: Partial<BundleBooking> = {}): BundleBooking {
   return {
@@ -113,5 +113,72 @@ describe("requiredFields — what a package's page tells a client before they st
     const shape = { price_unit: "event", require_guest_count: true, require_performer_count: true };
     const blank = booking({ ...shape, date_iso: "", location: "", time_start: "", time_end: "" });
     expect(gapFields(blank).sort()).toEqual(requiredFields(shape).sort());
+  });
+});
+
+function bundle(bookings: BundleBooking[]): BundleDetail {
+  return {
+    bundle_id: "bun1",
+    user_id: "u1",
+    name: "Test Plan",
+    status: "sent",
+    bookings,
+    booking_count: bookings.length,
+    total_estimated_cost: 0,
+  };
+}
+
+describe("moneyForBundle — where a plan's money actually is", () => {
+  it("counts an approved, unpaid booking as outstanding (baseline, unchanged)", () => {
+    const cash = moneyForBundle(bundle([booking({ status: "approved" })]));
+    expect(cash.outstanding).toBe(100);
+    expect(cash.released).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("treats a manual (Venmo/Zelle) booking both sides confirmed as released, not outstanding", () => {
+    // This is the actual bug: once a client sends payment directly and the
+    // vendor confirms receiving it, the plan kept reporting the full price
+    // as still owed — confirmed_paid has no Stripe escrow leg to land in,
+    // but it's exactly as settled as `released` is for an escrow booking.
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "confirmed_paid" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.released).toBe(100);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("counts neither outstanding nor released while a manual payment is sent but not yet confirmed", () => {
+    // The client has already sent it — showing "still to pay" would be just
+    // as wrong here as after confirmation, but the vendor hasn't confirmed
+    // receipt yet either, so it isn't `released` quite yet.
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "marked_paid" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.released).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("counts neither outstanding nor inEscrow while a Stripe charge is still processing", () => {
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "processing" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.inEscrow).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("still counts paid and released Stripe bookings in their usual buckets", () => {
+    const cash = moneyForBundle(
+      bundle([
+        booking({ booking_id: "b1", status: "approved", payment_status: "paid" }),
+        booking({ booking_id: "b2", status: "approved", payment_status: "released" }),
+      ]),
+    );
+    expect(cash.inEscrow).toBe(100);
+    expect(cash.released).toBe(100);
+    expect(cash.outstanding).toBe(0);
   });
 });
