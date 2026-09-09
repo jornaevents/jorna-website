@@ -182,3 +182,24 @@ describe("moneyForBundle — where a plan's money actually is", () => {
     expect(cash.outstanding).toBe(0);
   });
 });
+
+function isoDaysFromNow(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+describe("bookingGaps — a date that's set but already gone", () => {
+  it("flags a past date as a gap, distinct from an unset one", () => {
+    const gaps = bookingGaps(booking({ date_iso: isoDaysFromNow(-1) }));
+    expect(gaps.map((g) => g.field)).toContain("date");
+    expect(gaps.find((g) => g.field === "date")?.label).toBe(
+      "a date that hasn't already passed",
+    );
+  });
+
+  it("does not flag today or a future date", () => {
+    expect(gapFields(booking({ date_iso: isoDaysFromNow(0) }))).not.toContain("date");
+    expect(gapFields(booking({ date_iso: isoDaysFromNow(30) }))).not.toContain("date");
+  });
+});
