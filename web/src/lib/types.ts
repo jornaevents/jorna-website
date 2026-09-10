@@ -143,8 +143,9 @@ export function categoryLabel(key: string): string {
 /** A vendor's specializations, as the onboarding wizard and profile settings
  *  form need them: a list, never empty for a vendor who's finished setup.
  *  Falls back to a single-item list built from `category`/`subcategory` for
- *  a record the backend hasn't returned `specializations` for yet — see the
- *  comment on that field. */
+ *  a record that predates the backend's `specializations` column, or was
+ *  created before that column's migration was deployed; see the comment on
+ *  that field. */
 export function vendorSpecializations(vendor: {
   category?: string | null;
   subcategory?: string | null;
@@ -190,10 +191,13 @@ export interface VendorSearchItem {
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   tags?: string[];
+  /** "stripe" (protected, escrow-held) or "manual" (paid directly via
+   *  Venmo/Zelle) — see `paymentMethodBadge`. */
+  payment_method?: "stripe" | "manual" | null;
 }
 
 /** One category, optionally narrowed to a speciality within it — what a
- *  vendor now picks any number of during onboarding. See `specializations`
+ *  vendor picks any number of during onboarding. See `specializations`
  *  below for why this is a list rather than a single pair. */
 export interface VendorSpecialization {
   category: string;
@@ -210,11 +214,13 @@ export interface VendorDetail {
    *  can pick from during onboarding. */
   category?: string | null;
   subcategory?: string | null;
-  /** Every category(+speciality) a vendor sells under, not just the first —
-   *  onboarding now offers a multi-select instead of one pair. This assumes
-   *  backend support that didn't exist when `category`/`subcategory` were
-   *  added; until the backend returns it, `vendorSpecializations()` below
-   *  reconstructs a one-item list from those two fields instead. */
+  /** Every category(+speciality) a vendor sells under, not just the first. A
+   *  2026-08-29 onboarding QA pass found the backend silently dropped
+   *  everything past the first entry; Desiconnect migration 0045 adds a
+   *  matching column and wires it through create/update/read. Once that's
+   *  deployed this round-trips for real — until then, or for a record that
+   *  predates it, `vendorSpecializations()` below reconstructs a one-item
+   *  list from `category`/`subcategory` on reload. */
   specializations?: VendorSpecialization[];
   rating?: number | null;
   num_events?: number | null;
@@ -229,6 +235,12 @@ export interface VendorDetail {
   phone?: string | null;
   instagram_username?: string | null;
   tags?: string[];
+  /** "stripe" (default) keeps the card-charge/escrow flow unchanged; "manual"
+   *  means this vendor is paid directly via Venmo/Zelle and Jorna never
+   *  touches the money — see venmo_handle/zelle_contact below. */
+  payment_method?: "stripe" | "manual";
+  venmo_handle?: string | null;
+  zelle_contact?: string | null;
 }
 
 export interface MediaItem {
@@ -265,6 +277,11 @@ export interface ServiceItem {
   subcategory?: string | null;
   description?: string | null;
   negotiable?: boolean;
+  // Opt-in on top of whatever the price unit already demands — a vendor can
+  // require a headcount/performer count for send-readiness purposes even when
+  // pricing doesn't need one (see bookingGaps() in lib/planning.ts).
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   // Venue services carry an address + map pin; the event's check-in anchor is
   // derived from the venue booking, so these get mirrored onto the booking.
   location?: string | null;
@@ -344,6 +361,10 @@ export interface BundleBooking {
   // the replacement booking stays payable.
   date_end?: string | null;
   guest_count?: number | null;
+  performer_count?: number | null;
+  // Denormalized from the service, same as price_unit — see bookingGaps().
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   /** Whether this service is open to price negotiation (service.negotiable). */
   open_to_price_negotiation?: boolean;
   /**
@@ -353,6 +374,11 @@ export interface BundleBooking {
    */
   change_request?: ChangeRequest | null;
   /**
+   * Which side owes the next move on an open price negotiation — null when
+   * there isn't one. "client" means it's this account's turn to answer.
+   */
+  negotiation_awaiting_role?: "client" | "vendor" | null;
+  /**
    * The venue's IANA timezone, resolved server-side from the address and pin.
    * Null when it can't be placed. Read it through `todayAtVenue` — "has the
    * event happened yet" is the escrow gate, and it has to be answered on the
@@ -360,11 +386,26 @@ export interface BundleBooking {
    */
   timezone?: string | null;
   // Escrow lifecycle (ISO timestamps, null until they happen).
-  /** When Stripe payment succeeded. The 24h refund window runs from here. */
+  /** When Stripe payment succeeded. */
   paid_at?: string | null;
   customer_confirmed_at?: string | null;
   vendor_confirmed_at?: string | null;
   funds_released_at?: string | null;
+  /**
+   * What cancelling this booking would pay out right now — server-computed
+   * (see cancellation_split on the backend), so the countdown on screen is
+   * never a client-side reimplementation of the ramp. Only present while
+   * payment_status is "paid"; null otherwise.
+   */
+  refund_preview?: RefundPreview | null;
+  /** "stripe" (protected, escrow-held) or "manual" (paid directly via
+   *  Venmo/Zelle) — snapshotted from the vendor's setting when this booking
+   *  was sent. Missing/null predates the manual track; treat as "stripe". */
+  payment_method?: "stripe" | "manual" | null;
+  /** Only present on a manual-track booking — where to actually send the
+   *  money, since Jorna isn't collecting it. */
+  vendor_venmo_handle?: string | null;
+  vendor_zelle_contact?: string | null;
   // GPS venue check-ins — presence, not escrow. Neither releases funds; that's
   // customer_confirmed_at / vendor_confirmed_at.
   vendor_checked_in_at?: string | null;
@@ -389,8 +430,24 @@ export interface BundleBooking {
   locked_fields?: string[];
 }
 
-/** How long after paying a full refund is still available. */
-export const REFUND_WINDOW_HOURS = 24;
+/**
+ * What cancelling a booking would pay out right now, per the backend's
+ * cancellation_split: a full refund for 24h after the vendor accepts, then
+ * nothing back to the client — the payment splits between the platform and
+ * the vendor instead, on a ramp that favors the vendor the closer it gets to
+ * the event. See GET /payments/bookings/{id}/cancellation-preview and the
+ * embedded copy on the booking itself.
+ */
+export interface RefundPreview {
+  /** ISO timestamp — full refund available up to this instant. Null if the
+   *  booking hasn't been accepted yet (nothing has started the clock). */
+  full_refund_until: string | null;
+  /** The vendor's current cut, 0–99, if cancelled this instant. 0 while
+   *  still inside the full-refund window. */
+  vendor_pct_now: number;
+  /** What the client would get back this instant, in cents. */
+  client_refund_now_cents: number;
+}
 
 /**
  * How long after the event escrow releases on its own.
@@ -505,25 +562,28 @@ export function parseServerTime(ts?: string | null): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-/** True while the booking is still inside its 24h post-payment refund window. */
-export function withinRefundWindow(paidAt?: string | null): boolean {
-  const paid = parseServerTime(paidAt);
-  if (paid === null) return false;
-  return Date.now() - paid < REFUND_WINDOW_HOURS * 3600 * 1000;
+/** True while cancelling right now would still return the full amount. */
+export function isFullRefundNow(preview?: RefundPreview | null): boolean {
+  const until = parseServerTime(preview?.full_refund_until ?? null);
+  if (until === null) return false;
+  return Date.now() < until;
 }
 
 /**
- * How much of the refund window is left, in words. Null once it's gone.
+ * How much of the full-refund grace period is left, in words. Null once it's
+ * gone (the ramp has started) or never started (not yet accepted).
  *
- * The window runs from `paid_at` — and with a card on file that is a moment the
- * client didn't choose and may never have seen. Nothing counted it down;
- * "Request refund" simply stopped being rendered, so the option expired in
- * silence. A deadline worth having is a deadline worth stating.
+ * Read from the server's own `full_refund_until`, not recomputed from
+ * `paid_at` client-side — the grace period runs from vendor acceptance, and
+ * the exact cutoff (and everything past it) is the backend's cancellation_split
+ * to know, not a constant duplicated here. A deadline worth having is a
+ * deadline worth stating, so this is shown counting down rather than the
+ * option simply disappearing once it's gone.
  */
-export function refundWindowLeft(paidAt?: string | null): string | null {
-  const paid = parseServerTime(paidAt);
-  if (paid === null) return null;
-  const msLeft = REFUND_WINDOW_HOURS * 3600 * 1000 - (Date.now() - paid);
+export function fullRefundTimeLeft(preview?: RefundPreview | null): string | null {
+  const until = parseServerTime(preview?.full_refund_until ?? null);
+  if (until === null) return null;
+  const msLeft = until - Date.now();
   if (msLeft <= 0) return null;
   const hours = Math.floor(msLeft / 3_600_000);
   if (hours >= 1) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
@@ -627,9 +687,10 @@ export interface VendorCreateInput {
   category?: string;
   subcategory?: string | null;
   /** The full multi-select list; `category`/`subcategory` above mirror its
-   *  first entry, since that's the pair the backend is confirmed to persist
-   *  today. Sent alongside rather than instead of them until the backend
-   *  adds a matching column — see the comment on `VendorDetail.specializations`. */
+   *  first entry. Sent alongside rather than instead of them — the backend
+   *  persists both independently (see the comment on
+   *  `VendorDetail.specializations`), so they stay in sync rather than one
+   *  being derived from the other. */
   specializations?: VendorSpecialization[];
 }
 
@@ -643,6 +704,9 @@ export interface VendorUpdateInput {
   open_to_price_negotiation?: boolean;
   open_to_location_negotiation?: boolean;
   instagram_username?: string | null;
+  payment_method?: "stripe" | "manual";
+  venmo_handle?: string | null;
+  zelle_contact?: string | null;
 }
 
 // ── Moderation ───────────────────────────────────────────────────────
@@ -853,6 +917,17 @@ export interface VendorAvailability {
   google_calendar_error?: string | null;
 }
 
+/**
+ * GET /vendors/{id}/calendar-status — owner-only. `write_enabled` is false
+ * for a vendor connected before booking write-back requested the broader
+ * scope; Google never widens a standing grant on its own, so this is the
+ * only reliable way to tell "connected" from "connected with write access."
+ */
+export interface CalendarStatus {
+  google_calendar_connected: boolean;
+  google_calendar_write_enabled: boolean;
+}
+
 // ── Vendor-side bookings ─────────────────────────────────────────────
 
 /** A booking as the vendor sees it (the fuller `_booking_dict` payload). */
@@ -868,6 +943,9 @@ export interface VendorBooking {
   price_unit?: string | null;
   price_pending_quantity?: boolean;
   guest_count?: number | null;
+  performer_count?: number | null;
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
   bundle_id?: string | null;
   event_name?: string | null;
   date_iso?: string | null;
@@ -888,8 +966,16 @@ export interface VendorBooking {
   timezone?: string | null;
   /** A date change this vendor still owes an answer on. */
   change_request?: ChangeRequest | null;
+  /**
+   * Which side owes the next move on an open price negotiation — null when
+   * there isn't one. "vendor" means it's this account's turn to answer.
+   */
+  negotiation_awaiting_role?: "client" | "vendor" | null;
   status: string;
   payment_status?: string | null;
+  /** "stripe" (protected) or "manual" (paid directly, Venmo/Zelle) — see
+   *  BundleBooking.payment_method. */
+  payment_method?: "stripe" | "manual" | null;
   amount_cents?: number | null;
   negotiable?: boolean;
   paid_at?: string | null;
@@ -942,6 +1028,13 @@ export interface Earnings {
   disputed_cents: number;
   refunded_cents: number;
   platform_fees_cents: number;
+  /** Manual track — self-reported, confirmed by the vendor. Kept separate
+   *  from total_released_cents: this money was never verified by Jorna. */
+  self_reported_cents: number;
+  /** Manual track — the client says they paid, waiting on this vendor to
+   *  confirm receiving it. */
+  self_reported_pending_cents: number;
+  self_reported_pending_count: number;
   history: EarningsEntry[];
 }
 
@@ -996,15 +1089,39 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: "Held in escrow",
   released: "Released to vendor",
   refunded: "Refunded",
+  // Set only by a post-grace client cancellation (cancel_booking):
+  // the client got nothing back, and the vendor was paid their share of the
+  // cancellation split — distinct from "refunded", which always means 100%
+  // came back to the client.
+  cancelled: "Cancelled",
   disputed: "Disputed",
+  // Manual-track only — a self-reported two-sided attestation, not an
+  // escrow state. See jorna.ts markBookingPaid/confirmPaymentReceived.
+  marked_paid: "Payment sent",
+  confirmed_paid: "Payment received",
 };
+
+/**
+ * Label + tone for a vendor's payment track, shared across every place a
+ * client sees a vendor before booking (search cards, the profile header).
+ * Always shown both ways rather than only flagging "Direct" — a badge
+ * that's silently absent for the majority case reads as a bug, not as
+ * "this one's protected."
+ */
+export function paymentMethodBadge(
+  paymentMethod?: "stripe" | "manual" | null,
+): { label: string; tone: string } {
+  return paymentMethod === "manual"
+    ? { label: "Direct", tone: "text-gold" }
+    : { label: "Protected", tone: "text-green" };
+}
 
 /**
  * What quantity a service's rate is multiplied by. The booking must capture
  * that quantity up front or its total can't be resolved and checkout refuses
  * (see resolve_total_cents / price_pending_quantity on the backend).
  */
-export type PriceUnitKind = "person" | "day" | "hour" | "event";
+export type PriceUnitKind = "person" | "day" | "hour" | "event" | "performer";
 
 /**
  * What quantity a rate multiplies by.
@@ -1023,6 +1140,12 @@ export function priceUnitKind(unit?: string | null): PriceUnitKind {
   if (u.startsWith("hour")) return "hour";
   if (u.startsWith("day")) return "day";
   if (u.startsWith("event")) return "event";
+  if (
+    u.startsWith("performer") ||
+    ["dancer", "dancers", "entertainer", "entertainers"].includes(u)
+  ) {
+    return "performer";
+  }
   if (u.startsWith("person") || ["head", "plate", "guest", "pax"].includes(u)) {
     return "person";
   }
@@ -1054,6 +1177,7 @@ export interface PricedBooking {
   price_unit?: string | null;
   price_pending_quantity?: boolean;
   guest_count?: number | null;
+  performer_count?: number | null;
   date_iso?: string | null;
   date_end?: string | null;
   time_start?: string | null;
@@ -1088,6 +1212,10 @@ export function priceQuantity(b: PricedBooking): { count: number; noun: string }
     case "person": {
       const guests = b.guest_count ?? 0;
       return guests > 0 ? one(guests, "guest") : null;
+    }
+    case "performer": {
+      const performers = b.performer_count ?? 0;
+      return performers > 0 ? one(performers, "performer") : null;
     }
     case "day": {
       const days = dayCount(b.date_iso, b.date_end);

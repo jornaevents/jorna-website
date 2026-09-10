@@ -13,12 +13,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { NavBadge, NEEDS_YOU, useAppNav } from "./nav";
+import { MESSAGES, NavBadge, NEEDS_YOU, useAppNav } from "./nav";
 import { Card } from "./ui";
 import { useOverlay } from "./useOverlay";
 
 export function MobileNavMenu() {
-  const { items, attention, isActive } = useAppNav();
+  const { items, attention, messagesUnread, isActive } = useAppNav();
   const [open, setOpen] = useState(false);
   const sheetRef = useOverlay<HTMLDivElement>(open, () => setOpen(false));
 
@@ -43,7 +43,7 @@ export function MobileNavMenu() {
         >
           <path d="M4 7h16M4 12h16M4 17h16" />
         </svg>
-        {attention > 0 ? (
+        {attention > 0 || messagesUnread > 0 ? (
           <span
             aria-hidden="true"
             className="absolute right-1 top-1 size-2 rounded-full bg-maroon dark:bg-gold"
@@ -92,7 +92,12 @@ export function MobileNavMenu() {
                   >
                     {items.map((t) => {
                       const active = isActive(t);
-                      const badge = t.href === NEEDS_YOU.href ? attention : 0;
+                      const badge =
+                        t.href === NEEDS_YOU.href
+                          ? attention
+                          : t.href === MESSAGES.href
+                            ? messagesUnread
+                            : 0;
                       return (
                         <Link
                           key={t.href}

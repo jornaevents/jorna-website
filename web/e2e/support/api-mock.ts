@@ -1,7 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 import { MOCK_API_BASE } from "./api-base";
 
-type HandlerArgs = { route: Route; url: URL };
+export type HandlerArgs = { route: Route; url: URL };
 // A handler either returns a JSON-serializable value (fulfilled as 200
 // application/json) or calls route.fulfill/abort itself and returns nothing.
 type Handler = (args: HandlerArgs) => unknown | Promise<unknown>;

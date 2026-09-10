@@ -18,6 +18,8 @@ export interface Quantity {
   /** Whole days, end date inclusive — a one-day event is 1, not 0. */
   days?: number | null;
   hours?: number | null;
+  /** How many performers a group is asked to provide (per-performer pricing). */
+  performers?: number | null;
 }
 
 /**
@@ -36,6 +38,7 @@ export const DEFAULT_QUANTITY: Required<Quantity> = {
   guests: 150,
   days: 1,
   hours: 6,
+  performers: 4,
 };
 
 /** Sane bounds for the estimator's steppers. Hours cap at 24 because the
@@ -47,6 +50,7 @@ export const QUANTITY_LIMITS: Record<
   person: { min: 1, max: 2000, step: 10 },
   day: { min: 1, max: 30, step: 1 },
   hour: { min: 1, max: 24, step: 1 },
+  performer: { min: 1, max: 50, step: 1 },
 };
 
 /** Which quantity a unit multiplies by, or null when the price is already a total. */
@@ -54,6 +58,7 @@ export function quantityKey(kind: PriceUnitKind): keyof Quantity | null {
   if (kind === "person") return "guests";
   if (kind === "day") return "days";
   if (kind === "hour") return "hours";
+  if (kind === "performer") return "performers";
   return null;
 }
 
@@ -90,6 +95,10 @@ export function estimateTotal(
     const h = quantity.hours ?? 0;
     // The backend rejects a window longer than 24h rather than charging for it.
     return h > 0 && h <= 24 ? rate * h : null;
+  }
+  if (kind === "performer") {
+    const p = quantity.performers ?? 0;
+    return p > 0 ? rate * p : null;
   }
   return rate;
 }
@@ -155,6 +164,10 @@ export function quantityPhrase(kind: PriceUnitKind, quantity: Quantity): string 
     const h = quantity.hours ?? 0;
     return `${h} ${h === 1 ? "hour" : "hours"}`;
   }
+  if (kind === "performer") {
+    const p = quantity.performers ?? 0;
+    return `${p.toLocaleString()} ${p === 1 ? "performer" : "performers"}`;
+  }
   return null;
 }
 
@@ -163,5 +176,6 @@ export function settledBy(kind: PriceUnitKind): string | null {
   if (kind === "person") return "confirmed headcount";
   if (kind === "day") return "confirmed dates";
   if (kind === "hour") return "confirmed start and end times";
+  if (kind === "performer") return "confirmed performer count";
   return null;
 }

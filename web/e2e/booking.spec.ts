@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockBundleDetail, mockBundleOption } from "./support/mock-data";
+import { mockBundleBooking, mockBundleDetail, mockBundleOption } from "./support/mock-data";
 
 test.describe("bundle builder (/plan)", () => {
   test("requires at least one category before building, and makes no request without one", async ({
@@ -68,5 +68,260 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page).toHaveURL("https://checkout.stripe.com/mock-session");
     const checkoutCalls = api.requestsTo("POST", "/payments/bookings/booking-1/checkout-session");
     expect(checkoutCalls).toHaveLength(1);
+  });
+
+  test("cancelling within the grace period refunds in full", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_status: "paid",
+            refund_preview: {
+              full_refund_until: new Date(Date.now() + 20 * 3600 * 1000).toISOString(),
+              vendor_pct_now: 0,
+              client_refund_now_cents: 250000,
+            },
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled. Refunded in full.",
+      refund_cents: 250000,
+      vendor_cancellation_cents: 0,
+      payment_status: "refunded",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(page.getByText("Full refund available for another")).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/refunded \$2,500 in full/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/refunded in full/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
+  });
+
+  test("cancelling past the grace period pays the vendor their share instead", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_status: "paid",
+            refund_preview: {
+              full_refund_until: new Date(Date.now() - 3600 * 1000).toISOString(),
+              vendor_pct_now: 50,
+              client_refund_now_cents: 0,
+            },
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled. Nothing refunded.",
+      refund_cents: 0,
+      vendor_cancellation_cents: 125000,
+      payment_status: "cancelled",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(
+      page.getByText("Cancelling now: 50% goes to Anjali Kapoor, nothing back to you"),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/nothing is refunded to you/)).toBeVisible();
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/Nothing was refunded/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
+  });
+
+  test("a manual-track booking shows Venmo/Zelle details and can be marked paid", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_method: "manual",
+            payment_status: "unpaid",
+            vendor_venmo_handle: "@studio-anjali",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/mark-paid", {
+      message: "Marked as paid.",
+      payment_status: "marked_paid",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(page.getByText("Anjali Kapoor is paid directly, not through Jorna.")).toBeVisible();
+    await expect(page.getByText("@studio-anjali")).toBeVisible();
+
+    // Regression: the Stripe "Pay" button used to render right alongside
+    // this — the backend has no Stripe account for a manual-track vendor,
+    // so clicking it always 400'd instead of ever being a real second way
+    // to pay.
+    await expect(page.getByRole("button", { name: /^Pay \$/ })).not.toBeVisible();
+
+    await page.getByRole("button", { name: "I sent payment" }).click();
+
+    await expect(page.getByText(/Marked as paid/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/mark-paid")).toHaveLength(1);
+  });
+
+  test("cancelling a manual-track booking shows no refund math", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            payment_method: "manual",
+            payment_status: "confirmed_paid",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.post("/payments/bookings/:id/cancel", {
+      message: "Cancelled.",
+      refund_cents: 0,
+      vendor_cancellation_cents: 0,
+      payment_status: "confirmed_paid",
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await page.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(page.getByText(/Jorna doesn't hold or refund it/)).toBeVisible();
+    await expect(page.getByText(/% goes to/)).not.toBeVisible();
+
+    await page.getByRole("button", { name: "Confirm cancellation" }).click();
+
+    await expect(page.getByText(/Jorna doesn't hold or refund it/)).toBeVisible();
+    expect(api.requestsTo("POST", "/payments/bookings/booking-1/cancel")).toHaveLength(1);
+  });
+
+  test("a live counter-offer from the vendor is visible without clicking Negotiate", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      // Bundle-level status must not be "draft" — isDraftBundle() falls back
+      // to the bookings themselves in that case, and negotiation_ongoing
+      // doesn't count as vendor contact there, which would wrongly force
+      // draft=true and mask the negotiation panel behind an unrelated gate.
+      mockBundleDetail({
+        status: "sent",
+        bookings: [
+          mockBundleBooking({
+            status: "negotiation_ongoing",
+            open_to_price_negotiation: true,
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.get("/negotiations/booking/:id", {
+      negotiation_id: "neg-1",
+      booking_id: "booking-1",
+      status: "open",
+      current_offer_cents: 220000,
+      // The vendor made the current offer, not the logged-in client — so
+      // NegotiationPanel's mineIsCurrent is false and the response buttons
+      // (not a "waiting on them" message) are what should render.
+      proposed_by: "vendor-1",
+      proposed_by_name: "Anjali Kapoor",
+      offers: [
+        { amount_cents: 220000, proposed_by: "vendor-1", proposed_by_name: "Anjali Kapoor" },
+      ],
+    });
+
+    await page.goto("bundle/?id=bundle-1");
+    await expect(page.getByRole("heading", { name: "Priya's Wedding" })).toBeVisible();
+
+    // The regression: this used to require clicking "Negotiate price" first,
+    // and the button/panel were hidden outright while status was
+    // negotiation_ongoing — so the client never saw a live vendor offer at all.
+    await expect(page.getByText("Current offer")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Accept \$2,200/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Counter" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Decline" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Negotiate price" })).not.toBeVisible();
+  });
+
+  test("a per-performer booking's missing performer count shows up in Required Info", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            price_unit: "performer",
+            service_name: "Bhangra Dance Troupe",
+            location: "123 Main St, Springfield, IL 62704",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.patch("/bookings/:id", { booking_id: "booking-1" });
+
+    await page.goto("bundle/?id=bundle-1");
+    // mockBundleBooking's default status ("approved") already counts as
+    // vendor contact, so this reads as a sent plan ("Still needed"), not a
+    // draft still being assembled ("Required Info").
+    await expect(page.getByRole("heading", { name: "Still needed" })).toBeVisible();
+
+    // Regression: this field didn't exist at all, so a plan priced per
+    // performer could never be completed from the one card meant to collect
+    // everything still missing before Send.
+    await expect(
+      page.getByText("Anjali Kapoor can't act on this until it has a performer count."),
+    ).toBeVisible();
+    await page.getByLabel("Performer count").fill("6");
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    const patchCalls = api.requestsTo("PATCH", "/bookings/booking-1");
+    expect(patchCalls.at(-1)?.body).toMatchObject({ performer_count: 6 });
   });
 });

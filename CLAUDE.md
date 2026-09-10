@@ -2,11 +2,12 @@
 
 Jorna is a marketplace for planning South Asian celebrations (matching
 clients with vendors, bundling services, escrow-backed booking/payment).
-**This repo is frontend-only**: a hand-written marketing page plus a
-client-rendered Next.js web app, both deployed as static files to Cloudflare
-Pages. The backend (FastAPI, Python) lives in a separate repository
-(`Desiconnect/server`) and is not checked out here — treat it as an external
-API reachable only over HTTP.
+**This repo is frontend-only**: a client-rendered Next.js web app — served at
+both `/` (its own Home page doubles as the marketing site) and `/app` — plus
+a small hand-written help page at `/help`, all deployed as static files to
+Cloudflare Pages. The backend (FastAPI, Python) lives in a separate
+repository (`Desiconnect/server`) and is not checked out here — treat it as
+an external API reachable only over HTTP.
 
 ## Layout
 
@@ -17,27 +18,16 @@ web/                Next.js 16 / React 19 / TS / Tailwind v4 source for /app
 scripts/            deploy + build tooling
 docs/               architecture docs (read before cross-cutting changes)
 .claude/context/    current-task.md — working memory for in-progress tasks
-*.md (root)         DEPLOY.md, STRIPE_GO_LIVE.md are current ops docs, kept
-                    accurate; README.md is stale in two ways (see below); the
-                    rest (CLIENT_FLOW_PLAN, WEB_PARITY_PLAN,
-                    MESSAGING_PROPOSAL, RESCHEDULE_PROPOSAL,
-                    VENDOR_DASHBOARD_BRIEF, DESIGN_BRIEF) are proposals and
-                    build plans, not always-current architecture — check the
-                    code before trusting one as still accurate. In
-                    particular, MESSAGING_PROPOSAL.md and
-                    RESCHEDULE_PROPOSAL.md both say "not yet built" but both
-                    features shipped within a day of being written — they lag
-                    in the *opposite* direction from what you'd expect (more
-                    is built than they claim, not less); see docs/BOOKING_FLOW.md.
+*.md (root)         DEPLOY.md, STRIPE_GO_LIVE.md and README.md are current
+                    ops/overview docs, kept accurate; the rest
+                    (CLIENT_FLOW_PLAN, WEB_PARITY_PLAN, MESSAGING_PROPOSAL,
+                    RESCHEDULE_PROPOSAL, VENDOR_DASHBOARD_BRIEF,
+                    DESIGN_BRIEF) are proposals and build plans, not
+                    always-current architecture. Most now carry their own
+                    "done"/"shipped" note at the top once verified against
+                    the code — but still check the code before trusting one
+                    as still accurate on any specific claim.
 ```
-
-**README.md is stale**: it describes the site as served by "one Cloudflare
-Worker" (it migrated to Cloudflare Pages — see `docs/DECISIONS.md`) and
-tags the web app "Status: Phase 1" (auth + bundle builder only), when in
-fact booking, payment/escrow, messaging, negotiation, reschedule, and the
-full vendor side are all built — see `docs/BOOKING_FLOW.md`. Don't take
-README.md's status claims at face value; it was already flagged as stale on
-the root-routing point in `docs/DECISIONS.md`, and these are two more.
 
 ## Documentation map
 
@@ -68,11 +58,11 @@ the root-routing point in `docs/DECISIONS.md`, and these are two more.
 - Read the relevant doc in `docs/` before a change that spans multiple
   subsystems (auth, pricing, task/attention rules, deploy).
 - Treat source code as ground truth over any `.md` file, including these —
-  docs here can lag a code change. README.md and the root `*_PLAN.md` /
-  `*_PROPOSAL.md` / `*_BRIEF.md` files are known to be stale in specific,
-  documented ways (see "Layout" above) — don't assume prose docs are
-  self-consistent, and verify a proposal doc's claims against the code before
-  treating "it's in a proposal doc" as "it's implemented."
+  docs here can lag a code change. The root `*_PLAN.md` / `*_PROPOSAL.md` /
+  `*_BRIEF.md` files are proposals and build plans, not architecture (see
+  "Layout" above) — don't assume prose docs are self-consistent, and verify a
+  proposal doc's claims against the code before treating "it's in a proposal
+  doc" as "it's implemented."
 
 ## Coding rules for this repo
 
@@ -109,12 +99,20 @@ script. It's a fast local gate, not a substitute for CI: it doesn't run
 Vitest or Playwright. `.github/dependabot.yml` opens weekly update PRs for
 `web/`, the root (wrangler), and GitHub Actions.
 
-CI (`.github/workflows/ci.yml`) has two jobs on every push/PR to `main`:
-`build` (lint, typecheck, Vitest, `next build`) and `e2e` (Playwright,
-below). The Vitest suite stays narrow on purpose — pure-logic unit tests for
-`web/src/lib` (pricing, planning/vendorPlan rules) — component-level and
-user-flow coverage lives in Playwright instead, so a UI change should get an
-E2E test or a manual pass through the dev server, not a component test here.
+CI (`.github/workflows/ci.yml`) has three jobs: `build` (lint, typecheck,
+Vitest, `next build`) and `e2e` (Playwright, below) run on every push/PR to
+`main`; `deploy` runs only after both pass on an actual push to `main` and
+ships to Cloudflare Pages (see `DEPLOY.md`) — merging a PR is what puts a
+change into production, there's no separate manual deploy step in the
+normal flow. The Vitest suite stays narrow on purpose — pure-logic unit
+tests for `web/src/lib` (pricing, planning/vendorPlan rules) — component-
+level and user-flow coverage lives in Playwright instead, so a UI change
+should get an E2E test or a manual pass through the dev server, not a
+component test here.
+
+`main` is a protected branch (GitHub branch protection: PR required, status
+checks must pass, no force-push/delete) — a direct `git push` to `main` is
+rejected. Branch per change, open a PR, merge once CI is green.
 
 **End-to-end tests** (`web/e2e/`, `web/playwright.config.ts`) drive a real
 Chromium against `next dev`, with every backend call intercepted at the
@@ -135,7 +133,7 @@ rendering) over pure layout.
 
 Note: `web/eslint.config.mjs` downgrades `react-hooks/set-state-in-effect`
 to a warning rather than error — see the comment there and
-[issue #2](https://github.com/dabkeyanik/jorna-website/issues/2) before
+[issue #2](https://github.com/jornaevents-commits/jorna-website/issues/2) before
 "fixing" any of those warnings casually; each one needs individual review; a
 blanket rewrite risks changing auth/booking/payment behavior.
 

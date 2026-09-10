@@ -1,8 +1,20 @@
 # Messaging — build spec
 
-Item 8 in `CLIENT_FLOW_PLAN.md`, plus the two halves it didn't cover. **Decisions
-made; not yet built.** Written after a full read of both sides: the web app here
-and `Desiconnect/server`.
+**Shipped** (2026-08-28 note): despite the "decisions made; not yet built"
+line below, this shipped within a day of being written — see
+`docs/BOOKING_FLOW.md`'s "A note on the proposal docs" and `docs/API.md`.
+Enquiry threads (`askVendor()` → `POST /conversations/enquiry`), per-booking threads
+(`openBookingThread()`), and the unified conversation model (`subject_type`,
+`unread_count` on `ConversationSummary`) are all live in
+`web/src/lib/jorna.ts`/`types.ts`. Treat what follows as design rationale,
+not a to-do list. One gap remains: `NegotiationPanel`'s own offer-history
+rendering (`NegotiationPanel.tsx:123-138`) was never retired as planned, so
+negotiation history currently renders in two places — the panel inline, and
+the conversation thread.
+
+Item 8 in `CLIENT_FLOW_PLAN.md`, plus the two halves it didn't cover.
+**Decisions made and built** — see the shipped note above. Written after a
+full read of both sides: the web app here and `Desiconnect/server`.
 
 Three things are being answered at once, because they are one system:
 

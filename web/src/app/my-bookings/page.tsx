@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
   confirmBookingEvent,
+  confirmPaymentReceived,
   getMyVendor,
   getStripeStatus,
   listVendorBookings,
@@ -30,6 +31,7 @@ import { Button, Card, LinkButton } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { DateChangeRequest } from "@/components/DateChangeRequest";
+import { MessageVendorButton } from "@/components/MessageVendorButton";
 
 /** "2027-06-14" → "14 Jun 2027". Raw ISO reads like a database row. */
 function prettyDate(iso?: string | null): string | null {
@@ -52,10 +54,26 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+/** Awaiting this vendor's "I received it" on a manual (Venmo/Zelle) payment
+ *  the client says they've sent — same condition the confirm button itself
+ *  is gated on, below. */
+function awaitingPaymentConfirmation(b: VendorBooking): boolean {
+  return (
+    b.payment_method === "manual" &&
+    b.status === "approved" &&
+    b.payment_status === "marked_paid"
+  );
+}
+
 function matches(filter: Filter, b: VendorBooking): boolean {
   if (filter === "all") return true;
-  if (filter === "pending")
-    return b.status === "pending" || b.status === "negotiation_ongoing";
+  if (filter === "pending") {
+    return (
+      b.status === "pending" ||
+      b.status === "negotiation_ongoing" ||
+      awaitingPaymentConfirmation(b)
+    );
+  }
   return b.status === "approved" || b.status === "payment_confirmed";
 }
 
@@ -157,6 +175,7 @@ export default function MyBookingsPage() {
     b: VendorBooking,
     action: () => Promise<unknown>,
     fallback: string,
+    success = "Confirmed. The payment releases once the client confirms too.",
   ) {
     if (!vendor) return;
     setBusyId(b.booking_id);
@@ -165,7 +184,7 @@ export default function MyBookingsPage() {
     try {
       await action();
       await load(vendor.vendor_id);
-      setNotice("Confirmed. The payment releases once the client confirms too.");
+      setNotice(success);
     } catch (err) {
       // A LocationError explains a permission/GPS problem specifically —
       // showing the generic fallback instead left a blocked vendor no wiser
@@ -196,6 +215,17 @@ export default function MyBookingsPage() {
     );
   }
 
+  // Manual track only — the vendor's side of the "I sent payment" / "I
+  // received it" exchange. Self-reported; Jorna never touches this money.
+  function confirmReceived(b: VendorBooking) {
+    void release(
+      b,
+      () => confirmPaymentReceived(b.booking_id),
+      "Couldn't confirm — please try again.",
+      "Confirmed. The client can see you've got it.",
+    );
+  }
+
   if (authLoading || !user || loading) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
@@ -220,7 +250,13 @@ export default function MyBookingsPage() {
   const shown = bookings.filter((b) => matches(filter, b));
   const pendingCount = bookings.filter((b) => matches("pending", b)).length;
   const setup = paymentsSetup(stripe);
-  const paymentsBlocked = stripeChecked && !setup.ready;
+  // Stripe's gate has nothing to say to a vendor who already chose Direct —
+  // they don't need it — so this stays false for that track instead of
+  // nagging about a Stripe setup they deliberately opted out of. Mirrors
+  // the same `vendor.payment_method === "manual"` check my-earnings/page.tsx
+  // uses for its own version of this gate.
+  const paymentsBlocked =
+    stripeChecked && !setup.ready && vendor.payment_method !== "manual";
 
   return (
     <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">
@@ -288,16 +324,26 @@ export default function MyBookingsPage() {
                 : (BOOKING_STATUS_LABELS[b.status] ?? b.status);
             const decidable =
               b.status === "pending" || b.status === "negotiation_ongoing";
-            // Pulling out of one already accepted. Only while the money hasn't
-            // moved — past that the client is out of pocket for a date they're
-            // holding, and unwinding it is a refund with its own rules. Mirrors
-            // the server's MONEY_MOVED_STATUSES, so the button is never offered
-            // for a call that has to be refused.
+            // Pulling out of one already accepted. "paid" is the one
+            // money-moved state this is still allowed from — the server
+            // refunds the client in full automatically, since the vendor is
+            // the one breaking the commitment. Every other money-moved state
+            // stays blocked (a charge still in flight, funds already
+            // released, or a booking already refunded/cancelled/disputed
+            // isn't a plain "vendor changed their mind") — mirrors the
+            // server's own guard, so the button is never offered for a call
+            // that has to be refused.
             const cancellable =
               b.status === "approved" &&
-              !["processing", "paid", "released", "refunded", "disputed"].includes(
+              !["processing", "released", "refunded", "cancelled", "disputed"].includes(
                 (b.payment_status ?? "unpaid").toLowerCase(),
               );
+            const cancellingPaidBooking = b.payment_status === "paid";
+            // Manual track: the client self-reported paying directly, so
+            // Jorna has nothing to refund even though money did move.
+            const cancellingSelfReportedPaidBooking =
+              b.payment_method === "manual" &&
+              ["marked_paid", "confirmed_paid"].includes(b.payment_status ?? "");
             const price = priceLine(b);
             const dates =
               b.date_end && b.date_end !== b.date_iso
@@ -348,6 +394,13 @@ export default function MyBookingsPage() {
                       </p>
                     ) : null}
                   </div>
+                </div>
+
+                {/* On the row, same as the client's side of this button — a
+                    question about this booking starts here, not in a tab
+                    listing every thread. */}
+                <div className="mt-3 flex justify-end">
+                  <MessageVendorButton bookingId={b.booking_id} />
                 </div>
 
                 {decidable ? (
@@ -411,9 +464,13 @@ export default function MyBookingsPage() {
                     <div className="mt-3 rounded-lg bg-panel p-3">
                       <p className="text-xs text-ink-soft">
                         Cancel this booking? {b.client_name || "Your client"} is
-                        told straight away, and it comes off their plan. They
-                        haven&apos;t paid, so nothing is refunded — but they will
-                        have to find someone else
+                        told straight away, and it comes off their plan.{" "}
+                        {cancellingPaidBooking
+                          ? "They'll be refunded in full — you won't be paid for this one."
+                          : cancellingSelfReportedPaidBooking
+                            ? "They told us they already paid you directly — cancelling won't refund that automatically, since it happened outside Jorna."
+                            : "They haven't paid, so nothing is refunded —"}{" "}
+                        but they will have to find someone else
                         {b.date_iso ? ` for ${prettyDate(b.date_iso)}` : ""}.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -455,6 +512,7 @@ export default function MyBookingsPage() {
                     <NegotiationPanel
                       bookingId={b.booking_id}
                       listedPrice={b.price}
+                      counterpartyName={b.client_name}
                       onSettled={() => {
                         setNotice("Price agreed — the booking is approved at the new price.");
                         void load(vendor.vendor_id);
@@ -548,6 +606,35 @@ export default function MyBookingsPage() {
                       <p className="text-xs text-ink-soft">
                         You can confirm after the event
                         {b.date_iso && b.date_iso !== "TBD" ? ` (${b.date_iso})` : ""}.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {/* Manual track: paid directly, not through Jorna. Nothing to
+                    check in or release here — just the client's own report
+                    that they've sent it, waiting on this vendor to say the
+                    same. */}
+                {b.payment_method === "manual" && b.status === "approved" ? (
+                  <div className="mt-3 border-t border-line-soft pt-3">
+                    {b.payment_status === "marked_paid" ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-ink-faint">
+                          {b.client_name || "Your client"} says they&apos;ve sent payment directly.
+                        </p>
+                        <Button
+                          size="md"
+                          disabled={busyId === b.booking_id}
+                          onClick={() => confirmReceived(b)}
+                        >
+                          {busyId === b.booking_id ? "Confirming…" : "I received it"}
+                        </Button>
+                      </div>
+                    ) : b.payment_status === "confirmed_paid" ? (
+                      <p className="text-xs text-green">You confirmed receiving payment.</p>
+                    ) : (
+                      <p className="text-xs text-ink-faint">
+                        Waiting on {b.client_name || "the client"} to pay you directly.
                       </p>
                     )}
                   </div>

@@ -31,7 +31,7 @@ import {
   updateGuest,
 } from "@/lib/jorna";
 import { ClientOnlyRoute } from "@/components/ClientOnlyRoute";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field, TimeField } from "@/components/ui";
 import {
   headcountGap,
   type EventFunction,
@@ -670,13 +670,8 @@ function Functions({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-            <Field
-              label="From"
-              type="time"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-            <Field label="To" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+            <TimeField label="From" value={from} onChange={setFrom} />
+            <TimeField label="To" value={to} onChange={setTo} />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="md" disabled={busy} onClick={create}>

@@ -24,6 +24,7 @@ import {
   settledBy,
   type Quantity,
 } from "@/lib/pricing";
+import { GAP_LABELS, describeGaps, requiredFields } from "@/lib/planning";
 import { Avatar, Card, LinkButton, Stars } from "@/components/ui";
 import { AskVendor } from "@/components/AskVendor";
 
@@ -260,7 +261,15 @@ function PricePanel({ service }: { service: ServiceItem }) {
   const settled = settledBy(kind);
   const limits = key ? QUANTITY_LIMITS[kind as keyof typeof QUANTITY_LIMITS] : null;
   const stepperLabel =
-    kind === "person" ? "Guests" : kind === "day" ? "Days" : kind === "hour" ? "Hours" : "";
+    kind === "person"
+      ? "Guests"
+      : kind === "day"
+        ? "Days"
+        : kind === "hour"
+          ? "Hours"
+          : kind === "performer"
+            ? "Performers"
+            : "";
 
   return (
     <Card className="p-6">
@@ -306,6 +315,20 @@ function PricePanel({ service }: { service: ServiceItem }) {
         </p>
       )}
 
+      {/* What a request will ask for, before the client starts one — driven
+          by the same rule that gates sending it (bookingGaps, lib/planning),
+          so this can never promise less than the booking form will actually
+          demand. */}
+      <div className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5">
+        <p className="text-sm font-medium text-ink">To send a request, you&apos;ll need</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+          {describeGaps(
+            requiredFields(service).map((field) => ({ field, label: GAP_LABELS[field] })),
+          )}
+          .
+        </p>
+      </div>
+
       <div className="mt-5 grid gap-2">
         <LinkButton href={`/book?service=${service.service_id}`} size="lg">
           Request this package
@@ -323,6 +346,11 @@ function PricePanel({ service }: { service: ServiceItem }) {
           View vendor profile
         </LinkButton>
       </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+        Changes to this booking — at the event, or after the request is
+        finalized — are at your vendor&apos;s discretion.
+      </p>
     </Card>
   );
 }
