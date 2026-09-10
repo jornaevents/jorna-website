@@ -897,6 +897,27 @@ export function getCancellationPreview(bookingId: string): Promise<RefundPreview
 }
 
 /**
+ * Client: mark a manual-track booking as paid. Self-reported — Jorna never
+ * touches this money. The vendor still needs to confirm receiving it (see
+ * confirmPaymentReceived).
+ */
+export function markBookingPaid(
+  bookingId: string,
+): Promise<{ message: string; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/mark-paid`, { method: "POST" });
+}
+
+/**
+ * Vendor: confirm receiving a manual-track client's direct payment. Same
+ * self-reported contract as markBookingPaid.
+ */
+export function confirmPaymentReceived(
+  bookingId: string,
+): Promise<{ message: string; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/confirm-received`, { method: "POST" });
+}
+
+/**
  * Freeze this one booking's funds for review. Customer only, and only while the
  * money is still held (payment_status "paid"). Siblings are unaffected.
  */

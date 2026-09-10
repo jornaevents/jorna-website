@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +15,7 @@ import {
   getGuestList,
   listBundles,
   listEvents,
+  markBookingPaid,
   removeBookingFromBundle,
   renameBundle,
   selectBundle,
@@ -56,6 +57,7 @@ import {
 } from "@/lib/types";
 import {
   bookingGaps,
+  bundleNeedsCard,
   celebrationProgress,
   describeGaps,
   isDeadBooking,
@@ -415,6 +417,7 @@ function BookingRow({
   onOpenPanel,
   onClosePanel,
   onRefund,
+  onMarkPaid,
   onDispute,
   onSwap,
   onRemove,
@@ -433,6 +436,8 @@ function BookingRow({
   onOpenPanel: (bookingId: string, kind: PanelKind) => void;
   onClosePanel: () => void;
   onRefund: (b: BundleBooking) => void;
+  /** Manual-track only: the client attesting they've paid the vendor directly. */
+  onMarkPaid: (b: BundleBooking) => void;
   onDispute: (b: BundleBooking, reason: string) => void;
   onSwap: (b: BundleBooking) => void;
   onRemove: (b: BundleBooking) => void;
@@ -446,16 +451,38 @@ function BookingRow({
   const price = priceLine(booking);
   const status = statusLine(booking, draft);
   const awaiting = isAwaitingVendor(booking, draft);
+  // `awaiting` folds "pending" and "negotiation_ongoing" together, which is
+  // right for the section grouping and the withdraw-request copy below (both
+  // read as "out with the vendor") — but wrong for the negotiation panel:
+  // once status is negotiation_ongoing there's a live counter-offer on the
+  // table, the one thing this booking needs from the client, not something
+  // to keep hidden behind an unclicked button. Narrow to just "no offer
+  // exists yet" for that one gate.
+  const awaitingFirstOffer = awaiting && booking.status !== "negotiation_ongoing";
+  // Forces the panel open the instant a negotiation is live, without
+  // changing showNeg's separate job of letting a client voluntarily start a
+  // *fresh* negotiation on a merely-approved, open_to_price_negotiation
+  // booking.
+  const negotiationOpen = showNeg || booking.status === "negotiation_ongoing";
   const busy = busyId === booking.booking_id;
   const openPanel = panel?.bookingId === booking.booking_id ? panel.kind : null;
 
+  // Manual track: paid directly, Venmo/Zelle — declared here, ahead of
+  // `payable` below, because Stripe checkout must never be offered for one
+  // either. The backend has no Stripe account to charge for this vendor, so
+  // that "Pay" button would 400 every time — it isn't a fallback path, it's
+  // a dead one sitting right next to the Venmo/Zelle instructions meant to
+  // replace it.
+  const isManual = booking.payment_method === "manual";
+
   // Mirror the backend's checkout guards so we never offer a button that must
-  // fail: only an approved, not-yet-paid booking with a resolvable total.
+  // fail: only an approved, not-yet-paid, non-manual-track booking with a
+  // resolvable total.
   //
   // "processing" is excluded. A charge is already in flight — offering to start
   // a second one is how a client pays twice for the same booking, and the
   // status line now says what's happening instead.
-  const payable = booking.status === "approved" && pay === "unpaid";
+  const payable = booking.status === "approved" && pay === "unpaid" && !isManual;
   const blockedOnQuantity = payable && booking.price_pending_quantity;
   const pendingQuantityNoun =
     priceUnitKind(booking.price_unit) === "performer" ? "a performer count" : "a guest count or date range";
@@ -473,6 +500,13 @@ function BookingRow({
   const fullRefundLeft = fullRefundNow ? fullRefundTimeLeft(booking.refund_preview) : null;
   const vendorPctNow = booking.refund_preview?.vendor_pct_now ?? 0;
   const gaps = bookingGaps(booking, event);
+
+  // `isManual` itself now lives above, next to `payable` — Jorna never
+  // holds this money, so none of the escrow logic above (held/canConfirm/
+  // fullRefundNow) ever applies either. A separate block below covers how
+  // these are actually paid.
+  const manualActive = isManual && booking.status === "approved";
+  const manualCancellable = manualActive && !eventHasStarted(booking);
 
   return (
     <Card id={`booking-${booking.booking_id}`} className="p-4">
@@ -549,17 +583,23 @@ function BookingRow({
           been asked, which let the button through on a booking no vendor has
           received. Haggling over a job nobody has been offered is a
           conversation out of order — and the backend confirms they genuinely
-          haven't been told (booking_service skips the notification on a draft). */}
+          haven't been told (booking_service skips the notification on a draft).
+          Gated on `awaitingFirstOffer` rather than `awaiting`: once the vendor
+          has actually sent a counter (status negotiation_ongoing), it's live
+          and actionable, not something to keep waiting on — that gap is what
+          made a vendor's counter-offer invisible here while /my-bookings
+          showed it immediately. */}
       {booking.open_to_price_negotiation &&
       !isBeyondActionable(booking) &&
       !isDeadBooking(booking) &&
-      !awaiting &&
+      !awaitingFirstOffer &&
       !draft ? (
-        showNeg ? (
+        negotiationOpen ? (
           <div className="mt-3">
             <NegotiationPanel
               bookingId={booking.booking_id}
               listedPrice={booking.price}
+              counterpartyName={booking.vendor_name}
               onSettled={onNegotiated}
             />
           </div>
@@ -751,6 +791,71 @@ function BookingRow({
                 </Button>
               ) : null}
             </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* This vendor is paid directly — Venmo/Zelle, not through Jorna. No
+          card, no charge, no escrow; just where to send it and each side
+          saying what happened. */}
+      {manualActive ? (
+        <div className="mt-3 border-t border-line-soft pt-3">
+          {openPanel === "cancel" ? (
+            <div className="rounded-lg bg-panel p-3">
+              <p className="text-xs text-ink-soft">
+                {`Cancel this booking? ${booking.vendor_name || "The vendor"} is told right away. Whatever you've paid them directly is between you and them — Jorna doesn't hold or refund it. Only this booking ends; the rest of your bundle is unaffected.`}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="md" disabled={busy} onClick={() => onRefund(booking)}>
+                  {busy ? "Cancelling…" : "Confirm cancellation"}
+                </Button>
+                <Button variant="ghost" size="md" onClick={onClosePanel}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-ink-soft">
+                {booking.vendor_name || "This vendor"} is paid directly, not through Jorna.
+              </p>
+              {booking.vendor_venmo_handle || booking.vendor_zelle_contact ? (
+                <div className="mt-2 rounded-lg bg-ground-2 px-3 py-2 text-sm text-ink">
+                  {booking.vendor_venmo_handle ? (
+                    <p>
+                      Venmo: <span className="font-medium">{booking.vendor_venmo_handle}</span>
+                    </p>
+                  ) : null}
+                  {booking.vendor_zelle_contact ? (
+                    <p>
+                      Zelle: <span className="font-medium">{booking.vendor_zelle_contact}</span>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                {manualCancellable ? (
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => onOpenPanel(booking.booking_id, "cancel")}
+                  >
+                    Cancel booking
+                  </Button>
+                ) : null}
+                {pay === "unpaid" ? (
+                  <Button disabled={busy} onClick={() => onMarkPaid(booking)}>
+                    {busy ? "Marking…" : "I sent payment"}
+                  </Button>
+                ) : pay === "marked_paid" ? (
+                  <p className="text-xs text-ink-faint">
+                    Waiting for {booking.vendor_name || "the vendor"} to confirm they received it.
+                  </p>
+                ) : pay === "confirmed_paid" ? (
+                  <p className="text-xs text-green">Payment confirmed.</p>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       ) : null}
@@ -1253,6 +1358,13 @@ function BundleInner() {
   const [panel, setPanel] = useState<Panel>(null);
   // A message about the whole plan — sending, renaming, swapping.
   const [notice, setNotice] = useState<Note | null>(null);
+  // The banner renders in one fixed spot regardless of which button (up or
+  // down the page) triggered it, so it needs to bring itself into view rather
+  // than rely on the click having happened nearby.
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice) noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [notice]);
   // The card we'll charge as vendors accept. Fetched for a plan that can be
   // sent, because that's the only screen where it changes what happens next.
   const [card, setCard] = useState<SavedCard | null>(null);
@@ -1530,6 +1642,7 @@ function BundleInner() {
       .map((b) => b.location ?? "")
       .join("|") || "no-venue";
   const readiness = sendReadiness(bundle);
+  const needsCard = bundleNeedsCard(bundle.bookings ?? []);
 
   // The same row wherever a booking appears — the sections below differ only in
   // which bookings they hold, not in what a booking can do.
@@ -1566,10 +1679,20 @@ function BundleInner() {
         run(
           bk,
           () => cancelBooking(bk.booking_id),
-          isFullRefundNow(bk.refund_preview)
-            ? "Cancelled. You've been refunded in full — it should appear on your statement within a few days."
-            : "Cancelled. Nothing was refunded — the vendor's share went to them for holding the date.",
+          bk.payment_method === "manual"
+            ? "Cancelled. Any payment you sent directly is between you and the vendor — Jorna doesn't hold or refund it."
+            : isFullRefundNow(bk.refund_preview)
+              ? "Cancelled. You've been refunded in full — it should appear on your statement within a few days."
+              : "Cancelled. Nothing was refunded — the vendor's share went to them for holding the date.",
           "Couldn't cancel this booking. Please try again.",
+        )
+      }
+      onMarkPaid={(bk) =>
+        run(
+          bk,
+          () => markBookingPaid(bk.booking_id),
+          `Marked as paid. We'll show it as confirmed once ${bk.vendor_name || "the vendor"} says they received it.`,
+          "Couldn't mark this as paid. Please try again.",
         )
       }
       onDispute={(bk, reason) =>
@@ -1829,12 +1952,15 @@ function BundleInner() {
             />
           ) : null}
 
-          {/* The card that gets charged, on any sent plan. It used to live
-              inside the "waiting on your vendors" banner, which only appeared
-              while a vendor hadn't answered — so the moment the last one did,
-              the card being charged automatically became unnamed and
-              unchangeable. It belongs with the rest of the money. */}
-          {!draft ? (
+          {/* The card that gets charged, on a sent plan that has anything to
+              charge it for. It used to live inside the "waiting on your
+              vendors" banner, which only appeared while a vendor hadn't
+              answered — so the moment the last one did, the card being
+              charged automatically became unnamed and unchangeable. It
+              belongs with the rest of the money. Hidden entirely when every
+              booking is on the manual (Venmo/Zelle) track — there is no
+              charge a card could ever cover. */}
+          {!draft && needsCard ? (
             <CardOnFile
               card={card}
               busy={addingCard}
@@ -1883,14 +2009,16 @@ function BundleInner() {
               bookings, where they're always writable. */}
           <DraftDetails key={venueKey} bundle={bundle} onSaved={load} />
 
-          <CardOnFile
-            card={card}
-            busy={addingCard}
-            removing={removingCard}
-            onAdd={addCard}
-            onRemove={removeCard}
-            sent={false}
-          />
+          {needsCard ? (
+            <CardOnFile
+              card={card}
+              busy={addingCard}
+              removing={removingCard}
+              onAdd={addCard}
+              onRemove={removeCard}
+              sent={false}
+            />
+          ) : null}
 
           {/* Last, after the fields it depends on. It used to sit above them,
               inviting you to send a plan before filling in what sending needs. */}
@@ -1949,7 +2077,11 @@ function BundleInner() {
         </div>
       ) : null}
 
-      {notice ? <NoteLine note={notice} className="mt-6" /> : null}
+      {notice ? (
+        <div ref={noticeRef}>
+          <NoteLine note={notice} className="mt-6" />
+        </div>
+      ) : null}
 
       {/* What's outstanding, before the ledger of who's on the team. Same rules
           as the "Needs you" badge — see lib/planning. */}

@@ -35,7 +35,12 @@ export type TaskKind =
   /** Priced per guest/day, so the total isn't known yet and can't be charged. */
   | "quantity"
   | "payment"
-  | "confirm";
+  | "confirm"
+  /** A price counter-offer is sitting on this booking and it's this client's
+   *  turn to answer it — unlike the removed "vendor-reply" kind, this is
+   *  always actionable: negotiation_awaiting_role already says whose turn it
+   *  is, so a booking only gets this task while it's really theirs to act on. */
+  | "negotiation";
 
 /**
  * The kinds lib/attention surfaces as "Needs you".
@@ -44,7 +49,7 @@ export type TaskKind =
  * make it count things that were never in it — this list is what the badge
  * already meant, held steady while the rules themselves moved here.
  */
-export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm"];
+export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm", "negotiation"];
 
 export interface PlanTask {
   id: string;
@@ -111,6 +116,19 @@ export function hasActiveBookings(bundles: BundleDetail[]): boolean {
  */
 export function hasLiveVenue(bookings: BundleBooking[]): boolean {
   return bookings.some((b) => b.service_category === "venue" && !isDeadBooking(b));
+}
+
+/**
+ * Does this plan have any booking that could actually be auto-charged to a
+ * saved card? A booking on the manual (Venmo/Zelle) track never is — that
+ * vendor is paid directly, outside Jorna — so a plan where every live booking
+ * is manual has no use for a card on file. Missing/null `payment_method`
+ * predates the manual track and reads as "stripe" (see `types.ts`), same as
+ * everywhere else that field is read. Dead bookings (declined, refunded, ...)
+ * can't be charged and don't count either way.
+ */
+export function bundleNeedsCard(bookings: BundleBooking[]): boolean {
+  return bookings.some((b) => !isDeadBooking(b) && b.payment_method !== "manual");
 }
 
 /**
@@ -251,6 +269,22 @@ function bookingTask(b: BundleBooking): PlanTask | null {
       note: "this releases their payment.",
       tone: "urgent",
       cta: "Confirm",
+      bookingId: b.booking_id,
+    };
+  }
+
+  // A price counter-offer is open and it's this client's turn to answer it.
+  // negotiation_awaiting_role already resolves whose turn it is server-side,
+  // so this never fires for the client's own still-unanswered offer.
+  if (b.negotiation_awaiting_role === "client") {
+    return {
+      id: `negotiation-${b.booking_id}`,
+      kind: "negotiation",
+      title: `Review ${vendor}'s offer`,
+      vendor,
+      note: `on ${service}.`,
+      tone: "normal",
+      cta: "Review offer",
       bookingId: b.booking_id,
     };
   }
@@ -428,8 +462,22 @@ export function moneyForBundle(bundle: BundleDetail): MoneyBreakdown {
 
     sum.committed += price;
     if (pay === "paid" || pay === "disputed") sum.inEscrow += price;
-    else if (pay === "released") sum.released += price;
-    else if (b.status === "approved") sum.outstanding += price;
+    // `confirmed_paid` is the manual (Venmo/Zelle) track's own "done" state —
+    // Jorna never held this money, so it has no escrow leg to sit in first,
+    // but it's exactly as settled as an escrow booking that's `released`:
+    // nothing left for the client to pay, nothing left for the vendor to
+    // wait on. Grouping it here is why "$X still to pay" stopped being true
+    // the moment both sides confirmed a manual payment.
+    else if (pay === "released" || pay === "confirmed_paid") sum.released += price;
+    // Money is already moving — a Stripe charge in flight, or a client's own
+    // "I sent it" on the manual track awaiting the vendor's confirmation — so
+    // there's nothing left for the *client* to pay. Not `outstanding`, and
+    // not `released` either: for `processing` nothing has landed yet, and for
+    // `marked_paid` the vendor hasn't confirmed receipt yet. Counted in
+    // `committed` only, until one side moves it further.
+    else if (pay === "processing" || pay === "marked_paid") {
+      // intentionally counted nowhere else
+    } else if (b.status === "approved") sum.outstanding += price;
   }
   return sum;
 }
@@ -815,6 +863,15 @@ export function bookingGaps(
 
   if (isUnset(b.date_iso)) {
     gaps.push({ field: "date", label: "a date" });
+  } else if ((daysUntil(b.date_iso) ?? 0) < 0) {
+    // A date that's merely set isn't the same question as one still ahead of
+    // us — this used to let a mistyped year (or a date that simply elapsed
+    // before Send was pressed) through the button that's supposed to grey
+    // out for exactly this. Same "same day still counts" boundary daysUntil
+    // already uses everywhere else on this page. Mirrors the backend's own
+    // is_in_the_past (plan_readiness.py) — the two gates are deliberately
+    // identical, field for field.
+    gaps.push({ field: "date", label: "a date that hasn't already passed" });
   }
 
   // The booking's own location, or the event's — a booking made from an event

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { categoryLabel, paymentMethodBadge, type VendorSearchItem } from "@/lib/types";
 import { Card, Stars } from "./ui";
 
 function money(n?: number | null) {
@@ -30,6 +30,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
   const photo = !photoFailed && (item.service_photo_url || item.pfp_url);
   const distance =
     item.distance_miles != null ? `${Math.round(item.distance_miles)} mi away` : null;
+  const badge = paymentMethodBadge(item.payment_method);
 
   return (
     <Link
@@ -79,7 +80,13 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
 
       <div className="flex flex-1 flex-col p-4">
         <h3 className="serif text-lg leading-snug text-ink">{item.service_name || name}</h3>
-        <p className="mt-0.5 text-sm text-ink-soft">{name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-sm text-ink-soft">{name}</p>
+          <span className={`inline-flex items-center gap-1 rounded-full bg-ground-2 px-2 py-0.5 text-xs font-medium ${badge.tone}`}>
+            <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+            {badge.label}
+          </span>
+        </div>
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-3">
           <div className="min-w-0">

@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import { getVendor, getVendorReviews, listServices } from "@/lib/jorna";
 import {
   categoryLabel,
+  paymentMethodBadge,
   priceUnitLabel,
   usableMedia,
   type Review,
@@ -238,6 +239,7 @@ function VendorInner() {
   // A vendor previewing "what clients see" on their own page shouldn't be
   // offered the client-side CTAs, or a way to report/block themselves.
   const isOwnVendor = user?.user_id === vendor.user_id;
+  const paymentBadge = paymentMethodBadge(vendor.payment_method);
 
   const tiles: { value: React.ReactNode; label: string }[] = [];
   if (vendor.rating) {
@@ -276,6 +278,12 @@ function VendorInner() {
                   {categoryLabel(vendor.subcategory || vendor.category)}
                 </span>
               ) : null}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full bg-ground-2 px-3 py-1 text-xs font-medium ${paymentBadge.tone}`}
+              >
+                <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+                {paymentBadge.label}
+              </span>
             </div>
             <p className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-soft">
               <Stars rating={vendor.rating} />
