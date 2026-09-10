@@ -35,7 +35,12 @@ export type TaskKind =
   /** Priced per guest/day, so the total isn't known yet and can't be charged. */
   | "quantity"
   | "payment"
-  | "confirm";
+  | "confirm"
+  /** A price counter-offer is sitting on this booking and it's this client's
+   *  turn to answer it — unlike the removed "vendor-reply" kind, this is
+   *  always actionable: negotiation_awaiting_role already says whose turn it
+   *  is, so a booking only gets this task while it's really theirs to act on. */
+  | "negotiation";
 
 /**
  * The kinds lib/attention surfaces as "Needs you".
@@ -44,7 +49,7 @@ export type TaskKind =
  * make it count things that were never in it — this list is what the badge
  * already meant, held steady while the rules themselves moved here.
  */
-export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm"];
+export const ATTENTION_KINDS: TaskKind[] = ["quantity", "payment", "confirm", "negotiation"];
 
 export interface PlanTask {
   id: string;
@@ -111,6 +116,19 @@ export function hasActiveBookings(bundles: BundleDetail[]): boolean {
  */
 export function hasLiveVenue(bookings: BundleBooking[]): boolean {
   return bookings.some((b) => b.service_category === "venue" && !isDeadBooking(b));
+}
+
+/**
+ * Does this plan have any booking that could actually be auto-charged to a
+ * saved card? A booking on the manual (Venmo/Zelle) track never is — that
+ * vendor is paid directly, outside Jorna — so a plan where every live booking
+ * is manual has no use for a card on file. Missing/null `payment_method`
+ * predates the manual track and reads as "stripe" (see `types.ts`), same as
+ * everywhere else that field is read. Dead bookings (declined, refunded, ...)
+ * can't be charged and don't count either way.
+ */
+export function bundleNeedsCard(bookings: BundleBooking[]): boolean {
+  return bookings.some((b) => !isDeadBooking(b) && b.payment_method !== "manual");
 }
 
 /**
@@ -255,6 +273,22 @@ function bookingTask(b: BundleBooking): PlanTask | null {
     };
   }
 
+  // A price counter-offer is open and it's this client's turn to answer it.
+  // negotiation_awaiting_role already resolves whose turn it is server-side,
+  // so this never fires for the client's own still-unanswered offer.
+  if (b.negotiation_awaiting_role === "client") {
+    return {
+      id: `negotiation-${b.booking_id}`,
+      kind: "negotiation",
+      title: `Review ${vendor}'s offer`,
+      vendor,
+      note: `on ${service}.`,
+      tone: "normal",
+      cta: "Review offer",
+      bookingId: b.booking_id,
+    };
+  }
+
   // Approved and waiting on payment. Mirrors the checkout guard twice over: a
   // total still pending a quantity can't be paid, so it gets a task about the
   // quantity rather than a Pay button — and a charge already in flight isn't
@@ -269,10 +303,12 @@ function bookingTask(b: BundleBooking): PlanTask | null {
   // a client to do the one thing every other screen is built to prevent.
   if (b.status === "approved" && pay === "unpaid") {
     if (b.price_pending_quantity) {
+      const quantityGap =
+        priceUnitKind(b.price_unit) === "performer" ? "a performer count" : "a guest count or dates";
       return {
         id: `quantity-${b.booking_id}`,
         kind: "quantity",
-        title: `${service} needs a guest count or dates`,
+        title: `${service} needs ${quantityGap}`,
         vendor,
         note: `it's priced ${priceUnitLabel(b.price_unit) || "per unit"}, so its total can't be worked out until then.`,
         tone: "normal",
@@ -426,8 +462,22 @@ export function moneyForBundle(bundle: BundleDetail): MoneyBreakdown {
 
     sum.committed += price;
     if (pay === "paid" || pay === "disputed") sum.inEscrow += price;
-    else if (pay === "released") sum.released += price;
-    else if (b.status === "approved") sum.outstanding += price;
+    // `confirmed_paid` is the manual (Venmo/Zelle) track's own "done" state —
+    // Jorna never held this money, so it has no escrow leg to sit in first,
+    // but it's exactly as settled as an escrow booking that's `released`:
+    // nothing left for the client to pay, nothing left for the vendor to
+    // wait on. Grouping it here is why "$X still to pay" stopped being true
+    // the moment both sides confirmed a manual payment.
+    else if (pay === "released" || pay === "confirmed_paid") sum.released += price;
+    // Money is already moving — a Stripe charge in flight, or a client's own
+    // "I sent it" on the manual track awaiting the vendor's confirmation — so
+    // there's nothing left for the *client* to pay. Not `outstanding`, and
+    // not `released` either: for `processing` nothing has landed yet, and for
+    // `marked_paid` the vendor hasn't confirmed receipt yet. Counted in
+    // `committed` only, until one side moves it further.
+    else if (pay === "processing" || pay === "marked_paid") {
+      // intentionally counted nowhere else
+    } else if (b.status === "approved") sum.outstanding += price;
   }
   return sum;
 }
@@ -760,7 +810,7 @@ export function missingCategories(
 // person wants a headcount, per hour wants a start and end, per day wants the
 // dates it spans. A flat-rate service wants none of them.
 
-export type BookingGapField = "date" | "location" | "guests" | "hours";
+export type BookingGapField = "date" | "location" | "guests" | "hours" | "performers";
 
 export interface BookingGap {
   field: BookingGapField;
@@ -780,14 +830,48 @@ export function isUnset(value?: string | null): boolean {
   return !text || text.toUpperCase() === "TBD";
 }
 
+/**
+ * Which fields a package's price_unit and opt-in flags put in play — not
+ * whether they've been filled in yet (that's bookingGaps below, which layers
+ * "is it actually unset" on top of this same rule). Date, address, and hours
+ * are always in play, on every package regardless of price_unit; guests and
+ * performers are each triggered by price_unit or the vendor's own opt-in
+ * flag, independently — either alone is enough, and both can apply at once.
+ *
+ * Takes a bare service/package, not a booking, so this also answers "what
+ * will this package need" before a client has started a request — see
+ * service/page.tsx's Requirements section.
+ */
+export function requiredFields(service: {
+  price_unit?: string | null;
+  require_guest_count?: boolean | null;
+  require_performer_count?: boolean | null;
+}): BookingGapField[] {
+  const kind = priceUnitKind(service.price_unit);
+  const fields: BookingGapField[] = ["date", "location", "hours"];
+  if (kind === "person" || service.require_guest_count) fields.push("guests");
+  if (kind === "performer" || service.require_performer_count) fields.push("performers");
+  return fields;
+}
+
 export function bookingGaps(
   b: BundleBooking,
   event?: BundleEventInfo | null,
 ): BookingGap[] {
   const gaps: BookingGap[] = [];
+  const needed = requiredFields(b);
 
   if (isUnset(b.date_iso)) {
     gaps.push({ field: "date", label: "a date" });
+  } else if ((daysUntil(b.date_iso) ?? 0) < 0) {
+    // A date that's merely set isn't the same question as one still ahead of
+    // us — this used to let a mistyped year (or a date that simply elapsed
+    // before Send was pressed) through the button that's supposed to grey
+    // out for exactly this. Same "same day still counts" boundary daysUntil
+    // already uses everywhere else on this page. Mirrors the backend's own
+    // is_in_the_past (plan_readiness.py) — the two gates are deliberately
+    // identical, field for field.
+    gaps.push({ field: "date", label: "a date that hasn't already passed" });
   }
 
   // The booking's own location, or the event's — a booking made from an event
@@ -808,8 +892,17 @@ export function bookingGaps(
     gaps.push({ field: "hours", label: "a start and end time" });
   }
 
-  // The pricing unit still decides which quantity is needed on top.
-  if (priceUnitKind(b.price_unit) === "person" && !(b.guest_count ?? 0)) {
+  // The pricing unit decides which quantity is needed to compute a total —
+  // but a vendor can also opt in to requiring one regardless of price unit
+  // (Service.require_guest_count / require_performer_count), because "what I
+  // need to decide whether to accept" isn't always the same as "what I need
+  // to price it". The two reasons are independent, so both can apply to the
+  // same booking at once (e.g. a flat-rate service that wants a headcount
+  // AND a performer count) — this pushes both gaps when that happens.
+  // `needed` (requiredFields, above) already carries this same rule — a
+  // service/package page uses it to say what's needed before a request even
+  // starts, and this is what enforces it once one does.
+  if (needed.includes("guests") && !(b.guest_count ?? 0)) {
     // The booking's own count, and not the event's. Unlike the date and the
     // address, this one is arithmetic: the backend resolves the total from the
     // booking it prices, so an event-level headcount satisfied this check
@@ -818,6 +911,12 @@ export function bookingGaps(
     // price_pending_quantity — unpayable, and past the only screen that could
     // have fixed it.
     gaps.push({ field: "guests", label: "a guest count" });
+  }
+  if (needed.includes("performers") && !(b.performer_count ?? 0)) {
+    // Same reasoning as the guest count above — the booking's own count, not
+    // an event-level figure, since a performer count has no event-level
+    // equivalent to fall back on.
+    gaps.push({ field: "performers", label: "a performer count" });
   }
   // Per day is covered by the date above; a single-day booking is a valid span,
   // so date_end being absent isn't a gap.
@@ -924,7 +1023,7 @@ export function sendReadiness(bundle: BundleDetail): SendReadiness {
     .map((booking) => ({ booking, gaps: bookingGaps(booking, bundle.event) }))
     .filter((r) => r.gaps.length > 0);
 
-  const order: BookingGapField[] = ["date", "location", "guests", "hours"];
+  const order: BookingGapField[] = ["date", "location", "guests", "performers", "hours"];
   const seen = new Set<BookingGapField>();
   for (const r of blocked) for (const g of r.gaps) seen.add(g.field);
 
@@ -940,6 +1039,7 @@ export const GAP_LABELS: Record<BookingGapField, string> = {
   date: "a date",
   location: "a full address",
   guests: "a guest count",
+  performers: "a performer count",
   hours: "start and end times",
 };
 

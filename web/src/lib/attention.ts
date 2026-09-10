@@ -10,13 +10,7 @@
 // Every rule mirrors a backend guard, so an item never points at an action the
 // server must reject.
 
-import {
-  getMyVendor,
-  getStripeStatus,
-  getUnreadCount,
-  listBundles,
-  listVendorBookings,
-} from "@/lib/jorna";
+import { getMyVendor, getStripeStatus, listBundles, listVendorBookings } from "@/lib/jorna";
 import type { BundleDetail, StripeStatus, VendorBooking } from "@/lib/types";
 import { ATTENTION_KINDS, planForBundle, taskDetail } from "@/lib/planning";
 import { vendorTasks } from "@/lib/vendorPlan";
@@ -116,17 +110,9 @@ async function derive(): Promise<AttentionItem[]> {
     found.push(...clientItems(bundles));
   }
 
-  const unread = await getUnreadCount().catch(() => ({ unread_count: 0 }));
-  if (unread.unread_count > 0) {
-    found.push({
-      id: "messages",
-      title: `${unread.unread_count} unread ${unread.unread_count === 1 ? "message" : "messages"}`,
-      detail: "In your event group chats.",
-      href: "/messages",
-      cta: "Read",
-      tone: "normal",
-    });
-  }
+  // Unread messages are their own badge on the Messages tab (see nav.tsx's
+  // useAppNav), not a Needs-You item — a new message isn't a task with a
+  // single next action the way "pay this booking" or "confirm this date" is.
 
   // Urgent first, but otherwise keep the order things were derived in.
   found.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === "urgent" ? -1 : 1));

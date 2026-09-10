@@ -7,6 +7,7 @@ import type {
   ChangeRequest,
   AvailabilitySlot,
   BlockedUser,
+  CalendarStatus,
   ConversationSummary,
   Earnings,
   EventCreateInput,
@@ -28,6 +29,7 @@ import type {
   MediaItem,
   MultiBundleResponse,
   Paginated,
+  RefundPreview,
   Review,
   ServiceItem,
   VendorDetail,
@@ -138,6 +140,9 @@ export interface BookingCreateInput {
   date_end?: string | null;
   /** Required for per-person services, or the total can't be resolved. */
   guest_count?: number | null;
+  /** Required for per-performer services (entertainment groups billed by
+   *  how many performers they're asked to provide), same reasoning. */
+  performer_count?: number | null;
   venue_latitude?: number | null;
   venue_longitude?: number | null;
   /** Omit to have the backend create a bundle for this booking. */
@@ -196,6 +201,7 @@ export interface BookingUpdateInput {
   date_iso?: string | null;
   date_end?: string | null;
   guest_count?: number | null;
+  performer_count?: number | null;
   time_start?: string | null;
   time_end?: string | null;
   location?: string | null;
@@ -332,10 +338,10 @@ export function deleteMe(): Promise<void> {
 }
 
 /** Upload a profile picture (multipart, field `file`). Returns the updated user. */
-export function uploadAvatar(file: File): Promise<User> {
+export function uploadAvatar(file: File): Promise<{ pfp_url: string }> {
   const form = new FormData();
   form.append("file", file);
-  return apiUpload<User>("/me/avatar", form, { method: "PUT" });
+  return apiUpload<{ pfp_url: string }>("/me/avatar", form, { method: "PUT" });
 }
 
 /**
@@ -396,6 +402,9 @@ export interface ServiceInput {
   subcategory?: string | null;
   description?: string | null;
   negotiable?: boolean;
+  /** Opt-in requirement on top of whatever price_unit already demands. */
+  require_guest_count?: boolean;
+  require_performer_count?: boolean;
   /** Required for venue-category services, along with the coordinates. */
   location?: string | null;
   venue_latitude?: number | null;
@@ -635,8 +644,8 @@ export function openBookingThread(bookingId: string): Promise<ConversationSummar
 export function getConversationMessages(
   conversationId: string,
   params: { limit?: number; offset?: number } = {},
-): Promise<{ messages: GroupMessage[]; total: number }> {
-  return apiFetch<{ messages: GroupMessage[]; total: number }>(
+): Promise<{ items: GroupMessage[]; total: number; limit: number; offset: number }> {
+  return apiFetch<{ items: GroupMessage[]; total: number; limit: number; offset: number }>(
     `/conversations/${conversationId}/messages${query({ ...params })}`,
   );
 }
@@ -677,11 +686,14 @@ export function getVendorAvailability(
 // ── Google Calendar ──────────────────────────────────────────────────
 //
 // Reading a vendor's Google-busy days has worked for a while — the days and the
-// connected flag both arrive on getVendorAvailability above, which is why
-// there's no wrapper here for /calendar-status: it would answer a question the
-// calendar has already asked.
+// connected flag both arrive on getVendorAvailability above, so there's still
+// no wrapper here for that half of /calendar-status.
 //
-// This is the half that was missing: starting the link at all.
+// write_enabled is different: it's not on getVendorAvailability (that
+// endpoint is public, and whether a vendor's own connection can write to
+// their calendar isn't a browsing client's business), and it's genuinely new
+// information a vendor connected under the old read-only scope needs — hence
+// getCalendarStatus below, just for that.
 
 /**
  * The Google consent URL to send the vendor to. Their own vendor only — the
@@ -694,6 +706,17 @@ export function getVendorAvailability(
  */
 export function getGoogleAuthUrl(vendorId: string): Promise<{ auth_url: string }> {
   return apiFetch(`/vendors/${vendorId}/google-auth${query({ client: "web" })}`);
+}
+
+/**
+ * Whether the vendor's own Google connection covers write-back — their
+ * Jorna bookings appearing on their calendar, not just busy times showing
+ * up here. Their own vendor only, same reasoning as the URL above: which
+ * accounts a vendor has linked, and what those accounts can do, isn't
+ * something a browsing client asks about.
+ */
+export function getCalendarStatus(vendorId: string): Promise<CalendarStatus> {
+  return apiFetch<CalendarStatus>(`/vendors/${vendorId}/calendar-status`);
 }
 
 // ── Card on file ─────────────────────────────────────────────────────
@@ -852,9 +875,46 @@ export function resendCheckInEmail(
   return apiFetch(`/bookings/${bookingId}/resend-checkin`, { method: "POST" });
 }
 
-/** Full refund, available for 24 hours after payment. Customer only. */
-export function refundBooking(bookingId: string): Promise<unknown> {
-  return apiFetch(`/payments/bookings/${bookingId}/refund`, { method: "POST" });
+/**
+ * Cancel a paid booking. Full refund for 24h after the vendor accepted;
+ * after that, nothing back to the client — the payment splits between the
+ * platform and the vendor instead (see cancellation_split on the backend).
+ * Customer only.
+ */
+export function cancelBooking(
+  bookingId: string,
+): Promise<{ message: string; refund_cents: number; vendor_cancellation_cents: number; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/cancel`, { method: "POST" });
+}
+
+/**
+ * What cancelling this booking would pay out right now. Normally read
+ * straight off the booking (BundleBooking.refund_preview) — this is the
+ * standalone lookup for a caller that only has a booking id.
+ */
+export function getCancellationPreview(bookingId: string): Promise<RefundPreview> {
+  return apiFetch(`/payments/bookings/${bookingId}/cancellation-preview`);
+}
+
+/**
+ * Client: mark a manual-track booking as paid. Self-reported — Jorna never
+ * touches this money. The vendor still needs to confirm receiving it (see
+ * confirmPaymentReceived).
+ */
+export function markBookingPaid(
+  bookingId: string,
+): Promise<{ message: string; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/mark-paid`, { method: "POST" });
+}
+
+/**
+ * Vendor: confirm receiving a manual-track client's direct payment. Same
+ * self-reported contract as markBookingPaid.
+ */
+export function confirmPaymentReceived(
+  bookingId: string,
+): Promise<{ message: string; payment_status: string }> {
+  return apiFetch(`/payments/bookings/${bookingId}/confirm-received`, { method: "POST" });
 }
 
 /**

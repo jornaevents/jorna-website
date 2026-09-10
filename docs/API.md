@@ -86,15 +86,23 @@ apply to WS handshakes). See `web/src/lib/chat.ts` for the consumer.
   describe are live. Treat them as design rationale, not a to-do list; see
   "A note on the proposal docs" in `docs/BOOKING_FLOW.md`.
 - `VendorDetail.specializations` / the `specializations` field on
-  `VendorCreateInput`/`VendorUpdateInput` (`web/src/lib/types.ts`) are sent
-  and read optimistically — the frontend now lets a vendor multi-select
-  during onboarding (see `VendorIdentityFields` in
-  `web/src/components/VendorProfileFields.tsx`), but the backend hasn't
-  confirmed it persists or returns this array yet. `category`/`subcategory`
-  are still sent alongside it (mirroring the first entry) so nothing breaks
-  if the backend only ever supports the single pair. Until the backend adds
-  it, a reload only shows the first specialization back
-  (`vendorSpecializations()` in `types.ts` is where that fallback lives).
+  `VendorCreateInput`/`VendorUpdateInput` (`web/src/lib/types.ts`) is a
+  vendor's full multi-select category list. A 2026-08-29 onboarding QA pass
+  found the backend silently dropped everything past the first entry — a
+  `POST /vendors` with two specializations came back with no
+  `specializations` key at all, and a reload showed only the first.
+  `Desiconnect/server` migration `0045_add_vendor_specializations` (not in
+  this repo) adds a matching column and wires it through
+  `POST /vendors` / `PATCH /vendors/me` / `GET /vendors/me`.
+  `VendorIdentityFields` (`web/src/components/VendorProfileFields.tsx`) was
+  reverted from a single-pick workaround back to multi-select on the
+  strength of that backend change — **this only actually round-trips once
+  that migration is deployed**; until then (or for a vendor record that
+  predates it), `vendorSpecializations()` in `types.ts` is where the
+  reload-time single-item fallback lives. `category`/`subcategory` are still
+  sent alongside `specializations` (mirroring its first entry), since the
+  backend persists all three as independent columns rather than deriving one
+  from another.
 - `client_note` on `BookingCreateInput` (`jorna.ts`) / `BundleBooking` /
   `VendorBooking` (`types.ts`) is the same kind of optimistic field: `/book`
   sends whatever the client typed in "Anything the vendor should know?", and

@@ -62,9 +62,12 @@ export default function AuthCallbackPage() {
           });
           // Jorna's JWT is the session now — the Supabase one isn't needed.
           await supabase.auth.signOut();
-          // A brand-new vendor still needs a storefront before they can sell;
-          // everyone else goes where they were headed.
-          const landing = session_.is_new_user && role === "vendor" ? "/vendor-profile" : next;
+          // Anyone who chose "Vendor" goes straight into guided setup — not
+          // just a brand-new account. An existing client picking "Vendor" here
+          // is just as much a vendor-to-be, and the wizard already knows how
+          // to resume (and to refuse an account with live bookings), so it's
+          // safe to send any of them there.
+          const landing = role === "vendor" ? "/vendor-onboarding" : next;
           router.replace(landing);
           return;
         }

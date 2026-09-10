@@ -3,10 +3,12 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getVendor, getVendorReviews, listServices } from "@/lib/jorna";
 import {
   categoryLabel,
+  paymentMethodBadge,
   priceUnitLabel,
   usableMedia,
   type Review,
@@ -76,7 +78,17 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
   const photo =
     !photoFailed && (first ? (first.type === "video" ? first.thumbnail_url : first.url) : null);
   return (
-    <Card className="overflow-hidden transition hover:border-gold/40">
+    // The card itself is the link — a "stretched link" overlay covers the
+    // whole thing (group-hover carries the name's old hover color along with
+    // it) so a click anywhere on the panel opens the package, not just the
+    // name. "Book this" sits above that overlay (relative z-10) so it still
+    // opens its own destination rather than being swallowed by the card's.
+    <Card className="group relative overflow-hidden transition hover:border-gold/40">
+      <Link
+        href={`/service?id=${service.service_id}`}
+        className="absolute inset-0 z-0"
+        aria-label={service.name}
+      />
       <div className="flex flex-col sm:flex-row">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -94,13 +106,8 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
         )}
         <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="serif text-lg text-ink">
-              <Link
-                href={`/service?id=${service.service_id}`}
-                className="transition hover:text-maroon dark:hover:text-gold"
-              >
-                {service.name}
-              </Link>
+            <h3 className="serif text-lg text-ink transition group-hover:text-maroon dark:group-hover:text-gold">
+              {service.name}
             </h3>
             <div className="shrink-0 text-right">
               <p className="serif text-lg text-ink">{money(service.price)}</p>
@@ -150,7 +157,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
               <LinkButton
                 href={`/book?service=${service.service_id}`}
                 size="md"
-                className="ml-auto"
+                className="relative z-10 ml-auto"
               >
                 Book this
               </LinkButton>
@@ -165,6 +172,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
 function VendorInner() {
   const params = useSearchParams();
   const vendorId = params.get("id");
+  const { user } = useAuth();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -228,6 +236,10 @@ function VendorInner() {
   }
 
   const name = `${vendor.f_name ?? ""} ${vendor.l_name ?? ""}`.trim();
+  // A vendor previewing "what clients see" on their own page shouldn't be
+  // offered the client-side CTAs, or a way to report/block themselves.
+  const isOwnVendor = user?.user_id === vendor.user_id;
+  const paymentBadge = paymentMethodBadge(vendor.payment_method);
 
   const tiles: { value: React.ReactNode; label: string }[] = [];
   if (vendor.rating) {
@@ -266,6 +278,12 @@ function VendorInner() {
                   {categoryLabel(vendor.subcategory || vendor.category)}
                 </span>
               ) : null}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full bg-ground-2 px-3 py-1 text-xs font-medium ${paymentBadge.tone}`}
+              >
+                <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+                {paymentBadge.label}
+              </span>
             </div>
             <p className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-soft">
               <Stars rating={vendor.rating} />
@@ -374,25 +392,29 @@ function VendorInner() {
         )}
       </section>
 
-      <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
-        <p className="text-ink-soft">
-          Want this vendor on your team? Build a bundle and we&apos;ll match them to your date and
-          budget.
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <LinkButton href="/plan">Build my bundle</LinkButton>
-          <AskVendor vendorId={vendor.vendor_id} />
-        </div>
-      </div>
+      {!isOwnVendor ? (
+        <>
+          <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
+            <p className="text-ink-soft">
+              Want this vendor on your team? Build a bundle and we&apos;ll match them to your date
+              and budget.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <LinkButton href="/plan">Build my bundle</LinkButton>
+              <AskVendor vendorId={vendor.vendor_id} />
+            </div>
+          </div>
 
-      <div className="mt-6">
-        <ModerationMenu
-          targetType="vendor"
-          targetId={vendor.vendor_id}
-          blockUserId={vendor.user_id}
-          label={name || "this vendor"}
-        />
-      </div>
+          <div className="mt-6">
+            <ModerationMenu
+              targetType="vendor"
+              targetId={vendor.vendor_id}
+              blockUserId={vendor.user_id}
+              label={name || "this vendor"}
+            />
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -143,10 +143,11 @@ h3,
   color-scheme: dark;
 }
 
-/* Date/time fields carry their own calendar icon (see Field), so drop the stark
-   native picker button; the field opens the picker on click instead. */
+/* Date fields carry their own calendar icon (see Field), so drop the stark
+   native picker button; the field opens the picker on click instead. Time is
+   its own TimeField component now (ui.tsx) — plain selects, nothing here
+   applies to it. */
 input[type="date"],
-input[type="time"],
 input[type="datetime-local"] {
   cursor: pointer;
   /* iOS Safari sizes this widget off its own internal icon/spinner content
@@ -161,7 +162,6 @@ input[type="datetime-local"] {
   appearance: none;
 }
 input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   display: none;
 }
@@ -177,13 +177,7 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper,
 input[type="date"]::-webkit-datetime-edit-text,
 input[type="date"]::-webkit-datetime-edit-month-field,
 input[type="date"]::-webkit-datetime-edit-day-field,
-input[type="date"]::-webkit-datetime-edit-year-field,
-input[type="time"]::-webkit-datetime-edit,
-input[type="time"]::-webkit-datetime-edit-fields-wrapper,
-input[type="time"]::-webkit-datetime-edit-text,
-input[type="time"]::-webkit-datetime-edit-hour-field,
-input[type="time"]::-webkit-datetime-edit-minute-field,
-input[type="time"]::-webkit-datetime-edit-ampm-field {
+input[type="date"]::-webkit-datetime-edit-year-field {
   color: var(--color-ink);
   -webkit-text-fill-color: var(--color-ink);
 }
