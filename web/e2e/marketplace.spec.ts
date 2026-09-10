@@ -1,5 +1,5 @@
 import { test, expect } from "./support/fixtures";
-import { mockVendorSearchResponse } from "./support/mock-data";
+import { mockVendorSearchItem, mockVendorSearchResponse } from "./support/mock-data";
 
 test.describe("marketplace search", () => {
   test("shows results returned by /vendors/search", async ({ page, api }) => {
@@ -36,5 +36,30 @@ test.describe("marketplace search", () => {
     await expect(page.getByText("Anjali Kapoor")).toBeVisible();
 
     expect(api.requestsTo("GET", "/vendors/search")).toHaveLength(1);
+  });
+
+  test("shows a Direct badge for a manual-track vendor and Protected for the default", async ({
+    page,
+    api,
+  }) => {
+    api.get(
+      "/vendors/search",
+      mockVendorSearchResponse([
+        mockVendorSearchItem({ payment_method: "manual" }),
+        mockVendorSearchItem({
+          vendor_id: "vendor-2",
+          first_name: "Rohan",
+          last_name: "Mehta",
+          service_id: "service-2",
+          service_name: "Live Dhol",
+          payment_method: "stripe",
+        }),
+      ]),
+    );
+
+    await page.goto("marketplace/");
+
+    await expect(page.getByText("Direct")).toBeVisible();
+    await expect(page.getByText("Protected")).toBeVisible();
   });
 });

@@ -211,6 +211,14 @@ export function useAppNav(): {
   const [attention, setAttention] = useState(0);
   const [messagesUnread, setMessagesUnread] = useState(0);
 
+  // Re-check on navigation, not just on sign-in: this bar is part of the
+  // persistent layout, mounted once per session — unlike ClientOnlyRoute,
+  // which re-derives isVendor on every protected page it wraps, this effect
+  // would otherwise never run again after the first check. A client who
+  // completes vendor-onboarding mid-session (create_vendor calls
+  // clearRoleCache()) would keep seeing the client tabs until they signed
+  // out and back in. Cheap: lib/role's own TTL cache makes most of these a
+  // no-op, same as the attention/messagesUnread effects below.
   useEffect(() => {
     if (!user) {
       setIsVendor(null);
@@ -221,7 +229,7 @@ export function useAppNav(): {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, pathname]);
 
   // Re-check on navigation so the badge follows you as you act on things. Cheap:
   // lib/attention's TTL cache makes most of these a no-op, so this is roughly

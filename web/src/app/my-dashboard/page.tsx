@@ -751,6 +751,7 @@ function BookingRow({
         <NegotiationPanel
           bookingId={b.booking_id}
           listedPrice={b.price}
+          counterpartyName={b.client_name}
           onSettled={onSettled}
         />
       ) : null}
