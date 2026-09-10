@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { bookingGaps, requiredFields } from "./planning";
-import type { BundleBooking } from "./types";
+import {
+  ATTENTION_KINDS,
+  bookingGaps,
+  bundleNeedsCard,
+  moneyForBundle,
+  planForBundle,
+  requiredFields,
+} from "./planning";
+import type { BundleBooking, BundleDetail } from "./types";
 
 function booking(overrides: Partial<BundleBooking> = {}): BundleBooking {
   return {
@@ -113,5 +120,171 @@ describe("requiredFields — what a package's page tells a client before they st
     const shape = { price_unit: "event", require_guest_count: true, require_performer_count: true };
     const blank = booking({ ...shape, date_iso: "", location: "", time_start: "", time_end: "" });
     expect(gapFields(blank).sort()).toEqual(requiredFields(shape).sort());
+  });
+});
+
+function bundle(bookings: BundleBooking[]): BundleDetail {
+  return {
+    bundle_id: "bun1",
+    user_id: "u1",
+    name: "Test Plan",
+    status: "sent",
+    bookings,
+    booking_count: bookings.length,
+    total_estimated_cost: 0,
+  };
+}
+
+describe("moneyForBundle — where a plan's money actually is", () => {
+  it("counts an approved, unpaid booking as outstanding (baseline, unchanged)", () => {
+    const cash = moneyForBundle(bundle([booking({ status: "approved" })]));
+    expect(cash.outstanding).toBe(100);
+    expect(cash.released).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("treats a manual (Venmo/Zelle) booking both sides confirmed as released, not outstanding", () => {
+    // This is the actual bug: once a client sends payment directly and the
+    // vendor confirms receiving it, the plan kept reporting the full price
+    // as still owed — confirmed_paid has no Stripe escrow leg to land in,
+    // but it's exactly as settled as `released` is for an escrow booking.
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "confirmed_paid" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.released).toBe(100);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("counts neither outstanding nor released while a manual payment is sent but not yet confirmed", () => {
+    // The client has already sent it — showing "still to pay" would be just
+    // as wrong here as after confirmation, but the vendor hasn't confirmed
+    // receipt yet either, so it isn't `released` quite yet.
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "marked_paid" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.released).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("counts neither outstanding nor inEscrow while a Stripe charge is still processing", () => {
+    const cash = moneyForBundle(
+      bundle([booking({ status: "approved", payment_status: "processing" })]),
+    );
+    expect(cash.outstanding).toBe(0);
+    expect(cash.inEscrow).toBe(0);
+    expect(cash.committed).toBe(100);
+  });
+
+  it("still counts paid and released Stripe bookings in their usual buckets", () => {
+    const cash = moneyForBundle(
+      bundle([
+        booking({ booking_id: "b1", status: "approved", payment_status: "paid" }),
+        booking({ booking_id: "b2", status: "approved", payment_status: "released" }),
+      ]),
+    );
+    expect(cash.inEscrow).toBe(100);
+    expect(cash.released).toBe(100);
+    expect(cash.outstanding).toBe(0);
+  });
+});
+
+function isoDaysFromNow(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+describe("bookingGaps — a date that's set but already gone", () => {
+  it("flags a past date as a gap, distinct from an unset one", () => {
+    const gaps = bookingGaps(booking({ date_iso: isoDaysFromNow(-1) }));
+    expect(gaps.map((g) => g.field)).toContain("date");
+    expect(gaps.find((g) => g.field === "date")?.label).toBe(
+      "a date that hasn't already passed",
+    );
+  });
+
+  it("does not flag today or a future date", () => {
+    expect(gapFields(booking({ date_iso: isoDaysFromNow(0) }))).not.toContain("date");
+    expect(gapFields(booking({ date_iso: isoDaysFromNow(30) }))).not.toContain("date");
+  });
+});
+
+describe("planForBundle — negotiation task", () => {
+  it("surfaces a task when it's the client's turn to answer an open offer", () => {
+    const plan = planForBundle(
+      bundle([
+        booking({
+          status: "negotiation_ongoing",
+          negotiation_awaiting_role: "client",
+        }),
+      ]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).toContain("negotiation");
+    expect(ATTENTION_KINDS).toContain("negotiation");
+  });
+
+  it("does not surface a task for the client's own unanswered offer", () => {
+    // negotiation_awaiting_role: "vendor" means the client already moved and
+    // is waiting — the same non-actionable shape the removed "vendor-reply"
+    // kind used to show, which is exactly what this field exists to avoid.
+    const plan = planForBundle(
+      bundle([
+        booking({
+          status: "negotiation_ongoing",
+          negotiation_awaiting_role: "vendor",
+        }),
+      ]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).not.toContain("negotiation");
+  });
+
+  it("does not surface a task once the negotiation has settled", () => {
+    const plan = planForBundle(
+      bundle([booking({ status: "approved", negotiation_awaiting_role: null })]),
+    );
+    expect(plan.tasks.map((t) => t.kind)).not.toContain("negotiation");
+  });
+});
+
+describe("bundleNeedsCard — whether the plan has anything a saved card could pay for", () => {
+  it("needs a card when a live booking is on the stripe track", () => {
+    expect(bundleNeedsCard([booking({ payment_method: "stripe" })])).toBe(true);
+  });
+
+  it("does not need a card when every live booking is on the manual (Venmo/Zelle) track", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "manual" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("treats a missing payment_method as stripe, predating the manual track", () => {
+    expect(bundleNeedsCard([booking({ payment_method: undefined })])).toBe(true);
+  });
+
+  it("needs a card when the plan mixes manual and stripe vendors", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "stripe" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("ignores a declined stripe booking sitting alongside a manual one", () => {
+    expect(
+      bundleNeedsCard([
+        booking({ payment_method: "manual" }),
+        booking({ booking_id: "b2", payment_method: "stripe", status: "rejected" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("needs nothing from an empty plan", () => {
+    expect(bundleNeedsCard([])).toBe(false);
   });
 });

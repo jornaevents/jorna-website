@@ -183,6 +183,12 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page.getByText("Anjali Kapoor is paid directly, not through Jorna.")).toBeVisible();
     await expect(page.getByText("@studio-anjali")).toBeVisible();
 
+    // Regression: the Stripe "Pay" button used to render right alongside
+    // this — the backend has no Stripe account for a manual-track vendor,
+    // so clicking it always 400'd instead of ever being a real second way
+    // to pay.
+    await expect(page.getByRole("button", { name: /^Pay \$/ })).not.toBeVisible();
+
     await page.getByRole("button", { name: "I sent payment" }).click();
 
     await expect(page.getByText(/Marked as paid/)).toBeVisible();
@@ -275,5 +281,47 @@ test.describe("bundle detail (/bundle)", () => {
     await expect(page.getByRole("button", { name: "Counter" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Decline" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Negotiate price" })).not.toBeVisible();
+  });
+
+  test("a per-performer booking's missing performer count shows up in Required Info", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    api.get(
+      "/bundles/:id",
+      mockBundleDetail({
+        bookings: [
+          mockBundleBooking({
+            price_unit: "performer",
+            service_name: "Bhangra Dance Troupe",
+            location: "123 Main St, Springfield, IL 62704",
+          }),
+        ],
+      }),
+    );
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations", []);
+    api.get("/payments/card", null);
+    api.patch("/bookings/:id", { booking_id: "booking-1" });
+
+    await page.goto("bundle/?id=bundle-1");
+    // mockBundleBooking's default status ("approved") already counts as
+    // vendor contact, so this reads as a sent plan ("Still needed"), not a
+    // draft still being assembled ("Required Info").
+    await expect(page.getByRole("heading", { name: "Still needed" })).toBeVisible();
+
+    // Regression: this field didn't exist at all, so a plan priced per
+    // performer could never be completed from the one card meant to collect
+    // everything still missing before Send.
+    await expect(
+      page.getByText("Anjali Kapoor can't act on this until it has a performer count."),
+    ).toBeVisible();
+    await page.getByLabel("Performer count").fill("6");
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    const patchCalls = api.requestsTo("PATCH", "/bookings/booking-1");
+    expect(patchCalls.at(-1)?.body).toMatchObject({ performer_count: 6 });
   });
 });

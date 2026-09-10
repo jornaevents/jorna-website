@@ -374,6 +374,11 @@ export interface BundleBooking {
    */
   change_request?: ChangeRequest | null;
   /**
+   * Which side owes the next move on an open price negotiation — null when
+   * there isn't one. "client" means it's this account's turn to answer.
+   */
+  negotiation_awaiting_role?: "client" | "vendor" | null;
+  /**
    * The venue's IANA timezone, resolved server-side from the address and pin.
    * Null when it can't be placed. Read it through `todayAtVenue` — "has the
    * event happened yet" is the escrow gate, and it has to be answered on the
@@ -961,6 +966,11 @@ export interface VendorBooking {
   timezone?: string | null;
   /** A date change this vendor still owes an answer on. */
   change_request?: ChangeRequest | null;
+  /**
+   * Which side owes the next move on an open price negotiation — null when
+   * there isn't one. "vendor" means it's this account's turn to answer.
+   */
+  negotiation_awaiting_role?: "client" | "vendor" | null;
   status: string;
   payment_status?: string | null;
   /** "stripe" (protected) or "manual" (paid directly, Venmo/Zelle) — see

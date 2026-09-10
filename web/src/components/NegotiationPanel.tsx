@@ -27,11 +27,16 @@ function money(cents: number) {
 export function NegotiationPanel({
   bookingId,
   listedPrice,
+  counterpartyName,
   onSettled,
 }: {
   bookingId: string;
   /** The current listed price (dollars), used as the offer field's starting point. */
   listedPrice: number;
+  /** The other party's name — `proposed_by_name` on the current offer is
+   *  whoever made it, which is *you* while you're waiting on a response, so
+   *  it can't be reused for "waiting for {name}" too. */
+  counterpartyName?: string | null;
   onSettled?: () => void;
 }) {
   const { user } = useAuth();
@@ -189,7 +194,7 @@ export function NegotiationPanel({
             </div>
           ) : mineIsCurrent ? (
             <p className="text-xs text-ink-faint">
-              Waiting for {neg.proposed_by_name || "the other party"} to respond.
+              Waiting for {counterpartyName || "the other party"} to respond.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -207,7 +212,7 @@ export function NegotiationPanel({
                 variant="quiet"
                 size="md"
                 disabled={busy}
-                onClick={() => void run(() => rejectOffer(neg!.negotiation_id))}
+                onClick={() => void run(() => rejectOffer(neg!.negotiation_id), true)}
               >
                 Decline
               </Button>

@@ -79,4 +79,33 @@ test.describe("vendor bookings (/my-bookings)", () => {
 
     await expect(page.getByText(/Accepting won.t pay out yet/)).toBeVisible();
   });
+
+  test("doesn't nag about Stripe for a vendor who switched to Direct payment", async ({
+    page,
+    api,
+  }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail({ payment_method: "manual" });
+    api.get("/vendors/me", vendor);
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, {
+      items: [mockVendorBooking({ status: "pending" })],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+    // Started Stripe but never finished — on its own this would trip the
+    // "finish your payment setup" gate, but a manual-track vendor has opted
+    // out of Stripe entirely and shouldn't see that nag regardless of its
+    // state.
+    api.get(
+      `/payments/vendors/${vendor.vendor_id}/stripe-status`,
+      mockStripeStatus({ stripe_account_id: "acct_1", details_submitted: false }),
+    );
+
+    await page.goto("my-bookings/");
+    await expect(page.getByText("Priya Shah")).toBeVisible();
+
+    await expect(page.getByText(/Finish your payment setup/)).not.toBeVisible();
+    await expect(page.getByText(/Accepting won.t pay out yet/)).not.toBeVisible();
+  });
 });
