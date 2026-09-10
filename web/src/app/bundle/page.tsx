@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -57,6 +57,7 @@ import {
 } from "@/lib/types";
 import {
   bookingGaps,
+  bundleNeedsCard,
   celebrationProgress,
   describeGaps,
   isDeadBooking,
@@ -466,13 +467,22 @@ function BookingRow({
   const busy = busyId === booking.booking_id;
   const openPanel = panel?.bookingId === booking.booking_id ? panel.kind : null;
 
+  // Manual track: paid directly, Venmo/Zelle — declared here, ahead of
+  // `payable` below, because Stripe checkout must never be offered for one
+  // either. The backend has no Stripe account to charge for this vendor, so
+  // that "Pay" button would 400 every time — it isn't a fallback path, it's
+  // a dead one sitting right next to the Venmo/Zelle instructions meant to
+  // replace it.
+  const isManual = booking.payment_method === "manual";
+
   // Mirror the backend's checkout guards so we never offer a button that must
-  // fail: only an approved, not-yet-paid booking with a resolvable total.
+  // fail: only an approved, not-yet-paid, non-manual-track booking with a
+  // resolvable total.
   //
   // "processing" is excluded. A charge is already in flight — offering to start
   // a second one is how a client pays twice for the same booking, and the
   // status line now says what's happening instead.
-  const payable = booking.status === "approved" && pay === "unpaid";
+  const payable = booking.status === "approved" && pay === "unpaid" && !isManual;
   const blockedOnQuantity = payable && booking.price_pending_quantity;
   const pendingQuantityNoun =
     priceUnitKind(booking.price_unit) === "performer" ? "a performer count" : "a guest count or date range";
@@ -491,10 +501,10 @@ function BookingRow({
   const vendorPctNow = booking.refund_preview?.vendor_pct_now ?? 0;
   const gaps = bookingGaps(booking, event);
 
-  // Manual track: paid directly, Venmo/Zelle — Jorna never holds this money,
-  // so none of the escrow logic above (held/canConfirm/fullRefundNow) ever
-  // applies. A separate block below covers it.
-  const isManual = booking.payment_method === "manual";
+  // `isManual` itself now lives above, next to `payable` — Jorna never
+  // holds this money, so none of the escrow logic above (held/canConfirm/
+  // fullRefundNow) ever applies either. A separate block below covers how
+  // these are actually paid.
   const manualActive = isManual && booking.status === "approved";
   const manualCancellable = manualActive && !eventHasStarted(booking);
 
@@ -589,6 +599,7 @@ function BookingRow({
             <NegotiationPanel
               bookingId={booking.booking_id}
               listedPrice={booking.price}
+              counterpartyName={booking.vendor_name}
               onSettled={onNegotiated}
             />
           </div>
@@ -1347,6 +1358,13 @@ function BundleInner() {
   const [panel, setPanel] = useState<Panel>(null);
   // A message about the whole plan — sending, renaming, swapping.
   const [notice, setNotice] = useState<Note | null>(null);
+  // The banner renders in one fixed spot regardless of which button (up or
+  // down the page) triggered it, so it needs to bring itself into view rather
+  // than rely on the click having happened nearby.
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice) noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [notice]);
   // The card we'll charge as vendors accept. Fetched for a plan that can be
   // sent, because that's the only screen where it changes what happens next.
   const [card, setCard] = useState<SavedCard | null>(null);
@@ -1624,6 +1642,7 @@ function BundleInner() {
       .map((b) => b.location ?? "")
       .join("|") || "no-venue";
   const readiness = sendReadiness(bundle);
+  const needsCard = bundleNeedsCard(bundle.bookings ?? []);
 
   // The same row wherever a booking appears — the sections below differ only in
   // which bookings they hold, not in what a booking can do.
@@ -1933,12 +1952,15 @@ function BundleInner() {
             />
           ) : null}
 
-          {/* The card that gets charged, on any sent plan. It used to live
-              inside the "waiting on your vendors" banner, which only appeared
-              while a vendor hadn't answered — so the moment the last one did,
-              the card being charged automatically became unnamed and
-              unchangeable. It belongs with the rest of the money. */}
-          {!draft ? (
+          {/* The card that gets charged, on a sent plan that has anything to
+              charge it for. It used to live inside the "waiting on your
+              vendors" banner, which only appeared while a vendor hadn't
+              answered — so the moment the last one did, the card being
+              charged automatically became unnamed and unchangeable. It
+              belongs with the rest of the money. Hidden entirely when every
+              booking is on the manual (Venmo/Zelle) track — there is no
+              charge a card could ever cover. */}
+          {!draft && needsCard ? (
             <CardOnFile
               card={card}
               busy={addingCard}
@@ -1987,14 +2009,16 @@ function BundleInner() {
               bookings, where they're always writable. */}
           <DraftDetails key={venueKey} bundle={bundle} onSaved={load} />
 
-          <CardOnFile
-            card={card}
-            busy={addingCard}
-            removing={removingCard}
-            onAdd={addCard}
-            onRemove={removeCard}
-            sent={false}
-          />
+          {needsCard ? (
+            <CardOnFile
+              card={card}
+              busy={addingCard}
+              removing={removingCard}
+              onAdd={addCard}
+              onRemove={removeCard}
+              sent={false}
+            />
+          ) : null}
 
           {/* Last, after the fields it depends on. It used to sit above them,
               inviting you to send a plan before filling in what sending needs. */}
@@ -2053,7 +2077,11 @@ function BundleInner() {
         </div>
       ) : null}
 
-      {notice ? <NoteLine note={notice} className="mt-6" /> : null}
+      {notice ? (
+        <div ref={noticeRef}>
+          <NoteLine note={notice} className="mt-6" />
+        </div>
+      ) : null}
 
       {/* What's outstanding, before the ledger of who's on the team. Same rules
           as the "Needs you" badge — see lib/planning. */}
