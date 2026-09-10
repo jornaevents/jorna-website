@@ -232,6 +232,16 @@ export default function VendorOnboardingPage() {
 
   return (
     <div className="mx-auto w-[min(640px,100%-2rem)] py-14">
+      {step === "reach" || step === "service" ? (
+        <button
+          type="button"
+          onClick={() => setStep(step === "reach" ? "identity" : "reach")}
+          className="text-sm text-ink-soft hover:text-ink"
+        >
+          ← Back
+        </button>
+      ) : null}
+
       {stepNumber ? (
         <>
           <p className="eyebrow text-center">Step {stepNumber} of 3</p>
@@ -333,13 +343,6 @@ export default function VendorOnboardingPage() {
               <Button type="submit" size="lg" disabled={busy}>
                 {busy ? "Saving…" : "Continue"}
               </Button>
-              <Button
-                type="button"
-                variant="quiet"
-                onClick={() => setStep("identity")}
-              >
-                Back
-              </Button>
             </form>
           </Card>
         </>
@@ -375,9 +378,6 @@ export default function VendorOnboardingPage() {
             </div>
           ) : (
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-              <Button type="button" variant="quiet" onClick={() => setStep("reach")}>
-                Back
-              </Button>
               <LinkButton href="/vendor-profile" variant="quiet" size="md">
                 I&apos;ll add packages later
               </LinkButton>

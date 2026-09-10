@@ -283,11 +283,16 @@ export function vendorTasks(
       continue;
     }
 
-    // An offer on the table. The client has named a different price and the
-    // booking is stuck until somebody answers — it was reachable only from
-    // /my-bookings, so a vendor who never opened that tab had a sale sitting
-    // unanswered with nothing anywhere telling them.
-    if (b.status === "negotiation_ongoing") {
+    // An offer on the table, and it's this vendor's turn to answer it — it
+    // was reachable only from /my-bookings, so a vendor who never opened that
+    // tab had a sale sitting unanswered with nothing anywhere telling them.
+    // Gated on negotiation_awaiting_role rather than the booking's status
+    // alone: status stays "negotiation_ongoing" through the whole back-and-
+    // forth, including while it's the *vendor's own* counter still sitting
+    // unanswered — which isn't "review this", it's "wait for them to answer",
+    // same shape of non-actionable task the client side already learned not
+    // to show (see the removed "vendor-reply" kind in lib/planning.ts).
+    if (b.negotiation_awaiting_role === "vendor") {
       tasks.push({
         id: `offer-${b.booking_id}`,
         kind: "negotiation",

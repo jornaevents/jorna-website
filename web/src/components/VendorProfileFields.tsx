@@ -182,7 +182,8 @@ export function VendorReachFields({
         <Field
           label="Travel radius (miles)"
           type="number"
-          min={0}
+          min={1}
+          max={500}
           value={radius}
           onChange={(e) => onRadiusChange(e.target.value)}
         />
@@ -220,6 +221,90 @@ export function VendorReachFields({
           </span>
         </span>
       </label>
+    </>
+  );
+}
+
+/** How this vendor gets paid — Jorna's protected Stripe flow (default), or
+ *  direct via Venmo/Zelle with no escrow. Only vendor-owned data lives here;
+ *  Stripe Connect's own onboarding status is a separate, live-fetched thing
+ *  (see /my-earnings), not part of this form. */
+export function VendorPaymentFields({
+  paymentMethod,
+  venmoHandle,
+  zelleContact,
+  onPaymentMethodChange,
+  onVenmoHandleChange,
+  onZelleContactChange,
+}: {
+  paymentMethod: "stripe" | "manual";
+  venmoHandle: string;
+  zelleContact: string;
+  onPaymentMethodChange: (value: "stripe" | "manual") => void;
+  onVenmoHandleChange: (value: string) => void;
+  onZelleContactChange: (value: string) => void;
+}) {
+  return (
+    <>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <label
+          className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
+            paymentMethod === "stripe" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
+          }`}
+        >
+          <input
+            type="radio"
+            name="payment_method"
+            checked={paymentMethod === "stripe"}
+            onChange={() => onPaymentMethodChange("stripe")}
+            className="mt-1"
+          />
+          <span>
+            <span className="block text-sm font-medium text-ink">Protected — through Jorna</span>
+            <span className="mt-0.5 block text-xs text-ink-faint">
+              Clients pay by card. Jorna holds the funds and covers cancellations under
+              Jorna&apos;s policy.
+            </span>
+          </span>
+        </label>
+        <label
+          className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
+            paymentMethod === "manual" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
+          }`}
+        >
+          <input
+            type="radio"
+            name="payment_method"
+            checked={paymentMethod === "manual"}
+            onChange={() => onPaymentMethodChange("manual")}
+            className="mt-1"
+          />
+          <span>
+            <span className="block text-sm font-medium text-ink">Direct — Venmo or Zelle</span>
+            <span className="mt-0.5 block text-xs text-ink-faint">
+              Clients pay you directly, no card fees — but Jorna can&apos;t hold, refund, or
+              mediate this payment.
+            </span>
+          </span>
+        </label>
+      </div>
+
+      {paymentMethod === "manual" ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Venmo handle"
+            placeholder="@your-business"
+            value={venmoHandle}
+            onChange={(e) => onVenmoHandleChange(e.target.value)}
+          />
+          <Field
+            label="Zelle contact"
+            placeholder="you@business.com or a phone number"
+            value={zelleContact}
+            onChange={(e) => onZelleContactChange(e.target.value)}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

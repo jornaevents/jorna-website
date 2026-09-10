@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { listConversations } from "@/lib/jorna";
+import { loadIsVendor } from "@/lib/role";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton } from "@/components/ui";
 
@@ -83,6 +84,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [isVendor, setIsVendor] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/messages");
@@ -90,16 +92,31 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!user) return;
+    loadIsVendor().then(setIsVendor);
+  }, [user]);
+
+  // Initial load, then a slow poll so a message that arrived elsewhere moves
+  // its row up and bumps its unread count without a manual revisit — the
+  // list view doesn't get its own socket the way one open thread does (see
+  // lib/chat), so this is the same backstop-poll idea conversation/page.tsx
+  // uses, just slower: a row being a beat late to reorder is a much smaller
+  // deal than a message being late to arrive.
+  useEffect(() => {
+    if (!user) return;
     let cancelled = false;
-    listConversations()
-      .then((c) => !cancelled && setConversations(c))
-      .catch((err) =>
-        !cancelled &&
-        setError(err instanceof ApiError ? err.message : "Couldn't load your messages."),
-      )
-      .finally(() => !cancelled && setLoading(false));
+    const load = () =>
+      listConversations()
+        .then((c) => !cancelled && setConversations(c))
+        .catch((err) =>
+          !cancelled &&
+          setError(err instanceof ApiError ? err.message : "Couldn't load your messages."),
+        )
+        .finally(() => !cancelled && setLoading(false));
+    void load();
+    const poll = setInterval(load, 25000);
     return () => {
       cancelled = true;
+      clearInterval(poll);
     };
   }, [user]);
 
@@ -155,18 +172,38 @@ export default function MessagesPage() {
         <p className="mt-10 text-center text-ink-soft">Loading…</p>
       ) : conversations.length === 0 ? (
         <div className="mt-10 text-center">
-          <p className="mx-auto max-w-[46ch] text-ink-soft">
-            No chats yet. Ask a vendor a question from their page, or send a plan
-            — either one starts a conversation.
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <LinkButton href="/marketplace" variant="ghost">
-              Browse vendors
-            </LinkButton>
-            <LinkButton href="/bundles" variant="ghost">
-              Dashboard
-            </LinkButton>
-          </div>
+          {isVendor ? (
+            <>
+              <p className="mx-auto max-w-[46ch] text-ink-soft">
+                No messages yet. This fills in once a client asks about one of
+                your packages or books you — a vendor can&apos;t start a chat,
+                only a client can.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <LinkButton href="/vendor-profile" variant="ghost">
+                  Edit your packages
+                </LinkButton>
+                <LinkButton href="/my-dashboard" variant="ghost">
+                  Dashboard
+                </LinkButton>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mx-auto max-w-[46ch] text-ink-soft">
+                No chats yet. Ask a vendor a question from their page, or send a
+                plan — either one starts a conversation.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <LinkButton href="/marketplace" variant="ghost">
+                  Browse vendors
+                </LinkButton>
+                <LinkButton href="/bundles" variant="ghost">
+                  Dashboard
+                </LinkButton>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-6 grid gap-2">

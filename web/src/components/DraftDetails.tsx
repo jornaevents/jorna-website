@@ -5,10 +5,11 @@
 // It exists because the event editor couldn't do this job. That one writes to
 // the event, and a draft straight out of the builder may have no event at all —
 // so on exactly the bundles that need details most, there was nowhere to put
-// them. PATCH /bookings/{id} takes date, location, guest count and times, which
-// is the whole of what bookingGaps checks, so the details are written onto the
-// bookings themselves. The event is updated too when there is one, so the two
-// don't disagree.
+// them. PATCH /bookings/{id} takes date, location, guest count, performer
+// count and times, which is the whole of what bookingGaps checks, so the
+// details are written onto the bookings themselves. The event is updated too
+// when there is one (guest count only — a performer count has no event-level
+// equivalent), so the two don't disagree.
 //
 // Only what's relevant is asked for. A plan of flat-rate services is never asked
 // for a headcount. Times are asked for once, for the plan, because every booking
@@ -145,6 +146,13 @@ export function DraftDetails({
   const seedGuests =
     bundle.event?.guest_count ?? live.find((b) => b.guest_count != null)?.guest_count ?? null;
   const [guests, setGuests] = useState(seedGuests != null ? String(seedGuests) : "");
+  // No event-level fallback for this one — a performer count has no equivalent
+  // on the event the way a guest count does, so the only place it's ever been
+  // answered is another booking in this same plan.
+  const seedPerformers = live.find((b) => b.performer_count != null)?.performer_count ?? null;
+  const [performers, setPerformers] = useState(
+    seedPerformers != null ? String(seedPerformers) : "",
+  );
   // Every booking charged by the hour, not merely the ones still missing times:
   // keyed off the gap, a field vanished as soon as it was filled, so a wrong
   // time couldn't be corrected. Once the plan is sent that freedom is the wrong
@@ -193,7 +201,15 @@ export function DraftDetails({
   // Everything the card can write, as one comparable value. An autosave that
   // would change nothing doesn't fire — which is most of them, since focus
   // moving through a form re-renders it constantly without altering a thing.
-  const snapshot = JSON.stringify({ date, addr, guests, times, hoursStart, hoursEnd });
+  const snapshot = JSON.stringify({
+    date,
+    addr,
+    guests,
+    performers,
+    times,
+    hoursStart,
+    hoursEnd,
+  });
 
   /** The writes themselves, with no interest in whether anyone is watching. */
   async function writeDetails() {
@@ -202,6 +218,7 @@ export function DraftDetails({
     const composed = zipReady ? formatAddress(addr) : "";
     const location = composed || undefined;
     const count = Number(guests) > 0 ? Number(guests) : undefined;
+    const performerCount = Number(performers) > 0 ? Number(performers) : undefined;
 
     // Written onto every live booking, because that's what a vendor is sent
     // and what the send check reads — minus anything that booking has already
@@ -230,6 +247,7 @@ export function DraftDetails({
           ...put("date_iso", date || undefined),
           ...put("location", location),
           ...put("guest_count", count),
+          ...put("performer_count", performerCount),
           ...put("time_start", start || undefined),
           ...put("time_end", end || undefined),
         });
@@ -237,7 +255,8 @@ export function DraftDetails({
     );
 
     // And onto the event when there is one, so the dashboard and the run sheet
-    // read the same answers.
+    // read the same answers. Performer count has no event-level equivalent
+    // (see the seed above), so it's booking-only and doesn't go here.
     if (bundle.event?.event_id) {
       await updateEvent(bundle.event.event_id, {
         ...(date ? { date_iso: date } : {}),
@@ -315,9 +334,21 @@ export function DraftDetails({
             type="number"
             min={1}
             placeholder="200"
-            hint="Something in this plan is priced per person."
+            hint="Something in this plan needs a headcount."
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
+          />
+        ) : null}
+
+        {show("performers", Boolean(performers)) ? (
+          <Field
+            label="Performer count"
+            type="number"
+            min={1}
+            placeholder="4"
+            hint="Something in this plan is priced per performer."
+            value={performers}
+            onChange={(e) => setPerformers(e.target.value)}
           />
         ) : null}
 

@@ -72,7 +72,7 @@ export default function AccountPage() {
   }
 
   async function onAvatar(file: File | undefined) {
-    if (!file) return;
+    if (!file || !user) return;
     const { ok, rejected } = checkImageFiles([file]);
     if (rejected.length) {
       setProfileErr(`Skipped: ${describeRejections(rejected)}.`);
@@ -82,8 +82,8 @@ export default function AccountPage() {
     setUploading(true);
     setProfileErr(null);
     try {
-      const updated = await uploadAvatar(ok[0]);
-      setUser(updated);
+      const { pfp_url } = await uploadAvatar(ok[0]);
+      setUser({ ...user, pfp_url });
     } catch (err) {
       setProfileErr(err instanceof ApiError ? err.message : "Couldn't upload that photo.");
     } finally {

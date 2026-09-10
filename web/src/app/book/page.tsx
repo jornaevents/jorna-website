@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
-import { createBooking, getService, listBundles } from "@/lib/jorna";
+import { createBooking, getService, getVendorAvailability, listBundles } from "@/lib/jorna";
 import { crossesMidnight, daysBetweenInclusive, estimateTotal, hoursBetween } from "@/lib/pricing";
+import { hasConflictOn } from "@/lib/availability";
 import {
   categoryLabel,
   priceUnitKind,
@@ -52,12 +53,14 @@ function BookInner() {
   const [overnightAck, setOvernightAck] = useState(false);
   const [location, setLocation] = useState("");
   const [guests, setGuests] = useState("");
+  const [performers, setPerformers] = useState("");
   const [note, setNote] = useState("");
   const [bundleChoice, setBundleChoice] = useState(NEW_BUNDLE);
   // What the chosen plan just filled in, phrased for the client. Null when
   // they're starting a new plan and there was nothing to inherit.
   const [filledFrom, setFilledFrom] = useState<string[] | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [dateConflict, setDateConflict] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,6 +71,28 @@ function BookInner() {
   useEffect(() => {
     setOvernightAck(false);
   }, [timeStart, timeEnd]);
+
+  // A soft warning, not a hard block: lib/availability's own notes say this
+  // endpoint fails open (untyped, often empty), so a wrong guess about the
+  // shape must cost a missed warning, never a client wrongly blocked from
+  // sending a request the vendor could actually take.
+  useEffect(() => {
+    if (!service || !dateIso) {
+      setDateConflict(false);
+      return;
+    }
+    let cancelled = false;
+    getVendorAvailability(service.vendor_id, dateIso, (multiDay && dateEnd) || dateIso)
+      .then((avail) => {
+        if (cancelled) return;
+        const window = timeStart && timeEnd ? { start: timeStart, end: timeEnd } : null;
+        setDateConflict(hasConflictOn(avail, dateIso, window));
+      })
+      .catch(() => !cancelled && setDateConflict(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [service, dateIso, dateEnd, multiDay, timeStart, timeEnd]);
 
   useEffect(() => {
     if (!serviceId || !user) return;
@@ -111,7 +136,8 @@ function BookInner() {
 
   const kind = priceUnitKind(service.price_unit);
   const unitLabel = priceUnitLabel(service.price_unit);
-  const needsGuests = kind === "person";
+  const needsGuests = kind === "person" || Boolean(service.require_guest_count);
+  const needsPerformers = kind === "performer" || Boolean(service.require_performer_count);
   const perDay = kind === "day";
 
   // Show what they'll actually be charged. The arithmetic lives in lib/pricing
@@ -122,6 +148,7 @@ function BookInner() {
       guests: Number(guests),
       days: daysBetweenInclusive(dateIso, (multiDay && dateEnd) || dateIso),
       hours: hoursBetween(timeStart, timeEnd),
+      performers: Number(performers),
     });
   }
 
@@ -213,6 +240,7 @@ function BookInner() {
         time_end: timeEnd,
         location: location.trim(),
         guest_count: guests ? Number(guests) : null,
+        performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
@@ -245,6 +273,10 @@ function BookInner() {
       setError("This package is priced per person — add a guest count so we can total it.");
       return;
     }
+    if (planAlreadySent && needsPerformers && !(Number(performers) > 0)) {
+      setError("This package is priced per performer — add a performer count so we can total it.");
+      return;
+    }
     // The time fields are custom controls (see TimeField), not a native input,
     // so there's no HTML5 `required` to lean on the way the date field still
     // does — this is that check's replacement for start/end time.
@@ -268,6 +300,7 @@ function BookInner() {
         time_end: timeEnd,
         location: location.trim(),
         guest_count: guests ? Number(guests) : null,
+        performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
         venue_longitude: service.venue_longitude ?? null,
         bundle_id: bundleChoice === NEW_BUNDLE ? null : bundleChoice,
@@ -395,6 +428,13 @@ function BookInner() {
             </button>
           ) : null}
 
+          {dateConflict ? (
+            <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-ink-soft">
+              {service.vendor_name || "This vendor"} doesn&apos;t look free on this date, going
+              by their calendar — you can still send the request, but check with them first.
+            </p>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TimeField label="Start time" value={timeStart} onChange={setTimeStart} />
             <TimeField label="End time" value={timeEnd} onChange={setTimeEnd} />
@@ -446,17 +486,42 @@ function BookInner() {
             hint={
               needsGuests
                 ? planAlreadySent
-                  ? "This package is priced per person, so the total needs it."
-                  : "Priced per person — add it now or on your plan, before you send."
+                  ? kind === "person"
+                    ? "This package is priced per person, so the total needs it."
+                    : "The vendor requires a guest count on every request."
+                  : kind === "person"
+                    ? "Priced per person — add it now or on your plan, before you send."
+                    : "The vendor requires this — add it now or on your plan, before you send."
                 : undefined
             }
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
           />
 
+          {needsPerformers ? (
+            <Field
+              label={planAlreadySent ? "Performer count (required)" : "Performer count (optional)"}
+              type="number"
+              min={1}
+              required={planAlreadySent}
+              hint={
+                planAlreadySent
+                  ? kind === "performer"
+                    ? "This package is priced per performer, so the total needs it."
+                    : "The vendor requires a performer count on every request."
+                  : kind === "performer"
+                    ? "Priced per performer — add it now or on your plan, before you send."
+                    : "The vendor requires this — add it now or on your plan, before you send."
+              }
+              value={performers}
+              onChange={(e) => setPerformers(e.target.value)}
+            />
+          ) : null}
+
           <Field
             label="Anything the vendor should know? (optional)"
             placeholder="We need setup access an hour early"
+            hint="Shown on the booking request — for an ongoing conversation, message the vendor directly instead."
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />

@@ -11,7 +11,7 @@
 // Takes the vendor and the taxonomy rather than fetching them: the page above
 // already has both, and a second copy of either could disagree with the first.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   createService,
@@ -40,6 +40,12 @@ function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
+// A locally-generated preview — an object URL for a File the vendor just
+// picked or dropped, not yet (or not ever going to be) on the server. Kept
+// distinct from MediaItem, which describes server-side media, since the two
+// shapes aren't interchangeable.
+type LocalPreview = { url: string; type: "image" | "video" };
+
 // experience is stored server-side as free text ("Text", not a number column)
 // so old listings can carry whatever a vendor once typed ("9+ years",
 // "over a decade"). The form only collects a whole number of years now, so
@@ -61,15 +67,24 @@ function formatExperienceYears(raw: string): string {
 // The rate's multiplier. "event" is a flat price — everything else needs a
 // quantity from the client at booking time before it can be paid.
 const PRICE_UNITS = [
-  { value: "event", label: "Flat price per event" },
+  { value: "event", label: "Price per event" },
   { value: "person", label: "Per person" },
+  { value: "performer", label: "Per performer" },
   { value: "hour", label: "Per hour" },
   { value: "day", label: "Per day" },
 ];
 
-const blank: ServiceInput = {
+// Same as ServiceInput, but price is the raw text the vendor is typing, not
+// a number — a native number input's own min/step validation fights a vendor
+// trying to clear a pre-filled price and type a new one (it can snap back to
+// "0" rather than let the field sit empty mid-edit). Plain text sidesteps
+// that entirely; save() parses and validates it before this goes anywhere
+// near the API.
+type FormState = Omit<ServiceInput, "price"> & { price: string };
+
+const blank: FormState = {
   name: "",
-  price: 0,
+  price: "",
   experience: "",
   // Per hour, matching the iOS create screen — the same vendor should not get a
   // different starting point depending on where they list. It is also the safer
@@ -79,6 +94,8 @@ const blank: ServiceInput = {
   price_unit: "hour",
   description: "",
   negotiable: false,
+  require_guest_count: false,
+  require_performer_count: false,
 };
 
 export function ServicesManager({
@@ -109,7 +126,7 @@ export function ServicesManager({
   const [matched, setMatched] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | "new" | null>(autoStartNew ? "new" : null);
-  const [form, setForm] = useState<ServiceInput>(
+  const [form, setForm] = useState<FormState>(
     autoStartNew
       ? { ...blank, category: vendor.category ?? "", subcategory: vendor.subcategory ?? "" }
       : blank,
@@ -124,6 +141,62 @@ export function ServicesManager({
   // screen the same way rather than making the vendor come back for it.
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [newVideos, setNewVideos] = useState<File[]>([]);
+  // Object URLs for the staged files above — kept in state (rather than
+  // computed inline on every render) so they're only ever created/revoked
+  // when newPhotos/newVideos actually change, via the effects below.
+  const [newPhotoPreviews, setNewPhotoPreviews] = useState<string[]>([]);
+  const [newVideoPreviews, setNewVideoPreviews] = useState<string[]>([]);
+  // Local previews for an upload already in flight against a saved service,
+  // keyed by service_id — cleared (and their object URLs revoked) once that
+  // upload settles, success or failure, since refresh() brings the real
+  // thumbnail on success and the error banner already covers failure.
+  const [pendingPhotosFor, setPendingPhotosFor] = useState<Record<string, LocalPreview[]>>({});
+  const [pendingVideosFor, setPendingVideosFor] = useState<Record<string, LocalPreview[]>>({});
+  // Which dropzone (by a small string key — "new-photos", "new-videos", or
+  // `photos-${serviceId}` / `video-${serviceId}`) is currently being dragged
+  // over. A single keyed value rather than per-dropzone state, since the
+  // existing-package dropzones live inside services.map() and can't each
+  // hold their own hook.
+  const [dragActiveKey, setDragActiveKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urls = newPhotos.map((f) => URL.createObjectURL(f));
+    setNewPhotoPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [newPhotos]);
+
+  useEffect(() => {
+    const urls = newVideos.map((f) => URL.createObjectURL(f));
+    setNewVideoPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [newVideos]);
+
+  // Shared drag-and-drop wiring for all four pickers — spread onto a
+  // dropzone's <label>. A plain function rather than a custom hook so it's
+  // safe to call inside services.map() too.
+  function dropZoneProps(key: string, onFiles: (files: FileList) => void) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey(key);
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey((k) => (k === key ? null : k));
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActiveKey((k) => (k === key ? null : k));
+        if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
+      },
+    };
+  }
+
+  function dropZoneClass(key: string) {
+    return dragActiveKey === key
+      ? "border-gold bg-gold/5"
+      : "border-card-edge hover:border-gold";
+  }
 
   async function refresh() {
     const res = await listServices({ vendor_id: vendor.vendor_id, limit: 100 });
@@ -150,13 +223,15 @@ export function ServicesManager({
   function startEdit(s: ServiceItem) {
     setForm({
       name: s.name,
-      price: s.price,
+      price: String(s.price),
       experience: parseExperienceYears(s.experience),
       price_unit: s.price_unit ?? "event",
       category: s.category ?? "",
       subcategory: s.subcategory ?? "",
       description: s.description ?? "",
       negotiable: Boolean(s.negotiable),
+      require_guest_count: Boolean(s.require_guest_count),
+      require_performer_count: Boolean(s.require_performer_count),
       location: s.location ?? "",
       venue_latitude: s.venue_latitude ?? null,
       venue_longitude: s.venue_longitude ?? null,
@@ -223,6 +298,11 @@ export function ServicesManager({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    const price = Number(form.price);
+    if (!form.price.trim() || !(price > 0)) {
+      setError("Enter a price greater than $0.");
+      return;
+    }
     if (isVenue && (form.venue_latitude == null || form.venue_longitude == null)) {
       setError(
         "A venue needs its map coordinates — that's what vendor check-in is measured against.",
@@ -234,7 +314,7 @@ export function ServicesManager({
     try {
       const payload: ServiceInput = {
         ...form,
-        price: Number(form.price),
+        price,
         experience: formatExperienceYears(form.experience),
         subcategory: form.subcategory || null,
         location: form.location || null,
@@ -298,16 +378,23 @@ export function ServicesManager({
   // renders its own file input, so a ref shared across the list would land on
   // whichever card happened to mount last — clearing the wrong one left a
   // just-used input still holding its old value, which silently swallows a
-  // retry: selecting the same file again fires no change event.
-  async function addPhotos(serviceId: string, input: HTMLInputElement) {
-    const files = input.files;
+  // retry: selecting the same file again fires no change event. A drop has no
+  // backing input, so it passes the FileList straight through instead.
+  async function addPhotos(serviceId: string, source: HTMLInputElement | FileList) {
+    const files = source instanceof HTMLInputElement ? source.files : source;
     if (!files?.length) return;
     setUploadingFor(serviceId);
     setError(null);
+    let pending: LocalPreview[] = [];
     try {
       const { ok, rejected } = checkImageFiles(Array.from(files));
       if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
-      if (ok.length) {
+      pending = ok.map((f) => ({ url: URL.createObjectURL(f), type: "image" as const }));
+      if (pending.length) {
+        setPendingPhotosFor((prev) => ({
+          ...prev,
+          [serviceId]: [...(prev[serviceId] ?? []), ...pending],
+        }));
         await uploadServiceImages(serviceId, ok);
         await refresh();
       }
@@ -315,7 +402,17 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload those photos.");
     } finally {
       setUploadingFor(null);
-      input.value = "";
+      if (source instanceof HTMLInputElement) source.value = "";
+      if (pending.length) {
+        pending.forEach((p) => URL.revokeObjectURL(p.url));
+        setPendingPhotosFor((prev) => {
+          const remaining = (prev[serviceId] ?? []).filter((p) => !pending.includes(p));
+          const next = { ...prev };
+          if (remaining.length) next[serviceId] = remaining;
+          else delete next[serviceId];
+          return next;
+        });
+      }
     }
   }
 
@@ -328,15 +425,21 @@ export function ServicesManager({
     }
   }
 
-  async function addVideos(serviceId: string, input: HTMLInputElement) {
-    const files = input.files;
+  async function addVideos(serviceId: string, source: HTMLInputElement | FileList) {
+    const files = source instanceof HTMLInputElement ? source.files : source;
     if (!files?.length) return;
     setUploadingVideoFor(serviceId);
     setError(null);
+    let pending: LocalPreview[] = [];
     try {
       const { ok, rejected } = await checkVideoFiles(Array.from(files));
       if (rejected.length) setError(`Skipped: ${describeRejections(rejected)}.`);
-      if (ok.length) {
+      pending = ok.map((f) => ({ url: URL.createObjectURL(f), type: "video" as const }));
+      if (pending.length) {
+        setPendingVideosFor((prev) => ({
+          ...prev,
+          [serviceId]: [...(prev[serviceId] ?? []), ...pending],
+        }));
         await uploadServiceVideos(serviceId, ok);
         await refresh();
       }
@@ -344,7 +447,17 @@ export function ServicesManager({
       setError(err instanceof ApiError ? err.message : "Couldn't upload that video.");
     } finally {
       setUploadingVideoFor(null);
-      input.value = "";
+      if (source instanceof HTMLInputElement) source.value = "";
+      if (pending.length) {
+        pending.forEach((p) => URL.revokeObjectURL(p.url));
+        setPendingVideosFor((prev) => {
+          const remaining = (prev[serviceId] ?? []).filter((p) => !pending.includes(p));
+          const next = { ...prev };
+          if (remaining.length) next[serviceId] = remaining;
+          else delete next[serviceId];
+          return next;
+        });
+      }
     }
   }
 
@@ -409,12 +522,11 @@ export function ServicesManager({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field
                 label="Price"
-                type="number"
-                min={0}
-                step="0.01"
-                required
-                value={form.price ?? ""}
-                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                type="text"
+                inputMode="decimal"
+                placeholder="45"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
               />
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-ink-soft">
@@ -596,10 +708,42 @@ export function ServicesManager({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <p className="mb-1.5 text-sm font-medium text-ink-soft">Photos</p>
-                  <label className="inline-block cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {newPhotos.length
-                      ? `${newPhotos.length} selected — choose again to replace`
-                      : "+ Choose photos"}
+                  {newPhotos.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {newPhotos.map((_, i) => (
+                        <div key={i} className="relative">
+                          {newPhotoPreviews[i] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={newPhotoPreviews[i]}
+                              alt=""
+                              className="size-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="size-16 rounded-lg bg-panel" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewPhotos((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground after:absolute after:-inset-2 after:content-['']"
+                            aria-label="Remove photo"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label
+                    {...dropZoneProps("new-photos", (files) => pickNewPhotos(files))}
+                    className={`flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm text-ink-soft ${dropZoneClass("new-photos")}`}
+                  >
+                    <span aria-hidden="true" className="text-2xl leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{newPhotos.length ? "Choose again to replace" : "Choose or drop photos"}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -611,10 +755,52 @@ export function ServicesManager({
                 </div>
                 <div>
                   <p className="mb-1.5 text-sm font-medium text-ink-soft">Videos</p>
-                  <label className="inline-block cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {newVideos.length
-                      ? `${newVideos.length} selected — choose again to replace`
-                      : "+ Choose videos"}
+                  {newVideos.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {newVideos.map((_, i) => (
+                        <div key={i} className="relative">
+                          {newVideoPreviews[i] ? (
+                            <video
+                              src={newVideoPreviews[i]}
+                              muted
+                              playsInline
+                              className="size-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="size-16 rounded-lg bg-panel" />
+                          )}
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 grid place-items-center"
+                          >
+                            <span className="grid size-5 place-items-center rounded-full bg-black/55 text-white">
+                              <svg viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 size-2.5">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewVideos((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-maroon text-xs text-ground after:absolute after:-inset-2 after:content-['']"
+                            aria-label="Remove video"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label
+                    {...dropZoneProps("new-videos", (files) => void pickNewVideos(files))}
+                    className={`flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm text-ink-soft ${dropZoneClass("new-videos")}`}
+                  >
+                    <span aria-hidden="true" className="text-2xl leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{newVideos.length ? "Choose again to replace" : "Choose or drop videos"}</span>
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"
@@ -629,6 +815,42 @@ export function ServicesManager({
                 </div>
               </div>
             ) : null}
+
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={form.price_unit === "person" || Boolean(form.require_guest_count)}
+                disabled={form.price_unit === "person"}
+                onChange={(e) => setForm({ ...form, require_guest_count: e.target.checked })}
+                className="mt-1"
+              />
+              <span className="text-sm text-ink-soft">
+                Always require a guest count
+                <span className="block text-xs text-ink-faint">
+                  {form.price_unit === "person"
+                    ? "Already required — this package is priced per person."
+                    : "A client can't send a request without one, even though this package doesn't price by guest."}
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={form.price_unit === "performer" || Boolean(form.require_performer_count)}
+                disabled={form.price_unit === "performer"}
+                onChange={(e) => setForm({ ...form, require_performer_count: e.target.checked })}
+                className="mt-1"
+              />
+              <span className="text-sm text-ink-soft">
+                Always require a performer count
+                <span className="block text-xs text-ink-faint">
+                  {form.price_unit === "performer"
+                    ? "Already required — this package is priced per performer."
+                    : "A client can't send a request without one, even though this package doesn't price by performer."}
+                </span>
+              </span>
+            </label>
 
             <label className="flex items-start gap-2.5">
               <input
@@ -745,8 +967,44 @@ export function ServicesManager({
                       </div>
                     );
                   })}
-                  <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {uploadingFor === s.service_id ? "Uploading…" : "+ Add photos"}
+                  {(pendingPhotosFor[s.service_id] ?? []).map((item, i) => (
+                    <div key={`pending-photo-${i}`} className="relative opacity-60">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.url} alt="" className="size-16 rounded-lg object-cover" />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 grid place-items-center"
+                      >
+                        <span className="size-4 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+                      </span>
+                    </div>
+                  ))}
+                  {(pendingVideosFor[s.service_id] ?? []).map((item, i) => (
+                    <div key={`pending-video-${i}`} className="relative opacity-60">
+                      <video
+                        src={item.url}
+                        muted
+                        playsInline
+                        className="size-16 rounded-lg object-cover"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 grid place-items-center"
+                      >
+                        <span className="size-4 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+                      </span>
+                    </div>
+                  ))}
+                  <label
+                    {...dropZoneProps(`photos-${s.service_id}`, (files) =>
+                      void addPhotos(s.service_id, files),
+                    )}
+                    className={`flex size-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed px-1.5 text-center text-[11px] leading-tight text-ink-soft ${dropZoneClass(`photos-${s.service_id}`)}`}
+                  >
+                    <span aria-hidden="true" className="text-lg leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{uploadingFor === s.service_id ? "Uploading…" : "Add or drop photos"}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -755,8 +1013,16 @@ export function ServicesManager({
                       onChange={(e) => addPhotos(s.service_id, e.currentTarget)}
                     />
                   </label>
-                  <label className="cursor-pointer rounded-lg border border-dashed border-card-edge px-3 py-2 text-xs text-ink-soft hover:border-gold">
-                    {uploadingVideoFor === s.service_id ? "Uploading…" : "+ Add video"}
+                  <label
+                    {...dropZoneProps(`video-${s.service_id}`, (files) =>
+                      void addVideos(s.service_id, files),
+                    )}
+                    className={`flex size-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed px-1.5 text-center text-[11px] leading-tight text-ink-soft ${dropZoneClass(`video-${s.service_id}`)}`}
+                  >
+                    <span aria-hidden="true" className="text-lg leading-none text-ink-faint">
+                      +
+                    </span>
+                    <span>{uploadingVideoFor === s.service_id ? "Uploading…" : "Add or drop video"}</span>
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm"

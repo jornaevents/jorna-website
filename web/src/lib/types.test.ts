@@ -28,6 +28,16 @@ describe("priceUnitKind", () => {
   it("falls back to flat pricing for unrecognized free text", () => {
     expect(priceUnitKind("per square foot")).toBe("event");
   });
+
+  it("maps free-text vendor synonyms for per-performer pricing", () => {
+    expect(priceUnitKind("performer")).toBe("performer");
+    expect(priceUnitKind("Performers")).toBe("performer");
+    expect(priceUnitKind("per performer")).toBe("performer");
+    expect(priceUnitKind("dancer")).toBe("performer");
+    expect(priceUnitKind("dancers")).toBe("performer");
+    expect(priceUnitKind("entertainer")).toBe("performer");
+    expect(priceUnitKind("entertainers")).toBe("performer");
+  });
 });
 
 describe("priceUnitLabel", () => {
@@ -40,6 +50,7 @@ describe("priceUnitLabel", () => {
   it("normalizes to a 'per X' phrase regardless of input casing/prefix", () => {
     expect(priceUnitLabel("Hour")).toBe("per hour");
     expect(priceUnitLabel("per Person")).toBe("per person");
+    expect(priceUnitLabel("performer")).toBe("per performer");
   });
 });
 
@@ -71,6 +82,17 @@ describe("priceLine", () => {
     // resolved yet — the UI must not show it as one.
     const line = priceLine({ ...base, guest_count: 200, price_pending_quantity: true });
     expect(line.isTotal).toBe(false);
+  });
+
+  it("resolves a per-performer total once the performer count is known", () => {
+    const line = priceLine({
+      price: 200,
+      price_unit: "per performer",
+      performer_count: 5,
+    });
+    expect(line.isTotal).toBe(true);
+    expect(line.amount).toBe(200);
+    expect(line.caption).toContain("5 performers");
   });
 });
 
