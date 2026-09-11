@@ -194,6 +194,10 @@ export interface VendorSearchItem {
   /** "stripe" (protected, escrow-held) or "manual" (paid directly via
    *  Venmo/Zelle) — see `paymentMethodBadge`. */
   payment_method?: "stripe" | "manual" | null;
+  /** Only meaningful when payment_method is "stripe" — false means this
+   *  vendor can be sent a request but not yet paid (see `paymentMethodBadge`
+   *  and the readiness note on /vendor). */
+  stripe_ready?: boolean | null;
 }
 
 /** One category, optionally narrowed to a speciality within it — what a
@@ -239,6 +243,8 @@ export interface VendorDetail {
    *  means this vendor is paid directly via Venmo/Zelle and Jorna never
    *  touches the money — see venmo_handle/zelle_contact below. */
   payment_method?: "stripe" | "manual";
+  /** Only meaningful when payment_method is "stripe" — see `VendorSearchItem`. */
+  stripe_ready?: boolean | null;
   venmo_handle?: string | null;
   zelle_contact?: string | null;
 }
