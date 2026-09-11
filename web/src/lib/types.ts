@@ -339,6 +339,11 @@ export interface BundleBooking {
   booking_id: string;
   status: string;
   payment_status?: string | null;
+  /** Whether anything further can happen to this booking — see
+   *  `isDeadBooking`. Computed server-side from the same rule for both
+   *  status and payment_status; optional only so older cached bundle
+   *  payloads from before this field existed don't break the check. */
+  is_dead?: boolean;
   date_iso?: string | null;
   time_start?: string | null;
   time_end?: string | null;

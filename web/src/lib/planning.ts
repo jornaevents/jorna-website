@@ -79,10 +79,15 @@ export interface BundlePlan {
   canCheckIn: boolean;
 }
 
+// Fallback only, for a bundle payload from before the backend computed
+// is_dead itself (see booking_service._booking_dict /
+// bundle_service._booking_summary) — this used to be the only
+// implementation, hand-mirroring the backend's two _DEAD_* constants.
 const DEAD_STATUSES = ["rejected", "cancelled"];
 
-/** Mirrors the backend's _DEAD_* — a booking that no longer counts. */
+/** A booking that no longer counts — computed server-side; see is_dead. */
 export function isDeadBooking(b: BundleBooking): boolean {
+  if (typeof b.is_dead === "boolean") return b.is_dead;
   return (
     DEAD_STATUSES.includes(b.status) || (b.payment_status ?? "unpaid") === "refunded"
   );
