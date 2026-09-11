@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import {
   acceptOffer,
   counterOffer,
   getNegotiation,
+  openBookingThread,
   rejectOffer,
   startNegotiation,
 } from "@/lib/jorna";
@@ -40,9 +42,11 @@ export function NegotiationPanel({
   onSettled?: () => void;
 }) {
   const { user } = useAuth();
+  const router = useRouter();
   const [neg, setNeg] = useState<Negotiation | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [openingThread, setOpeningThread] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOffer, setShowOffer] = useState(false);
   const [amount, setAmount] = useState<string>("");
@@ -98,6 +102,18 @@ export function NegotiationPanel({
     }
   }
 
+  async function viewHistory() {
+    setOpeningThread(true);
+    setError(null);
+    try {
+      const thread = await openBookingThread(bookingId);
+      router.push(`/conversation?id=${thread.conversation_id}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't open the conversation.");
+      setOpeningThread(false);
+    }
+  }
+
   function submitOffer() {
     const cents = Math.round(Number(amount) * 100);
     if (!(cents > 0)) {
@@ -137,26 +153,19 @@ export function NegotiationPanel({
                 </span>{" "}
                 — {mineIsCurrent ? "you" : neg.proposed_by_name || "the other party"}
               </p>
-              {/* The offers have always been on the payload and nothing ever
-                  rendered them, so a haggle was a single number with no memory
-                  of how it got there — and any reason either side gave was
-                  invisible even when it had been sent. */}
-              {neg.offers && neg.offers.length > 1 ? (
-                <ul className="mt-2 grid gap-1 border-l-2 border-line-soft pl-2.5">
-                  {neg.offers.map((o, i) => (
-                    <li key={o.offer_id ?? i} className="text-xs text-ink-faint">
-                      <span className="font-medium text-ink-soft">
-                        {o.proposed_by === user?.user_id
-                          ? "You"
-                          : o.proposed_by_name || "They"}
-                      </span>{" "}
-                      offered{" "}
-                      <span className="tabular-nums">{money(o.amount_cents)}</span>
-                      {o.message ? <span> — “{o.message}”</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              {/* Full offer-by-offer history lives in the booking's message
+                  thread (conversation/page.tsx's OfferCard), interleaved with
+                  the rest of the conversation instead of sitting in a second
+                  box with no ordering against it. This panel only needs to
+                  show the live offer plus a way in. */}
+              <button
+                type="button"
+                onClick={() => void viewHistory()}
+                disabled={openingThread}
+                className="mt-1 text-xs font-medium text-maroon underline decoration-line-soft underline-offset-2 hover:decoration-maroon disabled:opacity-60 dark:text-gold"
+              >
+                {openingThread ? "Opening…" : "View full history in Messages"}
+              </button>
             </div>
           ) : null}
 

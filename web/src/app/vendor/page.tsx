@@ -290,6 +290,16 @@ function VendorInner() {
               {vendor.location ? <span>· {vendor.location}</span> : null}
               {vendor.num_events ? <span>· {vendor.num_events} events</span> : null}
             </p>
+            {vendor.payment_method !== "manual" && vendor.stripe_ready === false ? (
+              // Checkout already refuses to charge an unonboarded vendor, but
+              // that only surfaces after a client has gotten a request all
+              // the way to approved. Saying so here means finding out costs
+              // nothing more than reading this page.
+              <p className="mt-2 text-xs text-ink-faint">
+                This vendor is still finishing payment setup — you can send a
+                request now, but paying will need to wait until they&rsquo;re ready.
+              </p>
+            ) : null}
             {vendor.instagram_username ? (
               <a
                 href={`https://instagram.com/${vendor.instagram_username.replace(/^@/, "")}`}
