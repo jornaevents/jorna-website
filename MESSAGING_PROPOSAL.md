@@ -7,10 +7,11 @@ Enquiry threads (`askVendor()` → `POST /conversations/enquiry`), per-booking t
 (`openBookingThread()`), and the unified conversation model (`subject_type`,
 `unread_count` on `ConversationSummary`) are all live in
 `web/src/lib/jorna.ts`/`types.ts`. Treat what follows as design rationale,
-not a to-do list. One gap remains: `NegotiationPanel`'s own offer-history
-rendering (`NegotiationPanel.tsx:123-138`) was never retired as planned, so
-negotiation history currently renders in two places — the panel inline, and
-the conversation thread.
+not a to-do list. The one gap this note used to flag — `NegotiationPanel`'s
+own offer-history list rendering alongside the conversation thread's
+`OfferCard` — is now closed: the panel shows only the live offer plus a
+"View full history in Messages" link into the thread, which is the single
+place offer-by-offer history renders.
 
 Item 8 in `CLIENT_FLOW_PLAN.md`, plus the two halves it didn't cover.
 **Decisions made and built** — see the shipped note above. Written after a
