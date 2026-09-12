@@ -137,6 +137,22 @@ to a warning rather than error — see the comment there and
 "fixing" any of those warnings casually; each one needs individual review; a
 blanket rewrite risks changing auth/booking/payment behavior.
 
+## Issue & work tracking
+
+Work across all three repos is tracked in one place: the org's GitHub
+Project, ["Jorna Dev Board"](https://github.com/orgs/jornaevents/projects/1)
+(Status: Backlog → Todo → In Progress → In Review → Done, linked to all
+three repos). Open issues with `.github/ISSUE_TEMPLATE/bug_report.md` or
+`feature_request.md` — both have a "cross-repo impact" section, since a
+web-app change sometimes needs a matching backend issue/PR in
+`jorna-backend` and/or `jorna-ios`.
+
+This repo has the board's native "Auto-add to project" workflow enabled
+(GitHub Free caps that at one source repo per project, and this is the one),
+so a new issue or PR here lands on the board automatically. Still move its
+Status yourself as work progresses (In Progress → In Review once a PR is
+open → Done once merged).
+
 ## Maintaining this context layer
 
 - When a change is architecturally meaningful (new subsystem, changed data
