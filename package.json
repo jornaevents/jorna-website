@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "lint-staged": "^17.4.1",
+    "lint-staged": "^17.5.1",
     "wrangler": "^4.127.1"
   },
   "allowScripts": {
