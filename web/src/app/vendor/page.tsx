@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import { getVendor, getVendorReviews, listServices } from "@/lib/jorna";
 import {
   categoryLabel,
@@ -290,7 +291,7 @@ function VendorInner() {
               {vendor.location ? <span>· {vendor.location}</span> : null}
               {vendor.num_events ? <span>· {vendor.num_events} events</span> : null}
             </p>
-            {vendor.payment_method !== "manual" && vendor.stripe_ready === false ? (
+            {ESCROW_ENABLED && vendor.payment_method !== "manual" && vendor.stripe_ready === false ? (
               // Checkout already refuses to charge an unonboarded vendor, but
               // that only surfaces after a client has gotten a request all
               // the way to approved. Saying so here means finding out costs

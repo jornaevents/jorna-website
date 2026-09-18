@@ -36,7 +36,9 @@ here.
               ▼                                ▼
    Supabase (Google OAuth only)      Stripe Connect (vendor payouts,
    web/src/lib/supabase.ts           checkout) — server-side, called
-                                     indirectly via the backend API
+                                     indirectly via the backend API.
+                                     Disabled for the MVP (lib/flags.ts's
+                                     ESCROW_ENABLED) — see docs/DECISIONS.md.
 
    Firebase (web push messaging)
    web/src/lib/firebaseConfig.ts, push.ts
@@ -169,7 +171,7 @@ off — it's the source of truth, `DESIGN_BRIEF.md` is the readable reference).
 | FastAPI backend (Railway, separate repo) | All data, auth, bookings, escrow, chat | `NEXT_PUBLIC_API_BASE_URL`, `web/src/lib/api.ts` |
 | Supabase | Google OAuth identity only (not general auth) | `web/src/lib/supabase.ts` |
 | Firebase Cloud Messaging | Web push notifications | `web/src/lib/firebaseConfig.ts`, `push.ts` |
-| Stripe Connect | Vendor payouts / checkout, driven server-side | reached only through backend endpoints in `jorna.ts` |
+| Stripe Connect | Vendor payouts / checkout, driven server-side — **disabled for the MVP**, see `docs/DECISIONS.md` | reached only through backend endpoints in `jorna.ts`, gated by `lib/flags.ts`'s `ESCROW_ENABLED` |
 | Cloudflare Pages | Hosting for everything in `public/` | `wrangler.jsonc`, `scripts/deploy.mjs` |
 | Sentry | Client-side error monitoring | `NEXT_PUBLIC_SENTRY_DSN`, `web/src/lib/sentry.ts` |
 

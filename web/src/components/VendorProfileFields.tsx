@@ -6,6 +6,7 @@
 // drift between the two.
 
 import { useState } from "react";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import type { TaxonomyCategory, VendorSpecialization } from "@/lib/types";
 import { Chip, Field } from "./ui";
 
@@ -225,10 +226,11 @@ export function VendorReachFields({
   );
 }
 
-/** How this vendor gets paid — Jorna's protected Stripe flow (default), or
- *  direct via Venmo/Zelle with no escrow. Only vendor-owned data lives here;
- *  Stripe Connect's own onboarding status is a separate, live-fetched thing
- *  (see /my-earnings), not part of this form. */
+/** How this vendor gets paid. With escrow disabled (the MVP default — see
+ *  lib/flags.ts) this is just the Venmo/Zelle fields, no choice to make;
+ *  callers always pass "manual" in that case. Stripe Connect's own
+ *  onboarding status is a separate, live-fetched thing (see /my-earnings),
+ *  not part of this form. */
 export function VendorPaymentFields({
   paymentMethod,
   venmoHandle,
@@ -244,65 +246,80 @@ export function VendorPaymentFields({
   onVenmoHandleChange: (value: string) => void;
   onZelleContactChange: (value: string) => void;
 }) {
+  // With escrow disabled, manual is the only option — treated as such here
+  // regardless of what a not-yet-updated vendor row still has stored, so a
+  // legacy "stripe" vendor still sees (and can fill in) the Venmo/Zelle
+  // fields rather than being shown nothing with no way to switch.
+  const effectivePaymentMethod = ESCROW_ENABLED ? paymentMethod : "manual";
+
   return (
     <>
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        <label
-          className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
-            paymentMethod === "stripe" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
-          }`}
-        >
-          <input
-            type="radio"
-            name="payment_method"
-            checked={paymentMethod === "stripe"}
-            onChange={() => onPaymentMethodChange("stripe")}
-            className="mt-1"
-          />
-          <span>
-            <span className="block text-sm font-medium text-ink">Protected — through Jorna</span>
-            <span className="mt-0.5 block text-xs text-ink-faint">
-              Clients pay by card. Jorna holds the funds and covers cancellations under
-              Jorna&apos;s policy.
+      {ESCROW_ENABLED ? (
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <label
+            className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
+              paymentMethod === "stripe" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
+            }`}
+          >
+            <input
+              type="radio"
+              name="payment_method"
+              checked={paymentMethod === "stripe"}
+              onChange={() => onPaymentMethodChange("stripe")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm font-medium text-ink">Protected — through Jorna</span>
+              <span className="mt-0.5 block text-xs text-ink-faint">
+                Clients pay by card. Jorna holds the funds and covers cancellations under
+                Jorna&apos;s policy.
+              </span>
             </span>
-          </span>
-        </label>
-        <label
-          className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
-            paymentMethod === "manual" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
-          }`}
-        >
-          <input
-            type="radio"
-            name="payment_method"
-            checked={paymentMethod === "manual"}
-            onChange={() => onPaymentMethodChange("manual")}
-            className="mt-1"
-          />
-          <span>
-            <span className="block text-sm font-medium text-ink">Direct — Venmo or Zelle</span>
-            <span className="mt-0.5 block text-xs text-ink-faint">
-              Clients pay you directly, no card fees — but Jorna can&apos;t hold, refund, or
-              mediate this payment.
+          </label>
+          <label
+            className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 transition ${
+              paymentMethod === "manual" ? "border-gold bg-gold/8" : "border-card-edge bg-ground-2"
+            }`}
+          >
+            <input
+              type="radio"
+              name="payment_method"
+              checked={paymentMethod === "manual"}
+              onChange={() => onPaymentMethodChange("manual")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm font-medium text-ink">Direct — Venmo or Zelle</span>
+              <span className="mt-0.5 block text-xs text-ink-faint">
+                Clients pay you directly, no card fees — but Jorna can&apos;t hold, refund, or
+                mediate this payment.
+              </span>
             </span>
-          </span>
-        </label>
-      </div>
+          </label>
+        </div>
+      ) : null}
 
-      {paymentMethod === "manual" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field
-            label="Venmo handle"
-            placeholder="@your-business"
-            value={venmoHandle}
-            onChange={(e) => onVenmoHandleChange(e.target.value)}
-          />
-          <Field
-            label="Zelle contact"
-            placeholder="you@business.com or a phone number"
-            value={zelleContact}
-            onChange={(e) => onZelleContactChange(e.target.value)}
-          />
+      {effectivePaymentMethod === "manual" ? (
+        <div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              label="Venmo handle"
+              placeholder="@your-business"
+              value={venmoHandle}
+              onChange={(e) => onVenmoHandleChange(e.target.value)}
+            />
+            <Field
+              label="Zelle contact"
+              placeholder="you@business.com or a phone number"
+              value={zelleContact}
+              onChange={(e) => onZelleContactChange(e.target.value)}
+            />
+          </div>
+          {!ESCROW_ENABLED ? (
+            <p className="mt-1.5 text-xs text-ink-faint">
+              Add at least one so clients know how to pay you.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </>

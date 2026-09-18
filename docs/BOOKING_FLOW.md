@@ -12,6 +12,16 @@ both `MESSAGING_PROPOSAL.md` and `RESCHEDULE_PROPOSAL.md` open with
 within a day of the doc being written and the docs were never updated. Trust
 `jorna.ts`/`types.ts` over their prose.
 
+**Escrow is currently disabled for the MVP** (`lib/flags.ts`'s
+`ESCROW_ENABLED`, mirroring the backend's flag of the same name — see
+`docs/DECISIONS.md`'s "Escrow disabled for the MVP" entry). Every vendor is
+effectively on the manual Venmo/Zelle track described below: `payment_method`
+never reaches `"stripe"` on a new booking, the Stripe Connect gate/onboarding
+UI is hidden, and the Stripe-specific `payment_status` values (`paid`,
+`processing`, `released`, `refunded`, `disputed`) don't occur for anything
+booked while the flag is off. Nothing below was deleted — this doc still
+describes the code as it exists, live again if the flag flips back on.
+
 ## The status model (the one non-obvious thing to internalize first)
 
 A booking has **two independent status fields** — a status pill design that

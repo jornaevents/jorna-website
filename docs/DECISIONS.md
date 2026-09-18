@@ -180,3 +180,51 @@ There's no in-repo record of the original Figma Make output — only the
 ported result and whatever the `.make` file holder still has on disk. If you
 need to re-derive a screen from a Make export, check with whoever has the
 local file; it will not be in `git log`.
+
+---
+
+## Decision: Escrow disabled for the MVP via an ESCROW_ENABLED flag
+
+### Context
+The MVP cuts Jorna down to a leaner product: vendors get paid off-platform
+via a Venmo handle and/or Zelle contact on their profile, not through Stripe
+checkout/escrow. The manual Venmo/Zelle track already existed in the backend
+and this repo as an opt-in alternative to Stripe (`payment_method: "stripe" |
+"manual"` on `VendorDetail`/bookings), so this wasn't new payment
+infrastructure — it was making that existing alternative the only one shown,
+without ripping out the Stripe code paths in case escrow comes back later.
+
+### Decision
+`web/src/lib/flags.ts` exports `ESCROW_ENABLED` (from
+`NEXT_PUBLIC_ESCROW_ENABLED`, defaults `true`), mirroring the backend's flag
+of the same name (`Desiconnect/server/app/config.py`). With it `false`:
+
+- `VendorPaymentFields` (`components/VendorProfileFields.tsx`) renders only
+  the Venmo/Zelle inputs — no Stripe/manual radio choice.
+- The Stripe-onboarding banner on `/vendor` and the Stripe readiness gate/CTA
+  on `/my-earnings` don't render; `getStripeStatus()` isn't even fetched
+  (`/my-earnings`, `/my-dashboard`), so `vendorTasks()` never emits a
+  `"stripe"` task (it already treats a `null` status as "nothing to check").
+  `/my-earnings` gained a standing "Payment details" card using the shared
+  `VendorPaymentFields` component instead of its own duplicate Venmo/Zelle
+  form — consolidating what used to be two separate implementations of the
+  same fields (this page and `/vendor-profile`).
+- `/vendor-onboarding`'s "reach" step (step 2 of 3) also collects Venmo/Zelle
+  and won't advance without at least one — there was previously no point in
+  the wizard that asked for payment info at all, since Stripe onboarding
+  happened later, out-of-band, on `/my-earnings`.
+
+Nothing was deleted: the Stripe checkout branch in `/bundle`, the Connect
+onboarding pages (`/vendor/stripe-onboard/*`), `/payment-complete`,
+`/card-saved` are all left as unreachable dead routes/branches once the
+backend's own flag forces every booking's `payment_method` to `"manual"` —
+see the backend's `docs/DECISIONS.md` #12 for that half of the mechanism.
+
+### Consequences
+Flipping `NEXT_PUBLIC_ESCROW_ENABLED` back to `true` (the default) and
+rebuilding restores the Stripe UI exactly as it was — no code revert needed.
+A vendor row saved while the flag was off always has `payment_method:
+"manual"` with at least one contact method; nothing here retroactively edits
+a vendor who already had `payment_method: "stripe"` on file, since the
+backend's booking-time override is what actually keeps new bookings off
+Stripe regardless of what a vendor's profile still says.
