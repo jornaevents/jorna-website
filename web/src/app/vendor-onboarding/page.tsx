@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import {
   createVendor,
   getMyVendor,
@@ -34,7 +35,11 @@ import {
   type VendorSpecialization,
 } from "@/lib/types";
 import { Button, Card, LinkButton } from "@/components/ui";
-import { VendorIdentityFields, VendorReachFields } from "@/components/VendorProfileFields";
+import {
+  VendorIdentityFields,
+  VendorPaymentFields,
+  VendorReachFields,
+} from "@/components/VendorProfileFields";
 import { ServicesManager } from "@/components/ServicesManager";
 
 type Step = "blocked" | "identity" | "reach" | "service" | "done";
@@ -67,11 +72,15 @@ export default function VendorOnboardingPage() {
   const [bio, setBio] = useState("");
   const [specializations, setSpecializations] = useState<VendorSpecialization[]>([]);
 
-  // Step 2 — reach
+  // Step 2 — reach (plus payment info, since with escrow disabled it's the
+  // only payment path and there's otherwise no step that ever asks for it)
   const [radius, setRadius] = useState("");
   const [longDistance, setLongDistance] = useState(false);
   const [locationNegotiable, setLocationNegotiable] = useState(false);
   const [instagram, setInstagram] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "manual">("manual");
+  const [venmoHandle, setVenmoHandle] = useState("");
+  const [zelleContact, setZelleContact] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -114,6 +123,9 @@ export default function VendorOnboardingPage() {
         setLongDistance(Boolean(mine.open_to_long_distance));
         setLocationNegotiable(Boolean(mine.open_to_price_negotiation));
         setInstagram(mine.instagram_username ?? "");
+        setPaymentMethod(ESCROW_ENABLED ? (mine.payment_method ?? "stripe") : "manual");
+        setVenmoHandle(mine.venmo_handle ?? "");
+        setZelleContact(mine.zelle_contact ?? "");
 
         const svc = await listServices({ vendor_id: mine.vendor_id, limit: 100 }).catch(
           () => null,
@@ -185,6 +197,12 @@ export default function VendorOnboardingPage() {
 
   async function submitReach(e: React.FormEvent) {
     e.preventDefault();
+    const trimmedVenmo = venmoHandle.trim();
+    const trimmedZelle = zelleContact.trim();
+    if (!ESCROW_ENABLED && !trimmedVenmo && !trimmedZelle) {
+      setError("Add a Venmo handle or Zelle contact so clients know how to pay you.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -193,6 +211,13 @@ export default function VendorOnboardingPage() {
         open_to_long_distance: longDistance,
         open_to_price_negotiation: locationNegotiable,
         instagram_username: instagram.trim().replace(/^@/, "") || null,
+        ...(ESCROW_ENABLED
+          ? {}
+          : {
+              payment_method: paymentMethod,
+              venmo_handle: trimmedVenmo || null,
+              zelle_contact: trimmedZelle || null,
+            }),
       });
       setVendor(updated);
       setStep("service");
@@ -317,8 +342,9 @@ export default function VendorOnboardingPage() {
             Where do you work?
           </h1>
           <p className="mt-2 text-center text-ink-soft">
-            Helps clients searching by distance find you. Both optional —
-            leave them blank if you&apos;re not sure yet.
+            {ESCROW_ENABLED
+              ? "Helps clients searching by distance find you. Both optional — leave them blank if you're not sure yet."
+              : "Helps clients searching by distance find you — both optional. How you get paid isn't."}
           </p>
           <Card className="mt-8 p-6">
             <form onSubmit={submitReach} className="grid gap-4">
@@ -332,6 +358,21 @@ export default function VendorOnboardingPage() {
                 onLocationNegotiableChange={setLocationNegotiable}
                 onInstagramChange={setInstagram}
               />
+              {!ESCROW_ENABLED ? (
+                <div className="mt-2 border-t border-line-soft pt-4">
+                  <span className="mb-1.5 block text-sm font-medium text-ink-soft">
+                    How clients pay you
+                  </span>
+                  <VendorPaymentFields
+                    paymentMethod={paymentMethod}
+                    venmoHandle={venmoHandle}
+                    zelleContact={zelleContact}
+                    onPaymentMethodChange={setPaymentMethod}
+                    onVenmoHandleChange={setVenmoHandle}
+                    onZelleContactChange={setZelleContact}
+                  />
+                </div>
+              ) : null}
               {error ? (
                 <p
                   role="alert"
@@ -390,18 +431,20 @@ export default function VendorOnboardingPage() {
         <div className="py-10 text-center">
           <p className="eyebrow">You&apos;re set up</p>
           <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold">
-            Two more things get you booked
+            {ESCROW_ENABLED ? "Two more things get you booked" : "One more thing gets you booked"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-ink-soft">
-            Without payment setup, you can be booked but never paid. Without
-            weekly hours, clients searching by date won&apos;t find you.
-            Both take a few minutes.
+            {ESCROW_ENABLED
+              ? "Without payment setup, you can be booked but never paid. Without weekly hours, clients searching by date won't find you. Both take a few minutes."
+              : "Without weekly hours, clients searching by date won't find you — takes a few minutes."}
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <LinkButton href="/my-earnings" size="lg">
-              Set up payments
-            </LinkButton>
-            <LinkButton href="/my-availability" variant="ghost" size="lg">
+            {ESCROW_ENABLED ? (
+              <LinkButton href="/my-earnings" size="lg">
+                Set up payments
+              </LinkButton>
+            ) : null}
+            <LinkButton href="/my-availability" variant={ESCROW_ENABLED ? "ghost" : "primary"} size="lg">
               Set weekly hours
             </LinkButton>
           </div>

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import {
   getEarnings,
   getMyVendor,
@@ -20,6 +21,7 @@ import {
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
 import { Button, Card, Field, LinkButton } from "@/components/ui";
 import { VendorNav } from "@/components/VendorNav";
+import { VendorPaymentFields } from "@/components/VendorProfileFields";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -63,12 +65,22 @@ function EarningsInner() {
 
   // The alternative to Stripe, offered right where the Stripe gate already
   // is — a vendor stuck on setup shouldn't have to already know
-  // /vendor-profile has a way out.
+  // /vendor-profile has a way out. Only reachable while escrow is enabled;
+  // with it disabled, "Payment details" below is the only form and always
+  // shown, not an escape hatch from a Stripe gate.
   const [showDirectForm, setShowDirectForm] = useState(false);
   const [venmoHandle, setVenmoHandle] = useState("");
   const [zelleContact, setZelleContact] = useState("");
   const [savingDirect, setSavingDirect] = useState(false);
   const [directError, setDirectError] = useState<string | null>(null);
+
+  // Escrow disabled: the standing "Payment details" form, sharing
+  // VendorPaymentFields with /vendor-profile instead of its own inline pair
+  // of fields (this page previously reimplemented that itself).
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "manual">("manual");
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSaved, setPaymentSaved] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/my-earnings");
@@ -76,9 +88,10 @@ function EarningsInner() {
 
   const load = useCallback(async (vendorId: string) => {
     // Status is fetched live from Stripe, so returning from onboarding reflects
-    // reality without any extra step.
+    // reality without any extra step. Not fetched at all with escrow
+    // disabled — there's no Stripe account to check.
     const [st, earn] = await Promise.all([
-      getStripeStatus(vendorId).catch(() => null),
+      ESCROW_ENABLED ? getStripeStatus(vendorId).catch(() => null) : Promise.resolve(null),
       getEarnings(vendorId).catch(() => null),
     ]);
     setStatus(st);
@@ -94,6 +107,7 @@ function EarningsInner() {
         setVendor(mine);
         setVenmoHandle(mine?.venmo_handle ?? "");
         setZelleContact(mine?.zelle_contact ?? "");
+        setPaymentMethod(ESCROW_ENABLED ? (mine?.payment_method ?? "stripe") : "manual");
         if (mine) await load(mine.vendor_id);
       })
       .catch((err) =>
@@ -146,6 +160,32 @@ function EarningsInner() {
     }
   }
 
+  async function savePaymentDetails(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedVenmo = venmoHandle.trim();
+    const trimmedZelle = zelleContact.trim();
+    if (paymentMethod === "manual" && !trimmedVenmo && !trimmedZelle) {
+      setPaymentError("Add a Venmo handle or Zelle contact so clients know how to pay you.");
+      return;
+    }
+    setSavingPayment(true);
+    setPaymentError(null);
+    setPaymentSaved(false);
+    try {
+      const updated = await updateMyVendor({
+        payment_method: paymentMethod,
+        venmo_handle: trimmedVenmo || null,
+        zelle_contact: trimmedZelle || null,
+      });
+      setVendor(updated);
+      setPaymentSaved(true);
+    } catch (err) {
+      setPaymentError(err instanceof ApiError ? err.message : "Couldn't save that.");
+    } finally {
+      setSavingPayment(false);
+    }
+  }
+
   if (authLoading || !user || loading) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
@@ -188,8 +228,10 @@ function EarningsInner() {
       {/* Payments setup — the gate on getting paid at all. Stripe's gate has
           nothing to say to a vendor who already chose Direct — they don't
           need it — so that track gets its own ready-state instead of a
-          Stripe nag they've deliberately opted out of. */}
-      {vendor.payment_method === "manual" ? (
+          Stripe nag they've deliberately opted out of. Escrow disabled:
+          none of this Stripe-gate UI applies, so the whole block is skipped
+          in favor of the plain "Payment details" card below. */}
+      {!ESCROW_ENABLED ? null : vendor.payment_method === "manual" ? (
         <p className="mt-6 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">
           You&apos;re set up to get paid directly via Venmo/Zelle — no Stripe needed.
         </p>
@@ -265,6 +307,38 @@ function EarningsInner() {
           Payments are set up — you&apos;re ready to be booked and paid.
         </p>
       )}
+
+      {!ESCROW_ENABLED ? (
+        <>
+          <h2 className="serif mt-10 text-2xl text-ink">Payment details</h2>
+          <Card className="mt-5 p-6">
+            <form onSubmit={savePaymentDetails} className="grid gap-4">
+              <VendorPaymentFields
+                paymentMethod={paymentMethod}
+                venmoHandle={venmoHandle}
+                zelleContact={zelleContact}
+                onPaymentMethodChange={setPaymentMethod}
+                onVenmoHandleChange={setVenmoHandle}
+                onZelleContactChange={setZelleContact}
+              />
+              {paymentError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold"
+                >
+                  {paymentError}
+                </p>
+              ) : null}
+              {paymentSaved ? (
+                <p className="rounded-lg bg-green/10 px-3 py-2 text-sm text-green">Saved.</p>
+              ) : null}
+              <Button type="submit" size="md" disabled={savingPayment} className="justify-self-start">
+                {savingPayment ? "Saving…" : "Save"}
+              </Button>
+            </form>
+          </Card>
+        </>
+      ) : null}
 
       {/* Money */}
       {earnings ? (

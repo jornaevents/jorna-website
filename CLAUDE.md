@@ -1,7 +1,10 @@
 # Jorna website — agent instructions
 
 Jorna is a marketplace for planning South Asian celebrations (matching
-clients with vendors, bundling services, escrow-backed booking/payment).
+clients with vendors, bundling services, escrow-backed booking/payment —
+escrow is currently **disabled for the MVP**, see `docs/DECISIONS.md`; every
+vendor is paid off-platform via Venmo/Zelle instead, `lib/flags.ts`'s
+`ESCROW_ENABLED`).
 **This repo is frontend-only**: a client-rendered Next.js web app — served at
 both `/` (its own Home page doubles as the marketing site) and `/app` — plus
 a small hand-written help page at `/help`, all deployed as static files to

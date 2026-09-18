@@ -30,6 +30,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import {
   confirmBookingEvent,
   getEarnings,
@@ -235,7 +236,9 @@ export default function VendorDashboardPage() {
           .then((r) => r.items)
           .catch(() => [] as VendorBooking[]),
         getEarnings(me.vendor_id).catch(() => null),
-        getStripeStatus(me.vendor_id).catch(() => null),
+        // Not fetched at all with escrow disabled — vendorTasks treats a
+        // null stripe status as "unknown, not a task" (see lib/vendorPlan.ts).
+        ESCROW_ENABLED ? getStripeStatus(me.vendor_id).catch(() => null) : Promise.resolve(null),
         listServices({ vendor_id: me.vendor_id, limit: 100 })
           .then((r) => r.items)
           .catch(() => [] as ServiceItem[]),

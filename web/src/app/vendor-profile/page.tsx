@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { ESCROW_ENABLED } from "@/lib/flags";
 import {
   getMyVendor,
   getVendorReviews,
@@ -86,7 +87,9 @@ export default function VendorProfilePage() {
         setLongDistance(Boolean(mine.open_to_long_distance));
         setLocationNegotiable(Boolean(mine.open_to_price_negotiation));
         setInstagram(mine.instagram_username ?? "");
-        setPaymentMethod(mine.payment_method ?? "stripe");
+        // Escrow disabled → manual regardless of what a not-yet-updated
+        // vendor row still says (see VendorPaymentFields' same normalization).
+        setPaymentMethod(ESCROW_ENABLED ? (mine.payment_method ?? "stripe") : "manual");
         setVenmoHandle(mine.venmo_handle ?? "");
         setZelleContact(mine.zelle_contact ?? "");
         // Both best-effort: the profile stays editable when either fails.
