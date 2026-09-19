@@ -5,8 +5,8 @@
 // root redirected here, and this redirected on — and a flash of nothing in
 // between.
 //
-// Now it renders Home itself, which is what makes jornaevents.com able to *be*
-// Home rather than bounce to it. Cloudflare serves this route's HTML at the
+// Now it renders Home itself, which is what makes book.jornaevents.com able to
+// *be* Home rather than bounce to it. Cloudflare serves this route's HTML at the
 // root (see public/_redirects), and the client router agrees: with basePath
 // "/app", removeBasePath("/") resolves to "/" — this route — so the markup that
 // arrives and the markup React renders are the same page.
@@ -27,7 +27,7 @@ import HomePage from "./home/page";
 // worth having, so it is the one they all point at — /app/home/ says the same
 // (see home/layout.tsx).
 export const metadata: Metadata = {
-  alternates: { canonical: "https://jornaevents.com/" },
+  alternates: { canonical: "https://book.jornaevents.com/" },
 };
 
 export default HomePage;

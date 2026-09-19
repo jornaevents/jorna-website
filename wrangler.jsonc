@@ -4,9 +4,10 @@
   // many-file asset serving intermittently dropped the /app routes.
   //
   // Deploy with `npm run deploy` (build + `wrangler pages deploy` + verify).
-  // The apex jornaevents.com is attached to this project in the Cloudflare
-  // dashboard (Pages → jorna-events → Custom domains). The previous Worker
-  // "misty-water-0dbb" is retired once the domain is moved.
+  // book.jornaevents.com is attached to this project in the Cloudflare
+  // dashboard (Pages → jorna-events → Custom domains) — moved here from the
+  // apex jornaevents.com, which now belongs to the jorna-vendor project/repo.
+  // The previous Worker "misty-water-0dbb" is retired.
   "name": "jorna-events",
   "pages_build_output_dir": "./public"
 }

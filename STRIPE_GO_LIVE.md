@@ -37,7 +37,15 @@ Relevant backend files (for reference, not checked out here):
 
 5. **Confirm `FRONTEND_URL` / `WEB_APP_URL`.**
    These build the Checkout/Connect return URLs — make sure they're set to
-   `https://jornaevents.com` (not localhost) in the production environment.
+   `https://book.jornaevents.com` (this repo's production domain since the
+   jorna-vendor cutover; not localhost, and not the apex `jornaevents.com`,
+   which now belongs to the vendor app) in the production environment. As of
+   this cutover, Railway's `FRONTEND_URL` is actually
+   `https://desiconnect-production.up.railway.app` — the backend's own URL,
+   not a frontend at all, and there's no `WEB_APP_URL` set — pre-existing,
+   found while updating this doc, not caused by the domain move. Harmless
+   while escrow/Stripe stays disabled for the MVP, but fix this before Stripe
+   go-live per this checklist.
 
 6. **Sanity-check `PLATFORM_FEE_PERCENT`.**
    Confirm it's set to the real intended fee, not a test value.
