@@ -17,14 +17,15 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const appDir = join(root, "public", "app");
 const PAGES_PROJECT = "jorna-events";
-// The apex is on Pages and is what people hit, so it is what we verify. The old
+// book.jornaevents.com (moved off the jornaevents.com apex, which now belongs
+// to jorna-vendor) is what people hit, so it is what we verify. The old
 // Worker (misty-water-0dbb) is deleted; there is no second deploy target.
 //
 // Don't try to judge freshness by comparing this HTML against a *.pages.dev URL.
 // The zone injects a bot-detection script (__CF$cv$params, ~938 bytes) into HTML
 // served through the custom domain and not into pages.dev, so the bytes always
 // differ and a byte comparison reports a perfectly current deploy as stale.
-const DOMAIN = process.env.DEPLOY_DOMAIN ?? "https://jornaevents.com";
+const DOMAIN = process.env.DEPLOY_DOMAIN ?? "https://book.jornaevents.com";
 const MAX_ATTEMPTS = 4;
 // A deploy can pass one check, then 404 for a while as it propagates across edge
 // PoPs. Don't trust a single green check — require several consecutive clean

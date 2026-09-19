@@ -1,11 +1,12 @@
-# Deploying jornaevents.com
+# Deploying book.jornaevents.com
 
 The site (the web app, serving both `/` and `/app`, plus a small static
 `/help` page) is a static export in `public/`, hosted on **Cloudflare Pages**
-(project `jorna-events`). The apex `jornaevents.com` is a custom domain on
-that project. The old Workers Static Assets deployment (`misty-water-0dbb`)
-is deleted. There is no separate marketing page anymore — see "Root routing"
-in `docs/ARCHITECTURE.md`.
+(project `jorna-events`). `book.jornaevents.com` is a custom domain on that
+project — relocated here from the `jornaevents.com` apex, which now belongs
+to the `jorna-vendor` project/repo (see that repo's own `DEPLOY.md`). The old
+Workers Static Assets deployment (`misty-water-0dbb`) is deleted. There is no
+separate marketing page anymore — see "Root routing" in `docs/ARCHITECTURE.md`.
 
 > **Why Pages, not Workers.** It was on Workers Static Assets, whose many-file
 > asset serving intermittently dropped every `/app` route (marketing page stayed
@@ -34,17 +35,21 @@ route and re-deploys until they all serve 200 for three consecutive sweeps
 skips the `npm ci` step.
 
 **Verification target differs between CI and a human running it locally.**
-`scripts/deploy.mjs` defaults to verifying against `https://jornaevents.com`,
-overridable via `DEPLOY_DOMAIN`. The `deploy` job in CI sets
-`DEPLOY_DOMAIN=https://jorna-events.pages.dev` because the `jornaevents.com`
-zone's bot/WAF protection 403s every request from GitHub Actions' runner
-IPs — confirmed by hand: the `wrangler` upload itself always succeeds, only
-the runner's own follow-up verification fetches got blocked, and the exact
-same routes were a clean 200 from every other network tested. `pages.dev` is
-the same Cloudflare Pages deployment without that zone's WAF rules, so it
-still proves the deploy went live; running `npm run deploy` locally verifies
-the real production domain as before (unaffected, since your own network
-isn't blocked).
+`scripts/deploy.mjs` defaults to verifying against
+`https://book.jornaevents.com`, overridable via `DEPLOY_DOMAIN`. The `deploy`
+job in CI sets `DEPLOY_DOMAIN=https://jorna-events.pages.dev` because the
+`jornaevents.com` zone's (which `book.jornaevents.com` is a subdomain of)
+bot/WAF protection 403s every request from GitHub Actions' runner IPs —
+confirmed by hand: the `wrangler` upload itself always succeeds, only the
+runner's own follow-up verification fetches got blocked, and the exact same
+routes were a clean 200 from every other network tested. `pages.dev` is the
+same Cloudflare Pages deployment without that zone's WAF rules, so it still
+proves the deploy went live; running `npm run deploy` locally verifies the
+real production domain as before (unaffected, since your own network isn't
+blocked). Re-confirm this assumption still holds after the domain move —
+zone-level WAF rules normally apply to every hostname in the zone including
+subdomains, but this hasn't been re-verified against `book.jornaevents.com`
+specifically since the cutover.
 
 ## Gotcha: don't byte-compare the apex against `*.pages.dev`
 
@@ -58,8 +63,8 @@ hash or size comparison between them will report a perfectly current apex as
 strip the injected script first:
 
 ```bash
-diff <(curl -s https://jorna-events.pages.dev/app/login/ | sed 's|<script>(function(){function c().*</script>||') \
-     <(curl -s https://jornaevents.com/app/login/      | sed 's|<script>(function(){function c().*</script>||')
+diff <(curl -s https://jorna-events.pages.dev/app/login/  | sed 's|<script>(function(){function c().*</script>||') \
+     <(curl -s https://book.jornaevents.com/app/login/    | sed 's|<script>(function(){function c().*</script>||')
 ```
 
 Note also that `/app/*` pages are client-rendered behind `<Suspense>`, so their
@@ -72,7 +77,7 @@ Every PR gets its own live preview, deployed by the `preview` job in
 `.github/workflows/ci.yml`: `wrangler pages deploy public --branch
 pr-<PR number>` — a non-production `--branch` value makes Cloudflare Pages
 create a **preview** deployment instead of promoting to production, at
-`https://pr-<n>.jorna-events.pages.dev`. It does not touch `jornaevents.com`
+`https://pr-<n>.jorna-events.pages.dev`. It does not touch `book.jornaevents.com`
 or the bare `jorna-events.pages.dev` domain, both still owned solely by the
 `deploy` job on merge to `main`. The job posts (and updates, on new pushes)
 a sticky PR comment with the link.
@@ -84,7 +89,7 @@ Railway (ORed with `ALLOWED_ORIGINS` by `CORSMiddleware`), which covers any
 `pr-<n>.jorna-events.pages.dev` preview without editing Railway per PR.
 
 **Not a fully isolated staging environment**: previews call the same
-production backend and production database as `jornaevents.com` — there's
+production backend and production database as `book.jornaevents.com` — there's
 no separate staging API or DB. Good for checking that a change renders and
 behaves correctly against real data; a preview that walks through a booking
 or payment flow is still writing to production. Verify with:

@@ -1,10 +1,13 @@
-# jornaevents.com
+# book.jornaevents.com
 
-The Jorna site: the **Jorna web app**, served at both `/` and `/app`, plus a
-small hand-written **help page** at `/help`. Everything is a static export
-from one Cloudflare Pages project (`jorna-events`) out of one repo.
-(Previously a Cloudflare Worker; migrated off Workers Static Assets — see
-`docs/DECISIONS.md` for why.)
+The Jorna consumer site: the **Jorna web app**, served at both `/` and
+`/app`, plus a small hand-written **help page** at `/help`. Everything is a
+static export from one Cloudflare Pages project (`jorna-events`) out of one
+repo. (Previously a Cloudflare Worker; migrated off Workers Static Assets —
+see `docs/DECISIONS.md` for why.)
+
+Lives at `book.jornaevents.com` — the `jornaevents.com` apex itself now
+belongs to the vendor-facing app (`jorna-vendor` repo).
 
 ```
 public/app/          the web app's static export — GENERATED, gitignored

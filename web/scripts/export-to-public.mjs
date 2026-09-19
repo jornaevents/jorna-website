@@ -2,7 +2,7 @@
 //
 // `next build` (output: "export", basePath: "/app") writes to web/out with the
 // basePath stripped from the folder structure, so the contents belong at
-// public/app — which the Worker then serves at jornaevents.com/app.
+// public/app — which the Worker then serves at book.jornaevents.com/app.
 
 import { copyFileSync, cpSync, existsSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -25,7 +25,7 @@ console.log(`✓ Exported app → ${to}`);
 // Mirror the app's icon to the site root.
 //
 // Everything the app owns lives under /app, so that's the only place its icon
-// was reachable — and https://jornaevents.com/favicon.ico was a 404. Google
+// was reachable — and https://book.jornaevents.com/favicon.ico was a 404. Google
 // looks there as well as at the page's own <link rel="icon">, and a search
 // result with a generic globe beside it is what a missing one looks like.
 //
