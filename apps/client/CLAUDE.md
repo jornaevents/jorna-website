@@ -150,18 +150,37 @@ three repos). Open issues with `.github/ISSUE_TEMPLATE/bug_report.md` or
 web-app change sometimes needs a matching backend issue/PR in
 `jorna-backend` and/or `jorna-ios`.
 
-New issues here land on the board through its own "Auto-add to project"
-workflow (GitHub Free allows that for one repo, and this is the one; PRs
-aren't added — they show on their issue's card). The board's workflows keep Status in step with the
-repos:
+**Rule: every new feature or fix is tracked on the board, and its card
+always matches the real state of the work.** Do this as part of the work,
+not afterwards:
 
-- added → **Todo**; a PR that links the issue → **In Review**; the PR merged
-  or the issue closed → **Done**; reopened → **Todo**. Moving a card to Done
-  closes the issue.
-- **Link every PR to its issue** in the description — `Closes #123`, or
-  `Closes jornaevents/jorna-backend#123` for an issue in another repo (the PR
-  template has the line). Without that link nothing moves.
-- **In Progress is the one manual step:** move the card when you start.
+1. **Before writing code, find or open the issue.** Search first
+   (`gh issue list --repo jornaevents/jorna-website --search "<words>"`), otherwise
+   `gh issue create --repo jornaevents/jorna-website` using the template's sections.
+   Work that spans repos gets an issue in each repo it touches.
+2. **Put it on the board.** Issues in this repo are added automatically
+   (open issues only), but check the
+   card appeared. Adding is safe to repeat and prints the card's id:
+   `gh project item-add 1 --owner jornaevents --url <issue-url> --format json -q .id`
+3. **Move it to In Progress when you start** (the one step nothing automates):
+   ```
+   gh project item-edit --project-id PVT_kwDOE0WpW84BjOYl --id <card-id> \
+     --field-id PVTSSF_lADOE0WpW84BjOYlzhiDjFI --single-select-option-id 1ed03f53
+   ```
+   Other Status options: Backlog `f9ab7211`, Todo `845f3090`, In Review
+   `2b372d81`, Done `a15f3f39`.
+4. **Link the PR to the issue** in its description: `Closes #123`, or
+   `Closes jornaevents/jorna-backend#123` for another repo (the PR template has the
+   line). The board then moves the card to In Review when the PR opens and to
+   Done when it merges. If the PR is only part of the work, write
+   `Part of #123` instead and leave the card In Progress.
+5. **Before you finish, check the card.** Stopped or blocked work goes back
+   to Todo with a comment on the issue saying why. Follow-up work you found
+   gets its own issue (steps 1–2), not a note in the PR.
+
+The board's own workflows do the rest: a new card → Todo, PR linked → In
+Review, PR merged or issue closed → Done, reopened → Todo, moving a card to
+Done closes the issue, and closed issues are archived after two weeks.
 
 ## Maintaining this context layer
 
