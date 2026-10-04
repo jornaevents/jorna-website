@@ -150,11 +150,18 @@ three repos). Open issues with `.github/ISSUE_TEMPLATE/bug_report.md` or
 web-app change sometimes needs a matching backend issue/PR in
 `jorna-backend` and/or `jorna-ios`.
 
-This repo has the board's native "Auto-add to project" workflow enabled
-(GitHub Free caps that at one source repo per project, and this is the one),
-so a new issue or PR here lands on the board automatically. Still move its
-Status yourself as work progresses (In Progress → In Review once a PR is
-open → Done once merged).
+New issues here land on the board through its own "Auto-add to project"
+workflow (GitHub Free allows that for one repo, and this is the one; PRs
+aren't added — they show on their issue's card). The board's workflows keep Status in step with the
+repos:
+
+- added → **Todo**; a PR that links the issue → **In Review**; the PR merged
+  or the issue closed → **Done**; reopened → **Todo**. Moving a card to Done
+  closes the issue.
+- **Link every PR to its issue** in the description — `Closes #123`, or
+  `Closes jornaevents/jorna-backend#123` for an issue in another repo (the PR
+  template has the line). Without that link nothing moves.
+- **In Progress is the one manual step:** move the card when you start.
 
 ## Maintaining this context layer
 
