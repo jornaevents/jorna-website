@@ -139,6 +139,7 @@ const blank: FormState = {
   negotiable: false,
   require_guest_count: false,
   require_performer_count: false,
+  is_popular: false,
   status: "active",
   included_hours: "",
   inclusionsText: "",
@@ -161,6 +162,7 @@ function formFrom(s: ServiceItem): FormState {
     negotiable: Boolean(s.negotiable),
     require_guest_count: Boolean(s.require_guest_count),
     require_performer_count: Boolean(s.require_performer_count),
+    is_popular: Boolean(s.is_popular),
     location: s.location ?? "",
     venue_latitude: s.venue_latitude ?? null,
     venue_longitude: s.venue_longitude ?? null,
@@ -185,6 +187,7 @@ export function ServicesManager({
   initial,
   autoStartNew = false,
   onServiceAdded,
+  onServicesChange,
   ref,
 }: {
   vendor: VendorDetail;
@@ -200,6 +203,8 @@ export function ServicesManager({
    *  upload doesn't hold it back — the service itself is already saved by
    *  then). Used by the onboarding wizard to move to the next step. */
   onServiceAdded?: () => void;
+  /** The list after every reload — the profile's checklist and preview follow it. */
+  onServicesChange?: (items: ServiceItem[]) => void;
   ref?: Ref<ServicesManagerHandle>;
 }) {
   const [services, setServices] = useState<ServiceItem[]>(initial);
@@ -283,6 +288,7 @@ export function ServicesManager({
   async function refresh(): Promise<ServiceItem[]> {
     const res = await listMyServices(vendor.vendor_id);
     setServices(res.items);
+    onServicesChange?.(res.items);
     return res.items;
   }
 
@@ -437,6 +443,7 @@ export function ServicesManager({
         negotiable: form.negotiable,
         require_guest_count: form.require_guest_count,
         require_performer_count: form.require_performer_count,
+        is_popular: form.is_popular,
         location: form.location || null,
         venue_latitude: form.venue_latitude,
         venue_longitude: form.venue_longitude,
@@ -1103,6 +1110,21 @@ export function ServicesManager({
             <label className="flex items-start gap-2.5">
               <input
                 type="checkbox"
+                checked={Boolean(form.is_popular)}
+                onChange={(e) => setForm({ ...form, is_popular: e.target.checked })}
+                className="mt-1"
+              />
+              <span className="text-sm text-ink-soft">
+                Mark as most popular
+                <span className="block text-xs text-ink-faint">
+                  Clients see a &ldquo;Most popular&rdquo; badge on it. Only one package has it at a time.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
                 checked={form.price_unit === "person" || Boolean(form.require_guest_count)}
                 disabled={form.price_unit === "person"}
                 onChange={(e) => setForm({ ...form, require_guest_count: e.target.checked })}
@@ -1321,6 +1343,11 @@ export function ServicesManager({
                   <span className="grid min-w-0">
                     <span className="flex min-w-0 items-center gap-2">
                       <strong className="truncate text-sm text-ink">{s.name}</strong>
+                      {s.is_popular ? (
+                        <span className="shrink-0 rounded-full bg-gold/15 px-2 py-0.5 text-[0.68rem] font-semibold text-gold">
+                          Most popular
+                        </span>
+                      ) : null}
                       {s.status === "hidden" ? (
                         <span className="shrink-0 rounded-full bg-panel px-2 py-0.5 text-[0.68rem] font-semibold text-ink-soft">
                           Private

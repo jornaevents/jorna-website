@@ -375,6 +375,8 @@ export interface ServiceItem {
   cancellation_window_hours?: number | null;
   overtime_rate_cents?: number | null;
   sort_order?: number | null;
+  /** "Most popular" badge on the public listing; at most one per vendor (backend 0071). */
+  is_popular?: boolean;
 }
 
 export type PackageStatus = "active" | "hidden" | "archived";

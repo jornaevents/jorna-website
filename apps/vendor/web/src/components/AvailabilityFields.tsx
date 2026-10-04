@@ -6,7 +6,7 @@
 // updateMyVendor, so it keeps its own save button instead of joining the
 // page's single combined form.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@jorna/shared/lib/api";
 import { getMyAvailability, setMyAvailability } from "@/lib/jorna";
 import { WEEKDAYS, type AvailabilitySlot } from "@/lib/types";
@@ -14,7 +14,14 @@ import { Button, Card, LinkButton, TimeField } from "@jorna/shared/components/ui
 
 type Window = { start_time: string; end_time: string };
 
-export function AvailabilityFields() {
+/** `onHoursChange`: whether any hours are set, once loaded and after each
+ *  save — the profile's listing checklist reads it. */
+export function AvailabilityFields({ onHoursChange }: { onHoursChange?: (hasHours: boolean) => void } = {}) {
+  // Read through a ref so a fresh callback each render doesn't reload the hours.
+  const onHoursRef = useRef(onHoursChange);
+  useEffect(() => {
+    onHoursRef.current = onHoursChange;
+  });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +42,7 @@ export function AvailabilityFields() {
           }
         }
         setByDay(grid);
+        onHoursRef.current?.(slots.length > 0);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : "Couldn't load your hours.");
@@ -76,6 +84,7 @@ export function AvailabilityFields() {
       );
       await setMyAvailability(slots);
       setSaved(true);
+      onHoursChange?.(slots.length > 0);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't save your hours.");
     } finally {

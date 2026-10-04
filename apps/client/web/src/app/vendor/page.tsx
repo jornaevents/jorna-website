@@ -105,9 +105,16 @@ function ServiceRow({ service }: { service: ServiceItem }) {
         )}
         <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="serif text-lg text-ink transition group-hover:text-maroon dark:group-hover:text-gold">
-              {service.name}
-            </h3>
+            <div className="min-w-0">
+              {service.is_popular ? (
+                <span className="mb-1 inline-block rounded-full bg-gold/15 px-2 py-0.5 text-[0.68rem] font-semibold text-gold">
+                  Most popular
+                </span>
+              ) : null}
+              <h3 className="serif text-lg text-ink transition group-hover:text-maroon dark:group-hover:text-gold">
+                {service.name}
+              </h3>
+            </div>
             <div className="shrink-0 text-right">
               <p className="serif text-lg text-ink">{money(service.price)}</p>
               {unit ? <p className="text-xs text-ink-faint">{unit}</p> : null}

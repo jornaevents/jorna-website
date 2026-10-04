@@ -304,6 +304,8 @@ export interface ServiceItem {
   // number answering a different question from `rating` above.
   vendor_rating?: number | null;
   vendor_pfp_url?: string | null;
+  /** "Most popular" badge, set by the vendor (backend 0071). */
+  is_popular?: boolean;
 }
 
 export interface Review {

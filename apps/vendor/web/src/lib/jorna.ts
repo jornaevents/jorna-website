@@ -445,6 +445,8 @@ export interface ServiceInput {
   cancellation_window_hours?: number | null;
   overtime_rate_cents?: number | null;
   sort_order?: number | null;
+  /** Marking one clears it from the vendor's other packages. */
+  is_popular?: boolean;
 }
 
 export function createService(input: ServiceInput): Promise<ServiceItem> {

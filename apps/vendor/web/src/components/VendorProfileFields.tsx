@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
-import type { TaxonomyCategory, VendorDetail, VendorSpecialization } from "@/lib/types";
+import type { TaxonomyCategory, VendorSpecialization } from "@/lib/types";
 import { Chip, Field } from "@jorna/shared/components/ui";
 
 function specKey(s: VendorSpecialization): string {
@@ -350,40 +350,5 @@ export function VendorPaymentFields({
         </div>
       ) : null}
     </>
-  );
-}
-
-/** Whether a booking request asks the client for a guest count. Still a
- *  vendor-wide setting on the profile; plan 2.5 moves it onto each package.
- *  The contract defaults that used to sit beside it are on Contracts →
- *  Defaults (components/vendor/ContractDefaultsDrawer). */
-const GUEST_COUNT_MODES: { value: NonNullable<VendorDetail["default_guest_count_mode"]>; label: string }[] = [
-  { value: "optional", label: "Optional — client may skip it" },
-  { value: "required", label: "Required — client must enter it" },
-  { value: "not_applicable", label: "Not applicable — don't ask" },
-];
-
-export function GuestCountModeField({
-  value,
-  onChange,
-}: {
-  value: NonNullable<VendorDetail["default_guest_count_mode"]>;
-  onChange: (value: NonNullable<VendorDetail["default_guest_count_mode"]>) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-ink-soft">Guest count on booking requests</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as NonNullable<VendorDetail["default_guest_count_mode"]>)}
-        className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold sm:w-auto"
-      >
-        {GUEST_COUNT_MODES.map((m) => (
-          <option key={m.value} value={m.value}>
-            {m.label}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }

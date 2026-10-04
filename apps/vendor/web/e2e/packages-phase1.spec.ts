@@ -101,7 +101,7 @@ test.describe("packages — Phase 1", () => {
       pkg({ included_hours: 5, inclusions: ["Sound system", "MC for the night"], negotiable: true }),
     ]);
 
-    await expect(page.getByRole("link", { name: "Preview public profile" })).toHaveAttribute("href", /vendor\/?\?id=/);
+    await expect(page.getByRole("link", { name: "Open public profile" })).toHaveAttribute("href", /vendor\/?\?id=/);
     const row = page.getByRole("button", { name: /Reception set/ });
     await expect(row).toContainText("5 hours");
     await row.click();
