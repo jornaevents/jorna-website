@@ -69,7 +69,7 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
         if (cancelled) return;
         setLoadError(
           err instanceof ApiError && err.status === 404
-            ? "This link isn't valid any more. Ask your vendor for a new one."
+            ? "This link isn't valid. Check you copied all of it, or ask your vendor for a new one."
             : "Couldn't open this document. Check your connection and try again.",
         );
       });
@@ -200,6 +200,8 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
           kindLabel={kindLabel}
           signerName={signerName}
           onSignerName={setSignerName}
+          nameOnContract={doc.client_name}
+          vendorName={vendorName}
           consent={doc.esign_consent}
           onProof={setProof}
           disabled={preview}

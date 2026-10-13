@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { MobileNavMenu } from "./MobileNavMenu";
 import { MESSAGES, NavBadge, NEEDS_YOU, useAppNav } from "./nav";
@@ -15,9 +16,25 @@ import { Button, LinkButton } from "@jorna/shared/components/ui";
 //
 // Text-only, no icons, on the desktop row: next to text they'd just read as
 // clutter. MobileNavMenu's sheet has the room to show them.
+// Pages a client reaches from a link a vendor sent — the contract they're
+// signing. They get the wordmark alone: whoever's signed in, the site's
+// navigation there only leads away from the thing they came to do.
+const BARE_PATHS = ["/booking-link"];
+
 export function SiteHeader() {
   const { user, loading, logout } = useAuth();
   const { desktopItems: items, attention, messagesUnread, home, isActive } = useAppNav();
+  const pathname = usePathname();
+
+  if (BARE_PATHS.some((p) => pathname === p || pathname?.startsWith(`${p}/`))) {
+    return (
+      <header className="border-b border-line-soft bg-ground">
+        <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-3">
+          <span className="serif text-2xl text-maroon dark:text-gold">Jorna</span>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-line-soft bg-ground/85 backdrop-blur">

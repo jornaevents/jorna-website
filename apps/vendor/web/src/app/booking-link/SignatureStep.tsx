@@ -11,12 +11,15 @@
 import { useState } from "react";
 import { ApiError } from "@jorna/shared/lib/api";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
+import { signerMatches } from "@/lib/signerName";
 import type { EsignConsent, SigningCodeSent, SigningProof } from "@/lib/types";
 
 export function SignatureStep({
   kindLabel,
   signerName,
   onSignerName,
+  nameOnContract,
+  vendorName,
   consent,
   sendCode,
   onProof,
@@ -26,6 +29,10 @@ export function SignatureStep({
   kindLabel: string;
   signerName: string;
   onSignerName: (name: string) => void;
+  /** Who the contract is for. A signature that doesn't match still signs;
+   *  the backend flags it on the signed copy, so say so first. */
+  nameOnContract?: string | null;
+  vendorName: string;
   consent?: EsignConsent;
   /** Saves anything the code depends on (the email) and asks for one. */
   sendCode: () => Promise<SigningCodeSent>;
@@ -75,6 +82,12 @@ export function SignatureStep({
           autoComplete="name"
           required
         />
+        {nameOnContract?.trim() && !signerMatches(signerName, nameOnContract) ? (
+          <p className="mt-2 text-xs text-maroon dark:text-gold">
+            This doesn&apos;t match the name on the contract ({nameOnContract.trim()}). You can still sign —{" "}
+            {vendorName} will see the difference.
+          </p>
+        ) : null}
       </div>
 
       {consent ? (

@@ -20,6 +20,12 @@ function docTitle(detail: Record<string, unknown>): string {
   return typeof detail.title === "string" ? detail.title : "a document";
 }
 
+/** A signature that isn't the name on the contract still signs; the backend
+ *  flags it (DECISIONS #27) and this says so. */
+function forName(detail: Record<string, unknown>): string {
+  return typeof detail.name_on_contract === "string" ? ` — the contract is for ${detail.name_on_contract}` : "";
+}
+
 /** One timeline row in words. */
 export function describeEvent(e: ContractEvent, c: { signer_name?: string | null }): string {
   const d = e.detail ?? {};
@@ -40,7 +46,7 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
     case "edited":
       return `You edited it${typeof d.revision === "number" ? ` (version ${d.revision})` : ""}`;
     case "signed":
-      return `Signed by ${typeof d.signer_name === "string" ? d.signer_name : c.signer_name ?? "your client"}`;
+      return `Signed by ${typeof d.signer_name === "string" ? d.signer_name : c.signer_name ?? "your client"}${forName(d)}`;
     case "declined":
       return `Your client declined${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "voided":
@@ -90,7 +96,7 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
     case "document_viewed":
       return "Your client opened an attached document";
     case "document_signed":
-      return `${typeof d.signer_name === "string" ? d.signer_name : "Your client"} signed “${docTitle(d)}”`;
+      return `${typeof d.signer_name === "string" ? d.signer_name : "Your client"} signed “${docTitle(d)}”${forName(d)}`;
     case "document_declined":
       return `Your client declined an attached document${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "document_voided":
@@ -99,6 +105,10 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
     // stays in the signed PDF's certificate, not here.
     case "code_sent":
       return d.document_id ? "Your client asked for a code to sign a document" : "Your client asked for a code to sign";
+    case "details_updated": {
+      const fields = Array.isArray(d.fields) ? d.fields.filter((f): f is string => typeof f === "string") : [];
+      return `Your client changed their ${fields.length ? fields.join(" and ") : "details"} on the contract`;
+    }
     case "copy_sent":
       return d.to === "vendor" ? "A signed copy was emailed to you" : "A signed copy was emailed to your client";
     default:

@@ -52,6 +52,28 @@ function prettyDate(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+/** One day, or a multi-day event's first and last. */
+function dateRange(start: string, end?: string | null): string {
+  return end && end !== start ? `${prettyDate(start)} – ${prettyDate(end)}` : prettyDate(start);
+}
+
+function mediumDate(iso: string): string {
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** A venue the vendor wrote in, as opposed to the "TBD" placeholder. */
+function isSet(location: string | null | undefined): boolean {
+  return Boolean(location && location !== "TBD");
+}
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function prettyTime(t: string): string {
   const m = /^(\d{1,2}):(\d{2})/.exec(t);
   if (!m) return t;
@@ -99,18 +121,22 @@ function Schedule({
 }) {
   return (
     <ul className="grid gap-2 text-sm">
-      {schedule.map((i) => (
+      {schedule.map((i) => {
+        const overdue = !i.confirmed_at && !i.marked_paid_at && !!i.due_on && i.due_on < todayIso();
+        return (
         <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-ink">
               {i.label} · {money(i.amount_cents)}
             </p>
-            <p className="text-xs text-ink-faint">
+            <p className={`text-xs ${overdue ? "font-semibold text-maroon dark:text-gold" : "text-ink-faint"}`}>
               {i.confirmed_at
                 ? "Received by your vendor"
                 : i.marked_paid_at
                   ? "Marked as sent — waiting for your vendor to confirm"
-                  : describeDue(i)}
+                  : overdue
+                    ? `Overdue — was due ${mediumDate(i.due_on!)}`
+                    : describeDue(i)}
             </p>
           </div>
           {onMark && !i.marked_paid_at ? (
@@ -119,7 +145,8 @@ function Schedule({
             </Button>
           ) : null}
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
@@ -142,7 +169,9 @@ function FieldStatus({ state, vendorName, onOpen }: { state: FieldNegotiationSta
           ? `${vendorName} answered your changes. ${waitingOnMe === 1 ? "One needs" : `${waitingOnMe} need`} your answer before you sign.`
           : waitingOnThem
             ? `You asked for ${waitingOnThem === 1 ? "a change" : `${waitingOnThem} changes`}. It's ${vendorName}'s turn — we'll email you when they answer.`
-            : "Everything in the contract below is agreed. Read it over and sign, or ask for a change."}
+            : state.round <= 1
+              ? "Read the contract below. Sign it, or ask for a change."
+              : "Everything in the contract below is agreed. Read it over and sign, or ask for a change."}
       </p>
       {mine ? (
         <Button type="button" variant={waitingOnMe ? "primary" : "ghost"} className="mt-3" onClick={onOpen}>
@@ -256,6 +285,31 @@ function ProposalStatus({
   );
 }
 
+/** What signing "as it is" does to the changes still open, naming only the
+ *  sides that have any: the vendor's are taken, the client's are dropped
+ *  (backend field_negotiation_service.before_signing). */
+function signAsIsNote(state: FieldNegotiationState, vendorName: string): string {
+  const theirs = state.fields.filter((f) => f.state === "waiting_client").length;
+  const mine = state.fields.filter((f) => f.state === "waiting_vendor").length;
+  const n = (count: number) => (count === 1 ? "1 change" : `${count} changes`);
+  return [
+    theirs ? `${vendorName}'s ${n(theirs)} ${theirs === 1 ? "is" : "are"} taken.` : null,
+    mine ? `Your ${n(mine)} ${mine === 1 ? "hasn't" : "haven't"} been answered yet; signing drops ${mine === 1 ? "it" : "them"}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** A term of the contract the client can read here but not change. */
+function SetTerm({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-ink-soft">{label}</p>
+      <p className="mt-1 text-sm text-ink">{value}</p>
+    </div>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto w-[min(560px,100%-2rem)] py-20 text-center">{children}</div>;
 }
@@ -321,7 +375,7 @@ function BookingLinkInner() {
         if (cancelled) return;
         setLoadError(
           err instanceof ApiError && err.status === 404
-            ? "This booking link isn't valid any more. Ask your vendor for a new one."
+            ? "This link isn't valid. Check you copied all of it, or ask your vendor for a new one."
             : "Couldn't open this booking. Check your connection and try again.",
         );
         setLoading(false);
@@ -340,8 +394,9 @@ function BookingLinkInner() {
         guest_name: guestName.trim() || null,
         guest_email: guestEmail.trim() || null,
         guest_phone: guestPhone.trim() || null,
-        location: location.trim() || null,
-        guest_count: guestCount ? Number(guestCount) : null,
+        // A set venue or guest count isn't the client's to change here.
+        location: isSet(booking?.location) ? null : location.trim() || null,
+        guest_count: booking?.guest_count != null || !guestCount ? null : Number(guestCount),
       });
       const waiting = fields ? fields.waiting_count > 0 : false;
       if (waiting && !signAsIs) {
@@ -446,6 +501,11 @@ function BookingLinkInner() {
   }
 
   const vendorName = booking.vendor_display_name ?? "your vendor";
+  // Terms of the contract: the client fills them in only where the vendor
+  // left them blank; changing a set one is a negotiation (backend #27 note).
+  const venueSet = isSet(booking.location);
+  const guestsSet = booking.guest_count != null;
+  const canAskForChange = !preview && Boolean(fields || history);
   const holdUntil = booking.hold_expires_at
     ? new Date(booking.hold_expires_at).toLocaleDateString(undefined, {
         weekday: "long",
@@ -505,28 +565,62 @@ function BookingLinkInner() {
     booking.deposit_percent != null && booking.deposit_amount_cents != null
       ? money(booking.deposit_amount_cents)
       : null;
+  // Built first so the card only shows when there's something in it (#154).
+  // The vendor's own cancellation clause says it better than the generated
+  // line — show one, not both.
+  const clauses = booking.terms_clauses ?? [];
+  const agreeing = [
+    depositDue && !schedule ? (
+      <li key="deposit">✓ {depositDue} deposit ({booking.deposit_percent}%) due to secure your date</li>
+    ) : null,
+    booking.cancellation_window_hours != null && !clauses.some((c) => /cancel/i.test(`${c.key} ${c.title}`)) ? (
+      <li key="cancellation">
+        ✓ Cancelling within {Math.round(booking.cancellation_window_hours / 24)} days of the event may forfeit
+        what&apos;s been paid
+      </li>
+    ) : null,
+    booking.overtime_rate_cents != null ? (
+      <li key="overtime">✓ Overtime billed at {money(booking.overtime_rate_cents)}/hr, agreed in advance</li>
+    ) : null,
+    booking.contract_terms?.equipment_power ? <li key="power">✓ {booking.contract_terms.equipment_power}</li> : null,
+    booking.contract_terms?.travel ? <li key="travel">✓ {booking.contract_terms.travel}</li> : null,
+    ...clauses.map((c) => (
+      <li key={c.key}>
+        ✓ <strong className="text-ink">{c.title}.</strong> {c.body}
+      </li>
+    )),
+  ].filter(Boolean);
 
   if (booking.signed_at) {
     const depositPaid = Boolean(booking.deposit_marked_paid_at);
     const depositConfirmed = Boolean(booking.deposit_confirmed_received_at);
     const fullyPaid = booking.payment_status === "marked_paid" || booking.payment_status === "confirmed_paid";
+    // The vendor's side calls this "Deposit due" until the first payment
+    // arrives, so the client's side mustn't call it set.
+    const first = schedule?.[0];
+    const securedBy = first
+      ? first.confirmed_at ? null : `${first.label.toLowerCase()} (${money(first.amount_cents)})`
+      : depositDue && !depositConfirmed ? `${depositDue} deposit` : null;
 
     return (
       <div className="mx-auto w-[min(560px,100%-2rem)] py-14">
         <div className="text-center">
-          <p className="eyebrow">Confirmed</p>
-          <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">
-            Your booking with {vendorName} is set
-          </h1>
+          <p className="eyebrow">Signed</p>
+          <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">You signed with {vendorName}</h1>
           <p className="mt-2 text-ink-soft">
-            Signed by {booking.signer_name} on {new Date(booking.signed_at).toLocaleDateString()}.
+            Signed by {booking.signer_name} on {mediumDate(booking.signed_at)}.
           </p>
+          {securedBy ? (
+            <p className="mt-1 text-ink-soft">
+              Your date is secured once {vendorName} receives the {securedBy}.
+            </p>
+          ) : null}
         </div>
 
         <Card className="mt-6 p-5">
           <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            {prettyDate(booking.date_iso)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
+            {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
           </p>
           <p className="text-sm text-ink-faint">{booking.location}</p>
           <Items booking={booking} />
@@ -600,8 +694,7 @@ function BookingLinkInner() {
         </p>
       ) : null}
       <div className="text-center">
-        <p className="eyebrow">You&apos;ve been sent a booking by</p>
-        <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">{vendorName}</h1>
+        <h1 className="serif text-3xl text-maroon dark:text-gold">{vendorName} sent you a contract</h1>
         {holdUntil ? (
           <p className="mt-2 text-sm text-ink-soft">
             {vendorName} is holding this date for you until {holdUntil}.
@@ -686,8 +779,9 @@ function BookingLinkInner() {
       <Card className="mt-8 p-5">
         <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          {prettyDate(booking.date_iso)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
+          {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
         </p>
+        {venueSet ? <p className="text-sm text-ink-faint">{booking.location}</p> : null}
         <Items booking={booking} />
         <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line-soft pt-3 text-sm sm:grid-cols-3">
           {booking.overtime_rate_cents != null ? (
@@ -752,55 +846,55 @@ function BookingLinkInner() {
               <Field label="Phone" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
               <Field label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} required />
             </div>
-            <Field
-              label="Venue address"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Where the event will be"
-            />
-            <Field
-              label="Guest count"
-              type="number"
-              min={1}
-              hint="Helps your vendor plan. Your price is the total shown above."
-              value={guestCount}
-              onChange={(e) => setGuestCount(e.target.value)}
-            />
+            {venueSet ? (
+              <SetTerm label="Venue" value={booking.location} />
+            ) : (
+              <Field
+                label="Venue address"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Where the event will be"
+              />
+            )}
+            {guestsSet ? (
+              <SetTerm label="Guest count" value={String(booking.guest_count)} />
+            ) : (
+              <Field
+                label="Guest count"
+                type="number"
+                min={1}
+                hint="Helps your vendor plan. Your price is the total shown above."
+                value={guestCount}
+                onChange={(e) => setGuestCount(e.target.value)}
+              />
+            )}
+            {venueSet || guestsSet ? (
+              <p className="text-xs text-ink-faint">
+                {venueSet && guestsSet ? "These are" : "This is"} part of the contract.{" "}
+                {canAskForChange ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProposalNotice(null);
+                      setProposing(true);
+                      window.scrollTo({ top: 0 });
+                    }}
+                    className="font-semibold text-gold underline-offset-4 hover:underline"
+                  >
+                    Ask {vendorName} to change {venueSet && guestsSet ? "them" : "it"}
+                  </button>
+                ) : (
+                  <>To change {venueSet && guestsSet ? "them" : "it"}, ask {vendorName}.</>
+                )}
+              </p>
+            ) : null}
           </div>
         </Card>
 
-        {(booking.cancellation_window_hours != null ||
-          booking.contract_terms?.equipment_power ||
-          booking.contract_terms?.travel ||
-          booking.overtime_rate_cents != null ||
-          booking.terms_clauses?.length ||
-          depositDue) ? (
+        {agreeing.length ? (
           <Card className="p-5">
             <p className="text-sm font-medium text-ink-soft">What you&apos;re agreeing to</p>
-            <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
-              {depositDue && !schedule ? (
-                <li>✓ {depositDue} deposit ({booking.deposit_percent}%) due to secure your date</li>
-              ) : null}
-              {/* The vendor's own cancellation clause says it better than
-                  this generated line — show one, not both. */}
-              {booking.cancellation_window_hours != null &&
-              !(booking.terms_clauses ?? []).some((c) => /cancel/i.test(`${c.key} ${c.title}`)) ? (
-                <li>
-                  ✓ Cancellations within {Math.round(booking.cancellation_window_hours / 24)} days of the
-                  event may forfeit the deposit
-                </li>
-              ) : null}
-              {booking.overtime_rate_cents != null ? (
-                <li>✓ Overtime billed at {money(booking.overtime_rate_cents)}/hr, agreed in advance</li>
-              ) : null}
-              {booking.contract_terms?.equipment_power ? <li>✓ {booking.contract_terms.equipment_power}</li> : null}
-              {booking.contract_terms?.travel ? <li>✓ {booking.contract_terms.travel}</li> : null}
-              {(booking.terms_clauses ?? []).map((c) => (
-                <li key={c.key}>
-                  ✓ <strong className="text-ink">{c.title}.</strong> {c.body}
-                </li>
-              ))}
-            </ul>
+            <ul className="mt-3 grid gap-2 text-sm text-ink-soft">{agreeing}</ul>
           </Card>
         ) : null}
 
@@ -808,6 +902,8 @@ function BookingLinkInner() {
           kindLabel="agreement"
           signerName={signerName}
           onSignerName={setSignerName}
+          nameOnContract={guestName}
+          vendorName={vendorName}
           consent={booking.esign_consent}
           onProof={setProof}
           disabled={preview}
@@ -822,10 +918,7 @@ function BookingLinkInner() {
         {fields && fields.waiting_count > 0 ? (
           <label className="flex items-start gap-2.5 rounded-lg border border-card-edge px-3 py-2.5 text-sm text-ink-soft">
             <input type="checkbox" className="mt-1" checked={signAsIs} onChange={(e) => setSignAsIs(e.target.checked)} />
-            <span>
-              Sign it as it is. {fields.waiting_count === 1 ? "One change is" : `${fields.waiting_count} changes are`} still
-              open: {vendorName}&apos;s are taken, and anything you asked for that they haven&apos;t answered is dropped.
-            </span>
+            <span>Sign it as it is. {signAsIsNote(fields, vendorName)}</span>
           </label>
         ) : null}
 

@@ -161,7 +161,7 @@ test.describe("contracts — Phase 2b (proposals)", () => {
 
     // The page reloaded version 2; signing again sends it.
     await page.getByRole("button", { name: /Confirm booking/ }).click();
-    await expect(page.getByRole("heading", { name: /Your booking with Arjun Kapoor is set/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /You signed with Arjun Kapoor/ })).toBeVisible();
     const signs = api.requestsTo("POST", "/guest-bookings/tok-1/sign");
     expect(signs.map((s) => (s.body as { revision: number }).revision)).toEqual([1, 2]);
   });
