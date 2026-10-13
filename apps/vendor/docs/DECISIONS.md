@@ -769,3 +769,13 @@ The backend adds the IP address and browser and puts it all in the signed copy's
 An older backend sends no `esign_consent`. Then the page signs with the name alone, as before, so this can ship ahead of the backend flag (`SIGNING_REQUIRE_CODE`).
 
 The staging round trip signs with `STAGING_E2E_SIGNING_CODE`, which must equal the staging backend's `SIGNING_TEST_CODE`.
+
+## Decision: the signing page checks the name and can't move the terms (2026-10-13)
+
+From the 2026-10-05 staging walkthrough (#169, #154), with backend jorna-backend #113.
+
+- **A different name warns, then signs.** If the typed signature isn't the client's name on the contract, the page says so (`lib/signerName.ts`, the same rule as the backend's `name_check`: case, punctuation and middle names don't count). It doesn't block, because a partner or a parent signing is a real signature. The backend records the mismatch, the certificate shows it, and the vendor's timeline reads "Signed by Bob Smith — the contract is for Asha Mehta".
+- **Venue and guest count are terms.** The client fills them in only when the vendor left them blank. Once set, they're read-only on the form, with a link into negotiation. The backend refuses a change (409). A change to the client's own name, email or phone shows on the vendor's timeline (`details_updated`).
+- **One cancellation sentence everywhere**: "Cancelling within N days of the event may forfeit what's been paid", the editor's wording, now also on the signing page and the PDF.
+- **Signing isn't "set".** After signing, the page says "You signed with {vendor}". While the deposit or first payment hasn't arrived, it adds "Your date is secured once {vendor} receives …", which matches the vendor's "Deposit due".
+- **The signing page has the wordmark only** (`SiteHeader`'s `BARE_PATHS`). Whoever is signed in, the site's navigation only leads away from the contract.

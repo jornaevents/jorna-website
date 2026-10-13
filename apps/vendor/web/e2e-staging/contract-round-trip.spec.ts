@@ -37,7 +37,7 @@ test.describe("staging: contract round trip", () => {
 
     // The client's link: no account needed to read it.
     await page.goto(`booking-link/?t=${contract.contract_token}`);
-    await expect(page.getByText("You've been sent a booking by")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /sent you a contract/ })).toBeVisible();
 
     const fields = await api<{ round: number } | null>(`/guest-bookings/${contract.contract_token}/negotiation`).catch(() => null);
     if (fields) {
