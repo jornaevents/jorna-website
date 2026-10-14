@@ -151,11 +151,6 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
                 {service.experience}
               </span>
             ) : null}
-            {service.negotiable ? (
-              <span className="rounded-full border border-gold/50 px-2.5 py-1 text-gold">
-                Open to offers
-              </span>
-            ) : null}
             {/* A vendor can read any listing — seeing how others present a
                 service is a fair reason to be here — but booking is the client
                 half of the app, and /book turns them away anyway. Offering a
@@ -272,7 +267,6 @@ function VendorInner() {
   } else if (vendor.open_to_long_distance) {
     tiles.push({ value: "Yes", label: "Long-distance" });
   }
-  if (vendor.open_to_price_negotiation) tiles.push({ value: "Open", label: "To offers" });
 
   return (
     <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">

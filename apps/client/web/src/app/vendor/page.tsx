@@ -149,11 +149,6 @@ function ServiceRow({ service }: { service: ServiceItem }) {
                 {service.experience}
               </span>
             ) : null}
-            {service.negotiable ? (
-              <span className="rounded-full border border-gold/50 px-2.5 py-1 text-gold">
-                Open to offers
-              </span>
-            ) : null}
             <LinkButton
               href={`/book?service=${service.service_id}`}
               size="md"
@@ -251,7 +246,6 @@ function VendorInner() {
   } else if (vendor.open_to_long_distance) {
     tiles.push({ value: "Yes", label: "Long-distance" });
   }
-  if (vendor.open_to_price_negotiation) tiles.push({ value: "Open", label: "To offers" });
 
   return (
     <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">

@@ -51,7 +51,6 @@ interface About {
   specializations: VendorSpecialization[];
   radius: string;
   longDistance: boolean;
-  locationNegotiable: boolean;
   instagram: string;
 }
 
@@ -62,7 +61,6 @@ function aboutOf(v: VendorDetail): About {
     specializations: vendorSpecializations(v),
     radius: v.travel_radius_miles?.toString() ?? "",
     longDistance: Boolean(v.open_to_long_distance),
-    locationNegotiable: Boolean(v.open_to_price_negotiation),
     instagram: v.instagram_username ?? "",
   };
 }
@@ -180,7 +178,6 @@ export default function VendorProfilePage() {
         // validates any radius it's sent as 1–500), and blank means "not set".
         ...(about.radius ? { travel_radius_miles: Number(about.radius) } : {}),
         open_to_long_distance: about.longDistance,
-        open_to_price_negotiation: about.locationNegotiable,
         instagram_username: about.instagram.trim().replace(/^@/, "") || null,
       });
       setVendor(updated);
@@ -313,11 +310,9 @@ export default function VendorProfilePage() {
                   <VendorReachFields
                     radius={about.radius}
                     longDistance={about.longDistance}
-                    locationNegotiable={about.locationNegotiable}
                     instagram={about.instagram}
                     onRadiusChange={(radius) => patch({ radius })}
                     onLongDistanceChange={(longDistance) => patch({ longDistance })}
-                    onLocationNegotiableChange={(locationNegotiable) => patch({ locationNegotiable })}
                     onInstagramChange={(instagram) => patch({ instagram })}
                   />
                   {error ? (

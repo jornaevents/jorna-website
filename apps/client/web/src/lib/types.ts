@@ -261,7 +261,19 @@ export function usableMedia(media?: MediaItem[] | null): MediaItem[] {
   return (media ?? []).filter((item) => Boolean(item?.url));
 }
 
+/** An optional extra on top of a package's base price. */
+export interface AddOn {
+  id?: string;
+  name: string;
+  price: number;
+  price_unit: "event" | "person" | "hour";
+}
+
 export interface ServiceItem {
+  /** Hours the base price covers, when it's time-bound (backend 0063). */
+  included_hours?: number | null;
+  inclusions?: string[];
+  add_ons?: AddOn[];
   service_id: string;
   vendor_id: string;
   name: string;

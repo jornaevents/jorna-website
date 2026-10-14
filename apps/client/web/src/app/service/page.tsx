@@ -311,7 +311,10 @@ function PricePanel({ service }: { service: ServiceItem }) {
         </>
       ) : (
         <p className="mt-1 text-sm text-ink-soft">
-          A flat rate for the whole event, however long it runs.
+          {/* A package with set hours isn't "however long it runs" (#163). */}
+          {service.included_hours
+            ? `A flat rate covering ${service.included_hours} hours.`
+            : "A flat rate for the whole event, however long it runs."}
         </p>
       )}
 
@@ -531,11 +534,6 @@ function ServiceInner() {
             <div className="mt-4 flex flex-wrap gap-2">
               {service.experience ? <Pill>{service.experience}</Pill> : null}
               {duration ? <Pill>Up to {duration}</Pill> : null}
-              {service.negotiable ? (
-                <span className="rounded-full border border-gold/50 px-3 py-1 text-xs text-gold">
-                  Open to offers
-                </span>
-              ) : null}
             </div>
           </header>
 
@@ -551,6 +549,38 @@ function ServiceInner() {
               <p className="mt-3 max-w-[65ch] whitespace-pre-line leading-relaxed text-ink-soft">
                 {service.description}
               </p>
+            </section>
+          ) : null}
+
+          {/* What the price covers and what can be added (backend 0063) —
+              shown on the vendor site's copy of this page, missing here (#163). */}
+          {service.included_hours || service.inclusions?.length ? (
+            <section className="mt-10">
+              <span className="eyebrow">What&apos;s included</span>
+              <ul className="mt-3 grid gap-1.5 text-ink-soft">
+                {service.included_hours ? <li>✓ {service.included_hours} hours of coverage</li> : null}
+                {(service.inclusions ?? []).map((item) => (
+                  <li key={item}>✓ {item}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {service.add_ons?.length ? (
+            <section className="mt-10">
+              <span className="eyebrow">Add-ons</span>
+              <ul className="mt-3 grid gap-1.5 text-ink-soft">
+                {service.add_ons.map((a) => (
+                  <li key={a.id ?? a.name} className="flex max-w-md justify-between gap-4">
+                    <span>{a.name}</span>
+                    <span className="tabular-nums text-ink">
+                      ${a.price.toLocaleString()}
+                      {a.price_unit !== "event" ? ` ${priceUnitLabel(a.price_unit)}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-ink-faint">Ask for these when you request it; they go in the contract.</p>
             </section>
           ) : null}
 

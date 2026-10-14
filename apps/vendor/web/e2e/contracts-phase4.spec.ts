@@ -81,7 +81,13 @@ test.describe("contracts — Phase 4 (requests become proposals)", () => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
     api.get("/vendors/me", vendor);
-    api.get("/services", { items: [], total: 0, limit: 100, offset: 0 });
+    // A vendor with no packages is sent to the setup wizard, so this one has one.
+    api.get("/services", {
+      items: [{ service_id: "svc-1", vendor_id: vendor.vendor_id, name: "Reception set", price: 1400, add_ons: [] }],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
     api.get("/contract-templates", { items: [], total: 0 });
     api.get(`/bookings/vendor/${vendor.vendor_id}`, {
       items: [mockVendorBooking({ status: "approved", contract_token: "tok" })],

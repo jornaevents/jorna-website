@@ -42,12 +42,13 @@ test.describe("packages — Phase 1", () => {
     page,
     api,
   }) => {
-    let services: unknown[] = [];
+    // A vendor with no packages is in the setup wizard; this one has one.
+    let services: unknown[] = [pkg({ service_id: "svc-old", name: "Cocktail set" })];
     await openProfile(page, api, () => services);
     api.post("/services", ({ route }: HandlerArgs) => {
       const body = route.request().postDataJSON();
-      services = [pkg({ ...body, service_id: "svc-new" })];
-      return services[0];
+      services = [...services, pkg({ ...body, service_id: "svc-new" })];
+      return services.at(-1);
     });
 
     // The page header's "Add package" opens the form.
@@ -61,7 +62,8 @@ test.describe("packages — Phase 1", () => {
     await expect(page.getByText("Choose how this package is priced.")).toBeVisible();
 
     await page.getByRole("button", { name: "Flat price" }).click();
-    await page.getByLabel("Price", { exact: true }).fill("1200");
+    // Thousands separators are fine (#163).
+    await page.getByLabel("Price", { exact: true }).fill("1,200");
     await page.getByLabel("Hours included (optional)").fill("4");
     await page.getByLabel("What's included (optional)").fill("Sound system\n\nTwo wireless mics");
     await page.getByRole("button", { name: "+ Add an add-on" }).click();
@@ -106,7 +108,8 @@ test.describe("packages — Phase 1", () => {
     await expect(row).toContainText("5 hours");
     await row.click();
     await expect(page.getByText("MC for the night")).toBeVisible();
-    await expect(page.getByText("Open to offers", { exact: true })).toBeVisible();
+    // Price haggling is retired (2026-10-14): no "open to offers" anywhere.
+    await expect(page.getByText(/open to offers/i)).toHaveCount(0);
 
     await page.getByRole("button", { name: "Edit package" }).click();
     await expect(page.getByLabel("Package name")).toHaveValue("Reception set");

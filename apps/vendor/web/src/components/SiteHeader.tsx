@@ -20,11 +20,27 @@ import { Button, LinkButton } from "@jorna/shared/components/ui";
 // signing. They get the wordmark alone: whoever's signed in, the site's
 // navigation there only leads away from the thing they came to do.
 const BARE_PATHS = ["/booking-link"];
+// The vendor setup wizard: the wordmark and a way to sign out, nothing to
+// wander off to before the first package is in (#162).
+const SETUP_PATHS = ["/vendor-onboarding"];
 
 export function SiteHeader() {
   const { user, loading, logout } = useAuth();
   const { desktopItems: items, attention, messagesUnread, home, isActive } = useAppNav();
   const pathname = usePathname();
+
+  if (user && SETUP_PATHS.some((p) => pathname === p || pathname?.startsWith(`${p}/`))) {
+    return (
+      <header className="border-b border-line-soft bg-ground">
+        <div className="mx-auto flex w-[min(var(--container-wide),100%-2rem)] items-center justify-between py-3">
+          <span className="serif text-2xl text-maroon dark:text-gold">Jorna</span>
+          <button type="button" onClick={() => logout()} className="text-sm text-ink-soft hover:text-ink">
+            Sign out
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   if (BARE_PATHS.some((p) => pathname === p || pathname?.startsWith(`${p}/`))) {
     return (

@@ -33,79 +33,58 @@ test.describe("vendor onboarding", () => {
 
     // Choosing the category picks it; the chip below shows it selected.
     await page.getByLabel("Add a category").selectOption({ label: "Photography" });
-    await expect(page.getByRole("button", { name: "Photography", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: "All photography", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByRole("heading", { name: "Where do you work?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How far you go, and how you're paid" })).toBeVisible();
     const createCalls = api.requestsTo("POST", "/vendors");
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].body).toMatchObject({ category: "photography" });
   });
 
-  test("switches the top nav to vendor tabs right after finishing onboarding, no reload", async ({
+  test("the wizard has no site navigation, and vendor pages wait for a first package (#162)", async ({
     page,
     api,
   }) => {
-    // nav.tsx's isVendor check used to only re-run when the signed-in user
-    // changed, never on navigation — so a client who became a vendor mid-
-    // session kept seeing the client tabs until they signed out and back in,
-    // even though create_vendor had already succeeded. This drives the real
-    // flow (not just the API) to prove the fix: the nav has to update after
-    // a plain route change, with no reload and no re-login.
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
     api.get("/bundles", []);
-    const vendor = mockVendorDetail();
+    const vendor = mockVendorDetail({ venmo_handle: null, zelle_contact: null });
     let hasVendor = false;
     api.get("/vendors/me", ({ route }: HandlerArgs) =>
       hasVendor
         ? vendor
-        : route.fulfill({
-            status: 404,
-            contentType: "application/json",
-            body: JSON.stringify({ detail: "Not a vendor" }),
-          }),
+        : route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "Not a vendor" }) }),
     );
     api.post("/vendors", () => {
       hasVendor = true;
       return vendor;
     });
-    api.patch("/vendors/me", vendor);
+    api.patch("/vendors/me", { ...vendor, venmo_handle: "@studio" });
+    api.get("/services", { items: [], total: 0, limit: 100, offset: 0 });
 
     await page.goto("vendor-onboarding/");
     await expect(page.getByRole("heading", { name: "What do you sell?" })).toBeVisible();
-    // Still not a vendor at this point — the top nav shows the no-vendor tabs.
-    await expect(page.getByRole("link", { name: "Get started" })).toBeVisible();
+    // Only the wordmark and a way out: nothing to wander off to mid-setup.
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Get started" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Browse vendors" })).toHaveCount(0);
 
-    // Choosing the category picks it; the chip below shows it selected.
     await page.getByLabel("Add a category").selectOption({ label: "Photography" });
-    await expect(page.getByRole("button", { name: "Photography", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
     await page.getByRole("button", { name: "Continue" }).click();
-
-    await expect(page.getByRole("heading", { name: "Where do you work?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How far you go, and how you're paid" })).toBeVisible();
     await page.getByRole("button", { name: "Continue" }).click();
-
     await expect(page.getByRole("heading", { name: "List your packages" })).toBeVisible();
-    await page.getByRole("link", { name: "I'll add packages later" }).click();
+    await expect(page.getByRole("link", { name: "I'll add packages later" })).toHaveCount(0);
 
-    // A route change with no reload — the moment the fixed effect re-checks.
-    // "I'll add packages later" lands on /vendor-profile, one of the sidebar-
-    // shell routes (see docs/DECISIONS.md) — the shared header (and its
-    // "Get started"/"Earnings" links) is hidden there in favour of
-    // VendorSidebar, so the vendor-tabs switch shows up as the sidebar
-    // itself appearing rather than a header link changing.
-    await expect(
-      page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: "Overview" }),
-    ).toBeVisible();
-    await expect(page.getByRole("link", { name: "Get started" })).not.toBeVisible();
+    // A vendor page sends a vendor with no packages back to the wizard.
+    await page.goto("overview/");
+    await expect(page).toHaveURL(/vendor-onboarding/);
   });
 
   test("requires at least one category before continuing", async ({ page, api }) => {
@@ -121,4 +100,13 @@ test.describe("vendor onboarding", () => {
     await expect(page.getByText("Pick at least one category first.")).toBeVisible();
     expect(api.requestsTo("POST", "/vendors")).toHaveLength(0);
   });
+});
+
+test("a reload after step 2 carries on at the packages (#162)", async ({ page, api }) => {
+  await loginAs(page, api);
+  api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+  api.get("/vendors/me", mockVendorDetail({ payment_method: "stripe", venmo_handle: "@studio" }));
+  api.get("/services", { items: [], total: 0, limit: 100, offset: 0 });
+  await page.goto("vendor-onboarding/");
+  await expect(page.getByRole("heading", { name: "List your packages" })).toBeVisible();
 });

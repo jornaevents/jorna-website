@@ -67,6 +67,12 @@ export interface ServicesManagerHandle {
 // shapes aren't interchangeable.
 type LocalPreview = { url: string; type: "image" | "video" };
 
+/** "1,500", "$1500.75", " 45 " → a number; anything else → NaN. */
+function parsePrice(raw: string): number {
+  const cleaned = raw.replace(/[$,\s]/g, "");
+  return cleaned && /^\d*\.?\d+$/.test(cleaned) ? Number(cleaned) : NaN;
+}
+
 export function ServicesManager({
   vendor,
   categories,
@@ -290,17 +296,27 @@ export function ServicesManager({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    // Said here rather than left to the browser's required-field bubble,
+    // which showed nothing on an empty Add package (#163).
+    if (!form.name.trim()) {
+      setError("Give the package a name.");
+      return;
+    }
+    if (!form.category) {
+      setError("Choose the package's category.");
+      return;
+    }
     if (!form.price_unit) {
       setError("Choose how this package is priced.");
       return;
     }
-    const price = Number(form.price);
+    const price = parsePrice(form.price);
     if (!form.price.trim() || !(price > 0)) {
-      setError("Enter a price greater than $0.");
+      setError("Enter a price above $0, like 1500 or 1,500.75.");
       return;
     }
     const addOns = form.add_ons.filter((a) => a.name.trim() || a.price.trim());
-    if (addOns.some((a) => !a.name.trim() || !(Number(a.price) > 0))) {
+    if (addOns.some((a) => !a.name.trim() || !(parsePrice(a.price) > 0))) {
       setError("Each add-on needs a name and a price greater than $0.");
       return;
     }
@@ -325,7 +341,6 @@ export function ServicesManager({
         category: form.category,
         subcategory: form.subcategory || null,
         description: form.description,
-        negotiable: form.negotiable,
         require_guest_count: form.require_guest_count,
         require_performer_count: form.require_performer_count,
         is_popular: form.is_popular,
@@ -341,7 +356,7 @@ export function ServicesManager({
         add_ons: addOns.map((a) => ({
           ...(a.id ? { id: a.id } : {}),
           name: a.name.trim(),
-          price: Number(a.price),
+          price: parsePrice(a.price),
           price_unit: a.price_unit,
         })),
         deposit_percent: deposit,
@@ -577,7 +592,7 @@ export function ServicesManager({
           <h3 className="serif text-xl text-ink">
             {editing === "new" ? "New package" : "Edit package"}
           </h3>
-          <form onSubmit={save} className="mt-4 grid gap-4">
+          <form onSubmit={save} noValidate className="mt-4 grid gap-4">
             <Field
               label="Package name"
               placeholder="Full-Day Wedding Coverage"
@@ -700,7 +715,7 @@ export function ServicesManager({
                 rows={3}
                 value={form.inclusionsText}
                 onChange={(e) => setForm({ ...form, inclusionsText: e.target.value })}
-                placeholder={"One per line, e.g.\nSound system and lighting\nTwo wireless mics"}
+                placeholder={"One per line, e.g.\nSetup and breakdown\nTravel within your radius"}
                 className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
               />
             </label>
@@ -881,21 +896,6 @@ export function ServicesManager({
               </span>
             </label>
 
-            <label className="flex items-start gap-2.5">
-              <input
-                type="checkbox"
-                checked={Boolean(form.negotiable)}
-                onChange={(e) => setForm({ ...form, negotiable: e.target.checked })}
-                className="mt-1"
-              />
-              <span className="text-sm text-ink-soft">
-                Open to offers on this package
-                <span className="block text-xs text-ink-faint">
-                  Clients can propose a price and you settle it before booking.
-                </span>
-              </span>
-            </label>
-
             <PackageTermsFields key={editing ?? "none"} form={form} setForm={setForm} vendor={vendor} initiallyOpen={showTerms} />
 
             <div>
@@ -998,7 +998,6 @@ export function ServicesManager({
               s.add_ons?.length
                 ? `${s.add_ons.length} add-on${s.add_ons.length === 1 ? "" : "s"}`
                 : null,
-              s.negotiable ? "open to offers" : null,
             ].filter(Boolean);
             return (
               <article
@@ -1035,11 +1034,12 @@ export function ServicesManager({
                     <strong className="truncate text-sm text-ink">{coverage(s)}</strong>
                   </span>
                   <span className="hidden min-w-0 md:grid">
-                    <small className="text-[0.68rem] text-ink-faint">Best for</small>
+                    <small className="text-[0.68rem] text-ink-faint">Category</small>
                     <strong className="truncate text-sm text-ink">{bestFor(s, categories)}</strong>
                   </span>
                   <span className="grid text-right">
-                    <small className="text-[0.68rem] text-ink-faint">Starting at</small>
+                    {/* A flat price is the price, not a starting point (#163). */}
+                    <small className="text-[0.68rem] text-ink-faint">{s.price_unit === "event" || !s.price_unit ? "Price" : "Starting at"}</small>
                     <strong className="serif text-sm text-ink">
                       {money(s.price)}
                       {unit ? <span className="font-sans text-xs font-normal text-ink-faint"> {unit}</span> : null}
@@ -1094,9 +1094,8 @@ export function ServicesManager({
                   <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-card-edge bg-card text-sm">
                     {[
                       ["Coverage", coverage(s)],
-                      ["Event type", bestFor(s, categories)],
-                      ["Starting price", `${money(s.price)} ${unit}`.trim()],
-                      ["Open to offers", s.negotiable ? "Yes" : "No"],
+                      ["Category", bestFor(s, categories)],
+                      [s.price_unit === "event" || !s.price_unit ? "Price" : "Starting price", `${money(s.price)} ${unit}`.trim()],
                       ["Add-ons", s.add_ons?.length ? s.add_ons.map((a) => a.name).join(", ") : "None"],
                       ["Listing", s.status === "hidden" ? "Private" : "Public"],
                     ].map(([label, value]) => (
