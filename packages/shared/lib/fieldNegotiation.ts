@@ -75,6 +75,8 @@ export function display(key: string, value: unknown): string {
 /** The ids ContractPaper marks for a field, so its value lights up where it
  *  prints. A new item isn't on the page until it settles. */
 export function paperIds(key: string): string[] {
+  // A new item: previewTerms puts it on the page with id "new:…".
+  if (key.startsWith("line:new:")) return [key];
   if (key === "event.date") return ["event.date", "event.dateEnd"];
   if (key === "event.time") return ["event.start", "event.end"];
   if (key === "event.location") return ["event.venue"];
@@ -140,4 +142,102 @@ export const daysToHours = (raw: string) => Math.round(Number(raw)) * 24;
 /** Fields the reader has to answer this turn. */
 export function waitingOn(fields: NegotiationFieldView[], side: "client" | "vendor"): NegotiationFieldView[] {
   return fields.filter((f) => f.state === (side === "client" ? "waiting_client" : "waiting_vendor"));
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+/** The answers worth sending: a field opened with "Change" but left as it was
+ *  isn't a change (web #168 sent "Guest count 150 → 150"). */
+export function effectiveAnswers(fields: NegotiationFieldView[], answers: FieldAnswer[]): FieldAnswer[] {
+  const byKey = new Map(fields.map((f) => [f.key, f]));
+  return answers.filter((a) => {
+    const f = byKey.get(a.key);
+    return !(f && (a.action === "change" || a.action === "reopen") && same(a.value, f.value));
+  });
+}
+
+/** What's wrong with a value the reader typed, in the server's terms, or
+ *  null. The server refuses the same (backend DECISIONS #28). */
+export function valueProblem(key: string, value: unknown): string | null {
+  const k = kindOf(key);
+  if (key === "event.guests") {
+    const n = Number(value);
+    if (value != null && !(Number.isInteger(n) && n >= 1 && n <= 100_000)) return "A guest count is a whole number from 1 to 100,000.";
+  } else if (k === "count") {
+    if (!(Number(value) > 0)) return "A quantity has to be above zero.";
+  } else if (k === "money") {
+    if (value == null || Number.isNaN(Number(value)) || Number(value) < 0) return "Enter an amount of $0 or more.";
+    if (key.endsWith(".price") && Number(value) === 0) return "A price has to be above $0 — leave the item out instead.";
+  }
+  return null;
+}
+
+/** "Send 2 answers", "Send 3 changes", "Send 2 answers and 1 change" — what
+ *  the reader is actually doing (web #168: a client's first asks said
+ *  "Send 0 answers"). */
+export function sendLabel(answers: FieldAnswer[]): string {
+  const answered = answers.filter((a) => a.action === "accept" || a.action === "counter" || a.action === "keep").length;
+  const changed = answers.length - answered;
+  const n = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  if (!answers.length) return "Send";
+  if (!changed) return `Send ${n(answered, "answer")}`;
+  if (!answered) return `Send ${n(changed, "change")}`;
+  return `Send ${n(answered, "answer")} and ${n(changed, "change")}`;
+}
+
+/** The agreed terms with this send's answers in, so the contract on the left
+ *  reads as it would if they're agreed (web #153). The other side's open asks
+ *  stay as they are; only what the reader is doing is applied. */
+export function previewTerms(terms: TermsVersion, fields: NegotiationFieldView[], answers: FieldAnswer[]): TermsVersion {
+  const byKey = new Map(fields.map((f) => [f.key, f]));
+  const out: TermsVersion = { ...terms, line_items: [...(terms.line_items ?? [])], terms_clauses: [...(terms.terms_clauses ?? [])] };
+  const dropLines = new Set<string>();
+  const dropClauses = new Set<string>();
+  for (const a of answers) {
+    const f = byKey.get(a.key);
+    const v = f ? answerValue(f, a) : a.value;
+    if (v === undefined) continue;
+    const line = /^line:(.+)\.(quantity|price|included)$/.exec(a.key);
+    const clause = /^clause:(.+)\.included$/.exec(a.key);
+    if (a.key === "event.date" && v) Object.assign(out, v as object);
+    else if (a.key === "event.time" && v) Object.assign(out, v as object);
+    else if (a.key === "event.location") out.location = String(v ?? "");
+    else if (a.key === "event.guests") out.guest_count = v as number | null;
+    else if (a.key === "discount") out.discount_cents = v as number | null;
+    else if (a.key === "policy.cancellation") out.cancellation_window_hours = v as number | null;
+    else if (a.key === "policy.overtime") out.overtime_rate_cents = v as number | null;
+    else if (a.key === "schedule") out.payment_schedule = v as TermsVersion["payment_schedule"];
+    else if (a.key.startsWith("line:new:") && v) {
+      const n = v as { name?: string; quantity?: number; unit_price_cents?: number; service_id?: string; addon_id?: string };
+      const qty = n.quantity ?? 1;
+      const price = n.unit_price_cents ?? 0;
+      out.line_items!.push({
+        id: a.key.slice("line:".length),
+        kind: n.addon_id ? "addon" : "package",
+        service_id: n.service_id ?? null,
+        addon_id: n.addon_id ?? null,
+        name: n.name ?? "Item",
+        description: null,
+        unit: "item",
+        unit_price_cents: price,
+        quantity: qty,
+        total_cents: Math.round(qty * price),
+      });
+    } else if (line) {
+      const [, id, part] = line;
+      if (part === "included") {
+        if (v === false) dropLines.add(id);
+      } else {
+        out.line_items = out.line_items!.map((l) => {
+          if (l.id !== id) return l;
+          const next = { ...l, [part === "price" ? "unit_price_cents" : "quantity"]: Number(v) };
+          return { ...next, total_cents: Math.round(next.unit_price_cents * next.quantity) };
+        });
+      }
+    } else if (clause && v === false) dropClauses.add(clause[1]);
+  }
+  out.line_items = out.line_items!.filter((l) => !dropLines.has(l.id));
+  out.terms_clauses = out.terms_clauses!.filter((c) => !dropClauses.has(c.key));
+  out.amount_cents = estimateTotal(terms, fields, answers);
+  return out;
 }

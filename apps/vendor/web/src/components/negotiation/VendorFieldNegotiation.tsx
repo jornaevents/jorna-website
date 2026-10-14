@@ -48,7 +48,14 @@ export function VendorFieldNegotiation({
         onDone(
           next.can_sign
             ? `Nothing's waiting now — ${clientName} can sign.`
-            : `Round ${next.round} is with ${clientName}. We emailed them.`,
+            : // Only what the server says happened (#155).
+              `Round ${next.round} is with ${clientName}.${
+                next.email_sent === true
+                  ? " We emailed them."
+                  : next.email_sent === false
+                    ? " We couldn't email them — send them the contract link yourself."
+                    : ""
+              }`,
         );
       }}
     />
