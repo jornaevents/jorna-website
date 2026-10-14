@@ -331,6 +331,6 @@ describe("editor checks (web #166)", () => {
   });
 
   it("puts a package's included hours in its line", () => {
-    expect(packageLine({ service_id: "s", name: "Coverage", price: 2500, duration_minutes: 300 }).description).toBe("5 hours included");
+    expect(packageLine({ service_id: "s", name: "Coverage", price: 2500, included_hours: 5 }).description).toBe("5 hours included");
   });
 });

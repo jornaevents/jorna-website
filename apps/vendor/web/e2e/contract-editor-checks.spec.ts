@@ -21,7 +21,7 @@ function mockEditor(api: ApiMock, vendorOver: Record<string, unknown> = {}) {
         vendor_id: vendor.vendor_id,
         name: "Sangeet Night Coverage",
         price: 2500,
-        duration_minutes: 300,
+        included_hours: 5,
         add_ons: [],
       },
     ],

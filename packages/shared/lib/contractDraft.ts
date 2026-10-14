@@ -36,8 +36,8 @@ export interface PackageSource {
   price: number;
   price_unit?: string | null;
   add_ons?: { id?: string; name: string; price: number; price_unit: string }[] | null;
-  /** "Hours included" on the package. */
-  duration_minutes?: number | null;
+  /** "Hours included" on the package (backend 0063). */
+  included_hours?: number | null;
 }
 
 /** The vendor's saved default clauses. */
@@ -180,7 +180,7 @@ function lineUnit(unit: string | null | undefined): LineUnit {
 export function packageLine(service: PackageSource): LineDraft {
   // The hours the package includes are part of what's sold, so they go in
   // the contract with it (the backend keeps the line's description).
-  const hours = service.duration_minutes ? Math.round((service.duration_minutes / 60) * 10) / 10 : null;
+  const hours = service.included_hours || null;
   return {
     key: newKey(),
     kind: "package",
