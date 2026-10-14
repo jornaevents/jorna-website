@@ -29,7 +29,13 @@ export type VendorTaskKind =
   | "date-change"
   /** Their own payout is blocked on this. */
   | "confirm"
-  | "check-in";
+  | "check-in"
+  /** The client asked for changes to a contract; the vendor's turn. */
+  | "changes"
+  /** The client says a payment is sent; the vendor confirms it arrived. */
+  | "payment"
+  /** A signed contract's payment is past due. */
+  | "overdue";
 
 export interface VendorTask {
   id: string;
@@ -342,6 +348,7 @@ export function pipelineStats(bookings: VendorBooking[]): PipelineStats {
  */
 export type ContractStatus =
   | "draft"
+  | "changes_waiting"
   | "awaiting_signature"
   | "expired"
   | "declined"
@@ -371,6 +378,10 @@ export function contractStatus(b: VendorBooking): ContractStatus {
   // not a status of its own: either way it's waiting on them.
   if (!b.signed_at) {
     if (b.contract_status === "draft") return "draft";
+    // The client asked for changes and it's the vendor's turn to answer —
+    // not "awaiting signature" (web #151): field by field, or an open
+    // proposal on the older flow.
+    if (changesWaiting(b) > 0) return "changes_waiting";
     if (b.contract_status === "expired") return "expired";
     return "awaiting_signature";
   }
@@ -393,10 +404,20 @@ export function contractStatus(b: VendorBooking): ContractStatus {
   return b.payment_status === "marked_paid" ? "confirm_payment" : "balance_due";
 }
 
+/** How many of the client's changes wait on the vendor's answer: the
+ *  field-by-field count, or one for an open proposal. */
+export function changesWaiting(b: Pick<VendorBooking, "negotiation" | "proposal_status" | "signed_at">): number {
+  if (b.signed_at) return 0;
+  if (b.negotiation) return b.negotiation.waiting_vendor;
+  return b.proposal_status === "open" ? 1 : 0;
+}
+
 /** The statuses where the vendor, not the client, owes the next move — a
- *  payment to confirm, or an offer to send or resend (or let go). */
+ *  payment to confirm, changes to answer, or an offer to send or resend (or
+ *  let go). */
 export function contractNeedsVendor(status: ContractStatus): boolean {
   return (
+    status === "changes_waiting" ||
     status === "confirm_deposit" ||
     status === "confirm_payment" ||
     status === "expired" ||
@@ -451,6 +472,48 @@ export function vendorTasks(
         bookingId: b.booking_id,
       });
       continue;
+    }
+
+    // A contract's changes, waiting on the vendor's answer (web #151).
+    const changes = changesWaiting(b);
+    if (b.contract_token && changes > 0) {
+      tasks.push({
+        id: `changes-${b.booking_id}`,
+        kind: "changes",
+        title: `${client} asked for ${changes === 1 ? "a change" : `${changes} changes`}`,
+        detail: niceDate(b.date_iso) ? `${service} · ${niceDate(b.date_iso)}` : service,
+        cta: "Answer",
+        tone: "urgent",
+        bookingId: b.booking_id,
+      });
+      continue;
+    }
+
+    // Money on a signed contract: a payment the client says is sent, then
+    // one past due (web #170 — Overview said nothing while Bookings said
+    // "Your move").
+    for (const p of paymentsToConfirm(b)) {
+      const what = p.kind === "installment" ? p.label : p.kind === "deposit" ? "the deposit" : "the balance";
+      tasks.push({
+        id: `payment-${b.booking_id}-${p.kind === "installment" ? p.installmentId : p.kind}`,
+        kind: "payment",
+        title: `${client} says they've sent ${what}`,
+        detail: p.amountCents != null ? `${money(p.amountCents)} · confirm it arrived` : "Confirm it arrived",
+        cta: "Confirm",
+        tone: "urgent",
+        bookingId: b.booking_id,
+      });
+    }
+    for (const i of overdueInstallments(b)) {
+      tasks.push({
+        id: `overdue-${b.booking_id}-${i.id}`,
+        kind: "overdue",
+        title: `${client}'s ${i.label.toLowerCase()} is overdue`,
+        detail: `${money(i.amount_cents)} · was due ${niceDate(i.due_on) ?? i.due_on}`,
+        cta: "Open",
+        tone: "urgent",
+        bookingId: b.booking_id,
+      });
     }
 
     // An offer on the table, and it's this vendor's turn to answer it — it
@@ -1153,7 +1216,8 @@ export function leadSummary(
 
 // ── Bookings page ────────────────────────────────────────────────────
 
-/** The design's five steps, in order. */
+/** The design's five steps, in order, when the last payment comes after the
+ *  event (or nothing says when). */
 export const BOOKING_STEPS = [
   "Contract sent",
   "Contract signed",
@@ -1162,8 +1226,26 @@ export const BOOKING_STEPS = [
   "Payment received",
 ] as const;
 
+export type BookingStep = (typeof BOOKING_STEPS)[number] | "Paid in full";
+
 /**
- * How many of BOOKING_STEPS are done (0–5), from real data. A marketplace
+ * A booking's steps, in the order they happen. When the contract's last
+ * payment falls due before the event, being paid in full comes before the
+ * event, not after it (web #170: "Deposit paid → Event over → Payment
+ * received" for a balance due two weeks out).
+ */
+export function bookingSteps(b: VendorBooking): BookingStep[] {
+  const schedule = b.payment_schedule ?? [];
+  const lastDue = schedule.length ? effectiveDue(schedule[schedule.length - 1], b.signed_at) : null;
+  const start = b.date_iso && b.date_iso !== "TBD" ? b.date_iso : null;
+  if (lastDue && start && lastDue <= start) {
+    return ["Contract sent", "Contract signed", "Deposit paid", "Paid in full", "Event over"];
+  }
+  return [...BOOKING_STEPS];
+}
+
+/**
+ * How many of bookingSteps(b) are done (0–5), from real data. A marketplace
  * booking accepted before contracts existed has no contract, so its first
  * two steps count as done the moment it's agreed. A booking with no deposit
  * passes that step once signed.
@@ -1178,7 +1260,12 @@ export function bookingProgress(b: VendorBooking): number {
   if (!depositDone) return 2;
   const left = daysUntil(b.date_end || b.date_iso);
   const over = left != null && left < 0;
-  if (pipelineStage(b) === "done") return 5;
+  const paid = pipelineStage(b) === "done" || status === "paid";
+  if (bookingSteps(b)[3] === "Paid in full") {
+    if (!paid) return 3;
+    return over ? 5 : 4;
+  }
+  if (paid && over) return 5;
   return over ? 4 : 3;
 }
 
@@ -1192,8 +1279,13 @@ export interface BookingMoney {
   paidInFull: boolean;
   /** When what's left is due, in the contract's own terms ("Due May 31,
    *  2030 (14 days before the event)") — from the next unpaid payment on the
-   *  schedule. Null without a schedule, where nothing says. */
+   *  schedule after the deposit. Null without a schedule, where nothing says. */
   balanceDue: string | null;
+  /** When the deposit is due, while it's unpaid (#135). Null without a
+   *  schedule, or once it's in. */
+  depositDue: string | null;
+  /** The next unpaid payment is past due (see overdueInstallments). */
+  overdue: boolean;
 }
 
 /** Total, deposit and what's left, read from the payment schedule when the
@@ -1208,19 +1300,25 @@ export function bookingMoney(b: VendorBooking): BookingMoney {
     const received = schedule.filter((i) => i.confirmed_at).reduce((n, i) => n + i.amount_cents, 0);
     const deposit = schedule.length > 1 ? schedule[0] : null;
     const unpaid = schedule.filter((i) => !i.confirmed_at);
-    const next = unpaid[0] ?? null;
+    // The deposit has its own box: what's "remaining" is what comes after it
+    // (web #170 listed the deposit under the remaining balance).
+    const later = unpaid.filter((i) => i !== deposit);
+    const next = later[0] ?? null;
+    const overdue = overdueInstallments(b);
     return {
       totalCents,
       depositCents: deposit?.amount_cents ?? null,
       depositPaid: Boolean(deposit?.confirmed_at),
       receivedCents: received,
-      balanceCents: totalCents != null ? Math.max(0, totalCents - received) : null,
+      balanceCents: totalCents != null ? Math.max(0, totalCents - received - (deposit && !deposit.confirmed_at ? deposit.amount_cents : 0)) : null,
       paidInFull: paidInFull || unpaid.length === 0,
       balanceDue: next
-        ? `${unpaid.length > 1 ? `${next.label} ` : ""}${describeDue(next)}${
-            unpaid.length > 1 ? `, then ${unpaid.length - 1} more` : ""
+        ? `${later.length > 1 ? `${next.label} ` : ""}${describeDue(next)}${
+            later.length > 1 ? `, then ${later.length - 1} more` : ""
           }`
         : null,
+      depositDue: deposit && !deposit.confirmed_at ? describeDue(deposit) : null,
+      overdue: (next != null && overdue.includes(next)) || (deposit != null && overdue.includes(deposit)),
     };
   }
   const depositPaid = Boolean(b.deposit_confirmed_received_at);
@@ -1233,7 +1331,34 @@ export function bookingMoney(b: VendorBooking): BookingMoney {
     balanceCents: totalCents != null ? Math.max(0, totalCents - received) : null,
     paidInFull,
     balanceDue: null,
+    depositDue: null,
+    overdue: false,
   };
+}
+
+/** Today in the vendor's own timezone, YYYY-MM-DD. */
+function todayIso(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/** When a signed contract's payment is actually due: its date, but never
+ *  before the day it was signed — the backend's effective_due, which its
+ *  reminders use. */
+export function effectiveDue(i: { due_on?: string | null }, signedAt?: string | null): string | null {
+  if (!i.due_on) return null;
+  const signed = signedAt ? signedAt.slice(0, 10) : null;
+  return signed && signed > i.due_on ? signed : i.due_on;
+}
+
+/** Payments on a signed contract that are past due and not yet sent. One the
+ *  client marked sent is the vendor's to confirm, not overdue. */
+export function overdueInstallments(b: VendorBooking, now = new Date()) {
+  if (!b.signed_at || isDeadVendorBooking(b)) return [];
+  const today = todayIso(now);
+  return (b.payment_schedule ?? []).filter((i) => {
+    const due = effectiveDue(i, b.signed_at);
+    return !i.confirmed_at && !i.marked_paid_at && due != null && due < today;
+  });
 }
 
 export type PaymentToConfirm =

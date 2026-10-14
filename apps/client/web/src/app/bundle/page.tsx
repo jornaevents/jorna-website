@@ -422,6 +422,10 @@ function statusLine(b: BundleBooking, draft: boolean): { text: string; tone: str
   if (b.status === "approved" && contractStep(b) === "expired") {
     return { text: "Contract expired", tone: "text-maroon dark:text-gold" };
   }
+  // Kept on the plan when the client took a sent request off it (backend #28).
+  if (b.status === "rejected" && b.rejected_reason === "client_cancelled") {
+    return { text: "You cancelled", tone: "text-ink-faint" };
+  }
   return {
     // Rejected used to share the faintest tone with routine, already-settled
     // states — the one status change here a client hasn't necessarily seen
@@ -560,6 +564,11 @@ function BookingRow({
               <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
               {status.text}
             </span>
+            {booking.status === "rejected" && booking.vendor_decline_note ? (
+              <p className="mt-1.5 text-sm text-ink-soft">
+                {booking.vendor_name || "They"} said: “{booking.vendor_decline_note}”
+              </p>
+            ) : null}
             <BookingWhen booking={booking} eventDateIso={event?.date_iso} />
             {priceUnitKind(booking.price_unit) === "person" || booking.require_guest_count ? (
               <BookingGuests booking={booking} field="guests" onSaved={onUpdated} />

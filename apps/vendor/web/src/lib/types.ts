@@ -1079,6 +1079,11 @@ export interface VendorBooking {
   negotiation_awaiting_role?: "client" | "vendor" | null;
   /** The latest change proposal on an unsigned contract (backend DECISIONS #23). */
   proposal_status?: ProposalStatus | null;
+  /** Field-by-field negotiation (backend DECISIONS #26, #28): whose turn,
+   *  and how many changes wait on each side. Null on the proposal flow. */
+  negotiation?: NegotiationSummary | null;
+  /** The vendor's note when they declined this request (backend #28). */
+  vendor_decline_note?: string | null;
   status: string;
   payment_status?: string | null;
   /** "stripe" (protected) or "manual" (paid directly, Venmo/Zelle) — see
@@ -1199,6 +1204,18 @@ export interface Contract {
   /** The latest change proposal's status on an unsigned contract — "open"
    *  while the client waits on an answer. Null when there's none. */
   proposal_status?: ProposalStatus | null;
+  /** Field-by-field negotiation (backend DECISIONS #26, #28): whose turn,
+   *  and how many changes wait on each side. Null on the proposal flow. */
+  negotiation?: NegotiationSummary | null;
+}
+
+export interface NegotiationSummary {
+  turn: "client" | "vendor";
+  round: number;
+  /** The client's changes the vendor hasn't answered. */
+  waiting_vendor: number;
+  /** The vendor's changes the client hasn't answered. */
+  waiting_client: number;
 }
 
 export type TemplateKind = "agreement" | "addendum" | "cancellation";
@@ -1383,6 +1400,7 @@ export interface LeadUpdateInput {
 export type PipelineStage = "inquiry" | "negotiation";
 export type PipelineSource = "request" | "contract" | "lead";
 export type PipelineAttention = "needs_you" | "waiting";
+export type PipelineOutcome = "declined" | "cancelled_by_client" | "contract_declined" | "not_going_ahead";
 
 export interface PipelineItem {
   /** "booking:<id>" or "lead:<id>". */
@@ -1411,6 +1429,15 @@ export interface PipelineItem {
   attention_reason: string | null;
   proposal_status?: ProposalStatus | null;
   archived: boolean;
+  /** How a closed lead ended (backend #28); it's archived. Null while open. */
+  outcome?: PipelineOutcome | null;
+  /** The vendor's decline note, or the client's reason for declining. */
+  outcome_note?: string | null;
+  /** What the client sent with a request. Bookings only. */
+  client_note?: string | null;
+  time_start?: string | null;
+  time_end?: string | null;
+  guest_count?: number | null;
   created_at: string | null;
   updated_at: string | null;
   /** Leads only. */

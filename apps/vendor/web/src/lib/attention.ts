@@ -77,8 +77,14 @@ function vendorItems(bookings: VendorBooking[], stripe: StripeStatus | null): At
     title: task.title,
     detail: task.detail,
     // Stripe is the account's problem, not a booking's, so it points at the
-    // page that fixes it; everything else at the bookings list.
-    href: task.kind === "stripe" ? "/my-earnings" : "/my-bookings",
+    // page that fixes it; a contract's changes and overdue payments at the contract;
+    // everything else at the bookings list.
+    href:
+      task.kind === "stripe"
+        ? "/my-earnings"
+        : (task.kind === "changes" || task.kind === "overdue") && task.bookingId
+          ? `/contracts/view?id=${task.bookingId}`
+          : "/my-bookings",
     cta: task.cta,
     // The feed has two tones, and an alarm is an urgent one.
     tone: task.tone === "normal" ? "normal" : "urgent",

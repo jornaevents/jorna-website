@@ -833,13 +833,16 @@ export function listVendorBookings(
  * booking on an overlapping date — one event per day. Surface that message
  * rather than a generic error.
  */
+/** `note`: with "rejected", the vendor's optional reason, shown to the
+ *  client (backend #28). */
 export function setBookingStatus(
   bookingId: string,
   status: "approved" | "rejected",
+  note?: string | null,
 ): Promise<{ email_sent?: boolean | null }> {
   return apiFetch(`/bookings/${bookingId}/status`, {
     method: "PUT",
-    body: { status },
+    body: note ? { status, note } : { status },
   });
 }
 

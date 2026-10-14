@@ -21,7 +21,8 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { getMyVendor, listVendorBookings, sendContract, voidContract } from "@/lib/jorna";
 import { categoryLabel, type SavedContractTemplate, type VendorBooking, type VendorDetail } from "@/lib/types";
-import { contractNeedsVendor, contractStatus, type ContractStatus } from "@/lib/vendorPlan";
+import { changesWaiting, contractNeedsVendor, contractStatus, type ContractStatus } from "@/lib/vendorPlan";
+import { signerMatches } from "@/lib/signerName";
 import { guestBookingLink, guestBookingPreviewLink } from "@/lib/contractLink";
 import { deleteTemplate, loadTemplates, templatesOfKind } from "@/lib/contractTemplates";
 import { KIND_LABEL } from "@/lib/attachedDocuments";
@@ -38,6 +39,8 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
   switch (s) {
     case "draft":
       return { label: "Draft", tone: "grey" };
+    case "changes_waiting":
+      return { label: "Your turn", tone: "red" };
     case "awaiting_signature":
       return b.viewed_at ? { label: "Viewed", tone: "amber" } : { label: "Sent", tone: "amber" };
     case "expired":
@@ -61,7 +64,8 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
 type Filter = "all" | "needs_you" | "waiting" | "signed" | "closed";
 const closed = (s: ContractStatus) => s === "cancelled" || s === "declined";
 const FILTER_TEST: Record<Filter, (s: ContractStatus) => boolean> = {
-  all: (s) => !closed(s),
+  // Everything, so the tabs add up (web #167).
+  all: () => true,
   needs_you: contractNeedsVendor,
   waiting: (s) => s === "awaiting_signature",
   signed: (s) => ["deposit_due", "balance_due", "paid", "confirm_deposit", "confirm_payment"].includes(s),
@@ -86,6 +90,15 @@ function prettyDay(iso: string): string {
 /** Where an unsigned offer stands — opened yet, and how long the date is held. */
 function offerLine(b: VendorBooking, s: ContractStatus): string | null {
   if (s === "draft") return "Not sent — the date isn't held";
+  if (s === "changes_waiting") {
+    const n = changesWaiting(b);
+    return `${clientOf(b)} asked for ${n === 1 ? "a change" : `${n} changes`} — answer them`;
+  }
+  if (b.signed_at && b.signer_name) {
+    // Who signed, and whether that's who the contract is for (#167).
+    const mismatch = b.guest_name && !signerMatches(b.signer_name, b.guest_name) ? ` — the contract is for ${b.guest_name}` : "";
+    return `Signed by ${b.signer_name} ${prettyDate(b.signed_at)}${mismatch}`;
+  }
   if (s === "declined") return `Declined${b.decline_reason ? ` — “${b.decline_reason}”` : ""}`;
   if (s !== "awaiting_signature" && s !== "expired") return null;
   const seen = b.viewed_at ? `Opened ${prettyDate(b.viewed_at)}` : "Not opened yet";
@@ -491,7 +504,11 @@ export default function ContractsPage() {
                   </span>
                   <span className="hidden text-xs text-ink-faint md:block">{prettyDate(lastModified(b))}</span>
                   <span className="col-span-3 flex flex-wrap items-center justify-end gap-1 md:col-span-1">
-                    {contractNeedsVendor(s) && s !== "draft" && s !== "expired" ? (
+                    {s === "changes_waiting" ? (
+                      <Link href={`/contracts/view?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
+                        Answer
+                      </Link>
+                    ) : contractNeedsVendor(s) && s !== "draft" && s !== "expired" ? (
                       <Link
                         href={b.payment_schedule?.length ? `/contracts/view?id=${b.booking_id}` : `/my-bookings?id=${b.booking_id}`}
                         className="px-2 py-1 text-xs font-semibold text-gold"
@@ -511,7 +528,7 @@ export default function ContractsPage() {
                         {s === "draft" ? "Send" : "Resend & hold date"}
                       </button>
                     ) : null}
-                    {b.contract_token && s !== "cancelled" ? (
+                    {b.contract_token && s !== "cancelled" && s !== "declined" ? (
                       <button type="button" onClick={() => copyLink(b)} className="px-2 py-1 text-xs font-semibold text-ink-soft hover:text-ink">
                         {copiedId === b.booking_id ? "Copied!" : "Copy link"}
                       </button>

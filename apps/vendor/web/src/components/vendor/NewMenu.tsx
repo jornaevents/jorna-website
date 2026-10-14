@@ -21,6 +21,11 @@ import type { Lead } from "@/lib/types";
 import { Drawer, primaryClass } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 type Choice = "contract" | "client";
 
 const itemClass =
@@ -153,6 +158,15 @@ function AddClientDrawer({
     if (!name.trim()) return setError("Add their name.");
     // A client you can't reach is a name on a list, not a lead.
     if (!email.trim() && !phone.trim()) return setError("Add an email or a phone number so you can reach them.");
+    // The backend checks these too (#165: "neha@" and "call me maybe" were saved).
+    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      return setError("That email doesn't look right — check it, or leave it blank.");
+    }
+    const digits = phone.replace(/\D/g, "").length;
+    if (phone.trim() && (/[a-z]/i.test(phone) || digits < 7 || digits > 15)) {
+      return setError("That phone number doesn't look right — check it, or leave it blank.");
+    }
+    if (date && date < todayIso()) return setError("The event date has already passed.");
     setBusy(true);
     setError(null);
     try {
@@ -196,6 +210,7 @@ function AddClientDrawer({
         <Field
           label="Event date"
           type="date"
+          min={todayIso()}
           value={date}
           onChange={(e) => setDate(e.target.value)}
           hint="Leave it blank if they haven't picked one."

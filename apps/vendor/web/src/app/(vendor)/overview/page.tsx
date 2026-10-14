@@ -21,6 +21,8 @@ import {
   countdownLabel,
   depositsOwedCents,
   leadSummary,
+  overdueInstallments,
+  paymentsToConfirm,
   receivedThisMonthCents,
   upcomingBookings,
   type BookingTab,
@@ -90,10 +92,27 @@ function initials(name?: string | null): string {
   return (parts[0]?.[0] ?? "·").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase();
 }
 
-/** The header's one line: who's waiting on you today, in words. */
-function todayLine(needReply: number): string {
-  if (needReply === 0) return "Nothing needs you today.";
-  return needReply === 1 ? "1 client is waiting on you." : `${needReply} clients are waiting on you.`;
+/** The header's one line: who's waiting on you today, in words — leads
+ *  waiting on a reply, and money on signed contracts: payments to confirm
+ *  and payments past due (web #170, which said "Nothing needs you" while
+ *  Bookings said "Your move"). */
+function todayLine(needReply: number, money: { confirm: number; overdue: number }): string {
+  const parts: string[] = [];
+  if (needReply) parts.push(needReply === 1 ? "1 client is waiting on you" : `${needReply} clients are waiting on you`);
+  if (money.confirm) parts.push(money.confirm === 1 ? "1 payment to confirm" : `${money.confirm} payments to confirm`);
+  if (money.overdue) parts.push(money.overdue === 1 ? "1 payment is overdue" : `${money.overdue} payments are overdue`);
+  if (!parts.length) return "Nothing needs you today.";
+  const line = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  return `${line[0].toUpperCase()}${line.slice(1)}.`;
+}
+
+/** Money on signed contracts that's the vendor's move, the same rules as
+ *  Bookings ("Your move") and its overdue flag. */
+function moneyWaiting(bookings: VendorBooking[]): { confirm: number; overdue: number } {
+  return bookings.reduce(
+    (n, b) => ({ confirm: n.confirm + paymentsToConfirm(b).length, overdue: n.overdue + overdueInstallments(b).length }),
+    { confirm: 0, overdue: 0 },
+  );
 }
 
 function greeting(now: Date): string {
@@ -233,7 +252,7 @@ function NextEventCard({
       ) : (
         <div className="relative mt-auto">
           <p className="serif text-xl">Nothing booked yet</p>
-          <p className="mt-1 text-sm text-white/70">Your next confirmed event will show here.</p>
+          <p className="mt-1 text-sm text-white/70">Your next upcoming event will show here.</p>
         </div>
       )}
     </section>
@@ -258,11 +277,9 @@ function LeadsCard({ open, needReply, newThisWeek, oldestWaitingIso }: LeadNumbe
         ) : (
           <p className="text-sm text-ink-faint">Nobody&apos;s waiting on you.</p>
         )}
-        <p className="mt-2 text-xs text-ink-faint">
-          {needReply > 0 && oldestWaitingIso
-            ? `Oldest has waited ${waitedFor(oldestWaitingIso)}.`
-            : "Not signed yet."}
-        </p>
+        {needReply > 0 && oldestWaitingIso ? (
+          <p className="mt-2 text-xs text-ink-faint">Oldest has waited {waitedFor(oldestWaitingIso)}.</p>
+        ) : null}
       </div>
       <CardLink href="/leads">Review leads</CardLink>
     </Card>
@@ -290,10 +307,10 @@ function MiniCalendar({
   const today = new Date();
   const iso = (d: number) =>
     `${month.year}-${String(month.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  const eventCount = Array.from({ length: daysIn }, (_, i) => byDay.get(iso(i + 1))?.length ?? 0).reduce(
-    (a, n) => a + n,
-    0,
-  );
+  // Bookings, not booking-days: a three-day event is one event (web #170).
+  const eventCount = new Set(
+    Array.from({ length: daysIn }, (_, i) => byDay.get(iso(i + 1)) ?? []).flat().map((b) => b.booking_id),
+  ).size;
 
   return (
     <Card className="flex min-h-[16.5rem] flex-col p-5">
@@ -616,7 +633,7 @@ function OverviewInner() {
       <PageHeader
         eyebrow={now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         title={firstName ? `${greeting(now)}, ${firstName}` : greeting(now)}
-        subtitle={todayLine(leads.needReply)}
+        subtitle={todayLine(leads.needReply, moneyWaiting(snap.bookings))}
         action={<NewMenu />}
       />
 

@@ -341,6 +341,11 @@ export type ProposalStatus = "open" | "accepted" | "declined" | "revised" | "sup
 export interface BundleBooking {
   booking_id: string;
   status: string;
+  /** Why "rejected": vendor_declined, client_cancelled (the client took a
+   *  sent request off the plan; backend #28), … */
+  rejected_reason?: string | null;
+  /** The vendor's note when they declined (backend #28). */
+  vendor_decline_note?: string | null;
   payment_status?: string | null;
   /** An accepted request is a contract the client signs on the vendor
    *  site's no-login page (backend DECISIONS.md #17) — see lib/contract.ts.

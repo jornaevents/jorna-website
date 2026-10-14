@@ -28,7 +28,7 @@ import {
   voidContract,
 } from "@/lib/jorna";
 import { emailNotice, guestBookingLink } from "@/lib/contractLink";
-import { describeEvent } from "@/lib/contractTimeline";
+import { describeEvent, visibleEvents } from "@/lib/contractTimeline";
 import { centsToMoney } from "@/lib/vendorPlan";
 import type { Contract, Pipeline, PipelineItem } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
@@ -57,6 +57,31 @@ const REASON: Record<string, string> = {
   contacted: "You've been in touch",
   quoted: "You've sent a quote",
 };
+
+/** How a closed lead ended (backend #28); it sits under Archived. */
+const OUTCOME: Record<NonNullable<PipelineItem["outcome"]>, string> = {
+  declined: "You declined",
+  cancelled_by_client: "Client cancelled",
+  contract_declined: "Client declined",
+  not_going_ahead: "Not going ahead",
+};
+
+function archivedLabel(item: PipelineItem): string {
+  return item.outcome ? OUTCOME[item.outcome] : "Archived";
+}
+
+/** "6:00 PM – 11:00 PM" from HH:MM, or null. */
+function hours(start?: string | null, end?: string | null): string | null {
+  const fmt = (t?: string | null) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(t ?? "");
+    if (!m) return null;
+    const h = Number(m[1]);
+    return `${((h + 11) % 12) + 1}:${m[2]} ${h >= 12 ? "PM" : "AM"}`;
+  };
+  const a = fmt(start);
+  const b = fmt(end);
+  return a && b ? `${a} – ${b}` : a;
+}
 
 function look(item: PipelineItem): Look {
   if (item.attention === "needs_you") return "attention";
@@ -138,7 +163,8 @@ function LeadRow({ item, onOpen }: { item: PipelineItem; onOpen: () => void }) {
       <span className="grid min-w-0">
         <strong className="truncate text-sm text-ink">{item.name}</strong>
         <small className="mt-0.5 truncate text-xs text-ink-faint">
-          {item.service_name || item.event_name || (item.source === "lead" ? "Lead" : "Request")}
+          {/* Two requests from one client differ by their event (#165). */}
+          {[item.event_name, item.service_name].filter(Boolean).join(" · ") || (item.source === "lead" ? "Lead" : "Request")}
         </small>
       </span>
       <span className="hidden min-w-0 md:grid">
@@ -153,7 +179,7 @@ function LeadRow({ item, onOpen }: { item: PipelineItem; onOpen: () => void }) {
         </strong>
       </span>
       <span className="justify-self-end md:justify-self-start">
-        {item.archived ? <StatusPill tone="grey">Archived</StatusPill> : <StatusPill tone={l.tone} dot>{l.label}</StatusPill>}
+        {item.archived ? <StatusPill tone="grey">{archivedLabel(item)}</StatusPill> : <StatusPill tone={l.tone} dot>{l.label}</StatusPill>}
       </span>
       <span className="hidden items-center gap-1 text-xs text-ink-faint lg:flex">
         <Icon name="clock" size={12} />
@@ -166,11 +192,11 @@ function LeadRow({ item, onOpen }: { item: PipelineItem; onOpen: () => void }) {
 
 // ── Drawer ───────────────────────────────────────────────────────────
 
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+function Detail({ label, children, wrap }: { label: string; children: React.ReactNode; wrap?: boolean }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${wrap ? "col-span-2" : ""}`}>
       <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-ink-faint">{label}</dt>
-      <dd className="mt-0.5 truncate text-sm text-ink">{children}</dd>
+      <dd className={`mt-0.5 text-sm text-ink ${wrap ? "break-words" : "truncate"}`}>{children}</dd>
     </div>
   );
 }
@@ -191,6 +217,7 @@ function LeadDrawer({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"decline" | "void" | null>(null);
+  const [declineNote, setDeclineNote] = useState("");
 
   const bookingId = item?.booking_id ?? null;
   const isContract = item?.source === "contract";
@@ -268,26 +295,37 @@ function LeadDrawer({
               <Icon name="messages" size={16} /> Message
             </Link>
           ) : null}
-          <Button
-            variant="quiet"
-            className="ml-auto"
-            disabled={busy != null}
-            onClick={() => run("archive", archiveAction, archived ? "Back in your active leads." : "Archived.")}
-          >
-            {archived ? "Unarchive" : "Archive"}
-          </Button>
+          {item.outcome ? null : (
+            <Button
+              variant="quiet"
+              className="ml-auto"
+              disabled={busy != null}
+              onClick={() => run("archive", archiveAction, archived ? "Back in your active leads." : "Archived.")}
+            >
+              {archived ? "Unarchive" : "Archive"}
+            </Button>
+          )}
         </div>
       }
     >
       <div className="flex flex-wrap items-center gap-2">
-        {archived ? <StatusPill tone="grey">Archived</StatusPill> : <StatusPill tone={l.tone} dot>{l.label}</StatusPill>}
+        {archived ? <StatusPill tone="grey">{archivedLabel(item)}</StatusPill> : <StatusPill tone={l.tone} dot>{l.label}</StatusPill>}
         <StatusPill tone="grey">{item.stage === "negotiation" ? "Negotiation" : "Inquiry"}</StatusPill>
       </div>
       {reason ? <p className="mt-2 text-sm text-ink-soft">{reason}</p> : null}
+      {item.outcome_note ? (
+        <p className="mt-2 text-sm text-ink-soft">
+          {item.outcome === "declined" ? "You told them" : "They said"}: “{item.outcome_note}”
+        </p>
+      ) : null}
 
       <dl className="mt-5 grid grid-cols-2 gap-4 rounded-xl border border-card-edge bg-card p-4">
         <Detail label="Event date">{eventDate(item.event_date)}</Detail>
-        <Detail label="Venue">{item.location || "TBD"}</Detail>
+        <Detail label="Time">{hours(item.time_start, item.time_end) ?? "—"}</Detail>
+        <Detail label="Venue" wrap>
+          {item.location || "TBD"}
+        </Detail>
+        {item.guest_count ? <Detail label="Guests">{item.guest_count}</Detail> : null}
         <Detail label="Package">{item.service_name || "—"}</Detail>
         <Detail label="Estimated value">
           {item.estimated_value_cents != null ? centsToMoney(item.estimated_value_cents) : "—"}
@@ -296,6 +334,13 @@ function LeadDrawer({
         {item.phone ? <Detail label="Phone">{item.phone}</Detail> : null}
       </dl>
 
+      {item.client_note ? (
+        <div className="mt-5">
+          <p className="eyebrow">What they wrote</p>
+          <p className="mt-1.5 whitespace-pre-wrap text-sm text-ink-soft">“{item.client_note}”</p>
+        </div>
+      ) : null}
+
       {item.note ? (
         <div className="mt-5">
           <p className="eyebrow">Notes</p>
@@ -303,8 +348,8 @@ function LeadDrawer({
         </div>
       ) : null}
 
-      {/* What this stage can do. */}
-      <div className="mt-6">
+      {/* What this stage can do. A closed lead has nothing left to do. */}
+      <div className={`mt-6 ${item.outcome ? "hidden" : ""}`}>
         <p className="eyebrow">Next step</p>
         <div className="mt-2.5 flex flex-wrap gap-2">
           {item.source === "request" ? (
@@ -356,7 +401,7 @@ function LeadDrawer({
                 disabled={busy != null}
                 onClick={() => run("lost", () => updateLead(item.lead_id!, { status: "lost" }), "Closed.")}
               >
-                Not going ahead
+                Mark as not going ahead
               </Button>
             </>
           ) : null}
@@ -431,15 +476,28 @@ function LeadDrawer({
           <div className="mt-3 rounded-xl border border-card-edge bg-card p-3.5">
             <p className="text-sm text-ink">
               {confirm === "decline"
-                ? "Decline this request? They'll be told you can't take it."
+                ? "Decline this request? We'll email them that you can't take it."
                 : "Void this contract? The link stops working and the date opens up."}
             </p>
+            {confirm === "decline" ? (
+              <label className="mt-2.5 block">
+                <span className="mb-1 block text-xs text-ink-faint">A note to them (optional)</span>
+                <textarea
+                  value={declineNote}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="e.g. I'm booked that weekend — sorry!"
+                  onChange={(e) => setDeclineNote(e.target.value)}
+                  className="w-full rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none focus:border-gold"
+                />
+              </label>
+            ) : null}
             <div className="mt-2.5 flex gap-2">
               <Button
                 disabled={busy != null}
                 onClick={() =>
                   confirm === "decline"
-                    ? run("decline", () => setBookingStatus(item.booking_id!, "rejected"), "Declined.")
+                    ? run("decline", () => setBookingStatus(item.booking_id!, "rejected", declineNote.trim() || null), "Declined.")
                     : run("void", () => voidContract(item.booking_id!), "Voided.")
                 }
               >
@@ -482,7 +540,7 @@ function LeadDrawer({
               {item.source === "request" ? "Request received" : item.source === "lead" ? "Added to leads" : "Contract created"}
             </TimelineRow>
           ) : null}
-          {(contract?.timeline ?? [])
+          {visibleEvents(contract?.timeline ?? [])
             .filter((e) => e.kind !== "created")
             .map((e, i) => (
               <TimelineRow key={i} at={e.at}>
