@@ -98,8 +98,7 @@ export function VendorIdentityFields({
           ))}
         </select>
         <span className="mt-1 block text-xs text-ink-faint">
-          Pick every category you sell in, then any specialities within it —
-          each package you add still gets its own, starting from these.
+          Add each category you work in. You can narrow each one down below.
         </span>
       </label>
 
@@ -109,11 +108,13 @@ export function VendorIdentityFields({
             What you offer in {pickerCat.label}
           </span>
           <div className="flex flex-wrap gap-2">
+            {/* "All of it" rather than the category's own name again
+                (#162: Photography offered a "Photography" chip). */}
             <Chip
               active={has(pickerCat.value, null)}
               onClick={() => toggle(pickerCat.value, null)}
             >
-              {pickerCat.label}
+              {subOptions.length ? `All ${pickerCat.label.toLowerCase()}` : pickerCat.label}
             </Chip>
             {subOptions.map((s) => (
               <Chip
@@ -177,7 +178,7 @@ export function VendorIdentityFields({
         min={0}
         max={99}
         step={1}
-        placeholder="9"
+        placeholder="e.g. 5"
         value={yearsExperience}
         onChange={(e) => onYearsExperienceChange(e.target.value)}
       />
@@ -188,27 +189,23 @@ export function VendorIdentityFields({
 export function VendorReachFields({
   radius,
   longDistance,
-  locationNegotiable,
   instagram,
   onRadiusChange,
   onLongDistanceChange,
-  onLocationNegotiableChange,
   onInstagramChange,
 }: {
   radius: string;
   longDistance: boolean;
-  locationNegotiable: boolean;
   instagram: string;
   onRadiusChange: (value: string) => void;
   onLongDistanceChange: (value: boolean) => void;
-  onLocationNegotiableChange: (value: boolean) => void;
   onInstagramChange: (value: string) => void;
 }) {
   return (
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
-          label="Travel radius (miles)"
+          label="Travel radius in miles (optional)"
           type="number"
           min={1}
           max={500}
@@ -235,20 +232,6 @@ export function VendorReachFields({
         </span>
       </label>
 
-      <label className="flex items-start gap-2.5">
-        <input
-          type="checkbox"
-          checked={locationNegotiable}
-          onChange={(e) => onLocationNegotiableChange(e.target.checked)}
-          className="mt-1"
-        />
-        <span className="text-sm text-ink-soft">
-          I&apos;m open to discussing price
-          <span className="block text-xs text-ink-faint">
-            Whether a client can actually make an offer is set per package.
-          </span>
-        </span>
-      </label>
     </>
   );
 }
@@ -337,7 +320,7 @@ export function VendorPaymentFields({
             />
             <Field
               label="Zelle contact"
-              placeholder="you@business.com or a phone number"
+              placeholder="Email or phone"
               value={zelleContact}
               onChange={(e) => onZelleContactChange(e.target.value)}
             />

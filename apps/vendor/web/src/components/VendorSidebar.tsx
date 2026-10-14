@@ -12,10 +12,10 @@
 // The light/dark toggle that used to sit in the rail moved to Settings.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { getMyVendor, getPipeline, getUnreadCount } from "@/lib/jorna";
+import { getMyVendor, getPipeline, getUnreadCount, listMyServices } from "@/lib/jorna";
 import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
 import { dmSans, manrope } from "@/lib/vendorFonts";
@@ -125,6 +125,7 @@ const subscribeToHistory = (onChange: () => void) => {
 
 export function VendorSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const search = useSyncExternalStore(subscribeToHistory, () => window.location.search, () => "");
   const fromLeads = pathname.startsWith("/contracts/new") && /[?&](lead|request)=/.test(search);
   const isActive = (item: SidebarItem) => {
@@ -144,12 +145,26 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     // mounted across vendor routes, and the name/category rarely change.
     let cancelled = false;
     getMyVendor()
-      .then((v) => !cancelled && setVendor(v))
+      .then((v) => {
+        if (cancelled) return;
+        setVendor(v);
+        // The vendor pages wait for a first package (#162, decided
+        // 2026-10-14): until then it's the setup wizard only. Any package
+        // counts, archived too, so a vendor who retired them all isn't sent
+        // back to setup. A failed check leaves them where they are.
+        if (v) {
+          listMyServices(v.vendor_id)
+            .then((svc) => {
+              if (!cancelled && svc.items.length === 0) router.replace("/vendor-onboarding");
+            })
+            .catch(() => {});
+        }
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     // Re-checked on navigation so the badge follows you as you act on things:

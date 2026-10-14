@@ -78,7 +78,6 @@ export default function VendorOnboardingPage() {
   // only payment path and there's otherwise no step that ever asks for it)
   const [radius, setRadius] = useState("");
   const [longDistance, setLongDistance] = useState(false);
-  const [locationNegotiable, setLocationNegotiable] = useState(false);
   const [instagram, setInstagram] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"stripe" | "manual">("manual");
   const [venmoHandle, setVenmoHandle] = useState("");
@@ -124,7 +123,6 @@ export default function VendorOnboardingPage() {
         setSpecializations(vendorSpecializations(mine));
         setRadius(mine.travel_radius_miles?.toString() ?? "");
         setLongDistance(Boolean(mine.open_to_long_distance));
-        setLocationNegotiable(Boolean(mine.open_to_price_negotiation));
         setInstagram(mine.instagram_username ?? "");
         setPaymentMethod(ESCROW_ENABLED ? (mine.payment_method ?? "stripe") : "manual");
         setVenmoHandle(mine.venmo_handle ?? "");
@@ -142,7 +140,10 @@ export default function VendorOnboardingPage() {
           return;
         }
         if (svc) setServices(svc.items);
-        setStep("reach");
+        // Step 2's one required answer is how they're paid; once that's saved,
+        // a reload carries on at the packages (#162 sent them back to step 2).
+        const reachDone = ESCROW_ENABLED ? mine.payment_method != null : Boolean(mine.venmo_handle || mine.zelle_contact);
+        setStep(reachDone ? "service" : "reach");
       })
       .catch(
         (err) =>
@@ -190,6 +191,9 @@ export default function VendorOnboardingPage() {
         // minute after this succeeds.
         clearRoleCache();
         setVendor(created);
+        // Show the radius the new record starts with, not a blank that a
+        // reload would fill in (#162).
+        setRadius(created.travel_radius_miles?.toString() ?? "");
       }
       setStep("reach");
     } catch (err) {
@@ -197,6 +201,13 @@ export default function VendorOnboardingPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function onPaymentChange(set: (v: string) => void) {
+    return (v: string) => {
+      set(v);
+      if (v.trim()) setError(null);
+    };
   }
 
   async function submitReach(e: React.FormEvent) {
@@ -215,7 +226,6 @@ export default function VendorOnboardingPage() {
         // validates any radius it's sent as 1–500), and blank means "not set".
         ...(radius ? { travel_radius_miles: Number(radius) } : {}),
         open_to_long_distance: longDistance,
-        open_to_price_negotiation: locationNegotiable,
         instagram_username: instagram.trim().replace(/^@/, "") || null,
         ...(ESCROW_ENABLED
           ? {}
@@ -347,23 +357,21 @@ export default function VendorOnboardingPage() {
       {step === "reach" ? (
         <>
           <h1 className="serif mt-5 text-center text-4xl text-maroon dark:text-gold">
-            Where do you work?
+            How far you go, and how you&apos;re paid
           </h1>
           <p className="mt-2 text-center text-ink-soft">
             {ESCROW_ENABLED
-              ? "Helps clients searching by distance find you. Both optional — leave them blank if you're not sure yet."
-              : "Helps clients searching by distance find you — both optional. How you get paid isn't."}
+              ? "Your travel radius helps clients searching by distance find you. Both are optional."
+              : "Your travel radius helps clients searching by distance find you. How clients pay you is the one thing we need."}
           </p>
           <Card className="mt-8 p-6">
             <form onSubmit={submitReach} className="grid gap-4">
               <VendorReachFields
                 radius={radius}
                 longDistance={longDistance}
-                locationNegotiable={locationNegotiable}
                 instagram={instagram}
                 onRadiusChange={setRadius}
                 onLongDistanceChange={setLongDistance}
-                onLocationNegotiableChange={setLocationNegotiable}
                 onInstagramChange={setInstagram}
               />
               {!ESCROW_ENABLED ? (
@@ -376,8 +384,8 @@ export default function VendorOnboardingPage() {
                     venmoHandle={venmoHandle}
                     zelleContact={zelleContact}
                     onPaymentMethodChange={setPaymentMethod}
-                    onVenmoHandleChange={setVenmoHandle}
-                    onZelleContactChange={setZelleContact}
+                    onVenmoHandleChange={onPaymentChange(setVenmoHandle)}
+                    onZelleContactChange={onPaymentChange(setZelleContact)}
                   />
                 </div>
               ) : null}
@@ -404,7 +412,7 @@ export default function VendorOnboardingPage() {
           </h1>
           <p className="mt-2 text-center text-ink-soft">
             What clients can book — add one for every specialty from step 1.
-            A price and a photo are what makes a listing worth scrolling past.
+            A price and a photo are what make a listing worth stopping for.
           </p>
           <div className="mt-8">
             <ServicesManager
@@ -426,11 +434,11 @@ export default function VendorOnboardingPage() {
               </p>
             </div>
           ) : (
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-              <LinkButton href="/vendor-profile" variant="quiet" size="md">
-                I&apos;ll add packages later
-              </LinkButton>
-            </div>
+            // No "I'll add packages later": the vendor pages wait for a first
+            // package (#162, decided 2026-10-14), so there'd be nowhere to go.
+            <p className="mt-6 text-center text-sm text-ink-faint">
+              Your vendor pages open once your first package is saved.
+            </p>
           )}
         </>
       ) : null}

@@ -312,7 +312,10 @@ function PricePanel({ service }: { service: ServiceItem }) {
         </>
       ) : (
         <p className="mt-1 text-sm text-ink-soft">
-          A flat rate for the whole event, however long it runs.
+          {/* A package with set hours isn't "however long it runs" (#163). */}
+          {service.included_hours
+            ? `A flat rate covering ${service.included_hours} hours.`
+            : "A flat rate for the whole event, however long it runs."}
         </p>
       )}
 
@@ -532,11 +535,6 @@ function ServiceInner() {
             <div className="mt-4 flex flex-wrap gap-2">
               {service.experience ? <Pill>{service.experience}</Pill> : null}
               {duration ? <Pill>Up to {duration}</Pill> : null}
-              {service.negotiable ? (
-                <span className="rounded-full border border-gold/50 px-3 py-1 text-xs text-gold">
-                  Open to offers
-                </span>
-              ) : null}
             </div>
           </header>
 
