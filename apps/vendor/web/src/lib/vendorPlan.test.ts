@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   bookingMoney,
   bookingProgress,
+  bookingSteps,
   bookingTab,
+  effectiveDue,
+  overdueInstallments,
   overPill,
   canAttachDocument,
   paymentsToConfirm,
@@ -476,9 +479,10 @@ describe("bookingMoney and paymentsToConfirm", () => {
     expect(m.balanceDue).toMatch(/^Due .*2030 \(14 days before the event\)$/);
     expect(m.balanceDue).not.toMatch(/after the event/);
 
-    // Two still to come: names the next one and counts the rest.
+    // The deposit has its own box: what's "remaining" starts after it (#170).
     const early = signed({ amount_cents: 170000, payment_schedule: [inst("Deposit", 80000), bal] } as Partial<VendorBooking>);
-    expect(bookingMoney(early).balanceDue).toBe("Deposit Due when signed, then 1 more");
+    expect(bookingMoney(early)).toMatchObject({ balanceCents: 90000, depositDue: "Due when signed" });
+    expect(bookingMoney(early).balanceDue).toMatch(/^Due .*2030 \(14 days before the event\)$/);
 
     // Every payment confirmed: paid in full, whatever stage the booking is at.
     const done = signed({
@@ -507,5 +511,48 @@ describe("canAttachDocument", () => {
 
   it("never attaches to a voided or declined booking", () => {
     expect(canAttachDocument(b({ status: "rejected", contract_token: "t", signed_at: "x" }))).toBe(false);
+  });
+});
+
+
+describe("whose move, and money that's late (#151, #170)", () => {
+  const now = new Date("2030-06-01T12:00:00");
+  const inst2 = (id: string, label: string, amount: number, extra: Record<string, unknown> = {}) => ({
+    id, label, amount_cents: amount, due_type: "date" as const, due_date: null, due_days: null,
+    due_on: null, marked_paid_at: null, confirmed_at: null, ...extra,
+  });
+
+  it("calls a contract with the client's changes waiting the vendor's turn", () => {
+    const b = booking({
+      contract_token: "t", contract_status: "viewed", status: "approved",
+      negotiation: { turn: "vendor", round: 2, waiting_vendor: 4, waiting_client: 0 },
+    } as Partial<VendorBooking>);
+    expect(contractStatus(b)).toBe("changes_waiting");
+    expect(contractNeedsVendor("changes_waiting")).toBe(true);
+    expect(vendorTasks([b], null).map((t) => t.kind)).toContain("changes");
+  });
+
+  it("finds a payment past due, never before the day it was signed", () => {
+    const b = booking({
+      contract_token: "t", status: "approved", signed_at: "2030-05-20T00:00:00Z", date_iso: "2030-09-01",
+      payment_schedule: [
+        inst2("d", "Deposit", 1000, { due_type: "on_signing", due_on: "2030-05-20" }),
+        inst2("b", "Balance", 2000, { due_on: "2030-05-10" }),
+      ],
+    } as Partial<VendorBooking>);
+    expect(overdueInstallments(b, now).map((i) => i.id)).toEqual(["d", "b"]);
+    const marked = { ...b, payment_schedule: b.payment_schedule!.map((i) => ({ ...i, marked_paid_at: "x" })) };
+    expect(overdueInstallments(marked, now)).toEqual([]);
+    expect(effectiveDue({ due_on: "2030-05-10" }, "2030-05-20T00:00:00Z")).toBe("2030-05-20");
+  });
+
+  it("puts paid in full before the event when the last payment is due before it", () => {
+    const b = booking({
+      contract_token: "t", status: "approved", signed_at: "2030-01-01T00:00:00Z", date_iso: "2030-09-01",
+      payment_schedule: [inst2("d", "Deposit", 1000, { due_on: "2030-01-01" }), inst2("b", "Balance", 2000, { due_on: "2030-08-18" })],
+    } as Partial<VendorBooking>);
+    expect(bookingSteps(b)).toEqual(["Contract sent", "Contract signed", "Deposit paid", "Paid in full", "Event over"]);
+    const delivery = { ...b, payment_schedule: [b.payment_schedule![0], { ...b.payment_schedule![1], due_on: "2030-10-01" }] };
+    expect(bookingSteps(delivery).at(-1)).toBe("Payment received");
   });
 });

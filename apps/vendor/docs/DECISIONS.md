@@ -793,3 +793,14 @@ From the 2026-10-05 staging walkthrough (#166), with backend jorna-backend #114 
 - **A package's included hours** go into its line ("5 hours included"), which the client's copy, the signing page and the PDF print.
 - **Hold days** outside 1–60 are said under the field instead of quietly becoming 7.
 - **A contract started from a lead or a request belongs to Leads**: the back link says so and the sidebar lights Leads.
+## Decision: one answer to "whose move is it" (2026-10-14)
+
+From the 2026-10-05 staging walkthrough (#150, #151, #165, #167, #170, #135), with backend jorna-backend #114 (its DECISIONS #28).
+
+- **The client's changes are the vendor's turn, everywhere.** Contracts and bookings carry `negotiation` (whose turn, how many changes wait on each side). `vendorPlan.contractStatus` has `changes_waiting` (`changesWaiting()`, which also counts an open proposal on the older flow). Leads reads the backend pipeline, which uses the same field. The contract page says "Asha asked for 2 changes — your turn", with Answer them as its main action.
+- **Money reaches Overview.** `vendorTasks` adds the client's changes, payments the client says are sent, and overdue payments (`overdueInstallments`, due no earlier than signing, like the backend's `effective_due`). Overview's line counts them: "1 payment to confirm and 1 payment is overdue."
+- **Bookings say what's late, in order.** The steps put "Paid in full" before "Event over" when the last payment is due before the event (`bookingSteps`). The remaining balance starts after the deposit, which has its own due date (#135). An overdue payment is flagged on the row and the card.
+- **A negotiation reads as one turn** on the timeline ("Your client asked for 2 changes", "You accepted 1 and answered 1 other change"). The edit and resend the backend writes alongside a vendor's answer are hidden (`visibleEvents`).
+- **Contracts:** All counts every contract. A declined or void one has no link to copy. A signed row says who signed, and flags a name that isn't the client's.
+- **Leads:** a row names the event as well as the package. The drawer shows the time, the guest count, the client's note and the full venue. Declining can carry a note, which is emailed to the client and shown on their plan. Closed leads sit under Archived with how they ended ("You declined", "Client cancelled", …). Add a client checks the email, phone and date before saving.
+- **Client app:** a request the client took off a sent plan stays on it as "You cancelled", and a vendor's decline note shows under the declined request.

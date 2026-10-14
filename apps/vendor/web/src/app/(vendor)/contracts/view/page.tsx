@@ -31,7 +31,8 @@ import {
   guestDocumentLink,
   guestDocumentPreviewLink,
 } from "@/lib/contractLink";
-import { describeEvent, prettyDate } from "@/lib/contractTimeline";
+import { describeEvent, prettyDate, visibleEvents } from "@/lib/contractTimeline";
+import { changesWaiting } from "@/lib/vendorPlan";
 import type { AttachedDocument, Contract, Installment } from "@/lib/types";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { StatusPill } from "@/components/vendor/ui";
@@ -162,6 +163,12 @@ function ContractViewInner() {
   const unsigned = !c.signed_at && !closed;
   const canSend = unsigned && (status === "draft" || status === "expired" || status === "sent" || status === "viewed");
   const lines = c.line_items ?? [];
+  // The client's changes waiting on the vendor: the status says so and the
+  // negotiation is the main action, not a link under "awaiting signature" (#151).
+  const waiting = unsigned ? changesWaiting(c) : 0;
+  const statusText = waiting
+    ? `${c.guest_name || "Your client"} asked for ${waiting === 1 ? "a change" : `${waiting} changes`} — your turn`
+    : (STATUS_LABEL[status] ?? status);
 
   return (
     <div className="mx-auto w-[min(760px,100%-2rem)]">
@@ -180,7 +187,7 @@ function ContractViewInner() {
         </div>
         <div className="text-right">
           <p className="serif text-2xl text-ink">{money(c.amount_cents)}</p>
-          <p className="text-sm text-ink-soft">{STATUS_LABEL[status] ?? status}</p>
+          <p className={`text-sm ${waiting ? "font-semibold text-maroon dark:text-gold" : "text-ink-soft"}`}>{statusText}</p>
         </div>
       </header>
 
@@ -196,7 +203,19 @@ function ContractViewInner() {
         </p>
       ) : null}
 
-      {unsigned && c.proposal_status === "open" ? (
+      {waiting && c.negotiation ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3">
+          <p className="text-sm text-ink">
+            <strong>
+              {c.guest_name || "Your client"} asked for {waiting === 1 ? "a change" : `${waiting} changes`}.
+            </strong>{" "}
+            <span className="text-ink-soft">Accept, counter or keep each one.</span>
+          </p>
+          <LinkButton href={`/contracts/changes?id=${c.booking_id}`} size="md">
+            Answer them
+          </LinkButton>
+        </div>
+      ) : unsigned && c.proposal_status === "open" ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3">
           <p className="text-sm text-ink">
             <strong>{c.guest_name || "Your client"} proposed changes.</strong>{" "}
@@ -508,7 +527,7 @@ function ContractViewInner() {
         <Card className="p-5">
           <h2 className="serif text-lg text-ink">Timeline</h2>
           <ol className="mt-3 grid gap-2">
-            {(c.timeline ?? []).map((e, idx) => (
+            {visibleEvents(c.timeline ?? []).map((e, idx) => (
               <li key={`${e.at}-${idx}`} className="flex gap-3 text-sm">
                 <span className="w-32 shrink-0 text-ink-faint">{when(e.at)}</span>
                 <span className="text-ink">{describeEvent(e, c)}</span>

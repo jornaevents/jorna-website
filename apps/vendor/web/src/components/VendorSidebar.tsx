@@ -92,7 +92,7 @@ function NavLink({
         >
           <span className="sr-only">, </span>
           {badge > 99 ? "99+" : badge}
-          <span className="sr-only"> {item.badge === "messages" ? "unread" : "need you"}</span>
+          <span className="sr-only"> {item.badge === "messages" ? "unread" : badge === 1 ? "needs you" : "need you"}</span>
         </span>
       ) : null}
     </Link>

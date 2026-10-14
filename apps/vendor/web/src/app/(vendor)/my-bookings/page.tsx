@@ -27,7 +27,7 @@ import {
 } from "@/lib/jorna";
 import { checkInAtVenue, LocationError } from "@/lib/checkin";
 import {
-  BOOKING_STEPS,
+  bookingSteps,
   bookingMoney,
   bookingProgress,
   bookingTab,
@@ -119,11 +119,12 @@ function yourMove(b: VendorBooking): boolean {
 function Progress({ b }: { b: VendorBooking }) {
   const done = bookingProgress(b);
   const m = bookingMoney(b);
+  const steps = bookingSteps(b);
   return (
     <ol className="relative grid gap-2 sm:grid-cols-5 sm:gap-1">
-      {BOOKING_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const complete = i < done;
-        const current = i === done - 1 && done < BOOKING_STEPS.length;
+        const current = i === done - 1 && done < steps.length;
         return (
           <li key={step} className="flex items-start gap-2.5 sm:flex-col sm:items-center sm:text-center">
             <span
@@ -189,7 +190,8 @@ function Expanded({
   const toConfirm = paymentsToConfirm(b);
   const release = releaseStep(b);
   const stepIndex = bookingProgress(b);
-  const stage = stepIndex >= BOOKING_STEPS.length ? "Complete" : BOOKING_STEPS[Math.max(0, stepIndex - 1)];
+  const steps = bookingSteps(b);
+  const stage = stepIndex >= steps.length ? "Complete" : steps[Math.max(0, stepIndex - 1)];
   const highlighted = yourMove(b);
 
   return (
@@ -217,15 +219,19 @@ function Expanded({
         <Info
           label="Deposit"
           value={m.depositCents != null ? money(m.depositCents) : "None"}
-          sub={m.depositCents != null ? (m.depositPaid ? "Paid" : "Not yet paid") : undefined}
+          sub={m.depositCents != null ? (m.depositPaid ? "Paid" : (m.depositDue ?? "Not yet paid")) : undefined}
         />
         <Info
           label="Remaining balance"
           value={m.paidInFull ? "$0" : money(m.balanceCents)}
           sub={
-            m.paidInFull
-              ? "Paid in full"
-              : (m.balanceDue ?? (eventIsOver(b) ? "Due now" : "Due after the event"))
+            m.paidInFull ? (
+              "Paid in full"
+            ) : m.overdue ? (
+              <span className="font-semibold text-maroon dark:text-gold">Overdue — {m.balanceDue ?? "due now"}</span>
+            ) : (
+              (m.balanceDue ?? (eventIsOver(b) ? "Due now" : "Due after the event"))
+            )
           }
         />
       </div>
@@ -520,6 +526,8 @@ function BookingsInner() {
                       <StatusPill tone="red" dot>
                         Your move
                       </StatusPill>
+                    ) : m.overdue ? (
+                      <StatusPill tone="red">Overdue</StatusPill>
                     ) : tab === "over" ? (
                       <StatusPill tone={overPill(b).paid ? "green" : "amber"}>{overPill(b).label}</StatusPill>
                     ) : (

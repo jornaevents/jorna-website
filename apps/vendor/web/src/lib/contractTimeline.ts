@@ -26,6 +26,25 @@ function forName(detail: Record<string, unknown>): string {
   return typeof detail.name_on_contract === "string" ? ` — the contract is for ${detail.name_on_contract}` : "";
 }
 
+/** The rows worth reading. A vendor's negotiation answer is one send, but
+ *  the backend also writes it into the contract ("edited") and restarts the
+ *  hold ("resent") in the same moment. Those two are dropped next to it, so
+ *  an answer doesn't read as an edit and a resend (web #150). */
+export function visibleEvents(events: ContractEvent[]): ContractEvent[] {
+  const answers = events
+    .filter((e) => e.kind === "negotiation_sent" && e.actor === "vendor")
+    .map((e) => new Date(e.at).getTime());
+  return events.filter(
+    (e) =>
+      !((e.kind === "edited" || e.kind === "resent") &&
+        answers.some((t) => Math.abs(new Date(e.at).getTime() - t) < 5_000)),
+  );
+}
+
+function count(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
 /** One timeline row in words. */
 export function describeEvent(e: ContractEvent, c: { signer_name?: string | null }): string {
   const d = e.detail ?? {};
@@ -109,6 +128,22 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       const fields = Array.isArray(d.fields) ? d.fields.filter((f): f is string => typeof f === "string") : [];
       return `Your client changed their ${fields.length ? fields.join(" and ") : "details"} on the contract`;
     }
+    // Field-by-field negotiation (backend DECISIONS #26): one side's turn.
+    case "negotiation_sent": {
+      const keys = Array.isArray(d.keys) ? d.keys.length : 0;
+      const settled = Array.isArray(d.settled) ? d.settled.length : 0;
+      const rest = Math.max(0, keys - settled);
+      if (e.actor === "vendor") {
+        if (!settled) return `You answered ${count(rest, "change")}`;
+        return rest ? `You accepted ${settled} and answered ${count(rest, "other change")}` : `You accepted ${count(settled, "change")}`;
+      }
+      if (!settled) return `Your client asked for ${count(rest, "change")}`;
+      return rest
+        ? `Your client accepted ${settled} and asked for ${count(rest, "change")}`
+        : `Your client accepted ${count(settled, "change")}`;
+    }
+    case "cancelled":
+      return "Your client cancelled their request";
     case "copy_sent":
       return d.to === "vendor" ? "A signed copy was emailed to you" : "A signed copy was emailed to your client";
     default:
