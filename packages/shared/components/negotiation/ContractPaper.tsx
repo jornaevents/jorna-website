@@ -80,6 +80,7 @@ export function ContractPaper({
                     <span>
                       <V mark={markOf(`line:${id}`) ?? markOf(`line:${id}.name`)}>{l.name || "New item"}</V> ·{" "}
                       {show(`line:${id}.quantity`, "count", l.quantity)} × {show(`line:${id}.price`, "money", l.price)}
+                      {l.description ? <span className="block text-xs text-ink-faint">{l.description}</span> : null}
                     </span>
                     <span className="shrink-0 text-ink">{money(lineTotalCents(l))}</span>
                   </li>

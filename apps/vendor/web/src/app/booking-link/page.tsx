@@ -86,7 +86,7 @@ function prettyTime(t: string): string {
  *  line items has one line — then the service name above already says it. */
 function Items({ booking }: { booking: GuestBooking }) {
   const lines = booking.line_items ?? [];
-  if (lines.length <= 1 && !booking.discount_cents) return null;
+  if (lines.length <= 1 && !booking.discount_cents && !lines[0]?.description) return null;
   return (
     <table className="mt-3 w-full border-t border-line-soft text-sm">
       <tbody>
@@ -95,6 +95,7 @@ function Items({ booking }: { booking: GuestBooking }) {
             <td className="py-1.5 text-ink-soft">
               {l.name}
               {l.quantity !== 1 ? ` × ${l.quantity}` : ""}
+              {l.description ? <span className="block text-xs text-ink-faint">{l.description}</span> : null}
             </td>
             <td className="py-1.5 text-right text-ink">{money(l.total_cents)}</td>
           </tr>

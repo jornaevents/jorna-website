@@ -167,6 +167,9 @@ always "none, verify manually" until a test runner is added.
     to `VendorFieldNegotiation` when `GET /contracts/{id}/negotiation`
     answers; the signing page does the same with the guest route, and gates
     signing on nothing waiting (or "Sign it as it is").
+  - `lib/dateClash.ts` — whether a picked date is already taken by one of
+    the vendor's bookings, the backend's rule, so the editor says so before
+    Send. Unit-tested.
   - `lib/contractTemplates.ts` — templates on the account (`/contract-
     templates`), made from the builder and managed in `vendor-profile/`;
     moves any a browser saved in `localStorage` before that onto the account

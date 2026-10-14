@@ -38,28 +38,42 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
     expect(api.requestsTo("POST", "/contracts")).toHaveLength(0);
   });
 
-  test("cancellation and overtime are edited in the document", async ({ page, api }) => {
+  test("the cancellation window lives in its own section, overtime under the schedule", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
     await page.goto("contracts/new/");
-    const schedule = page.getByRole("article", { name: "Contract document" }).getByRole("region", { name: "Payment schedule" });
+    const doc = page.getByRole("article", { name: "Contract document" });
+    const schedule = doc.getByRole("region", { name: "Payment schedule" });
 
-    await schedule.getByLabel("Cancellation window (days)").fill("45");
-    await expect(schedule.getByText("Cancelling within 45 days of the event may forfeit what's been paid.")).toBeVisible();
+    await expect(schedule.getByLabel("Overtime rate ($/hr)")).toBeVisible();
+    await schedule.getByRole("button", { name: "+ Add a cancellation window" }).click();
+    const days = doc.getByLabel("Cancellation window (days before the event)");
+    await expect(days).toHaveValue("30");
+    await days.fill("45");
+    await expect(doc.getByText("Cancelling within 45 days of the event may forfeit what's been paid.")).toBeVisible();
+    // One place for it: the suggestion and the schedule's button go away.
+    await expect(doc.getByRole("button", { name: "+ Cancellation" })).toHaveCount(0);
+    await expect(schedule.getByRole("button", { name: "+ Add a cancellation window" })).toHaveCount(0);
     // Hold days is about sending, so it stays with Send.
     await expect(page.getByRole("complementary", { name: "Send" }).getByLabel("Hold the date for (days)")).toBeVisible();
   });
 
-  test("a new custom item takes the cursor, and a blank one goes away", async ({ page, api }) => {
+  test("a new custom item takes the cursor, and left blank it neither blocks nor eats the next click", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
     await page.goto("contracts/new/");
-    const items = page.getByRole("region", { name: "Packages & items" });
+    await page.getByLabel("Add a package").selectOption("svc-1");
+    const doc = page.getByRole("article", { name: "Contract document" });
+    const items = doc.getByRole("region", { name: "Packages & items" });
 
     await items.getByRole("button", { name: "+ Add a custom item" }).click();
-    await expect(items.getByRole("textbox", { name: "Item", exact: true })).toBeFocused();
-    await page.getByLabel("Agreement title").click();
-    await expect(items.getByRole("textbox", { name: "Item", exact: true })).toHaveCount(0);
+    await expect(items.getByRole("textbox", { name: "Item", exact: true }).last()).toBeFocused();
+    // The click that leaves the empty row does what it was for.
+    await doc.getByRole("button", { name: "Three payments" }).click();
+    await expect(doc.getByRole("region", { name: "Payment schedule" }).getByLabel("Name")).toHaveCount(3);
+
+    await page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send & hold date" }).click();
+    await expect(items.getByText("Every line needs a name.")).toHaveCount(0);
   });
 
   test("Preview as client shows the contract as the client reads it", async ({ page, api }) => {

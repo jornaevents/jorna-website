@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   applyTemplate,
   balanceLastPayment,
+  BLANK,
+  cancellationClause,
+  CANCELLATION_KEY,
+  cancellationSentence,
   customLine,
+  dueDateOf,
+  money,
+  packageLine,
+  warningsByStep,
+  withCancellationSection,
   emptyDraft,
   fromContract,
   fromRequest,
@@ -261,5 +270,67 @@ describe("layout", () => {
     const applied = applyTemplate(emptyDraft(), body, [{ service_id: "svc-1" }]);
     expect(types(applied)[2]).toMatch(/^terms:/);
     expect(applied.clauses[0].title).toBe("Scope");
+  });
+});
+
+describe("editor checks (web #166)", () => {
+  const today = "2030-01-01";
+
+  it("refuses a payment counted back past today, and warns about one after the event", () => {
+    const d = ready({ dateIso: "2030-06-01" });
+    d.schedule[1].dueDays = "400";
+    expect(problems(d, today).join(" ")).toMatch(/“Final balance” would be due .*which has passed/);
+    d.schedule[1] = { ...d.schedule[1], dueType: "date", dueDate: "2030-07-15" };
+    expect(problems(d, today)).toEqual([]);
+    expect(warningsByStep(d).map((w) => w.message).join(" ")).toMatch(/after the event/);
+  });
+
+  it("names the discount when it's the reason there's no total, without a misleading schedule problem", () => {
+    const d = ready({ discount: "2000" });
+    d.schedule = [];
+    const found = problems(d, today);
+    expect(found.join(" ")).toMatch(/discount \(\$2,000\.00\) is as much as the items/);
+    expect(found).not.toContain("Add at least one payment to the schedule.");
+    expect(money(-50_000)).toBe("−$500.00");
+  });
+
+  it("keeps an empty custom row out of the contract instead of flagging it", () => {
+    const d = ready();
+    d.lines.push(customLine());
+    expect(problems(d, today)).toEqual([]);
+    expect(toDocument(d).line_items).toHaveLength(2);
+  });
+
+  it("checks the hold and the blanks a suggested section leaves", () => {
+    expect(problems(ready({ holdDays: "-2" }), today)).toContain("Hold the date for between 1 and 60 days.");
+    expect(problems(ready({ holdDays: "14" }), today)).toEqual([]);
+    const d = ready({ clauses: [{ key: "t", title: "Travel", body: `Billed at $${BLANK} per mile.` }] });
+    expect(problems(d, today)).toContain(`Fill in the blank (${BLANK}) in “Travel”.`);
+  });
+
+  it("gives a window a Cancellation section, which goes out only when it has words of its own", () => {
+    const d = withCancellationSection(ready({ cancellationDays: "30" }));
+    expect(cancellationClause(d)?.key).toBe(CANCELLATION_KEY);
+    expect(layoutOf(d).some((b) => b.id === CANCELLATION_KEY)).toBe(true);
+    expect(problems(d, today)).toEqual([]);
+    const sent = toDocument(d);
+    expect(sent.cancellation_window_hours).toBe(720);
+    expect(sent.terms_clauses.map((c) => c.key)).not.toContain(CANCELLATION_KEY);
+
+    const worded = { ...d, clauses: d.clauses.map((c) => ({ ...c, body: "The deposit is non-refundable." })) };
+    expect(toDocument(worded).terms_clauses.map((c) => c.key)).toContain(CANCELLATION_KEY);
+    // An older contract's section titled that way is the one, not a second.
+    const older = withCancellationSection(ready({ cancellationDays: "30", clauses: [{ key: "x1", title: "Cancellation policy", body: "Non-refundable." }] }));
+    expect(older.clauses).toHaveLength(1);
+    expect(cancellationSentence(30)).toBe("Cancelling within 30 days of the event may forfeit what's been paid.");
+  });
+
+  it("works out when a payment falls", () => {
+    expect(dueDateOf({ dueType: "before_event", dueDate: "", dueDays: "14" }, "2030-03-10")).toBe("2030-02-24");
+    expect(dueDateOf({ dueType: "on_signing", dueDate: "", dueDays: "" }, "2030-03-10")).toBeNull();
+  });
+
+  it("puts a package's included hours in its line", () => {
+    expect(packageLine({ service_id: "s", name: "Coverage", price: 2500, included_hours: 5 }).description).toBe("5 hours included");
   });
 });

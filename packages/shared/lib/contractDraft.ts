@@ -36,6 +36,8 @@ export interface PackageSource {
   price: number;
   price_unit?: string | null;
   add_ons?: { id?: string; name: string; price: number; price_unit: string }[] | null;
+  /** "Hours included" on the package (backend 0063). */
+  included_hours?: number | null;
 }
 
 /** The vendor's saved default clauses. */
@@ -163,7 +165,8 @@ export function toDollars(cents: number): string {
 }
 
 export function money(cents: number): string {
-  return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const amount = (Math.abs(cents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${cents < 0 ? "−" : ""}$${amount}`;
 }
 
 // ── Items ────────────────────────────────────────────────────────────
@@ -175,6 +178,9 @@ function lineUnit(unit: string | null | undefined): LineUnit {
 }
 
 export function packageLine(service: PackageSource): LineDraft {
+  // The hours the package includes are part of what's sold, so they go in
+  // the contract with it (the backend keeps the line's description).
+  const hours = service.included_hours || null;
   return {
     key: newKey(),
     kind: "package",
@@ -184,6 +190,7 @@ export function packageLine(service: PackageSource): LineDraft {
     unit: lineUnit(service.price_unit),
     price: service.price.toString(),
     quantity: "1",
+    ...(hours ? { description: `${hours} hour${hours === 1 ? "" : "s"} included` } : {}),
   };
 }
 
@@ -213,6 +220,13 @@ export function customLine(): LineDraft {
     price: "",
     quantity: "1",
   };
+}
+
+/** A custom row added and left empty. It isn't part of the contract: it's
+ *  neither flagged nor sent. It used to be removed when the vendor clicked
+ *  away, and the rows below jumping up swallowed that click. */
+export function isBlankLine(line: LineDraft): boolean {
+  return line.kind === "custom" && !line.name.trim() && !line.price.trim();
 }
 
 export function lineTotalCents(line: LineDraft): number {
@@ -289,6 +303,47 @@ export function balanceLastPayment(draft: Draft): InstallmentDraft[] {
 }
 
 // ── Terms ────────────────────────────────────────────────────────────
+
+/** The cancellation section: the one keyed "cancellation", else the first
+ *  titled that way (a template's or an older contract's). In the editor the
+ *  window lives inside it, its sentence written from the days. */
+export const CANCELLATION_KEY = "cancellation";
+
+export function cancellationClause(draft: Pick<Draft, "clauses">): ClauseDraft | undefined {
+  return (
+    draft.clauses.find((c) => c.key === CANCELLATION_KEY) ??
+    draft.clauses.find((c) => /^cancell?ation\b/i.test(c.title.trim()))
+  );
+}
+
+/** The sentence the contract prints for a window: the same words as the
+ *  client's copy (ContractPaper), the signing page and the PDF. */
+export function cancellationSentence(days: string | number): string {
+  return `Cancelling within ${days} days of the event may forfeit what's been paid.`;
+}
+
+/** The draft with a cancellation section to hold its window, added before
+ *  the signature when there's a window and no section yet (an older
+ *  contract, the vendor's default, a package's own). The editor only: a
+ *  window-only section isn't sent (toDocument), so terms compared elsewhere
+ *  don't change. */
+export function withCancellationSection(draft: Draft): Draft {
+  if (!draft.cancellationDays.trim() || cancellationClause(draft)) return draft;
+  return { ...draft, ...insertClause(draft, { title: "Cancellation", body: "" }, undefined, CANCELLATION_KEY) };
+}
+
+/** The draft as it's sent and as the client reads it. A cancellation
+ *  section that's only the window isn't a section of its own: the window is
+ *  cancellation_window_hours, which every copy prints. */
+export function asSent(draft: Draft): Draft {
+  const c = cancellationClause(draft);
+  if (!c || c.body.trim()) return draft;
+  const clauses = draft.clauses.filter((x) => x !== c);
+  return { ...draft, clauses, layout: reconcileLayout(draft.layout, clauses) };
+}
+
+/** What a suggested section leaves for the vendor to fill in. */
+export const BLANK = "___";
 
 /** The vendor's saved equipment/travel defaults, as clauses. */
 export function defaultClauses(vendor: VendorDefaultsSource | null): ClauseDraft[] {
@@ -369,8 +424,12 @@ export function moveBlock(draft: Draft, id: string, delta: -1 | 1): LayoutBlock[
 
 /** A new terms section at a position in the document (default: before the
  *  signature). */
-export function insertClause(draft: Draft, clause: Omit<ClauseDraft, "key">, at?: number): Partial<Draft> {
-  const key = newKey();
+export function insertClause(
+  draft: Draft,
+  clause: Omit<ClauseDraft, "key">,
+  at?: number,
+  key: string = newKey(),
+): Partial<Draft> {
   const layout = layoutOf(draft);
   const sig = layout.findIndex((b) => b.type === "signature");
   const pos = at ?? (sig < 0 ? layout.length : sig);
@@ -397,25 +456,83 @@ export function problemsByStep(draft: Draft, today: string): { step: Step; messa
   if (!draft.timeStart || !draft.timeEnd) add("event", "Add a start and end time.");
   if (!hasPackage(draft)) add("items", "Add at least one of your packages.");
   for (const l of draft.lines) {
+    if (isBlankLine(l)) continue;
     if (!l.name.trim()) add("items", "Every line needs a name.");
     if (!(Number(l.quantity) > 0)) add("items", `“${l.name || "A line"}” needs a quantity above zero.`);
   }
   const total = totalCents(draft);
-  if (draft.lines.length && total <= 0) add("items", "The total after the discount must be more than $0.");
-  if (draft.schedule.length === 0) add("payments", "Add at least one payment to the schedule.");
-  else if (scheduledCents(draft) !== total) {
-    add("payments", `The payments add up to ${money(scheduledCents(draft))}, but the total is ${money(total)}.`);
+  const noTotal = draft.lines.length > 0 && total <= 0;
+  if (noTotal) {
+    const discount = toCents(draft.discount);
+    add(
+      "items",
+      discount > 0 && discount >= subtotalCents(draft)
+        ? `The discount (${money(discount)}) is as much as the items (${money(subtotalCents(draft))}). The total has to be more than $0.`
+        : "The total after the discount must be more than $0.",
+    );
   }
-  for (const i of draft.schedule) {
-    if (!i.label.trim()) add("payments", "Every payment needs a name.");
-    if (!(toCents(i.amount) > 0)) add("payments", `“${i.label || "A payment"}” needs an amount above $0.`);
-    if (i.dueType === "date" && !i.dueDate) add("payments", `“${i.label || "A payment"}” needs a due date.`);
-    if (i.dueType === "before_event" && (i.dueDays === "" || !(Number(i.dueDays) >= 0))) {
-      add("payments", `“${i.label || "A payment"}” needs how many days before the event it's due.`);
+  // With no total there's nothing to schedule: fixing the total is the one
+  // thing to do, not "add a payment".
+  if (!noTotal) {
+    if (draft.schedule.length === 0) add("payments", "Add at least one payment to the schedule.");
+    else if (scheduledCents(draft) !== total) {
+      add("payments", `The payments add up to ${money(scheduledCents(draft))}, but the total is ${money(total)}.`);
     }
   }
+  for (const i of draft.schedule) {
+    const name = i.label.trim() || "A payment";
+    if (!i.label.trim()) add("payments", "Every payment needs a name.");
+    if (!(toCents(i.amount) > 0)) add("payments", `“${name}” needs an amount above $0.`);
+    if (i.dueType === "date" && !i.dueDate) add("payments", `“${name}” needs a due date.`);
+    if (i.dueType === "before_event" && (i.dueDays === "" || !(Number(i.dueDays) >= 0))) {
+      add("payments", `“${name}” needs how many days before the event it's due.`);
+    }
+    const due = dueDateOf(i, draft.dateIso);
+    if (due && due < today) {
+      add("payments", `“${name}” would be due ${prettyDate(due)}, which has passed. Pick a later date, or fewer days before the event.`);
+    }
+  }
+  const cancellation = cancellationClause(draft);
   for (const c of draft.clauses) {
-    if (!c.title.trim() || !c.body.trim()) add("terms", "Every clause needs a title and some text.");
+    // The cancellation section can be the window alone: its sentence is written from it.
+    const bodyOptional = c === cancellation && Boolean(draft.cancellationDays.trim());
+    if (!c.title.trim() || (!c.body.trim() && !bodyOptional)) add("terms", "Every clause needs a title and some text.");
+    if (c.body.includes(BLANK)) add("terms", `Fill in the blank (${BLANK}) in “${c.title.trim() || "a section"}”.`);
+  }
+  const hold = draft.holdDays.trim();
+  if (hold && !(Number.isInteger(Number(hold)) && Number(hold) >= 1 && Number(hold) <= 60)) {
+    add("review", "Hold the date for between 1 and 60 days.");
+  }
+  return out;
+}
+
+/** The day a dated payment falls on, as YYYY-MM-DD: its own date, or so many
+ *  days before the event. Null for "when they sign", or with no event date to
+ *  count back from. The backend's contract_document.scheduled_date. */
+export function dueDateOf(i: Pick<InstallmentDraft, "dueType" | "dueDate" | "dueDays">, eventDate: string): string | null {
+  if (i.dueType === "date") return i.dueDate || null;
+  if (i.dueType !== "before_event" || !eventDate || i.dueDays === "" || !(Number(i.dueDays) >= 0)) return null;
+  const [y, m, d] = eventDate.split("-").map(Number);
+  const at = new Date(Date.UTC(y, m - 1, d - Number(i.dueDays)));
+  return Number.isNaN(at.getTime()) ? null : at.toISOString().slice(0, 10);
+}
+
+function prettyDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Worth a second look but fine to send: shown, never blocking. */
+export function warningsByStep(draft: Draft): { step: Step; message: string }[] {
+  const out: { step: Step; message: string }[] = [];
+  const last = draft.multiDay && draft.dateEnd ? draft.dateEnd : draft.dateIso;
+  for (const i of draft.schedule) {
+    const due = dueDateOf(i, draft.dateIso);
+    if (last && due && due > last) {
+      out.push({
+        step: "payments",
+        message: `“${i.label.trim() || "A payment"}” is due ${prettyDate(due)}, after the event. That's fine for a balance on delivery.`,
+      });
+    }
   }
   return out;
 }
@@ -470,7 +587,7 @@ export function describeDue(i: {
 /** The document half of a create/update — shared by both, so an edit sends
  *  exactly what a create would. */
 export function toDocument(draft: Draft) {
-  const lines: LineItemInput[] = draft.lines.map((l) => ({
+  const lines: LineItemInput[] = draft.lines.filter((l) => !isBlankLine(l)).map((l) => ({
     ...(l.id ? { id: l.id } : {}),
     ...(l.description ? { description: l.description } : {}),
     kind: l.kind,
@@ -489,6 +606,7 @@ export function toDocument(draft: Draft) {
     due_date: i.dueType === "date" ? i.dueDate : null,
     due_days: i.dueType === "before_event" ? Number(i.dueDays) : null,
   }));
+  draft = asSent(draft);
   const layout = layoutOf(draft);
   const byKey = new Map(draft.clauses.map((c) => [c.key, c]));
   // In the document's order, so a client reading clauses sees the same.
