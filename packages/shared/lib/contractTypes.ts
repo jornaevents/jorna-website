@@ -229,6 +229,9 @@ export interface NegotiationFieldView {
   proposed_by: NegotiationSide | null;
   round: number | null;
   note: string | null;
+  /** The reader's own latest change or counter for this field (backend #28):
+   *  what they asked for, to show beside the other side's answer. */
+  your_last_ask?: unknown;
   /** In a group the vendor made not negotiable. */
   locked: boolean;
   /** Whether the side reading this may propose a change to it. */
@@ -260,6 +263,9 @@ export interface FieldNegotiationState {
   fields: NegotiationFieldView[];
   last_send: { round: number; side: NegotiationSide; message: string | null; answers: FieldAnswer[]; sent_at: string } | null;
   draft: { round: number; answers: FieldAnswer[]; message: string | null; updated_at: string; stale: boolean } | null;
+  /** On a send's reply: whether the client was emailed about the vendor's
+   *  answer; null on a client's send (backend #28). */
+  email_sent?: boolean | null;
   /** What the reader may add as a new item on their turn (backend #104):
    *  public packages for the client, every live one for the vendor. */
   packages?: NegotiationPackage[];

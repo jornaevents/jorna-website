@@ -66,7 +66,7 @@ test.describe("field-by-field negotiation", () => {
     await expect(card.getByText("Priya Mehta asked:")).toBeVisible();
     await expect(card.getByText("“One more for the dance floor?”")).toBeVisible();
 
-    const send = page.getByRole("button", { name: /^Send \d+ answers?$/ });
+    const send = page.getByRole("button", { name: /^Send( |$)/ });
     await expect(send).toBeDisabled();
     await expect(page.getByText("Answer 1 more field to send.")).toBeVisible();
 
@@ -74,14 +74,17 @@ test.describe("field-by-field negotiation", () => {
     await card.getByRole("button", { name: "Counter" }).click();
     await card.getByLabel("Uplighting: quantity").fill("4");
     await expect(page.getByText("Total if this is agreed")).toBeVisible();
-    await expect(page.getByText("$1,800")).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Your answers" }).getByText("$1,800")).toBeVisible();
+    // The contract reads as it would be, with the counter in it (#153).
+    await expect(page.getByRole("region", { name: "Contract" }).getByText("$1,800").first()).toBeVisible();
 
     // Accept instead, and change something else on the way.
     await card.getByRole("button", { name: "Accept" }).click();
     await page.getByText("Change something else").click();
     await page.getByRole("complementary", { name: "Your answers" }).getByText("Overtime rate").locator("..").getByRole("button", { name: "Change" }).click();
     await page.getByLabel("Overtime rate ($)").fill("200");
-    await expect(send).toHaveText("Send 2 answers");
+    // An answer and a change of their own, counted apart (#168).
+    await expect(send).toHaveText("Send 1 answer and 1 change");
     await send.click();
 
     await expect(page).toHaveURL(/contracts\/view\/?\?id=c-1/);
@@ -149,7 +152,7 @@ test.describe("field-by-field negotiation", () => {
     // Add one of the vendor's listed add-ons.
     await page.getByLabel("Add an item").selectOption("svc-1|fog");
     await expect(page.getByText("Fog machine × 1 at $75")).toBeVisible();
-    await page.getByRole("button", { name: "Send 3 answers" }).click();
+    await page.getByRole("button", { name: "Send 2 answers and 1 change" }).click();
 
     await expect(page.getByText("It's Arjun Kapoor's turn")).toBeVisible();
     const [sent] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
@@ -177,5 +180,56 @@ test.describe("field-by-field negotiation", () => {
     await page.getByRole("button", { name: "Confirm booking →" }).click();
     await expect.poll(() => api.requestsTo("POST", "/guest-bookings/tok-1/sign").length).toBe(1);
     expect(api.requestsTo("POST", "/guest-bookings/tok-1/sign")[0].body).toMatchObject({ signer_name: "Priya Mehta", as_is: true });
+  });
+
+  test("the client sees the vendor's note, what was kept against their own ask, and can't send nonsense (#152, #168)", async ({ page, api }) => {
+    const clientState = state({
+      side: "client", turn: "client", round: 3, waiting_count: 2,
+      last_send: { round: 3, side: "vendor", message: "150 guests is fine. I can meet you at $3,000.", answers: [], sent_at: "2030-05-03T12:00:00" },
+      fields: [
+        field("policy.cancellation", "Cancellation window", 720, { state: "waiting_client", proposed: 720, proposed_by: "vendor", your_last_ask: 0 }),
+        field("line:pkg.price", "Reception set: price", 140000, { state: "waiting_client", proposed: 130000, proposed_by: "vendor", your_last_ask: 120000 }),
+        field("event.guests", "Guest count", 200),
+      ],
+    });
+    api.get("/guest-bookings/tok-1", contract);
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", clientState);
+
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Review and answer" }).click();
+    await expect(page.getByText("“150 guests is fine. I can meet you at $3,000.”")).toBeVisible();
+    await expect(page.getByText("Arjun Kapoor kept 30 days")).toBeVisible();
+    await expect(page.getByText("(you asked 0 days)")).toBeVisible();
+    const price = page.getByRole("region", { name: "Reception set: price" });
+    await expect(price.getByText("You asked:")).toBeVisible();
+    await expect(price.getByText("$1,200")).toBeVisible();
+    await expect(price.getByText("Arjun Kapoor answered:")).toBeVisible();
+
+    // Opening a field isn't a change; a guest count of 0 can't be sent.
+    await page.getByText("Change something else").click();
+    await page.getByRole("complementary", { name: "Your answers" }).getByText("Guest count").locator("..").getByRole("button", { name: "Change" }).click();
+    await expect(page.getByText("Not changed yet")).toBeVisible();
+    await page.getByRole("region", { name: "Cancellation window" }).getByRole("button", { name: "Accept" }).click();
+    await page.getByRole("region", { name: "Reception set: price" }).getByRole("button", { name: "Accept" }).click();
+    await expect(page.getByRole("button", { name: "Send 2 answers" })).toBeEnabled();
+    await page.getByLabel("Guest count", { exact: true }).fill("0");
+    await expect(page.getByText("A guest count is a whole number from 1 to 100,000.").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Send/ })).toBeDisabled();
+  });
+
+  test("the vendor's notice says whether the client was emailed (#155)", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/contracts/c-1", contract);
+    api.get("/contracts/c-1/proposals", history);
+    api.get("/contracts/c-1/negotiation", state());
+    api.post("/contracts/c-1/negotiation/send", state({ round: 3, turn: "client", email_sent: false }));
+
+    await page.goto("contracts/changes/?id=c-1");
+    await page.getByRole("region", { name: "Uplighting: quantity" }).getByRole("button", { name: "Accept" }).click();
+    await page.getByRole("button", { name: "Send 1 answer" }).click();
+    await expect(page.getByText(/We couldn't email them/)).toBeVisible();
+    await expect(page.getByText("We emailed them.")).toHaveCount(0);
   });
 });

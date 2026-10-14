@@ -20,11 +20,15 @@ import {
   daysToHours,
   display,
   dollarsToCents,
+  effectiveAnswers,
   estimateTotal,
   hoursToDays,
   kindOf,
   paperDraft,
   paperIds,
+  previewTerms,
+  sendLabel,
+  valueProblem,
   waitingOn,
 } from "../../lib/fieldNegotiation";
 import { Button } from "../ui";
@@ -118,13 +122,27 @@ function AnswerCard({
   onAnswer: (a: FieldAnswer | null) => void;
 }) {
   const action = answer?.action;
+  // "Keep mine" sends back the contract's value: that's not an ask for it.
+  const kept = JSON.stringify(field.proposed ?? null) === JSON.stringify(field.value ?? null);
+  const asked = field.your_last_ask;
+  const problem = action === "counter" ? valueProblem(field.key, answer?.value) : null;
   return (
     <section aria-label={field.label} className="rounded-xl border border-gold/50 bg-card p-3.5">
       <p className="text-sm font-semibold text-ink">{field.label}</p>
-      <dl className="mt-1.5 grid gap-0.5 text-xs">
-        <div className="flex gap-1.5"><dt className="text-ink-faint">Agreed:</dt><dd className="text-ink-soft">{display(field.key, field.value)}</dd></div>
-        <div className="flex gap-1.5"><dt className="text-ink-faint">{otherName} asked:</dt><dd className="font-semibold text-ink">{display(field.key, field.proposed)}</dd></div>
-      </dl>
+      {kept ? (
+        <p className="mt-1.5 text-xs text-ink-soft">
+          <strong className="text-ink">{otherName} kept {display(field.key, field.value)}</strong>
+          {asked !== undefined && asked !== null ? ` (you asked ${display(field.key, asked)})` : ""}
+        </p>
+      ) : (
+        <dl className="mt-1.5 grid gap-0.5 text-xs">
+          <div className="flex gap-1.5"><dt className="text-ink-faint">Contract:</dt><dd className="text-ink-soft">{display(field.key, field.value)}</dd></div>
+          {asked !== undefined && asked !== null ? (
+            <div className="flex gap-1.5"><dt className="text-ink-faint">You asked:</dt><dd className="text-ink-soft">{display(field.key, asked)}</dd></div>
+          ) : null}
+          <div className="flex gap-1.5"><dt className="text-ink-faint">{otherName} {asked != null ? "answered" : "asked"}:</dt><dd className="font-semibold text-ink">{display(field.key, field.proposed)}</dd></div>
+        </dl>
+      )}
       {field.note ? <p className="mt-1.5 text-xs italic text-ink-soft">“{field.note}”</p> : null}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         <button type="button" className={chip(action === "accept")} onClick={() => onAnswer(action === "accept" ? null : { key: field.key, action: "accept" })}>
@@ -143,6 +161,7 @@ function AnswerCard({
       {action === "counter" ? (
         <div className="mt-2.5">
           <ValueInput field={field} value={answer?.value} onChange={(v) => onAnswer({ key: field.key, action: "counter", value: v })} />
+          {problem ? <p className="mt-1 text-xs text-maroon dark:text-gold">{problem}</p> : null}
         </div>
       ) : null}
     </section>
@@ -191,8 +210,15 @@ export function FieldNegotiationWorkspace({
   const open = state.fields.filter(
     (f) => f.state === "agreed" && !["schedule", "newline"].includes(kindOf(f.key)),
   );
-  const list = Object.values(answers);
-  const mine = list.filter((a) => a.action === "change" || a.action === "reopen");
+  // Everything the reader has opened, and what of it actually changes
+  // something — only that is sent and counted.
+  const all = Object.values(answers);
+  const list = effectiveAnswers(state.fields, all);
+  const mine = all.filter((a) => a.action === "change" || a.action === "reopen");
+  const problems = all
+    .filter((a) => a.action === "counter" || a.action === "change" || a.action === "reopen")
+    .map((a) => valueProblem(a.key, a.value))
+    .filter((p): p is string => Boolean(p));
   const unanswered = waiting.filter((f) => !answers[f.key]);
 
   const set = (key: string, a: FieldAnswer | null) =>
@@ -207,12 +233,13 @@ export function FieldNegotiationWorkspace({
   const marks = new Map<string, Mark>();
   for (const f of theirs) for (const id of paperIds(f.key)) marks.set(id, "other");
   for (const a of list) {
-    if (a.action === "change" || a.action === "counter" || a.action === "reopen") {
+    if (a.action === "change" || a.action === "counter" || a.action === "reopen" || a.action === "accept") {
       for (const id of paperIds(a.key)) marks.set(id, "yours");
     }
   }
 
   const total = estimateTotal(state.terms, state.fields, list);
+  const lastFromThem = state.last_send && state.last_send.side !== side ? state.last_send : null;
   const byKey = new Map(state.fields.map((f) => [f.key, f]));
 
   async function send() {
@@ -270,7 +297,8 @@ export function FieldNegotiationWorkspace({
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_25rem] lg:overflow-hidden">
         <div className="min-w-0 px-5 py-6 lg:overflow-y-auto">
           <div aria-label="Contract" role="region" className="mx-auto max-w-2xl">
-            <ContractPaper draft={paperDraft(state.terms)} markOf={(id) => marks.get(id) ?? null} vendorName={vendorName} clientName={clientName} title={title} />
+            {/* With the reader's answers in, marked: the contract as it would read (#153). */}
+            <ContractPaper draft={paperDraft(previewTerms(state.terms, state.fields, list))} markOf={(id) => marks.get(id) ?? null} vendorName={vendorName} clientName={clientName} title={title} />
           </div>
         </div>
 
@@ -283,7 +311,7 @@ export function FieldNegotiationWorkspace({
                 <p className="font-semibold text-ink">Waiting on {otherName}</p>
                 <p className="mt-1">
                   {state.last_send && state.last_send.side === side
-                    ? `You sent ${state.last_send.answers.length} answer${state.last_send.answers.length === 1 ? "" : "s"} in round ${state.last_send.round}. `
+                    ? `You sent ${sendLabel(state.last_send.answers).replace(/^Send /, "")} in round ${state.last_send.round}. `
                     : ""}
                   We&apos;ll email you when they answer.
                 </p>
@@ -294,6 +322,13 @@ export function FieldNegotiationWorkspace({
                     ))}
                   </ul>
                 ) : null}
+              </section>
+            ) : null}
+
+            {myTurn && lastFromThem?.message ? (
+              <section aria-label={`${otherName}'s note`} className="rounded-xl border border-line-soft bg-card p-3.5 text-sm">
+                <p className="text-xs font-semibold text-ink-faint">{otherName}&apos;s note</p>
+                <p className="mt-1 whitespace-pre-wrap text-ink">“{lastFromThem.message}”</p>
               </section>
             ) : null}
 
@@ -330,7 +365,13 @@ export function FieldNegotiationWorkspace({
                       </div>
                       {f ? (
                         <p className="text-xs text-ink-faint">
-                          {display(a.key, f.value)} → <strong className="text-ink">{display(a.key, answerValue(f, a))}</strong>
+                          {list.includes(a) ? (
+                            <>
+                              {display(a.key, f.value)} → <strong className="text-ink">{display(a.key, answerValue(f, a))}</strong>
+                            </>
+                          ) : (
+                            "Not changed yet"
+                          )}
                         </p>
                       ) : (
                         <p className="text-xs text-ink-faint">{display(a.key, a.value)}</p>
@@ -495,6 +536,10 @@ export function FieldNegotiationWorkspace({
               />
               {error ? <p role="alert" className="text-sm text-maroon dark:text-gold">{error}</p> : null}
               {notice && !error ? <p role="status" className="text-xs text-ink-faint">{notice}</p> : null}
+              {problems.length ? <p className="text-xs text-maroon dark:text-gold">{problems[0]}</p> : null}
+              {total <= 0 ? (
+                <p className="text-xs text-maroon dark:text-gold">The total has to stay above $0.</p>
+              ) : null}
               {unanswered.length ? (
                 <p className="text-xs text-ink-faint">
                   Answer {unanswered.length === 1 ? "1 more field" : `${unanswered.length} more fields`} to send.
@@ -506,8 +551,13 @@ export function FieldNegotiationWorkspace({
                     {busy === "draft" ? "Saving…" : "Save draft"}
                   </Button>
                 ) : null}
-                <Button type="button" className="flex-1" disabled={busy !== null || unanswered.length > 0 || list.length === 0} onClick={send}>
-                  {busy === "send" ? "Sending…" : `Send ${list.length} answer${list.length === 1 ? "" : "s"}`}
+                <Button
+                  type="button"
+                  className="flex-1"
+                  disabled={busy !== null || unanswered.length > 0 || list.length === 0 || problems.length > 0 || total <= 0}
+                  onClick={send}
+                >
+                  {busy === "send" ? "Sending…" : sendLabel(list)}
                 </Button>
               </div>
             </footer>

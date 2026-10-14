@@ -804,3 +804,12 @@ From the 2026-10-05 staging walkthrough (#150, #151, #165, #167, #170, #135), wi
 - **Contracts:** All counts every contract. A declined or void one has no link to copy. A signed row says who signed, and flags a name that isn't the client's.
 - **Leads:** a row names the event as well as the package. The drawer shows the time, the guest count, the client's note and the full venue. Declining can carry a note, which is emailed to the client and shown on their plan. Closed leads sit under Archived with how they ended ("You declined", "Client cancelled", …). Add a client checks the email, phone and date before saving.
 - **Client app:** a request the client took off a sent plan stays on it as "You cancelled", and a vendor's decline note shows under the declined request.
+## Decision: the negotiation workspace shows the contract as it would be (2026-10-14)
+
+From the 2026-10-05 staging walkthrough (#152, #153, #155, #168), with backend jorna-backend #114.
+
+- **The contract on the left has the reader's answers in it**, marked, as they make them (`fieldNegotiation.previewTerms`): a counter, an accepted price, a new item, a section left out. The other side's open asks stay highlighted as before.
+- **The other side's note leads their turn.** It was stored and returned (`last_send.message`) but never shown.
+- **Wording.** The card reads "Contract:" for the current value, not "Agreed:", before anything is agreed. When the other side kept the contract's value, it says "Arjun kept 30 days (you asked 0 days)". A counter shows the reader's own ask beside it (`your_last_ask`, new from the backend). The button says what's being sent: "Send 2 changes", "Send 1 answer and 1 change".
+- **Nothing silly gets sent.** A field opened with Change but left as it was isn't sent or counted (`effectiveAnswers`). A guest count outside 1–100,000, a $0 price, or a total of $0 or less disables Send with the reason (`valueProblem`). The backend refuses the same.
+- **"We emailed them" only when it's true.** The send's reply carries `email_sent`; without an email on the contract the vendor is told to send the link themselves.

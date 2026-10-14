@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { display, estimateTotal, kindOf, paperIds, waitingOn } from "./fieldNegotiation";
+import { display, effectiveAnswers, estimateTotal, kindOf, paperIds, previewTerms, sendLabel, valueProblem, waitingOn } from "./fieldNegotiation";
 import type { NegotiationFieldView, TermsVersion } from "./contractTypes";
 
 const terms: TermsVersion = {
@@ -49,7 +49,8 @@ describe("fieldNegotiation", () => {
     expect(paperIds("line:lights.included")).toEqual(["line:lights"]);
     expect(paperIds("clause:travel.included")).toEqual(["clause:travel"]);
     expect(paperIds("event.time")).toEqual(["event.start", "event.end"]);
-    expect(paperIds("line:new:x")).toEqual([]);
+    // A new item is drawn on the page by previewTerms, so it lights up too.
+    expect(paperIds("line:new:x")).toEqual(["line:new:x"]);
   });
 
   it("estimates the total if this send's answers settle", () => {
@@ -72,5 +73,45 @@ describe("fieldNegotiation", () => {
   it("lists what's waiting on each side", () => {
     const fields = [field("a", { state: "waiting_vendor" }), field("b", { state: "waiting_client" }), field("c")];
     expect(waitingOn(fields, "vendor").map((f) => f.key)).toEqual(["a"]);
+  });
+});
+
+describe("what a send does (#153, #168)", () => {
+  it("drops a field opened but left as it was", () => {
+    const f = field("event.guests", { group: "event", value: 150 });
+    expect(effectiveAnswers([f], [{ key: "event.guests", action: "change", value: 150 }])).toEqual([]);
+    expect(effectiveAnswers([f], [{ key: "event.guests", action: "change", value: 120 }])).toHaveLength(1);
+  });
+
+  it("refuses the values the server does", () => {
+    expect(valueProblem("event.guests", 0)).toMatch(/1 to 100,000/);
+    expect(valueProblem("event.guests", 100_001)).toMatch(/1 to 100,000/);
+    expect(valueProblem("event.guests", 150)).toBeNull();
+    expect(valueProblem("line:pkg.price", 0)).toMatch(/above \$0/);
+    expect(valueProblem("discount", 0)).toBeNull();
+  });
+
+  it("says what's being sent", () => {
+    expect(sendLabel([{ key: "a", action: "change", value: 1 }, { key: "b", action: "change", value: 2 }])).toBe("Send 2 changes");
+    expect(sendLabel([{ key: "a", action: "accept" }])).toBe("Send 1 answer");
+    expect(sendLabel([{ key: "a", action: "keep" }, { key: "b", action: "change", value: 1 }])).toBe("Send 1 answer and 1 change");
+  });
+
+  it("puts the reader's answers into the contract it draws", () => {
+    const fields = [
+      field("event.guests", { group: "event", value: 150 }),
+      field("line:pkg.price", { value: 140_000, state: "waiting_client", proposed: 120_000, proposed_by: "vendor" }),
+      field("line:lights.included", { value: true }),
+    ];
+    const t = previewTerms(terms, fields, [
+      { key: "event.guests", action: "change", value: 120 },
+      { key: "line:pkg.price", action: "accept" },
+      { key: "line:lights.included", action: "change", value: false },
+      { key: "line:new:x1", action: "change", value: { name: "Second shooter", quantity: 1, unit_price_cents: 40_000, service_id: "s1", addon_id: "a1" } },
+    ]);
+    expect(t.guest_count).toBe(120);
+    expect(t.line_items?.map((l) => [l.id, l.total_cents])).toEqual([["pkg", 120_000], ["new:x1", 40_000]]);
+    expect(t.amount_cents).toBe(160_000);
+    expect(paperIds("line:new:x1")).toEqual(["line:new:x1"]);
   });
 });
