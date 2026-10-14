@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
 import { getMyVendor, getPipeline, getUnreadCount } from "@/lib/jorna";
 import { loadAttention } from "@/lib/attention";
@@ -113,8 +113,25 @@ function Brand() {
   );
 }
 
+// The query string, read during render: a contract started from a lead or a
+// request (/contracts/new?lead= or ?request=) belongs to Leads in the nav.
+// Read this way rather than with useSearchParams, which would need its own
+// Suspense boundary in this always-mounted layout; a client navigation
+// re-renders the sidebar through usePathname anyway.
+const subscribeToHistory = (onChange: () => void) => {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+};
+
 export function VendorSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
+  const search = useSyncExternalStore(subscribeToHistory, () => window.location.search, () => "");
+  const fromLeads = pathname.startsWith("/contracts/new") && /[?&](lead|request)=/.test(search);
+  const isActive = (item: SidebarItem) => {
+    if (item.href === "/leads") return item.match(pathname) || fromLeads;
+    if (item.href === "/contracts") return item.match(pathname) && !fromLeads;
+    return item.match(pathname);
+  };
   const { logout } = useAuth();
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [leadsBadge, setLeadsBadge] = useState(0);
@@ -170,7 +187,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
           <NavLink
             key={item.href}
             item={item}
-            active={item.match(pathname)}
+            active={isActive(item)}
             badge={badgeFor(item)}
             onNavigate={onNavigate}
           />

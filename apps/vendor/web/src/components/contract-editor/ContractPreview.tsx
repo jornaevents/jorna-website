@@ -2,7 +2,7 @@
 
 import { ContractPaper } from "@jorna/shared/components/negotiation/ContractPaper";
 import { Drawer } from "@/components/vendor/ui";
-import type { Draft } from "@jorna/shared/lib/contractDraft";
+import { asSent, type Draft } from "@jorna/shared/lib/contractDraft";
 
 /**
  * "Preview as client": the draft as the client will read it, with the same
@@ -26,7 +26,7 @@ export function ContractPreview({
 }) {
   return (
     <Drawer open={open} onClose={onClose} title="Preview as client" subtitle="What your client reads before signing.">
-      <ContractPaper draft={draft} markOf={() => null} vendorName={vendorName} clientName={clientName} title={title} />
+      <ContractPaper draft={asSent(draft)} markOf={() => null} vendorName={vendorName} clientName={clientName} title={title} />
     </Drawer>
   );
 }

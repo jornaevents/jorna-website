@@ -779,3 +779,17 @@ From the 2026-10-05 staging walkthrough (#169, #154), with backend jorna-backend
 - **One cancellation sentence everywhere**: "Cancelling within N days of the event may forfeit what's been paid", the editor's wording, now also on the signing page and the PDF.
 - **Signing isn't "set".** After signing, the page says "You signed with {vendor}". While the deposit or first payment hasn't arrived, it adds "Your date is secured once {vendor} receives …", which matches the vendor's "Deposit due".
 - **The signing page has the wordmark only** (`SiteHeader`'s `BARE_PATHS`). Whoever is signed in, the site's navigation only leads away from the contract.
+
+## Decision: the contract editor says what's wrong before Send (2026-10-14)
+
+From the 2026-10-05 staging walkthrough (#166), with backend jorna-backend #114 (its DECISIONS #28), which refuses the same things.
+
+- **Payments.** A payment due before today is a problem to fix ("“Final balance” would be due May 8, 2026, which has passed"). One due after the event is only a note under the schedule: a balance on delivery is ordinary. `contractDraft.dueDateOf` is the backend's `scheduled_date`.
+- **A discount that wipes out the total** is named as the problem, and the "add a payment" problem it used to cause is gone. Negative money reads "−$500.00".
+- **A date that's already taken** is said when it's picked (`lib/dateClash.ts`, the backend's `commits_vendor_date` and `booking_blocks`), not as a 409 after Send.
+- **The cancellation window lives in a Cancellation section.** One place says what cancelling costs: the days, then the generated sentence, then the vendor's own words if any. A section that's only the window isn't sent as a section (`contractDraft.asSent`); the window goes as `cancellation_window_hours`, which every copy prints. Removing the section removes the window. Overtime stays under the schedule.
+- **Suggested sections don't make up numbers.** Travel uses the vendor's radius and leaves the rate as `___`, which must be filled in before sending.
+- **An empty custom row stays put.** It used to vanish when focus left it, and the click that left it landed on whatever moved up. Left empty, it isn't part of the contract.
+- **A package's included hours** go into its line ("5 hours included"), which the client's copy, the signing page and the PDF print.
+- **Hold days** outside 1–60 are said under the field instead of quietly becoming 7.
+- **A contract started from a lead or a request belongs to Leads**: the back link says so and the sidebar lights Leads.

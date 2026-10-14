@@ -161,7 +161,8 @@ test.describe("packages — Phase 1", () => {
 
     // The payment plan starts from the package's 40%, not the vendor's 25%.
     await expect(page.getByLabel("Amount ($)").first()).toHaveValue("560");
-    await expect(page.getByLabel("Cancellation window (days)")).toHaveValue("60");
+    // The package's window opens the Cancellation section with it.
+    await expect(page.getByLabel("Cancellation window (days before the event)")).toHaveValue("60");
   });
 
   test("the public package page shows what's included and the add-ons", async ({ page, api }) => {

@@ -23,6 +23,7 @@ export function DocBlock({
   index,
   count,
   issues,
+  notes = [],
   showIssues,
   onLeave,
   onMove,
@@ -35,6 +36,8 @@ export function DocBlock({
   count: number;
   /** What's stopping this block from being sent. */
   issues: string[];
+  /** Worth a second look, but not stopping anything — always shown. */
+  notes?: string[];
   showIssues: boolean;
   /** Focus left the block — its problems may show from now on. */
   onLeave: () => void;
@@ -122,6 +125,13 @@ export function DocBlock({
         </div>
       </div>
       {children}
+      {notes.length ? (
+        <ul className="mt-3 grid gap-1 text-sm text-ink-soft">
+          {notes.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      ) : null}
       {flagged ? (
         <ul className="mt-3 grid gap-1 text-sm text-maroon dark:text-gold">
           {issues.map((m) => (

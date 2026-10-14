@@ -6,9 +6,11 @@ import type { ClauseDraft } from "@jorna/shared/lib/contractDraft";
 export function TermsBlock({
   clause: c,
   onChange,
+  placeholder = "What you're agreeing to, in plain words. Blank lines start a new paragraph.",
 }: {
   clause: ClauseDraft;
   onChange: (patch: Partial<ClauseDraft>) => void;
+  placeholder?: string;
 }) {
   return (
     <div className="grid gap-2">
@@ -23,7 +25,7 @@ export function TermsBlock({
         aria-label="Section text"
         rows={Math.min(12, Math.max(3, Math.ceil(c.body.length / 80) + c.body.split("\n").length))}
         value={c.body}
-        placeholder="What you're agreeing to, in plain words. Blank lines start a new paragraph."
+        placeholder={placeholder}
         onChange={(e) => onChange({ body: e.target.value })}
         className="w-full resize-y rounded-lg border border-transparent bg-transparent px-0 py-1 text-[0.95rem] leading-relaxed text-ink-soft outline-none transition placeholder:text-ink-faint hover:border-line-soft focus:border-gold focus:bg-ground-2 focus:px-3"
       />

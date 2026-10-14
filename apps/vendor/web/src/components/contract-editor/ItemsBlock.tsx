@@ -50,20 +50,16 @@ export function ItemsBlock({
     if (line) set({ lines: [...draft.lines, line] });
   }
 
-  // A new custom line starts with an empty name, so it gets the cursor; left
-  // empty, it's dropped rather than flagged as "Every line needs a name".
+  // A new custom line starts with an empty name, so it gets the cursor. Left
+  // empty, it stays on screen but isn't part of the contract (isBlankLine):
+  // removing it when focus left made the rows below jump, and the click that
+  // left it landed on the wrong thing.
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
   function addCustom() {
     const line = customLine();
     setFocusKey(line.key);
     set({ lines: [...draft.lines, line] });
-  }
-
-  function leaveName(l: LineDraft) {
-    if (l.kind === "custom" && !l.name.trim() && !l.price.trim()) {
-      set({ lines: draft.lines.filter((x) => x.key !== l.key) });
-    }
   }
 
   function updateLine(key: string, patch: Partial<LineDraft>) {
@@ -90,10 +86,6 @@ export function ItemsBlock({
           {draft.lines.map((l) => (
             <div
               key={l.key}
-              // Leaving the whole line, not just its name — they may fill the price first.
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) leaveName(l);
-              }}
               className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg border border-line-soft p-2 sm:grid-cols-[minmax(0,1fr)_5rem_7.5rem_6.5rem_3.5rem] sm:border-0 sm:p-0"
             >
               <div className="col-span-4 min-w-0 sm:col-span-1">
@@ -107,6 +99,7 @@ export function ItemsBlock({
                 />
                 <p className="mt-0.5 text-[0.68rem] text-ink-faint">
                   {l.kind === "package" ? "Package" : l.kind === "addon" ? "Add-on" : "Custom"} · {UNIT_WORD[l.unit]}
+                  {l.description ? ` · ${l.description}` : ""}
                 </p>
               </div>
               <input
@@ -154,7 +147,7 @@ export function ItemsBlock({
             </option>
             {services.map((s) => (
               <option key={s.service_id} value={s.service_id}>
-                {s.name} — ${s.price}
+                {s.name} — {money(Math.round(s.price * 100))}
                 {s.price_unit && s.price_unit !== "event" ? ` ${priceUnitLabel(s.price_unit)}` : ""}
                 {s.status === "hidden" ? " (private)" : ""}
               </option>
@@ -169,7 +162,7 @@ export function ItemsBlock({
               <div className="mt-1 flex flex-wrap gap-2">
                 {s.add_ons!.map((a) => (
                   <button key={a.id} type="button" onClick={() => a.id && addAddon(s, a.id)} className={smallButton}>
-                    + {a.name} (${a.price}
+                    + {a.name} ({money(Math.round(a.price * 100))}
                     {a.price_unit !== "event" ? ` ${priceUnitLabel(a.price_unit)}` : ""})
                   </button>
                 ))}

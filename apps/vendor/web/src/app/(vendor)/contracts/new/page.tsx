@@ -39,6 +39,9 @@ import {
 } from "@/lib/jorna";
 import {
   applyTemplate,
+  BLANK,
+  cancellationClause,
+  CANCELLATION_KEY,
   defaultClauses,
   describeWhen,
   emptyDraft,
@@ -55,6 +58,8 @@ import {
   toDocument,
   toTemplate,
   totalCents,
+  warningsByStep,
+  withCancellationSection,
   type ClauseDraft,
   type Draft,
   type InstallmentDraft,
@@ -63,6 +68,7 @@ import {
 } from "@jorna/shared/lib/contractDraft";
 import { loadTemplates, saveTemplate, templateBody, templatesOfKind } from "@/lib/contractTemplates";
 import { guestBookingLink } from "@/lib/contractLink";
+import { clashWith } from "@/lib/dateClash";
 import {
   categoryLabel,
   type BlockType,
@@ -75,6 +81,7 @@ import {
   type VendorDetail,
 } from "@/lib/types";
 import { Button, Field, LinkButton } from "@jorna/shared/components/ui";
+import { CancellationBlock } from "@/components/contract-editor/CancellationBlock";
 import { ContractPreview } from "@/components/contract-editor/ContractPreview";
 import { DocBlock } from "@/components/contract-editor/DocBlock";
 import { EditorMenu } from "@/components/contract-editor/EditorMenu";
@@ -98,14 +105,19 @@ const STEP_BLOCK: Record<Step, BlockType> = {
 };
 
 // Suggested sections a vendor can drop in with one tap. Only a start — the
-// text is theirs to edit, and the backend stores whatever they send.
-const CLAUSE_IDEAS: Omit<ClauseDraft, "key">[] = [
-  { title: "Cancellation", body: "The deposit is non-refundable. Cancelling within 30 days of the event forfeits payments made to date." },
-  { title: "Equipment & power", body: "We bring all our own equipment. The venue provides standard power within 50 feet." },
-  { title: "Travel", body: "Travel within 30 miles is included; beyond that is billed at $0.75 per mile." },
-  { title: "Meals", body: "A hot meal and a place to eat for each member of our team on site for more than five hours." },
-  { title: "Changes", body: "Date or scope changes are subject to availability and may change the price." },
-];
+// text is theirs to edit, and the backend stores whatever they send. A number
+// we don't know is left as a blank to fill in (BLANK), never made up: Travel
+// used to promise 30 miles and $0.75 a mile whatever the vendor's profile said.
+// Cancellation isn't here: it carries the window (addCancellation).
+function clauseIdeas(vendor: VendorDetail | null): Omit<ClauseDraft, "key">[] {
+  const miles = vendor?.travel_radius_miles ?? BLANK;
+  return [
+    { title: "Equipment & power", body: "We bring all our own equipment. The venue provides standard power within 50 feet." },
+    { title: "Travel", body: `Travel within ${miles} miles is included. Beyond that, travel is billed at $${BLANK} per mile.` },
+    { title: "Meals", body: "A hot meal and a place to eat for each member of our team on site for more than five hours." },
+    { title: "Changes", body: "Date or scope changes are subject to availability and may change the price." },
+  ];
+}
 
 /**
  * The payment plan the vendor hasn't touched yet: their usual deposit (the
@@ -150,6 +162,7 @@ function NewContractInner() {
   /** ?proposal= named one that's no longer open. */
   const [staleProposal, setStaleProposal] = useState(false);
   const [request, setRequest] = useState<VendorBooking | null>(null);
+  const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -174,9 +187,12 @@ function NewContractInner() {
 
   const set = (patch: Partial<Draft>) =>
     setDraft((d) => {
-      const next = { ...d, ...patch };
-      if ("schedule" in patch) return next;
-      if (autoPlan && ("lines" in patch || "discount" in patch)) next.schedule = usualSchedule(next, services, vendor);
+      let next = { ...d, ...patch };
+      if (!("schedule" in patch) && autoPlan && ("lines" in patch || "discount" in patch)) {
+        next.schedule = usualSchedule(next, services, vendor);
+      }
+      // A window (typed, or a package's own) needs its section to show in.
+      if ("cancellationDays" in patch) next = withCancellationSection(next);
       return next;
     });
 
@@ -206,7 +222,9 @@ function NewContractInner() {
           leadId ? listLeads().catch(() => null) : Promise.resolve(null),
           loadTemplates().catch(() => [] as SavedContractTemplate[]),
           editId ? getContract(editId) : Promise.resolve(null),
-          requestId ? listVendorBookings(mine.vendor_id, { limit: 100 }) : Promise.resolve(null),
+          // The vendor's own bookings: the request being accepted, and what
+          // a picked date would clash with.
+          listVendorBookings(mine.vendor_id, { limit: 100 }).catch(() => null),
           editId && proposalId ? getContractProposals(editId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelled) return;
@@ -214,6 +232,7 @@ function NewContractInner() {
         // archived ones are retired and the backend refuses them.
         const usable = (svc?.items ?? []).filter((x) => x.status !== "archived");
         setServices(usable);
+        setBookings(requests?.items ?? []);
         const agreements = templatesOfKind(tpl, "agreement");
         setTemplates(agreements);
 
@@ -222,9 +241,9 @@ function NewContractInner() {
           const open = proposals?.open_proposal?.proposal_id === proposalId ? proposals?.open_proposal : null;
           if (open) {
             setRevising(open);
-            setDraft(fromContract({ ...existing, ...open.proposed }));
+            setDraft(withCancellationSection(fromContract({ ...existing, ...open.proposed })));
           } else {
-            setDraft(fromContract(existing));
+            setDraft(withCancellationSection(fromContract(existing)));
             if (proposalId) setStaleProposal(true);
           }
           setAutoPlan(false);
@@ -255,7 +274,7 @@ function NewContractInner() {
         }
         const picked = templateId ? agreements.find((t) => t.template_id === templateId) : undefined;
         if (picked) {
-          const applied = applyTemplate(start, templateBody(picked), usable);
+          const applied = withCancellationSection(applyTemplate(start, templateBody(picked), usable));
           if (applied.schedule.length) setAutoPlan(false);
           else applied.schedule = usualSchedule(applied, usable, mine);
           setDraft(applied);
@@ -263,7 +282,7 @@ function NewContractInner() {
         } else {
           // A request arrives with its package already in.
           start.schedule = usualSchedule(start, usable, mine);
-          setDraft(start);
+          setDraft(withCancellationSection(start));
         }
       })
       .catch((err) =>
@@ -277,6 +296,27 @@ function NewContractInner() {
   }, [user, router, leadId, editId, proposalId, requestId, templateId]);
 
   const issues = useMemo(() => problemsByStep(draft, todayIso()), [draft]);
+  const notes = useMemo(() => warningsByStep(draft), [draft]);
+  const cancellation = cancellationClause(draft);
+  // The hold's own problem shows under its field in the rail.
+  const holdIssue = issues.find((i) => i.step === "review")?.message ?? null;
+  const clashing = useMemo(
+    () =>
+      clashWith(
+        bookings,
+        {
+          dateIso: request?.date_iso ?? draft.dateIso,
+          dateEnd: request ? request.date_end : draft.multiDay ? draft.dateEnd : null,
+          timeStart: request?.time_start ?? draft.timeStart,
+          timeEnd: request?.time_end ?? draft.timeEnd,
+        },
+        { exclude: editing?.booking_id ?? request?.booking_id },
+      ),
+    [bookings, request, editing, draft.dateIso, draft.dateEnd, draft.multiDay, draft.timeStart, draft.timeEnd],
+  );
+  const clash = clashing
+    ? `You're already booked then: ${clashing.client_name || clashing.guest_name || "another client"}, ${describeWhen(clashing.date_iso, clashing.date_end, clashing.time_start, clashing.time_end)}. Pick another date or time — this one can't be sent.`
+    : null;
   const total = totalCents(draft);
   const layout = layoutOf(draft);
   const locked = Boolean(editing && (editing.signed_at || editing.status === "rejected"));
@@ -284,16 +324,23 @@ function NewContractInner() {
   const defaultTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
   const vendorName = [vendor?.f_name, vendor?.l_name].filter(Boolean).join(" ") || "Your business";
 
-  /** This block's problems. A terms problem belongs only to the sections
-   *  that are actually missing a title or text. */
-  const issuesFor = (b: LayoutBlock): string[] =>
-    issues
-      .filter(
-        (i) =>
-          STEP_BLOCK[i.step] === b.type &&
-          (b.type !== "terms" || draft.clauses.some((c) => c.key === b.id && (!c.title.trim() || !c.body.trim()))),
-      )
+  /** This block's problems. A terms problem belongs only to the section it's
+   *  about: the one missing a title or text, or the one it names. */
+  const issuesFor = (b: LayoutBlock): string[] => {
+    const clause = b.type === "terms" ? draft.clauses.find((c) => c.key === b.id) : undefined;
+    return issues
+      .filter((i) => {
+        if (i.step === "review" || STEP_BLOCK[i.step] !== b.type) return false;
+        if (!clause) return true;
+        if (i.message.startsWith("Every clause")) {
+          const bodyOptional = clause === cancellation && Boolean(draft.cancellationDays.trim());
+          return !clause.title.trim() || (!clause.body.trim() && !bodyOptional);
+        }
+        return i.message.includes(`“${clause.title.trim() || "a section"}”`);
+      })
       .map((i) => i.message);
+  };
+  const notesFor = (b: LayoutBlock): string[] => notes.filter((n) => STEP_BLOCK[n.step] === b.type).map((n) => n.message);
 
   /** Show every problem and take the vendor to the first. */
   function showProblems() {
@@ -323,6 +370,27 @@ function NewContractInner() {
 
   function addSection(idea: Omit<ClauseDraft, "key"> = { title: "", body: "" }, at?: number) {
     setDraft((d) => ({ ...d, ...insertClause(d, idea, at) }));
+  }
+
+  /** The Cancellation section, with a 30-day window to start from. */
+  function addCancellation() {
+    setDraft((d) =>
+      cancellationClause(d)
+        ? d
+        : { ...d, cancellationDays: d.cancellationDays || "30", ...insertClause(d, { title: "Cancellation", body: "" }, undefined, CANCELLATION_KEY) },
+    );
+  }
+
+  function removeSection(key: string) {
+    setDraft((d) => {
+      const gone = d.clauses.find((x) => x.key === key);
+      return {
+        ...d,
+        clauses: d.clauses.filter((x) => x.key !== key),
+        // The window goes with its section.
+        ...(gone && gone === cancellationClause(d) ? { cancellationDays: "" } : {}),
+      };
+    });
   }
 
   // ── Templates ──
@@ -506,18 +574,21 @@ function NewContractInner() {
       case "parties":
         return <PartiesBlock vendorName={vendorName} vendorCategory={vendorCategory} draft={draft} set={set} request={request} />;
       case "event":
-        return <EventBlock draft={draft} set={set} request={request} />;
+        return <EventBlock draft={draft} set={set} request={request} clash={clash} />;
       case "items":
         return <ItemsBlock draft={draft} set={set} services={services} total={total} />;
       case "schedule":
         return (
           <>
             <ScheduleBlock draft={draft} total={total} setPlan={setPlan} onPreset={applyPreset} />
-            <PoliciesBlock draft={draft} set={set} />
+            <PoliciesBlock draft={draft} set={set} hasCancellation={Boolean(cancellation)} onAddCancellation={addCancellation} />
           </>
         );
       case "terms": {
         const c = draft.clauses.find((x) => x.key === b.id);
+        if (c && c === cancellation) {
+          return <CancellationBlock clause={c} draft={draft} set={set} onChange={(patch) => updateClause(c.key, patch)} />;
+        }
         return c ? <TermsBlock clause={c} onChange={(patch) => updateClause(c.key, patch)} /> : null;
       }
       case "signature":
@@ -526,6 +597,8 @@ function NewContractInner() {
   }
 
   const sendLabel = request ? "Accept & send contract" : "Send & hold date";
+  const holdDays = Number(draft.holdDays) > 0 ? Number(draft.holdDays) : vendor.contract_hold_days ?? 7;
+  const holdDaysLabel = `${holdDays} day${holdDays === 1 ? "" : "s"}, or until the event if that's sooner`;
   const clientName = request?.client_name || draft.clientName || "Client";
   const primary = editing
     ? { label: busy === "save" ? "Saving…" : revising ? "Send new version" : "Save changes", run: () => submit("save") }
@@ -536,10 +609,10 @@ function NewContractInner() {
     <div className="pb-24 lg:pb-0">
       <header className="mb-6">
         <Link
-          href={editing ? `/contracts/view?id=${editing.booking_id}` : request ? "/my-bookings" : "/contracts"}
+          href={editing ? `/contracts/view?id=${editing.booking_id}` : request || leadId ? "/leads" : "/contracts"}
           className="eyebrow hover:text-gold"
         >
-          ← {editing ? "Back to the contract" : request ? "Back to requests" : "All contracts"}
+          ← {editing ? "Back to the contract" : request || leadId ? "Back to Leads" : "All contracts"}
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="serif text-3xl text-maroon dark:text-gold">
@@ -556,7 +629,7 @@ function NewContractInner() {
           {revising
             ? `${editing?.guest_name || "Your client"}'s proposed changes are already in. Keep what you like, change the rest — saving sends this version to them and restarts your hold.`
             : request
-            ? "Set what's included, the payment plan and your terms. They sign on a link we email them — the date is held for them until then."
+            ? `Set what's included, the payment plan and your terms. They sign on a link we email them. Sending holds the date for ${holdDaysLabel}.`
             : editing
               ? editing.contract_status === "draft"
                 ? "It's still a draft — nothing has gone to your client."
@@ -602,15 +675,12 @@ function NewContractInner() {
                 index={idx}
                 count={layout.length}
                 issues={issuesFor(b)}
+                notes={notesFor(b)}
                 showIssues={showAll || touched.has(b.id)}
                 onLeave={() => setTouched((t) => (t.has(b.id) ? t : new Set(t).add(b.id)))}
                 onMove={(delta) => set({ layout: moveBlock(draft, b.id, delta) })}
                 onAddBelow={() => addSection(undefined, idx + 1)}
-                onRemove={
-                  b.type === "terms"
-                    ? () => set({ clauses: draft.clauses.filter((x) => x.key !== b.id) })
-                    : undefined
-                }
+                onRemove={b.type === "terms" ? () => removeSection(b.id) : undefined}
               >
                 {renderBlock(b)}
               </DocBlock>
@@ -620,7 +690,12 @@ function NewContractInner() {
           <div className="mt-2 border-t border-dashed border-line pt-4">
             <p className="text-xs text-ink-faint">Add a terms section</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {CLAUSE_IDEAS.filter((idea) => !draft.clauses.some((c) => c.title === idea.title)).map((idea) => (
+              {cancellation ? null : (
+                <button type="button" onClick={addCancellation} className={smallButton}>
+                  + Cancellation
+                </button>
+              )}
+              {clauseIdeas(vendor).filter((idea) => !draft.clauses.some((c) => c.title === idea.title)).map((idea) => (
                 <button key={idea.title} type="button" onClick={() => addSection(idea)} className={smallButton}>
                   + {idea.title}
                 </button>
@@ -702,6 +777,7 @@ function NewContractInner() {
                   onChange={(e) => set({ holdDays: e.target.value })}
                   hint="Sending or copying the link holds your date for them. If they haven't signed by then, it opens up again."
                 />
+                {holdIssue ? <p className="-mt-1 text-xs text-maroon dark:text-gold">{holdIssue}</p> : null}
               </div>
             )}
           </div>
