@@ -47,7 +47,7 @@ test.describe("staging: contract round trip", () => {
       const panel = page.getByRole("complementary", { name: "Your answers" });
       await panel.getByText("Guest count", { exact: true }).locator("..").getByRole("button", { name: "Change" }).click();
       await panel.getByLabel("Guest count").fill("150");
-      await page.getByRole("button", { name: "Send 1 answer" }).click();
+      await page.getByRole("button", { name: "Send 1 change" }).click();
       await expect(page.getByText(/It's .*'s turn/)).toBeVisible();
 
       const state = await api<{ round: number }>(`/contracts/${contract.booking_id}/negotiation`, { token });
