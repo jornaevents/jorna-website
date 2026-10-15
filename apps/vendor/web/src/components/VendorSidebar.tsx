@@ -15,7 +15,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { getMyVendor, getPipeline, getUnreadCount, listMyServices } from "@/lib/jorna";
+import { getMyVendor, getNewBookingsCount, getPipeline, getUnreadCount, listMyServices } from "@/lib/jorna";
+import { BOOKINGS_SEEN_EVENT } from "@/lib/newBookings";
 import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
 import { dmSans, manrope } from "@/lib/vendorFonts";
@@ -29,7 +30,7 @@ interface SidebarItem {
   label: string;
   icon: IconName;
   match: (pathname: string) => boolean;
-  badge?: "leads" | "messages";
+  badge?: "leads" | "messages" | "bookings";
 }
 
 const prefix = (...paths: string[]) => (pathname: string) =>
@@ -37,7 +38,7 @@ const prefix = (...paths: string[]) => (pathname: string) =>
 
 const ITEMS: SidebarItem[] = [
   { href: "/overview", label: "Overview", icon: "overview", match: prefix("/overview") },
-  { href: "/my-bookings", label: "Bookings", icon: "bookings", match: prefix("/my-bookings") },
+  { href: "/my-bookings", label: "Bookings", icon: "bookings", match: prefix("/my-bookings"), badge: "bookings" },
   { href: "/contracts", label: "Contracts", icon: "contract", match: prefix("/contracts") },
   { href: "/my-calendar", label: "Calendar", icon: "calendar", match: prefix("/my-calendar") },
   { href: "/leads", label: "Leads", icon: "leads", match: prefix("/leads"), badge: "leads" },
@@ -92,7 +93,10 @@ function NavLink({
         >
           <span className="sr-only">, </span>
           {badge > 99 ? "99+" : badge}
-          <span className="sr-only"> {item.badge === "messages" ? "unread" : badge === 1 ? "needs you" : "need you"}</span>
+          <span className="sr-only">
+            {" "}
+            {item.badge === "messages" ? "unread" : item.badge === "bookings" ? "new" : badge === 1 ? "needs you" : "need you"}
+          </span>
         </span>
       ) : null}
     </Link>
@@ -137,6 +141,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [leadsBadge, setLeadsBadge] = useState(0);
   const [messagesBadge, setMessagesBadge] = useState(0);
+  const [bookingsBadge, setBookingsBadge] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useOverlay<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
 
@@ -181,15 +186,31 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     getUnreadCount()
       .then((r) => !cancelled && setMessagesBadge(r.unread_count))
       .catch(() => {});
+    // Bookings a client signed that the vendor hasn't opened (backend
+    // DECISIONS #30). Opening one on the Bookings page doesn't navigate, so
+    // that page says so with an event and the count is read again.
+    const loadNew = () =>
+      getNewBookingsCount()
+        .then((r) => !cancelled && setBookingsBadge(typeof r.count === "number" ? r.count : 0))
+        .catch(() => {});
+    loadNew();
+    window.addEventListener(BOOKINGS_SEEN_EVENT, loadNew);
     return () => {
       cancelled = true;
+      window.removeEventListener(BOOKINGS_SEEN_EVENT, loadNew);
     };
   }, [pathname]);
 
   const name = [vendor?.f_name, vendor?.l_name].filter(Boolean).join(" ");
   const category = vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : null;
   const badgeFor = (item: SidebarItem) =>
-    item.badge === "leads" ? leadsBadge : item.badge === "messages" ? messagesBadge : 0;
+    item.badge === "leads"
+      ? leadsBadge
+      : item.badge === "messages"
+        ? messagesBadge
+        : item.badge === "bookings"
+          ? bookingsBadge
+          : 0;
   const close = () => setMenuOpen(false);
 
   const mainNav = (onNavigate?: () => void) => (
@@ -272,7 +293,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
           className="relative grid size-11 place-items-center rounded-[10px]"
         >
           <Icon name="menu" size={22} />
-          {leadsBadge + messagesBadge > 0 ? (
+          {leadsBadge + messagesBadge + bookingsBadge > 0 ? (
             <span
               aria-hidden="true"
               style={{ background: "var(--rail-gold)" }}

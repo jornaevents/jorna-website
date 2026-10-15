@@ -826,6 +826,17 @@ export function listVendorBookings(
   );
 }
 
+/** Signed bookings the vendor hasn't opened yet — the Bookings tab's badge
+ *  (backend DECISIONS #30). */
+export function getNewBookingsCount(): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>("/bookings/vendor/new-count");
+}
+
+/** The vendor opened this booking; only the first time is kept. */
+export function markBookingSeen(bookingId: string): Promise<{ booking_id: string; vendor_seen_at: string | null }> {
+  return apiFetch(`/bookings/${bookingId}/seen`, { method: "POST" });
+}
+
 /**
  * Approve or decline a booking request.
  *

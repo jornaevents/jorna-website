@@ -1114,6 +1114,9 @@ export interface VendorBooking {
   contract_terms?: ContractTerms | null;
   signer_name?: string | null;
   signed_at?: string | null;
+  /** When the vendor first opened it on Bookings (backend DECISIONS #30).
+   *  Absent from a backend older than that — not the same as null. */
+  vendor_seen_at?: string | null;
   deposit_marked_paid_at?: string | null;
   deposit_confirmed_received_at?: string | null;
   /** Where a contract stands as an offer — null on a non-contract booking. */

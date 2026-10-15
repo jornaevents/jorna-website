@@ -22,6 +22,7 @@ import {
   confirmPaymentReceived,
   getMyVendor,
   listVendorBookings,
+  markBookingSeen,
   respondToChange,
   setBookingStatus,
 } from "@/lib/jorna";
@@ -37,6 +38,7 @@ import {
   type BookingTab,
   type PaymentToConfirm,
 } from "@/lib/vendorPlan";
+import { BOOKINGS_SEEN_EVENT, isNewBooking } from "@/lib/newBookings";
 import { eventIsOver, formatCheckInTime, type VendorBooking, type VendorDetail } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
 import { DateChangeRequest } from "@/components/DateChangeRequest";
@@ -376,6 +378,19 @@ function BookingsInner() {
   const load = useCallback(async (vendorId: string) => {
     const res = await listVendorBookings(vendorId, { limit: 100 });
     setBookings(res.items);
+    return res.items;
+  }, []);
+
+  /** Opening a new booking is what clears it from the Bookings badge
+   *  (backend DECISIONS #30). The pill goes at once; the sidebar re-reads
+   *  its count once the server has it. */
+  const markSeen = useCallback((b: VendorBooking) => {
+    if (!isNewBooking(b)) return;
+    const now = new Date().toISOString();
+    setBookings((bs) => bs?.map((x) => (x.booking_id === b.booking_id ? { ...x, vendor_seen_at: now } : x)) ?? bs);
+    markBookingSeen(b.booking_id)
+      .then(() => window.dispatchEvent(new Event(BOOKINGS_SEEN_EVENT)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -389,20 +404,27 @@ function BookingsInner() {
           return;
         }
         setVendor(mine);
-        await load(mine.vendor_id);
+        const items = await load(mine.vendor_id);
+        // A link straight to one booking (?id=) opens it, so it's seen.
+        const linked = items.find((b) => b.booking_id === params.get("id"));
+        if (!cancelled && linked) markSeen(linked);
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your bookings."));
     return () => {
       cancelled = true;
     };
-  }, [user, load, router]);
+  }, [user, load, router, markSeen, params]);
 
   const rows = useMemo(() => {
     const tabbed = (bookings ?? [])
       .map((b) => ({ b, tab: bookingTab(b) }))
       .filter((r): r is { b: VendorBooking; tab: BookingTab } => r.tab != null);
-    // Your move first; then upcoming soonest; Over last, most recent first.
+    // New first, then your move; then upcoming soonest; Over last, most
+    // recent first.
     return tabbed.sort((x, y) => {
+      const xn = isNewBooking(x.b) ? 0 : 1;
+      const yn = isNewBooking(y.b) ? 0 : 1;
+      if (xn !== yn) return xn - yn;
       const xm = yourMove(x.b) ? 0 : 1;
       const ym = yourMove(y.b) ? 0 : 1;
       if (xm !== ym) return xm - ym;
@@ -503,14 +525,24 @@ function BookingsInner() {
                 <button
                   type="button"
                   aria-expanded={open}
-                  onClick={() => setExpanded(open ? null : b.booking_id)}
+                  onClick={() => {
+                    setExpanded(open ? null : b.booking_id);
+                    if (!open) markSeen(b);
+                  }}
                   className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-3 text-left md:grid-cols-[auto_minmax(0,1fr)_8rem_minmax(0,1fr)_7rem_6rem_auto]"
                 >
                   <span className="grid size-10 place-items-center rounded-full bg-maroon/10 text-xs font-bold text-maroon dark:bg-gold/15 dark:text-gold">
                     {initials(eventName(b))}
                   </span>
                   <span className="grid min-w-0">
-                    <strong className="truncate text-sm text-ink">{eventName(b)}</strong>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <strong className="truncate text-sm text-ink">{eventName(b)}</strong>
+                      {isNewBooking(b) ? (
+                        <span className="shrink-0 rounded-[6px] bg-gold/20 px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.06em] text-gold">
+                          New
+                        </span>
+                      ) : null}
+                    </span>
                     <small className="truncate text-xs text-ink-faint">{b.service_name}</small>
                   </span>
                   <span className="hidden min-w-0 md:grid">
