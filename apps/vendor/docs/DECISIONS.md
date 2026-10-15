@@ -834,3 +834,13 @@ The contract link was one long page: changes at the top, the contract, then the 
 - **A returning browser starts at Review.** `localStorage` remembers that the first two steps are done for that link; without it, the steps are prefilled and cost a click each. `?propose=1` opens the workspace on reaching Review, not over the email step. The vendor's preview starts at Email, can open any step, and saves nothing.
 - **Addenda and cancellation agreements** go Review → Sign. They only exist on a signed booking, whose client gave their email and details when signing the contract.
 
+## Decision: the Bookings tab says when a client has signed (2026-10-15)
+
+A lead becomes a booking the moment the client signs, with nothing for the vendor to do — so it's easy to miss. The Bookings tab gets a badge with the number of signed bookings the vendor hasn't opened (backend DECISIONS #30, `GET /bookings/vendor/new-count`).
+
+- **On the server, not in the browser.** Opening a booking on the phone clears the badge on the laptop. Bookings signed before this shipped start as seen.
+- **"Opened" means opening the row on Bookings** (or a link to it, `?id=`). That's what the user asked for: the badge stays until the vendor clicks the booking. Seeing it on Overview or the contract page doesn't count.
+- **New rows come first** and carry a "New" pill, which goes as soon as the row opens. The sidebar re-reads its count when the page fires `jorna:bookings-seen`, since opening a row isn't a navigation.
+- **Only a client's signature counts.** A request the vendor accepted was their own doing.
+- An older backend without `vendor_seen_at` shows no pill and no badge, rather than every signed booking.
+

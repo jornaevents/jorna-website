@@ -192,6 +192,9 @@ always "none, verify manually" until a test runner is added.
 - **Depends on:** `lib/jorna.ts`, `lib/types.ts`, `lib/availability.ts`,
   `lib/pricing.ts`.
 - **Consumers:** `lib/attention.ts` reads `vendorPlan.ts` for the nav badge.
+  The Bookings tab's badge is separate: signed bookings the vendor hasn't
+  opened, counted by the backend (`lib/newBookings.ts`; opening one on
+  `my-bookings/` marks it seen and fires an event the sidebar re-reads on).
 - **Related:** `web/src/app/vendor/stripe-onboard/` (+ `refresh/`, `return/`)
   — Stripe Connect onboarding redirect targets; the onboarding wizard's last
   step links to `/my-earnings` to start that flow, but doesn't build it.
