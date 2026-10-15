@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test, expect, pastLinkSteps, toSigning } from "./support/fixtures";
 
 // Signing by link (backend DECISIONS #27): the client asks for a code by
 // email, enters it, ticks the e-records consent in the backend's own words,
@@ -39,16 +39,17 @@ test.describe("signing evidence", () => {
       guestBooking({ signed_at: "2030-05-02T12:00:00Z", signer_name: "Priya Mehta", contract_status: "signed" }),
     );
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     const confirm = page.getByRole("button", { name: /Confirm booking/ });
     await expect(confirm).toBeDisabled();
 
     await page.getByRole("button", { name: "Email me a code" }).click();
     await expect(page.getByText(/We sent a 6-digit code to p••••@example.com/)).toBeVisible();
-    // The email on the form is saved before the code is asked for.
-    const [saved] = api.requestsTo("PATCH", "/guest-bookings/tok-1");
-    expect(saved.body).toEqual({ guest_email: "priya@example.com" });
+    // The email was given at the link's first step; signing doesn't save it again.
+    expect(api.requestsTo("PATCH", "/guest-bookings/tok-1")).toHaveLength(0);
 
     // A pasted "123 456" still reads as the code.
     await page.getByLabel("6-digit code").fill("123 456");
@@ -74,7 +75,9 @@ test.describe("signing evidence", () => {
     api.patch("/guest-bookings/tok-2", guestBooking());
     api.error("POST", "/guest-bookings/tok-2/signing-code", 502, "We couldn't send the code. Check your email address and try again");
 
+    await pastLinkSteps(page, "tok-2");
     await page.goto("booking-link/?t=tok-2");
+    await toSigning(page);
     await page.getByRole("button", { name: "Email me a code" }).click();
     await expect(page.getByText("We couldn't send the code. Check your email address and try again")).toBeVisible();
   });
@@ -83,7 +86,9 @@ test.describe("signing evidence", () => {
     api.get("/guest-bookings/tok-3", guestBooking({ esign_consent: undefined, signing_code_required: undefined }));
     api.patch("/guest-bookings/tok-3", guestBooking());
 
+    await pastLinkSteps(page, "tok-3");
     await page.goto("booking-link/?t=tok-3");
+    await toSigning(page);
     await expect(page.getByRole("button", { name: "Email me a code" })).toHaveCount(0);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await expect(page.getByRole("button", { name: /Confirm booking/ })).toBeEnabled();
@@ -112,6 +117,7 @@ test.describe("signing evidence", () => {
     api.post("/guest-documents/dtok-1/sign", { ...doc, status: "signed", signer_name: "Priya Mehta", signed_at: "2030-05-02T12:00:00Z" });
 
     await page.goto("booking-link/?d=dtok-1");
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await page.getByRole("button", { name: "Email me a code" }).click();
     await page.getByLabel("6-digit code").fill("654321");

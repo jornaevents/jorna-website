@@ -126,6 +126,12 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       return d.document_id ? "Your client asked for a code to sign a document" : "Your client asked for a code to sign";
     case "details_updated": {
       const fields = Array.isArray(d.fields) ? d.fields.filter((f): f is string => typeof f === "string") : [];
+      // A client may give a different email than the one the vendor typed
+      // (the link's first step); the backend says which, so say it here.
+      if (typeof d.email_to === "string" && d.email_to) {
+        const rest = fields.filter((f) => f !== "email");
+        return `Your client changed their email to ${d.email_to}${rest.length ? `, and their ${rest.join(" and ")}` : ""}`;
+      }
       return `Your client changed their ${fields.length ? fields.join(" and ") : "details"} on the contract`;
     }
     // Field-by-field negotiation (backend DECISIONS #26): one side's turn.

@@ -38,11 +38,14 @@ test.describe("staging: contract round trip", () => {
     // The client's link: no account needed to read it.
     await page.goto(`booking-link/?t=${contract.contract_token}`);
     await expect(page.getByRole("heading", { name: /sent you a contract/ })).toBeVisible();
+    // The link's steps: the vendor's email and name for the client are kept.
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue to the contract" }).click();
 
     const fields = await api<{ round: number } | null>(`/guest-bookings/${contract.contract_token}/negotiation`).catch(() => null);
     if (fields) {
       // Field by field: ask for a guest count, the vendor accepts it.
-      await page.getByRole("button", { name: "Ask for a change" }).click();
+      await page.getByRole("button", { name: "Ask for changes" }).click();
       await page.getByText("Change something else").click();
       const panel = page.getByRole("complementary", { name: "Your answers" });
       await panel.getByText("Guest count", { exact: true }).locator("..").getByRole("button", { name: "Change" }).click();
@@ -61,6 +64,7 @@ test.describe("staging: contract round trip", () => {
     }
 
     // Sign.
+    await page.getByRole("button", { name: "Looks good — sign it" }).click();
     await page.getByPlaceholder("Type your full name to sign").fill(`${CLIENT.f_name} ${CLIENT.l_name}`);
     // The emailed code and consent box (backend DECISIONS #27). The suite
     // can't read email, so it enters staging's SIGNING_TEST_CODE.

@@ -4,7 +4,9 @@
 // (/booking-link?d=…; backend DECISIONS #21). Same no-account trust model
 // as the contract itself: the token is the credential, the couple types
 // their name to sign. It's text only — signing it doesn't move money or
-// dates on its own, and the page says so.
+// dates on its own, and the page says so. Two steps, read then sign; there's
+// no email or details step, because these only exist on a booking the
+// client already gave both for when they signed the contract.
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -14,6 +16,8 @@ import { guestDocumentPdfUrl } from "@/lib/download";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import type { AttachedDocument, SigningProof } from "@/lib/types";
 import { SignatureStep } from "./SignatureStep";
+import { Stepper } from "./Stepper";
+import { DOCUMENT_STEPS, type LinkStep } from "@/lib/linkSteps";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso) return null;
@@ -60,6 +64,13 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
   const [error, setError] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState("");
+  const [step, setStep] = useState<LinkStep>("review");
+
+  function goTo(next: LinkStep) {
+    setError(null);
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -174,53 +185,71 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
         </p>
       </div>
 
-      <Card className="mt-8 p-6">
-        <Sections doc={doc} />
-        <p className="mt-6 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
-          This {kindLabel} is part of your written agreement with {vendorName}. Signing it doesn&apos;t move any money
-          or dates by itself — Jorna doesn&apos;t handle payments.
-        </p>
-        <a
-          href={guestDocumentPdfUrl(token)}
-          download
-          className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
-        >
-          Download as PDF
-        </a>
-      </Card>
+      <Stepper steps={DOCUMENT_STEPS} current={step} onPick={goTo} openAll={preview} />
 
-      <form
-        className="mt-6 grid gap-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          act(() => signGuestDocument(token, signerName.trim(), proof));
-        }}
-      >
-        <SignatureStep
-          kindLabel={kindLabel}
-          signerName={signerName}
-          onSignerName={setSignerName}
-          nameOnContract={doc.client_name}
-          vendorName={vendorName}
-          consent={doc.esign_consent}
-          onProof={setProof}
-          disabled={preview}
-          sendCode={() => requestDocumentSigningCode(token)}
-        />
-        {error ? (
-          <p role="alert" className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-            {error}
-          </p>
-        ) : null}
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={busy || preview || !signerName.trim() || (!!doc.esign_consent && !proof)}
+      {step === "review" ? (
+        <>
+          <Card className="mt-8 p-6">
+            <Sections doc={doc} />
+            <p className="mt-6 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
+              This {kindLabel} is part of your written agreement with {vendorName}. Signing it doesn&apos;t move any money
+              or dates by itself — Jorna doesn&apos;t handle payments.
+            </p>
+            <a
+              href={guestDocumentPdfUrl(token)}
+              download
+              className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
+            >
+              Download as PDF
+            </a>
+          </Card>
+          <Button type="button" size="lg" className="mt-6 w-full" onClick={() => goTo("sign")}>
+            Looks good — sign it
+          </Button>
+        </>
+      ) : (
+        <form
+          className="mt-8 grid gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act(() => signGuestDocument(token, signerName.trim(), proof));
+          }}
         >
-          {busy ? "Signing…" : `Sign the ${kindLabel} →`}
-        </Button>
-      </form>
+          <div className="flex justify-end text-sm">
+            <button
+              type="button"
+              onClick={() => goTo("review")}
+              className="font-semibold text-gold underline-offset-4 hover:underline"
+            >
+              Back to the {kindLabel}
+            </button>
+          </div>
+          <SignatureStep
+            kindLabel={kindLabel}
+            signerName={signerName}
+            onSignerName={setSignerName}
+            nameOnContract={doc.client_name}
+            vendorName={vendorName}
+            consent={doc.esign_consent}
+            onProof={setProof}
+            disabled={preview}
+            sendCode={() => requestDocumentSigningCode(token)}
+          />
+          {error ? (
+            <p role="alert" className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+              {error}
+            </p>
+          ) : null}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={busy || preview || !signerName.trim() || (!!doc.esign_consent && !proof)}
+          >
+            {busy ? "Signing…" : `Sign the ${kindLabel} →`}
+          </Button>
+        </form>
+      )}
 
       <div className="mt-8 border-t border-line-soft pt-6 text-center">
         {declining ? (

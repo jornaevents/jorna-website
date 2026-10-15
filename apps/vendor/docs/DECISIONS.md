@@ -822,3 +822,15 @@ From the 2026-10-05 staging walkthrough (#162, #163) and the product review.
 - **Wizard copy.** Step 2 is "How far you go, and how you're paid", with both optional fields labelled. A category with specialities offers "All photography" rather than a second "Photography" chip. The radius shows the new record's value straight away, and the payment error clears as a handle is typed.
 - **Packages.** Prices take "1,500" and "1,500.75". A flat price reads "Price", not "Starting at". The card says "Category", not "Best for". An empty Add package says what's missing instead of relying on the browser's required bubble. "What's included" examples aren't a DJ's.
 - **Client package page** (book.jornaevents.com) shows the hours, what's included and the add-ons, as the vendor site's copy does, and a flat package with hours says "A flat rate covering 5 hours".
+
+## Decision: the client's link runs as steps (2026-10-15)
+
+The contract link was one long page: changes at the top, the contract, then the client's details beside the signature, saved only when they signed. It now goes **Email → Details → Review → Sign** (`app/booking-link/`, `lib/linkSteps.ts`).
+
+- **Email first, no code.** The link is still the only credential (backend DECISIONS #13) and the contract isn't hidden. The email is saved when given, so the vendor can reach them before any signature. A client may give a different email than the vendor typed; the page says the vendor will see it, and the vendor's timeline names the new address once the backend sends it (`email_to`).
+- **Details saved at step 2**, not at signing. A venue or guest count the vendor set stays read-only; changing it is a change to ask for at the next step.
+- **Review** is the contract with the negotiation's status on top. "Looks good — sign it", or "Ask for changes", which opens the same workspace as before. While anything is open the sign button reads "Sign it as it is". Answering the vendor's replies stays at the top of the contract.
+- **Sign** is the signature card as before; the emailed code is still asked here, every time (DECISIONS #27 in the backend).
+- **A returning browser starts at Review.** `localStorage` remembers that the first two steps are done for that link; without it, the steps are prefilled and cost a click each. `?propose=1` opens the workspace on reaching Review, not over the email step. The vendor's preview starts at Email, can open any step, and saves nothing.
+- **Addenda and cancellation agreements** go Review → Sign. They only exist on a signed booking, whose client gave their email and details when signing the contract.
+

@@ -32,3 +32,17 @@ export async function loginAs(page: Page, api: ApiMock, user = mockUser()) {
   api.get("/me", user);
   return user;
 }
+
+/**
+ * The client's link opens on its email step (lib/linkSteps). This starts it
+ * where a returning client lands — the contract — for tests about what comes
+ * after. Call before page.goto.
+ */
+export async function pastLinkSteps(page: Page, token: string) {
+  await page.addInitScript((t) => localStorage.setItem(`jorna_link_steps:${t}`, "details"), token);
+}
+
+/** From the contract step to the signature, whichever way the button reads. */
+export async function toSigning(page: Page) {
+  await page.getByRole("button", { name: /^(Looks good — sign it|Sign it as it is)$/ }).click();
+}

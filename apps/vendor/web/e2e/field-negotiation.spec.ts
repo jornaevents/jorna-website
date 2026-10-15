@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test, expect, pastLinkSteps, toSigning } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
 import { mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
@@ -132,17 +132,20 @@ test.describe("field-by-field negotiation", () => {
     api.post("/guest-bookings/tok-1/sign", { ...contract, signed_at: "2030-05-04T12:00:00", signer_name: "Priya Mehta" });
     api.post("/guest-bookings/tok-1/negotiation/send", state({ side: "client", turn: "vendor", round: 4, waiting_count: 1 }));
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("Arjun Kapoor answered your changes. 2 need your answer before you sign.")).toBeVisible();
 
     // Signing with changes open needs "as it is".
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await page.getByRole("button", { name: "Confirm booking →" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Sign it as it is" })).toBeVisible();
     expect(api.requestsTo("POST", "/guest-bookings/tok-1/sign")).toHaveLength(0);
 
     // Answer instead: keep asking for 3 lights, accept the overtime rate.
-    await page.getByRole("button", { name: "Review and answer" }).click();
+    await page.getByRole("button", { name: "Back to the contract" }).click();
+    await page.getByRole("button", { name: "Review their answers" }).click();
     await page.getByText("Change something else").click();
     await expect(page.getByText("Fixed by Arjun Kapoor")).toBeVisible();
     const lights = page.getByRole("region", { name: "Uplighting: quantity" });
@@ -155,6 +158,10 @@ test.describe("field-by-field negotiation", () => {
     await page.getByRole("button", { name: "Send 2 answers and 1 change" }).click();
 
     await expect(page.getByText("It's Arjun Kapoor's turn")).toBeVisible();
+    // Back on the contract: nothing more to ask while it's their turn, but it can be taken as it is.
+    await expect(page.getByText("Sent to Arjun Kapoor. It's their turn — we'll email you when they answer.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ask for changes" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Sign it as it is" })).toBeVisible();
     const [sent] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
     expect(sent.body).toMatchObject({
       base_round: 3,
@@ -174,7 +181,9 @@ test.describe("field-by-field negotiation", () => {
     api.patch("/guest-bookings/tok-1", contract);
     api.post("/guest-bookings/tok-1/sign", { ...contract, signed_at: "2030-05-04T12:00:00", signer_name: "Priya Mehta" });
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await page.getByLabel(/Sign it as it is/).check();
     await page.getByRole("button", { name: "Confirm booking →" }).click();
@@ -196,8 +205,9 @@ test.describe("field-by-field negotiation", () => {
     api.get("/guest-bookings/tok-1/proposals", history);
     api.get("/guest-bookings/tok-1/negotiation", clientState);
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
-    await page.getByRole("button", { name: "Review and answer" }).click();
+    await page.getByRole("button", { name: "Review their answers" }).click();
     await expect(page.getByText("“150 guests is fine. I can meet you at $3,000.”")).toBeVisible();
     await expect(page.getByText("Arjun Kapoor kept 30 days")).toBeVisible();
     await expect(page.getByText("(you asked 0 days)")).toBeVisible();

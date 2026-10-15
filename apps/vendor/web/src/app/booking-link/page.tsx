@@ -7,8 +7,9 @@
 // The only page in this app with no account behind it, same shape as the
 // old RSVP flow this was cloned from — no sign-in, no app, just the token
 // in the URL. Built for someone who found this vendor on Instagram or
-// WhatsApp and has never heard of Jorna: they fill in their own details,
-// read what they're agreeing to, and type their name to sign. Jorna never
+// WhatsApp and has never heard of Jorna. An unsigned contract is a few
+// steps (lib/linkSteps): their email, their details, the contract — where
+// they can ask for changes — then their signature. Jorna never
 // touches the money — see the callout below and docs/DECISIONS.md #13 in
 // the backend for why that's the whole trust model here.
 
@@ -37,6 +38,15 @@ import { ContractCompare } from "@jorna/shared/components/negotiation/ContractCo
 import type { GuestBooking, Installment, ProposalHistory, SigningProof } from "@/lib/types";
 import { DocumentView } from "./DocumentView";
 import { SignatureStep } from "./SignatureStep";
+import { Stepper } from "./Stepper";
+import {
+  CONTRACT_STEPS,
+  looksLikeEmail,
+  rememberDetails,
+  rememberedDetails,
+  startingStep,
+  type LinkStep,
+} from "@/lib/linkSteps";
 import { ClientNegotiation } from "@/components/negotiation/ClientNegotiation";
 import { FieldNegotiationWorkspace } from "@jorna/shared/components/negotiation/FieldNegotiationWorkspace";
 import type { FieldNegotiationState } from "@jorna/shared/lib/contractTypes";
@@ -174,9 +184,11 @@ function FieldStatus({ state, vendorName, onOpen }: { state: FieldNegotiationSta
               ? "Read the contract below. Sign it, or ask for a change."
               : "Everything in the contract below is agreed. Read it over and sign, or ask for a change."}
       </p>
-      {mine ? (
-        <Button type="button" variant={waitingOnMe ? "primary" : "ghost"} className="mt-3" onClick={onOpen}>
-          {waitingOnMe ? "Review and answer" : "Ask for a change"}
+      {/* Asking for a change sits with Sign under the contract; answering
+          the vendor comes first, so it's up here. */}
+      {mine && waitingOnMe ? (
+        <Button type="button" className="mt-3" onClick={onOpen}>
+          Review their answers
         </Button>
       ) : null}
     </Card>
@@ -342,7 +354,11 @@ function BookingLinkInner() {
   // Change proposals (backend DECISIONS #23). ?propose=1 — the client app's
   // "Propose changes" — opens straight into the form.
   const [history, setHistory] = useState<ProposalHistory | null>(null);
-  const [proposing, setProposing] = useState(params.get("propose") === "1" && !preview);
+  // Opens once the client reaches the contract, not over the email step.
+  const wantsPropose = params.get("propose") === "1" && !preview;
+  const [proposing, setProposing] = useState(false);
+  // Null until the booking loads; then where this visit starts.
+  const [step, setStep] = useState<LinkStep | null>(null);
   const [proposalNotice, setProposalNotice] = useState<string | null>(null);
   // Field-by-field contracts (backend DECISIONS #26) replace proposals; a
   // 409 from the negotiation route leaves this null.
@@ -370,6 +386,10 @@ function BookingLinkInner() {
         setGuestPhone(b.guest_phone ?? "");
         setLocation(b.location === "TBD" ? "" : b.location);
         setGuestCount(b.guest_count?.toString() ?? "");
+        // The vendor's preview walks the steps from the start, as a client would.
+        const start = preview ? "email" : startingStep(b, rememberedDetails(token));
+        setStep(start);
+        if (start === "review" && wantsPropose) setProposing(true);
         setLoading(false);
       })
       .catch((err) => {
@@ -384,21 +404,82 @@ function BookingLinkInner() {
     return () => {
       cancelled = true;
     };
-  }, [token, preview]);
+  }, [token, preview, wantsPropose]);
+
+  function goTo(next: LinkStep) {
+    setError(null);
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  }
+
+  function askForChanges() {
+    setProposalNotice(null);
+    setProposing(true);
+    window.scrollTo({ top: 0 });
+  }
+
+  /** Step 1. Saved as soon as it's given, so the vendor can reach them —
+   *  and so a different email than the vendor typed shows on their side. */
+  async function saveEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const email = guestEmail.trim();
+    // The vendor's preview walks the steps without filling them in.
+    if (preview) return goTo("details");
+    if (!looksLikeEmail(email)) {
+      setError("Enter the email you'd like your copy sent to.");
+      return;
+    }
+    if (email === (booking?.guest_email ?? "")) return goTo("details");
+    setBusy(true);
+    setError(null);
+    try {
+      setBooking(await fillGuestBookingDetails(token, { guest_email: email }));
+      goTo("details");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save that. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Step 2. A set venue or guest count isn't the client's to change here —
+   *  that's a change to ask for (backend #27 note). */
+  async function saveDetails(e: React.FormEvent) {
+    e.preventDefault();
+    const enter = () => {
+      goTo("review");
+      if (wantsPropose) setProposing(true);
+    };
+    if (preview) return enter();
+    if (!guestName.trim()) {
+      setError("Add your full name.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      setBooking(
+        await fillGuestBookingDetails(token, {
+          guest_name: guestName.trim(),
+          guest_phone: guestPhone.trim() || null,
+          location: isSet(booking?.location) ? null : location.trim() || null,
+          guest_count: booking?.guest_count != null || !guestCount ? null : Number(guestCount),
+        }),
+      );
+      rememberDetails(token);
+      enter();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save your details. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await fillGuestBookingDetails(token, {
-        guest_name: guestName.trim() || null,
-        guest_email: guestEmail.trim() || null,
-        guest_phone: guestPhone.trim() || null,
-        // A set venue or guest count isn't the client's to change here.
-        location: isSet(booking?.location) ? null : location.trim() || null,
-        guest_count: booking?.guest_count != null || !guestCount ? null : Number(guestCount),
-      });
       const waiting = fields ? fields.waiting_count > 0 : false;
       if (waiting && !signAsIs) {
         setError("Some changes are still waiting. Answer them first, or tick “Sign it as it is”.");
@@ -686,12 +767,24 @@ function BookingLinkInner() {
     );
   }
 
+  const current = step ?? "email";
+  // Anything still open in the negotiation: signing now takes it as it
+  // stands (field by field), or withdraws the client's proposal (older flow).
+  const openAsks = fields ? fields.waiting_count > 0 : Boolean(history?.open_proposal);
+  const clientsTurn = !fields || fields.turn === "client";
+  const waitingOnMe = fields ? fields.fields.filter((f) => f.state === "waiting_client").length : 0;
+  const alert = error ? (
+    <p role="alert" className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+      {error}
+    </p>
+  ) : null;
+
   return (
     <div className="mx-auto w-[min(560px,100%-2rem)] py-12">
       {preview ? (
         <p className="mb-6 rounded-lg bg-panel px-3 py-2 text-center text-sm text-ink-soft">
           Preview — this is what your client sees. Opening it here doesn&apos;t count as them
-          opening it.
+          opening it, and nothing you type is saved.
         </p>
       ) : null}
       <div className="text-center">
@@ -702,6 +795,8 @@ function BookingLinkInner() {
           </p>
         ) : null}
       </div>
+
+      <Stepper steps={CONTRACT_STEPS} current={current} onPick={goTo} openAll={preview} />
 
       {proposing && fields ? (
         <div className="fixed inset-0 z-40 flex flex-col bg-ground">
@@ -721,11 +816,11 @@ function BookingLinkInner() {
               setProposing(false);
               setProposalNotice(
                 next.can_sign
-                  ? "Everything's agreed. You can sign below."
-                  : "Sent.",
+                  ? "Everything's agreed. You can sign it now."
+                  : `Sent to ${vendorName}. It's their turn — we'll email you when they answer.`,
               );
               getGuestBooking(token, true).then(setBooking).catch(() => undefined);
-              window.scrollTo({ top: 0 });
+              goTo("review");
             }}
           />
         </div>
@@ -742,207 +837,240 @@ function BookingLinkInner() {
               setProposing(false);
               setProposalNotice(message);
               getGuestBooking(token, true).then(setBooking).catch(() => undefined);
-              window.scrollTo({ top: 0 });
+              goTo("review");
             }}
           />
         </div>
       ) : null}
-      <>
-      {proposalNotice ? (
-        <p role="status" className="mt-6 rounded-lg bg-ground-2 px-3 py-2 text-center text-sm text-ink-soft">
-          {proposalNotice}
-        </p>
-      ) : null}
-      {fields ? (
-        <FieldStatus
-          state={fields}
-          vendorName={vendorName}
-          onOpen={() => {
-            setProposalNotice(null);
-            setProposing(true);
-          }}
-        />
-      ) : null}
-      {history && !fields ? (
-        <ProposalStatus
-          booking={booking}
-          history={history}
-          vendorName={vendorName}
-          busy={busy}
-          onWithdraw={withdraw}
-          onOpen={() => {
-            setProposalNotice(null);
-            setProposing(true);
-          }}
-        />
-      ) : null}
 
-      <Card className="mt-8 p-5">
-        <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
-        </p>
-        {venueSet ? <p className="text-sm text-ink-faint">{booking.location}</p> : null}
-        <Items booking={booking} />
-        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line-soft pt-3 text-sm sm:grid-cols-3">
-          {booking.overtime_rate_cents != null ? (
-            <div>
-              <p className="text-ink-faint">Overtime rate</p>
-              <p className="font-semibold text-ink">{money(booking.overtime_rate_cents)}/hr</p>
-            </div>
-          ) : null}
-          {depositDue && !schedule ? (
-            <div>
-              <p className="text-ink-faint">Deposit due</p>
-              <p className="font-semibold text-maroon dark:text-gold">{depositDue}</p>
-            </div>
-          ) : null}
-          <div>
-            <p className="text-ink-faint">Total</p>
-            <p className="font-semibold text-ink">{money(booking.amount_cents)}</p>
-          </div>
-        </div>
-        {schedule ? (
-          <div className="mt-4 border-t border-line-soft pt-3">
-            <p className="mb-2 text-sm font-medium text-ink-soft">How you&apos;ll pay</p>
-            <Schedule schedule={schedule} />
-          </div>
-        ) : null}
-        <p className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
-          <strong className="text-ink">You&apos;ll pay {vendorName} directly</strong> — Jorna
-          doesn&apos;t handle the money. This is your written agreement.
-        </p>
-        <a
-          href={guestContractPdfUrl(token)}
-          download
-          className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
-        >
-          Download as PDF to read later
-        </a>
-      </Card>
-
-      {!preview && history && !fields ? (
-        <div className="mt-4 rounded-xl border border-dashed border-card-edge px-4 py-3 text-center text-sm text-ink-soft">
-          Want something different?{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setProposalNotice(null);
-              setProposing(true);
-              window.scrollTo({ top: 0 });
-            }}
-            className="font-semibold text-gold underline-offset-4 hover:underline"
-          >
-            {history.open_proposal ? "Change your proposal" : "Propose changes"}
-          </button>
-        </div>
-      ) : null}
-
-      <form onSubmit={submit} className="mt-6 grid gap-6">
-        <Card className="p-5">
-          <p className="text-sm font-medium text-ink-soft">Your details</p>
-          <div className="mt-3 grid gap-3">
-            <Field label="Your full name" value={guestName} onChange={(e) => setGuestName(e.target.value)} required />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Phone" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
-              <Field label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} required />
-            </div>
-            {venueSet ? (
-              <SetTerm label="Venue" value={booking.location} />
-            ) : (
+      {current === "email" ? (
+        <form onSubmit={saveEmail} className="mt-8 grid gap-4" noValidate>
+          <Card className="p-5">
+            <p className="text-sm font-medium text-ink-soft">Where should we send your copy?</p>
+            <p className="mt-1 text-xs text-ink-faint">
+              We&apos;ll email you when {vendorName} replies, and send your signed copy here.
+            </p>
+            <div className="mt-3">
               <Field
-                label="Venue address"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Where the event will be"
+                label="Your email"
+                type="email"
+                autoComplete="email"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                required
               />
-            )}
-            {guestsSet ? (
-              <SetTerm label="Guest count" value={String(booking.guest_count)} />
-            ) : (
-              <Field
-                label="Guest count"
-                type="number"
-                min={1}
-                hint="Helps your vendor plan. Your price is the total shown above."
-                value={guestCount}
-                onChange={(e) => setGuestCount(e.target.value)}
-              />
-            )}
-            {venueSet || guestsSet ? (
-              <p className="text-xs text-ink-faint">
-                {venueSet && guestsSet ? "These are" : "This is"} part of the contract.{" "}
-                {canAskForChange ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProposalNotice(null);
-                      setProposing(true);
-                      window.scrollTo({ top: 0 });
-                    }}
-                    className="font-semibold text-gold underline-offset-4 hover:underline"
-                  >
-                    Ask {vendorName} to change {venueSet && guestsSet ? "them" : "it"}
-                  </button>
-                ) : (
-                  <>To change {venueSet && guestsSet ? "them" : "it"}, ask {vendorName}.</>
-                )}
+            </div>
+            {booking.guest_email && guestEmail.trim() && guestEmail.trim() !== booking.guest_email ? (
+              <p className="mt-2 text-xs text-ink-faint">
+                {vendorName} had {booking.guest_email}. They&apos;ll see you changed it.
               </p>
             ) : null}
-          </div>
-        </Card>
-
-        {agreeing.length ? (
-          <Card className="p-5">
-            <p className="text-sm font-medium text-ink-soft">What you&apos;re agreeing to</p>
-            <ul className="mt-3 grid gap-2 text-sm text-ink-soft">{agreeing}</ul>
           </Card>
-        ) : null}
-
-        <SignatureStep
-          kindLabel="agreement"
-          signerName={signerName}
-          onSignerName={setSignerName}
-          nameOnContract={guestName}
-          vendorName={vendorName}
-          consent={booking.esign_consent}
-          onProof={setProof}
-          disabled={preview}
-          sendCode={async () => {
-            // The code goes to the email on file, so save what's typed first.
-            if (!guestEmail.trim()) throw new ApiError(400, "Add your email above first");
-            await fillGuestBookingDetails(token, { guest_email: guestEmail.trim() });
-            return requestGuestSigningCode(token);
-          }}
-        />
-
-        {fields && fields.waiting_count > 0 ? (
-          <label className="flex items-start gap-2.5 rounded-lg border border-card-edge px-3 py-2.5 text-sm text-ink-soft">
-            <input type="checkbox" className="mt-1" checked={signAsIs} onChange={(e) => setSignAsIs(e.target.checked)} />
-            <span>Sign it as it is. {signAsIsNote(fields, vendorName)}</span>
-          </label>
-        ) : null}
-
-        {error ? (
-          <p role="alert" className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-            {error}
-          </p>
-        ) : null}
-
-        <div>
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={busy || preview || !signerName.trim() || (!!booking.esign_consent && !proof)}
-          >
-            {busy ? "Confirming…" : "Confirm booking →"}
+          {alert}
+          <Button type="submit" size="lg" className="w-full" disabled={busy}>
+            {busy ? "Saving…" : "Continue"}
           </Button>
-          <p className="mt-2 text-center text-xs text-ink-faint">
-            By confirming, you electronically sign this agreement. We&apos;ll email you and {vendorName} a signed copy.
-          </p>
-        </div>
-      </form>
+        </form>
+      ) : null}
+
+      {current === "details" ? (
+        <form onSubmit={saveDetails} className="mt-8 grid gap-4" noValidate>
+          <Card className="p-5">
+            <p className="text-sm font-medium text-ink-soft">Your details</p>
+            <div className="mt-3 grid gap-3">
+              <Field
+                label="Your full name"
+                autoComplete="name"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                required
+              />
+              <Field label="Phone (optional)" type="tel" autoComplete="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
+              {venueSet ? (
+                <SetTerm label="Venue" value={booking.location} />
+              ) : (
+                <Field
+                  label="Venue address"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Where the event will be"
+                />
+              )}
+              {guestsSet ? (
+                <SetTerm label="Guest count" value={String(booking.guest_count)} />
+              ) : (
+                <Field
+                  label="Guest count"
+                  type="number"
+                  min={1}
+                  hint="Helps your vendor plan. Your price is the total in the contract."
+                  value={guestCount}
+                  onChange={(e) => setGuestCount(e.target.value)}
+                />
+              )}
+              {venueSet || guestsSet ? (
+                <p className="text-xs text-ink-faint">
+                  {venueSet && guestsSet ? "These are" : "This is"} part of the contract.{" "}
+                  {canAskForChange ? (
+                    <>You can ask {vendorName} to change {venueSet && guestsSet ? "them" : "it"} in the next step.</>
+                  ) : (
+                    <>To change {venueSet && guestsSet ? "them" : "it"}, ask {vendorName}.</>
+                  )}
+                </p>
+              ) : null}
+            </div>
+          </Card>
+          {alert}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={() => goTo("email")}>
+              Back
+            </Button>
+            <Button type="submit" size="lg" className="flex-1" disabled={busy}>
+              {busy ? "Saving…" : "Continue to the contract"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
+      {current === "review" ? (
+        <>
+          {proposalNotice ? (
+            <p role="status" className="mt-6 rounded-lg bg-ground-2 px-3 py-2 text-center text-sm text-ink-soft">
+              {proposalNotice}
+            </p>
+          ) : null}
+          {fields ? <FieldStatus state={fields} vendorName={vendorName} onOpen={askForChanges} /> : null}
+          {history && !fields ? (
+            <ProposalStatus
+              booking={booking}
+              history={history}
+              vendorName={vendorName}
+              busy={busy}
+              onWithdraw={withdraw}
+              onOpen={askForChanges}
+            />
+          ) : null}
+
+          <Card className="mt-8 p-5">
+            <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
+            </p>
+            {isSet(booking.location) ? <p className="text-sm text-ink-faint">{booking.location}</p> : null}
+            {booking.guest_count != null ? <p className="text-sm text-ink-faint">{booking.guest_count} guests</p> : null}
+            <Items booking={booking} />
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line-soft pt-3 text-sm sm:grid-cols-3">
+              {booking.overtime_rate_cents != null ? (
+                <div>
+                  <p className="text-ink-faint">Overtime rate</p>
+                  <p className="font-semibold text-ink">{money(booking.overtime_rate_cents)}/hr</p>
+                </div>
+              ) : null}
+              {depositDue && !schedule ? (
+                <div>
+                  <p className="text-ink-faint">Deposit due</p>
+                  <p className="font-semibold text-maroon dark:text-gold">{depositDue}</p>
+                </div>
+              ) : null}
+              <div>
+                <p className="text-ink-faint">Total</p>
+                <p className="font-semibold text-ink">{money(booking.amount_cents)}</p>
+              </div>
+            </div>
+            {schedule ? (
+              <div className="mt-4 border-t border-line-soft pt-3">
+                <p className="mb-2 text-sm font-medium text-ink-soft">How you&apos;ll pay</p>
+                <Schedule schedule={schedule} />
+              </div>
+            ) : null}
+            <p className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
+              <strong className="text-ink">You&apos;ll pay {vendorName} directly</strong> — Jorna
+              doesn&apos;t handle the money. This is your written agreement.
+            </p>
+            <a
+              href={guestContractPdfUrl(token)}
+              download
+              className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
+            >
+              Download as PDF to read later
+            </a>
+          </Card>
+
+          {agreeing.length ? (
+            <Card className="mt-4 p-5">
+              <p className="text-sm font-medium text-ink-soft">What you&apos;re agreeing to</p>
+              <ul className="mt-3 grid gap-2 text-sm text-ink-soft">{agreeing}</ul>
+            </Card>
+          ) : null}
+
+          <div className="mt-6 grid gap-2">
+            <Button type="button" size="lg" variant={openAsks || waitingOnMe ? "ghost" : "primary"} onClick={() => goTo("sign")}>
+              {openAsks ? "Sign it as it is" : "Looks good — sign it"}
+            </Button>
+            {canAskForChange && clientsTurn && !waitingOnMe ? (
+              <Button type="button" size="lg" variant="ghost" onClick={askForChanges}>
+                {history?.open_proposal && !fields ? "Change your proposal" : "Ask for changes"}
+              </Button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
+      {current === "sign" ? (
+        <form onSubmit={submit} className="mt-8 grid gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm text-ink-soft">
+            <span>
+              {booking.service_name ?? "Service"} · {money(booking.amount_cents)}
+            </span>
+            <button
+              type="button"
+              onClick={() => goTo("review")}
+              className="font-semibold text-gold underline-offset-4 hover:underline"
+            >
+              Back to the contract
+            </button>
+          </div>
+
+          <SignatureStep
+            kindLabel="agreement"
+            signerName={signerName}
+            onSignerName={setSignerName}
+            nameOnContract={booking.guest_name ?? guestName}
+            vendorName={vendorName}
+            consent={booking.esign_consent}
+            onProof={setProof}
+            disabled={preview}
+            sendCode={async () => {
+              // Step 1 saved it; a vendor may have cleared it since.
+              if (!booking.guest_email) throw new ApiError(400, "Add your email first — go back to the first step");
+              return requestGuestSigningCode(token);
+            }}
+          />
+
+          {fields && fields.waiting_count > 0 ? (
+            <label className="flex items-start gap-2.5 rounded-lg border border-card-edge px-3 py-2.5 text-sm text-ink-soft">
+              <input type="checkbox" className="mt-1" checked={signAsIs} onChange={(e) => setSignAsIs(e.target.checked)} />
+              <span>Sign it as it is. {signAsIsNote(fields, vendorName)}</span>
+            </label>
+          ) : null}
+
+          {alert}
+
+          <div>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={busy || preview || !signerName.trim() || (!!booking.esign_consent && !proof)}
+            >
+              {busy ? "Confirming…" : "Confirm booking →"}
+            </Button>
+            <p className="mt-2 text-center text-xs text-ink-faint">
+              By confirming, you electronically sign this agreement. We&apos;ll email you and {vendorName} a signed copy.
+            </p>
+          </div>
+        </form>
+      ) : null}
 
       <div className="mt-8 border-t border-line-soft pt-6 text-center">
         {declining ? (
@@ -972,7 +1100,6 @@ function BookingLinkInner() {
           </button>
         )}
       </div>
-      </>
     </div>
   );
 }

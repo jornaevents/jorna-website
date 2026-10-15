@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test, expect, pastLinkSteps, toSigning } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
 import { mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
@@ -149,12 +149,14 @@ test.describe("contracts — Phase 2b (proposals)", () => {
       return guest({ signed_at: "2030-05-03T12:00:00", signer_name: "Priya Mehta", contract_status: "signed" });
     });
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("How you'll pay")).toBeVisible();
     await expect(page.getByText("Due when signed")).toBeVisible();
     await expect(page.getByText("The deposit is non-refundable.")).toBeVisible();
     await expect(page.getByText("Extra hour × 2")).toBeVisible();
 
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await page.getByRole("button", { name: /Confirm booking/ }).click();
     await expect(page.getByText(/updated this contract after you opened it/)).toBeVisible();
