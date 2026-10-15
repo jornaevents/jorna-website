@@ -100,6 +100,11 @@ test.describe("contracts — Phase 2a (offers and holds)", () => {
 
     await page.goto("booking-link/?t=tok-3&preview=1");
     await expect(page.getByText(/Preview — this is what your client sees/)).toBeVisible();
+    // Every step is there to look at, and walking them saves nothing.
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue to the contract" }).click();
+    expect(api.requestsTo("PATCH", "/guest-bookings/tok-3")).toHaveLength(0);
+    await page.getByRole("navigation", { name: "Steps" }).getByRole("button", { name: /Sign/ }).click();
     await expect(page.getByRole("button", { name: /Confirm booking/ })).toBeDisabled();
   });
 });

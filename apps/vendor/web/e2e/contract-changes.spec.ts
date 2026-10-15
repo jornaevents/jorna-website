@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test, expect, pastLinkSteps } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
 import { mockVendorDetail } from "./support/mock-data";
 
@@ -129,8 +129,9 @@ test.describe("contract change proposals", () => {
     api.get("/guest-bookings/tok-1/proposals", history());
     api.post("/guest-bookings/tok-1/proposals", history({ open_proposal: proposal(), proposals: [proposal()] }));
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
-    await page.getByRole("button", { name: "Propose changes" }).click();
+    await page.getByRole("button", { name: "Ask for changes" }).click();
     const ws = workspace(page, "Arjun Kapoor");
     await expect(ws.getByRole("heading", { name: "Review and revise" })).toBeVisible();
     // Nothing changed yet, nothing to send.
@@ -172,8 +173,13 @@ test.describe("contract change proposals", () => {
     api.put("/guest-bookings/tok-1/proposals/draft", {
       base_revision: 1, changes: {}, message: null, proposal_id: null, updated_at: "2030-05-03T12:00:00", stale: false,
     });
+    api.patch("/guest-bookings/tok-1", contract());
 
+    // A first visit: the workspace waits until they've given their email and details.
     await page.goto("booking-link/?t=tok-1&propose=1");
+    await expect(page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue to the contract" }).click();
     const ws = workspace(page, "Arjun Kapoor");
     await ws.getByRole("button", { name: "+ Ask for something extra" }).click();
     await ws.getByLabel("Your item").fill("Cold sparklers");
@@ -203,6 +209,7 @@ test.describe("contract change proposals", () => {
     );
     api.post("/guest-bookings/tok-1/proposals", history({ open_proposal: proposal(), proposals: [proposal()] }));
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1&propose=1");
     const ws = workspace(page, "Arjun Kapoor");
     await expect(ws.getByLabel("Your overtime rate (per hour)")).toHaveValue("120");
@@ -222,6 +229,7 @@ test.describe("contract change proposals", () => {
       history({ proposals: [proposal({ status: "withdrawn" })] }),
     );
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("Waiting for Arjun Kapoor")).toBeVisible();
     await page.getByRole("button", { name: "See your proposal" }).click();
@@ -232,7 +240,7 @@ test.describe("contract change proposals", () => {
     await ws.getByRole("button", { name: "Close negotiation" }).click();
 
     // They can still sign the version on the table.
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign it as it is" })).toBeVisible();
     await page.getByRole("button", { name: "Withdraw it" }).click();
     await expect(page.getByText("Withdrawn. The contract is as it was.")).toBeVisible();
     expect(api.requestsTo("POST", "/guest-bookings/tok-1/proposals/p-1/withdraw")).toHaveLength(1);
@@ -268,6 +276,7 @@ test.describe("contract change proposals", () => {
       }),
     );
 
+    await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("Arjun Kapoor sent a new version")).toBeVisible();
     const reply = page.getByRole("region", { name: "Their reply" });

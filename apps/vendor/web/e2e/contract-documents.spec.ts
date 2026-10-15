@@ -1,4 +1,4 @@
-import { test, expect } from "./support/fixtures";
+import { test, expect, toSigning } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
 import { mockVendorBooking, mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
@@ -157,6 +157,7 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     await expect(page.getByText("The reception now ends at midnight.")).toBeVisible();
     await expect(page.getByText(/doesn.t move any money/)).toBeVisible();
 
+    await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Meera Iyer");
     await page.getByRole("button", { name: /Sign the service addendum/ }).click();
 

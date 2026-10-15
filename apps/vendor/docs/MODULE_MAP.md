@@ -176,7 +176,9 @@ always "none, verify manually" until a test runner is added.
     once.
   - `lib/contractLink.ts` builds the client's link; `app/booking-link/` is
     the client's page (plan, clauses, signs a specific revision, marks each
-    payment sent).
+    payment sent). Unsigned, it runs as steps — email, details, the
+    contract, signing — with the starting step and what a browser
+    remembers in `lib/linkSteps.ts` and the bar in `booking-link/Stepper.tsx`.
 - **First-time setup:** `web/src/app/vendor-onboarding/` — a resumable
   3-step wizard (identity+bio, reach, first service) that both the
   register-as-vendor flow and "Start selling" route to instead of
