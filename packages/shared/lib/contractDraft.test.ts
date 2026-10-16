@@ -10,6 +10,7 @@ import {
   dueDateOf,
   money,
   packageLine,
+  packageTemplate,
   warningsByStep,
   withCancellationSection,
   emptyDraft,
@@ -17,6 +18,7 @@ import {
   fromRequest,
   describeWhen,
   insertClause,
+  keepRequestedLine,
   layoutOf,
   moveBlock,
   presetSchedule,
@@ -334,3 +336,61 @@ describe("editor checks (web #166)", () => {
     expect(packageLine({ service_id: "s", name: "Coverage", price: 2500, included_hours: 5 }).description).toBe("5 hours included");
   });
 });
+
+describe("package templates (backend DECISIONS #31)", () => {
+  const service = {
+    service_id: "svc-1",
+    name: "Full day",
+    price: 2500,
+    price_unit: "event",
+    included_hours: 8,
+    inclusions: ["Second shooter", " ", "Online gallery"],
+  };
+
+  it("sell the package, with its hours and what's included", () => {
+    const body = packageTemplate(service);
+    expect(body.title).toBe("Full day agreement");
+    expect(body.lines).toEqual([
+      expect.objectContaining({
+        kind: "package", serviceId: "svc-1", name: "Full day", price: "2500", quantity: "1",
+        description: "8 hours included. Includes Second shooter, Online gallery",
+      }),
+    ]);
+    // Nothing of the vendor's defaults is copied in: the editor starts from them.
+    expect(body.schedule).toBeUndefined();
+    expect(body.clauses).toBeUndefined();
+  });
+
+  it("carry the package's own terms, where it sets them", () => {
+    expect(packageTemplate(service).cancellationDays).toBeUndefined();
+    const own = packageTemplate({ ...service, cancellation_window_hours: 720, overtime_rate_cents: 15000 });
+    expect(own).toMatchObject({ cancellationDays: "30", overtimeRate: "150" });
+  });
+
+  it("follow the package — a new price is the template's price", () => {
+    const applied = applyTemplate(emptyDraft(), packageTemplate({ ...service, price: 2800 }), [service]);
+    expect(totalCents(applied)).toBe(280_000);
+  });
+
+  it("read plainly with nothing to describe", () => {
+    const bare = packageTemplate({ service_id: "svc-2", name: "Mehndi", price: 400 });
+    expect(bare.lines?.[0].description).toBeNull();
+  });
+});
+
+describe("keepRequestedLine", () => {
+  const asked = { ...emptyDraft(), lines: [pkg({ price: "45", unit: "person", quantity: "200" })] };
+
+  it("answers a request with the client's own line for the package they asked for", () => {
+    const applied = { ...emptyDraft(), lines: [pkg({ description: "8 hours included" }), { ...customLine(), name: "Travel" }] };
+    const kept = keepRequestedLine(applied, asked, "svc-1");
+    expect(kept.lines[0]).toMatchObject({ price: "45", quantity: "200", description: "8 hours included" });
+    expect(kept.lines[1].name).toBe("Travel");
+  });
+
+  it("leaves a template for another package as the vendor chose it", () => {
+    const other = { ...emptyDraft(), lines: [pkg({ serviceId: "svc-9", price: "900" })] };
+    expect(keepRequestedLine(other, asked, "svc-1")).toBe(other);
+  });
+});
+

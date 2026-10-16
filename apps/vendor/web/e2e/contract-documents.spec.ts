@@ -34,7 +34,7 @@ test.describe("contract editor and attached documents (step 7b)", () => {
       hold_expires_at: "2030-05-08T12:00:00",
     });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     const doc = page.getByRole("article", { name: "Contract document" });
     await doc.getByLabel("Agreement title").fill("Wedding reception DJ agreement");
     await doc.getByLabel("Client name").fill("Meera Iyer");

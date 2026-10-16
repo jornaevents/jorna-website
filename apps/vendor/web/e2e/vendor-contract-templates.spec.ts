@@ -31,7 +31,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       updated_at: "2030-01-01T00:00:00",
     });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     await page.getByRole("button", { name: "Deposit + balance" }).click();
     await page.getByRole("button", { name: "+ Travel" }).click();
@@ -85,7 +85,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       total: 1,
     });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByRole("button", { name: "More" }).click();
     await page.getByLabel("Start from a template").selectOption({ label: "Sangeet" });
     await expect(page.getByLabel("Amount ($)").first()).toHaveValue("600");
@@ -131,8 +131,9 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
     api.get(`/bookings/vendor/${vendor.vendor_id}`, { items: [], total: 0, limit: 100, offset: 0 });
 
     await page.goto("contracts/");
-    // The gallery offers it, and opens the builder on it.
-    await expect(page.getByRole("link", { name: /Old terms/ })).toHaveAttribute("href", /contracts\/new\/?\?template=t-old/);
+    // Saved templates are in Send a contract's list (backend DECISIONS #31);
+    // the gallery says so, and Manage templates opens the builder on one.
+    await expect(page.getByText(/1 saved template in/)).toBeVisible();
 
     const [upload] = api.requestsTo("POST", "/contract-templates");
     expect(upload.body).toMatchObject({
@@ -149,6 +150,10 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
     await page.getByRole("button", { name: "Manage templates" }).first().click();
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByText("Old terms")).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Start a contract from it" })).toHaveAttribute(
+      "href",
+      /contracts\/new\/?\?template=t-old/,
+    );
     await drawer.getByRole("button", { name: "Delete template" }).click();
     await expect(drawer.getByText("Old terms")).toHaveCount(0);
     expect(api.requestsTo("DELETE", "/contract-templates/t-old")).toHaveLength(1);
@@ -181,7 +186,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
 
     await page.goto("contracts/new/?template=t-1");
 
-    await expect(page.getByText("Loaded “Sangeet”.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Started from “Sangeet”.", { exact: false })).toBeVisible();
     await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Meals");
   });
 });

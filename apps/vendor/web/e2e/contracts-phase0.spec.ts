@@ -34,7 +34,7 @@ test.describe("contracts — Phase 0", () => {
       contract_status: "sent",
     });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByLabel("Client name").fill("Meera Iyer");
     await page.getByLabel("Client email").fill("meera@example.com");
     await page.getByLabel("Date", { exact: true }).fill("2030-06-01");
@@ -89,7 +89,7 @@ test.describe("contracts — Phase 0", () => {
       email_sent: true,
     });
 
-    await page.goto("contracts/new/?lead=lead-9");
+    await page.goto("contracts/new/?lead=lead-9&scratch=1");
     await expect(page.getByLabel("Client name")).toHaveValue("Rohan Das");
     await expect(page.getByLabel("Client email")).toHaveValue("rohan@example.com");
 
@@ -128,7 +128,7 @@ test.describe("contracts — Phase 0", () => {
       email_sent: false,
     });
 
-    await page.goto("contracts/new/?lead=lead-9");
+    await page.goto("contracts/new/?lead=lead-9&scratch=1");
     await expect(page.getByLabel("Client name")).toHaveValue("Rohan Das");
     await expect(page.getByLabel("Client email")).toHaveValue("rohan@example.com");
 

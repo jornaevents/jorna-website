@@ -157,7 +157,7 @@ test.describe("packages — Phase 1", () => {
       offset: 0,
     });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     const picker = page.getByLabel("Add a package");
     await expect(picker.locator("option", { hasText: "Retired set" })).toHaveCount(0);
     await picker.selectOption("svc-1");

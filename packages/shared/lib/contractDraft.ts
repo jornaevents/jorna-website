@@ -816,6 +816,52 @@ export function toTemplate(draft: Draft): TemplateBody {
 
 /** Lay a template over the draft: it replaces what it has, and leaves the
  *  client and the date alone. Lines whose package is gone are dropped. */
+/** A package as its own contract's starting point (backend DECISIONS #31). */
+export interface PackageTemplateSource extends PackageSource {
+  /** "What's included" on the package. */
+  inclusions?: string[] | null;
+  /** The package's own terms, where it sets them; otherwise the vendor's
+   *  defaults, which the editor starts from anyway. */
+  cancellation_window_hours?: number | null;
+  overtime_rate_cents?: number | null;
+}
+
+/** Every package has a template by default: the package as one line — its
+ *  hours and what's included in the description — and its own terms where
+ *  it sets them. Built here rather than stored, so it follows the package
+ *  until the vendor edits it; the payment schedule, clauses and anything
+ *  unset come from their contract defaults when it's applied. */
+export function packageTemplate(service: PackageTemplateSource): TemplateBody {
+  const line = withoutKey(packageLine(service));
+  const included = (service.inclusions ?? []).map((i) => i.trim()).filter(Boolean);
+  const description = [line.description, included.length ? `Includes ${included.join(", ")}` : null]
+    .filter(Boolean)
+    .join(". ");
+  return {
+    version: 1,
+    title: `${service.name} agreement`,
+    lines: [{ ...line, description: description || null }],
+    ...(service.cancellation_window_hours != null
+      ? { cancellationDays: String(Math.round(service.cancellation_window_hours / 24)) }
+      : {}),
+    ...(service.overtime_rate_cents != null ? { overtimeRate: String(service.overtime_rate_cents / 100) } : {}),
+  };
+}
+
+/** Answering a request from a template that sells the package the client
+ *  asked for: their line — the quantity and price they asked at — stands in
+ *  for the template's. A template for some other package is the vendor's
+ *  choice and stays as it is. */
+export function keepRequestedLine(applied: Draft, requested: Draft, serviceId: string | null | undefined): Draft {
+  if (!serviceId) return applied;
+  const theirs = requested.lines.find((l) => l.kind === "package" && l.serviceId === serviceId);
+  const at = applied.lines.findIndex((l) => l.kind === "package" && l.serviceId === serviceId);
+  if (!theirs || at < 0) return applied;
+  const lines = [...applied.lines];
+  lines[at] = { ...theirs, description: theirs.description ?? applied.lines[at].description };
+  return { ...applied, lines };
+}
+
 export function applyTemplate(draft: Draft, body: TemplateBody, services: { service_id: string }[]): Draft {
   const live = new Set(services.map((s) => s.service_id));
   const next: Draft = { ...draft };

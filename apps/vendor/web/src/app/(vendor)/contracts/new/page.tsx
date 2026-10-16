@@ -48,6 +48,7 @@ import {
   fromContract,
   fromRequest,
   insertClause,
+  keepRequestedLine,
   layoutOf,
   money,
   moveBlock,
@@ -66,7 +67,8 @@ import {
   type SchedulePreset,
   type Step,
 } from "@jorna/shared/lib/contractDraft";
-import { loadTemplates, saveTemplate, templateBody, templatesOfKind } from "@/lib/contractTemplates";
+import { loadTemplates, saveTemplate, templatesOfKind } from "@/lib/contractTemplates";
+import { allChoices, packageChoiceId, templateChoices, type TemplateChoice } from "@/lib/templateChoices";
 import { guestBookingLink } from "@/lib/contractLink";
 import { clashWith } from "@/lib/dateClash";
 import {
@@ -92,6 +94,7 @@ import { PoliciesBlock } from "@/components/contract-editor/PoliciesBlock";
 import { ScheduleBlock } from "@/components/contract-editor/ScheduleBlock";
 import { SignatureBlock } from "@/components/contract-editor/SignatureBlock";
 import { TermsBlock } from "@/components/contract-editor/TermsBlock";
+import { TemplatePicker, type Pick } from "@/components/contract-editor/TemplatePicker";
 import { smallButton, todayIso } from "@/components/contract-editor/shared";
 
 // Where each problem is fixed — the issue list scrolls there.
@@ -151,12 +154,19 @@ function NewContractInner() {
   // in, as the start of the vendor's next version.
   const proposalId = params.get("proposal");
   const requestId = params.get("request");
-  // A gallery card on /contracts opens the editor on a saved template.
+  // What a new contract starts from (backend DECISIONS #31): a saved
+  // template, a package's (built from it, or the vendor's edit of it), or
+  // scratch on their usual terms. With none of the three, the first screen
+  // asks — whichever way the vendor came in.
   const templateId = params.get("template");
+  const packageId = params.get("package");
+  const scratch = params.get("scratch") === "1";
+  const choosing = !editId && !templateId && !packageId && !scratch;
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [templates, setTemplates] = useState<SavedContractTemplate[]>([]);
+  const choices = useMemo(() => templateChoices(services, templates), [services, templates]);
   const [editing, setEditing] = useState<Contract | null>(null);
   const [revising, setRevising] = useState<ChangeProposal | null>(null);
   /** ?proposal= named one that's no longer open. */
@@ -235,6 +245,7 @@ function NewContractInner() {
         setBookings(requests?.items ?? []);
         const agreements = templatesOfKind(tpl, "agreement");
         setTemplates(agreements);
+        const offered = allChoices(templateChoices(usable, agreements));
 
         if (existing) {
           setEditing(existing);
@@ -257,6 +268,7 @@ function NewContractInner() {
           }
           setRequest(asked);
         }
+        if (choosing) return;
         const start = asked ? fromRequest(asked) : emptyDraft();
         start.clauses = defaultClauses(mine).map((c) => ({ ...c, key: newKey() }));
         if (mine.default_cancellation_window_hours != null) {
@@ -272,13 +284,20 @@ function NewContractInner() {
           start.clientPhone = lead.phone ?? "";
           if (lead.event_date_iso && lead.event_date_iso >= todayIso()) start.dateIso = lead.event_date_iso;
         }
-        const picked = templateId ? agreements.find((t) => t.template_id === templateId) : undefined;
+        const picked = packageId
+          ? offered.find((c) => c.id === packageChoiceId(packageId))
+          : templateId
+            ? offered.find((c) => c.templateId === templateId)
+            : undefined;
         if (picked) {
-          const applied = withCancellationSection(applyTemplate(start, templateBody(picked), usable));
+          let applied = withCancellationSection(applyTemplate(start, picked.body, usable));
+          // The client's own line for the package they asked for, at the
+          // quantity they asked.
+          if (asked) applied = keepRequestedLine(applied, start, asked.service_id);
           if (applied.schedule.length) setAutoPlan(false);
           else applied.schedule = usualSchedule(applied, usable, mine);
           setDraft(applied);
-          setTemplateNotice(`Loaded “${picked.name}”. Check the items and payments before sending.`);
+          setTemplateNotice(`Started from “${picked.name}”. Check the items and payments before sending.`);
         } else {
           // A request arrives with its package already in.
           start.schedule = usualSchedule(start, usable, mine);
@@ -293,7 +312,7 @@ function NewContractInner() {
     return () => {
       cancelled = true;
     };
-  }, [user, router, leadId, editId, proposalId, requestId, templateId]);
+  }, [user, router, leadId, editId, proposalId, requestId, templateId, packageId, choosing]);
 
   const issues = useMemo(() => problemsByStep(draft, todayIso()), [draft]);
   const notes = useMemo(() => warningsByStep(draft), [draft]);
@@ -395,10 +414,22 @@ function NewContractInner() {
 
   // ── Templates ──
 
+  /** The first screen's choice, into the URL: the load reads it from there,
+   *  so a reload or Back keeps it. */
+  function choose(pick: Pick) {
+    const next = new URLSearchParams(params.toString());
+    if ("package" in pick) next.set("package", pick.package);
+    else if ("template" in pick) next.set("template", pick.template);
+    else next.set("scratch", "1");
+    setLoading(true);
+    router.replace(`/contracts/new?${next.toString()}`);
+  }
+
+  /** The ⋯ menu's "Start from a template", over what's already typed. */
   function pickTemplate(id: string) {
-    const t = templates.find((x) => x.template_id === id);
+    const t: TemplateChoice | undefined = allChoices(choices).find((c) => c.id === id);
     if (!t) return;
-    const body = templateBody(t);
+    const body = t.body;
     if (body.schedule?.length) setAutoPlan(false);
     setDraft((d) => {
       const applied = applyTemplate(d, body, services);
@@ -489,6 +520,20 @@ function NewContractInner() {
       <div className="py-20 text-center">
         <p role="alert" className="text-ink-soft">{loadError ?? "Couldn't load your listing."}</p>
       </div>
+    );
+  }
+
+  if (choosing) {
+    return (
+      <TemplatePicker
+        packages={choices.packages}
+        saved={choices.saved}
+        requested={request ? { serviceId: request.service_id ?? null, clientName: request.client_name ?? null } : null}
+        heading={request ? `Accept ${request.client_name ? `${request.client_name}'s` : "this"} request` : "Send a contract"}
+        backHref={request || leadId ? "/leads" : "/contracts"}
+        backLabel={request || leadId ? "Back to Leads" : "All contracts"}
+        onPick={choose}
+      />
     );
   }
 
@@ -622,7 +667,12 @@ function NewContractInner() {
             <Button type="button" variant="ghost" onClick={() => setPreviewing(true)}>
               Preview as client
             </Button>
-            <EditorMenu templates={templates} canPick={!editing} onPick={pickTemplate} onSave={saveAsTemplate} />
+            <EditorMenu
+              templates={allChoices(choices).map((c) => ({ id: c.id, name: c.name }))}
+              canPick={!editing}
+              onPick={pickTemplate}
+              onSave={saveAsTemplate}
+            />
           </div>
         </div>
         <p className="mt-1 text-sm text-ink-soft">

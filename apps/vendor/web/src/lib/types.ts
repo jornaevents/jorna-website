@@ -1230,6 +1230,9 @@ export interface SavedContractTemplate {
   kind?: TemplateKind;
   /** The builder's own shape — see lib/contractDraft's TemplateBody. */
   body: Record<string, unknown>;
+  /** Set on the vendor's edited copy of a package's template (backend 0076,
+   *  DECISIONS #31). Absent from an older backend. */
+  service_id?: string | null;
   created_at: string;
   updated_at: string;
 }
