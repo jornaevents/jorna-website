@@ -120,13 +120,14 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       created_at: "2030-01-01T00:00:00",
       updated_at: "2030-01-01T00:00:00",
     });
-    api.get("/contract-templates", {
-      items: [
-        { template_id: "t-old", name: "Old terms", body: {}, created_at: "2030-01-01T00:00:00", updated_at: "2030-01-01T00:00:00" },
-      ],
-      total: 1,
+    let kept = [
+      { template_id: "t-old", name: "Old terms", body: {}, created_at: "2030-01-01T00:00:00", updated_at: "2030-01-01T00:00:00" },
+    ];
+    api.get("/contract-templates", () => ({ items: kept, total: kept.length }));
+    api.delete("/contract-templates/t-old", () => {
+      kept = [];
+      return { message: "Template deleted" };
     });
-    api.delete("/contract-templates/t-old", { message: "Template deleted" });
 
     api.get(`/bookings/vendor/${vendor.vendor_id}`, { items: [], total: 0, limit: 100, offset: 0 });
 
@@ -154,7 +155,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       "href",
       /contracts\/new\/?\?template=t-old/,
     );
-    await drawer.getByRole("button", { name: "Delete template" }).click();
+    await drawer.getByRole("region", { name: "Saved templates" }).getByRole("button", { name: "Delete" }).click();
     await expect(drawer.getByText("Old terms")).toHaveCount(0);
     expect(api.requestsTo("DELETE", "/contract-templates/t-old")).toHaveLength(1);
   });

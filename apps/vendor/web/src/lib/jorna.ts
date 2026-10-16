@@ -1026,8 +1026,20 @@ export function createContractTemplate(
   name: string,
   body: Record<string, unknown>,
   kind: TemplateKind = "agreement",
+  /** The package this is the edited template of (backend 0076, DECISIONS #31). */
+  serviceId?: string,
 ): Promise<SavedContractTemplate> {
-  return apiFetch("/contract-templates", { method: "POST", body: { name, body, kind } });
+  return apiFetch("/contract-templates", {
+    method: "POST",
+    body: { name, body, kind, ...(serviceId ? { service_id: serviceId } : {}) },
+  });
+}
+
+export function updateContractTemplate(
+  templateId: string,
+  patch: { name?: string; body?: Record<string, unknown> },
+): Promise<SavedContractTemplate> {
+  return apiFetch(`/contract-templates/${templateId}`, { method: "PATCH", body: patch });
 }
 
 export function deleteContractTemplate(templateId: string): Promise<{ message: string }> {
