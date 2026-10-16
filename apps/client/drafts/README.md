@@ -5,32 +5,31 @@ touch it.
 
 ## `privacy/`, `terms/`, `support/` (+ `legal/style.css`)
 
-Drafted 2026-07-26, parked before publishing.
+Terms and privacy rewritten 2026-10-13 from the Operator's Oct 6 Terms draft:
+Jorna as software for vendors (no payment processing — clients pay vendors
+directly), contracts signed by link, and Kabir Nagpal operating Jorna until a
+company exists. Terms §6 and the privacy page's "Records we keep when you sign"
+describe the signing evidence the backend keeps (backend DECISIONS #27): the
+emailed one-time code, the e-records consent box, IP and device on open and
+sign, the fingerprinted snapshot, and the certificate on the signed PDF that
+goes to both sides. The consent wording itself lives in the backend
+(`app/services/esign_consent.py`) — keep it and §6 saying the same thing.
 
-They're written against how Jorna actually behaves rather than from a template —
-rate-and-unit pricing, the amount freezing at payment, escrow releasing only when
-both sides confirm *and* the event date has passed, per-booking isolation for
-refunds and disputes, the 24-hour refund window measured from payment, GPS
-check-in and its attestation fallback, Stripe Connect payouts and the platform
-fee. The privacy page also discloses two things a template wouldn't: precise
-location is read only at the moment of check-in, and the bundle builder sends
-event details (city, date, guest count, budget, style — no name, email, messages
-or payment data) to a third-party language model.
+`support/` is still the July draft (escrow, Stripe, check-in) and needs the
+same rewrite before publishing.
 
 ### Before publishing
 
 1. Replace every `FILL:` marker. They're highlighted in the rendered page so they
    can't be skimmed past:
-   - legal entity name and registered address
-   - support email — must be one that's actually monitored, since guideline 1.2
-     commits to acting on reports within 24 hours
-   - governing law / jurisdiction
-   - effective date
-   - **minimum age** — the backend currently accepts 13 (`age … ge=13`), but Jorna
-     moves money through Stripe Connect and most marketplaces require 18. Choosing
-     18 means a backend validation change too, and it feeds the App Store age
-     rating.
-2. Have a lawyer read them. Real money and escrow are involved; these are accurate
+   - effective date (both pages)
+   - how long signed contracts and their signing records are kept, and how
+     long server logs are kept (privacy page)
+   - the support page's entity, email and escrow wording
+   - the Terms set the minimum age at 18; the backend still accepts 13
+     (`age … ge=13`), so that validation should change too, and it feeds the
+     App Store age rating.
+2. Have a lawyer read them, including the consent wording. These are accurate
    about the product, not legal advice.
 3. `git mv` the three directories and `legal/` back into `public/`.
 4. Add `/privacy/`, `/terms/` and `/support/` to the seed list in
