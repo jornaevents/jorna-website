@@ -21,13 +21,19 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { getMyVendor, listMyServices, listVendorBookings, sendContract, voidContract } from "@/lib/jorna";
-import { type SavedContractTemplate, type ServiceItem, type VendorBooking, type VendorDetail } from "@/lib/types";
+import {
+  type SavedContractTemplate,
+  type ServiceItem,
+  type TemplateKind,
+  type VendorBooking,
+  type VendorDetail,
+} from "@/lib/types";
 import { changesWaiting, contractNeedsVendor, contractStatus, type ContractStatus } from "@/lib/vendorPlan";
 import { signerMatches } from "@/lib/signerName";
 import { guestBookingLink, guestBookingPreviewLink } from "@/lib/contractLink";
-import { deleteTemplate, loadTemplates } from "@/lib/contractTemplates";
-import { templateChoices } from "@/lib/templateChoices";
-import { money } from "@jorna/shared/lib/contractDraft";
+import { deleteTemplate, duplicateTemplate, loadTemplates, renameTemplate } from "@/lib/contractTemplates";
+import { templateChoices, type TemplateChoice } from "@/lib/templateChoices";
+import { money, type TemplateBody } from "@jorna/shared/lib/contractDraft";
 import { KIND_LABEL } from "@/lib/attachedDocuments";
 import { Button } from "@jorna/shared/components/ui";
 import { Drawer, FilterTabs, PageHeader, StatusPill, type Tone } from "@/components/vendor/ui";
@@ -172,53 +178,198 @@ function GalleryCard({
   );
 }
 
+/** One template's row: what it is, how to use it, and how to change it. */
+function TemplateRow({
+  name,
+  tag,
+  use,
+  edit,
+  busy,
+  onRename,
+  onDuplicate,
+  onDelete,
+  deleteLabel = "Delete",
+}: {
+  name: string;
+  tag?: string | null;
+  use: { href: string; label: string };
+  edit?: string;
+  busy: boolean;
+  onRename?: (name: string) => void;
+  onDuplicate: () => void;
+  onDelete?: () => void;
+  deleteLabel?: string;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const action = "text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50";
+  return (
+    <li className="grid gap-2 rounded-xl border border-card-edge bg-card px-3.5 py-3">
+      {renaming && onRename ? (
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draftName.trim()) return;
+            onRename(draftName.trim());
+            setRenaming(false);
+          }}
+        >
+          <input
+            aria-label="Template name"
+            value={draftName}
+            maxLength={120}
+            onChange={(e) => setDraftName(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-card-edge bg-ground-2 px-3 py-1.5 text-sm text-ink outline-none focus:border-gold"
+          />
+          <Button type="submit" variant="ghost" size="md" disabled={!draftName.trim()}>
+            Save
+          </Button>
+        </form>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2">
+          <strong className="truncate text-sm text-ink">{name}</strong>
+          {tag ? (
+            <span className="shrink-0 rounded-[6px] bg-gold/15 px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.06em] text-gold">
+              {tag}
+            </span>
+          ) : null}
+        </span>
+      )}
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Link href={use.href} className="text-xs font-semibold text-gold">
+          {use.label}
+        </Link>
+        {edit ? (
+          <Link href={edit} className="text-xs font-semibold text-ink-soft hover:text-ink">
+            Edit
+          </Link>
+        ) : null}
+        {onRename && !renaming ? (
+          <button type="button" className={action} disabled={busy} onClick={() => setRenaming(true)}>
+            Rename
+          </button>
+        ) : null}
+        <button type="button" className={action} disabled={busy} onClick={onDuplicate}>
+          Duplicate
+        </button>
+        {onDelete ? (
+          <button type="button" className={action} disabled={busy} onClick={onDelete}>
+            {deleteLabel}
+          </button>
+        ) : null}
+      </span>
+    </li>
+  );
+}
+
+/** Every template the vendor can start from or change (backend DECISIONS
+ *  #31): each package's, their own, and their addenda and cancellations. */
 function ManageTemplates({
   open,
   onClose,
-  templates,
+  packages,
+  saved,
+  documents,
+  busy,
+  status,
+  onRename,
+  onDuplicate,
   onDelete,
 }: {
   open: boolean;
+  /** What the last change did, or why it didn't. */
+  status: { text: string; error: boolean } | null;
   onClose: () => void;
-  templates: SavedContractTemplate[];
-  onDelete: (id: string) => void;
+  packages: TemplateChoice[];
+  saved: TemplateChoice[];
+  documents: SavedContractTemplate[];
+  busy: boolean;
+  onRename: (templateId: string, name: string) => void;
+  onDuplicate: (name: string, body: TemplateBody, kind?: TemplateKind) => void;
+  onDelete: (templateId: string, reset?: boolean) => void;
 }) {
+  const heading = "text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint";
   return (
-    <Drawer open={open} onClose={onClose} title="Your templates" subtitle="Saved from the contract and document editors. Pick one to start from it.">
-      {templates.length === 0 ? (
-        <p className="text-sm text-ink-faint">
-          No saved templates yet. In the contract editor, &ldquo;Save template&rdquo; keeps the items,
-          payments and terms for next time.
-        </p>
-      ) : (
-        <ul className="grid gap-2">
-          {templates.map((t) => (
-            <li
-              key={t.template_id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-card-edge bg-card px-3.5 py-3"
-            >
-              <span className="grid min-w-0">
-                <strong className="truncate text-sm text-ink">{t.name}</strong>
-                {(t.kind ?? "agreement") === "agreement" ? (
-                  <Link href={`/contracts/new?template=${t.template_id}`} className="text-xs font-semibold text-gold">
-                    Start a contract from it
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/contracts/document?kind=${t.kind}&template=${t.template_id}`}
-                    className="text-xs font-semibold text-gold"
-                  >
-                    New {KIND_LABEL[t.kind as "addendum" | "cancellation"].toLowerCase()} from it
-                  </Link>
-                )}
-              </span>
-              <Button variant="quiet" onClick={() => onDelete(t.template_id)}>
-                Delete template
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <Drawer open={open} onClose={onClose} title="Your templates" subtitle="Start a contract from one, or change how it starts.">
+      <div className="grid gap-5">
+        {status ? (
+          <p
+            role={status.error ? "alert" : "status"}
+            className={`rounded-lg px-3 py-2 text-sm ${status.error ? "bg-maroon/10 text-maroon dark:text-gold" : "bg-green/10 text-green"}`}
+          >
+            {status.text}
+          </p>
+        ) : null}
+        <section aria-label="Package templates" className="grid gap-2">
+          <p className={heading}>Your packages</p>
+          <p className="-mt-1 text-xs text-ink-faint">
+            Each package has a template that follows its price and details until you edit it.
+          </p>
+          <ul className="grid gap-2">
+            {packages.map((p) => (
+              <TemplateRow
+                key={p.id}
+                name={p.name}
+                tag={p.edited ? "Edited" : null}
+                use={{ href: `/contracts/new?package=${p.serviceId}`, label: "Start a contract from it" }}
+                edit={`/contracts/template?package=${p.serviceId}`}
+                busy={busy}
+                onRename={p.templateId ? (name) => onRename(p.templateId!, name) : undefined}
+                onDuplicate={() => onDuplicate(p.name, p.body)}
+                onDelete={p.templateId ? () => onDelete(p.templateId!, true) : undefined}
+                deleteLabel="Reset to package"
+              />
+            ))}
+          </ul>
+        </section>
+
+        <section aria-label="Saved templates" className="grid gap-2">
+          <p className={heading}>Your templates</p>
+          {saved.length === 0 ? (
+            <p className="text-sm text-ink-faint">
+              None yet. Duplicate a package&apos;s, or use &ldquo;Save as a template&rdquo; in the contract editor&apos;s ⋯ menu.
+            </p>
+          ) : (
+            <ul className="grid gap-2">
+              {saved.map((t) => (
+                <TemplateRow
+                  key={t.id}
+                  name={t.name}
+                  use={{ href: `/contracts/new?template=${t.templateId}`, label: "Start a contract from it" }}
+                  edit={`/contracts/template?id=${t.templateId}`}
+                  busy={busy}
+                  onRename={(name) => onRename(t.templateId!, name)}
+                  onDuplicate={() => onDuplicate(t.name, t.body)}
+                  onDelete={() => onDelete(t.templateId!)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {documents.length ? (
+          <section aria-label="Document templates" className="grid gap-2">
+            <p className={heading}>Addenda and cancellations</p>
+            <ul className="grid gap-2">
+              {documents.map((t) => (
+                <TemplateRow
+                  key={t.template_id}
+                  name={t.name}
+                  use={{
+                    href: `/contracts/document?kind=${t.kind}&template=${t.template_id}`,
+                    label: `New ${KIND_LABEL[t.kind as "addendum" | "cancellation"].toLowerCase()} from it`,
+                  }}
+                  busy={busy}
+                  onRename={(name) => onRename(t.template_id, name)}
+                  onDuplicate={() => onDuplicate(t.name, t.body as unknown as TemplateBody, t.kind)}
+                  onDelete={() => onDelete(t.template_id)}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
     </Drawer>
   );
 }
@@ -319,9 +470,29 @@ export default function ContractsPage() {
     }
   }
 
-  function removeTemplate(id: string) {
-    setTemplates((prev) => prev.filter((t) => t.template_id !== id));
-    deleteTemplate(id).catch(() => loadTemplates().then(setTemplates).catch(() => undefined));
+  const [templateBusy, setTemplateBusy] = useState(false);
+
+  // The drawer shows what its own changes did, not the page's last notice.
+  function openManaging() {
+    setNotice(null);
+    setError(null);
+    setManaging(true);
+  }
+
+  /** A change to the templates, then the list as the account has it. */
+  async function changeTemplates(fn: () => Promise<unknown>, done: string) {
+    setTemplateBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await fn();
+      setNotice(done);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't change that template.");
+    } finally {
+      setTemplates(await loadTemplates().catch(() => templates));
+      setTemplateBusy(false);
+    }
   }
 
   if (error && !contracts) return <p className="py-20 text-center text-ink-soft">{error}</p>;
@@ -371,7 +542,7 @@ export default function ContractsPage() {
             <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Template gallery</p>
             <p className="serif mt-1 text-lg text-ink">Start a new contract</p>
           </div>
-          <button type="button" onClick={() => setManaging(true)} className="text-sm font-semibold text-gold">
+          <button type="button" onClick={openManaging} className="text-sm font-semibold text-gold">
             Manage templates
           </button>
         </div>
@@ -592,7 +763,25 @@ export default function ContractsPage() {
         ) : null}
       </section>
 
-      <ManageTemplates open={managing} onClose={() => setManaging(false)} templates={templates} onDelete={removeTemplate} />
+      <ManageTemplates
+        open={managing}
+        onClose={() => setManaging(false)}
+        packages={choices.packages}
+        saved={choices.saved}
+        documents={templates.filter((t) => t.kind === "addendum" || t.kind === "cancellation")}
+        busy={templateBusy}
+        status={error ? { text: error, error: true } : notice ? { text: notice, error: false } : null}
+        onRename={(id, name) => void changeTemplates(() => renameTemplate(id, name), `Renamed to “${name}”.`)}
+        onDuplicate={(name, body, kind) =>
+          void changeTemplates(() => duplicateTemplate(name, body, kind), `Copied “${name}” to your templates.`)
+        }
+        onDelete={(id, reset) =>
+          void changeTemplates(
+            () => deleteTemplate(id),
+            reset ? "Back to the package's own template — it follows the package again." : "Template deleted.",
+          )
+        }
+      />
     </div>
   );
 }

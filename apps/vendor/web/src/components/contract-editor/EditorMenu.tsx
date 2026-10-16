@@ -5,8 +5,8 @@ import { Button } from "@jorna/shared/components/ui";
 import { inputClass } from "./shared";
 
 /**
- * The editor header's "⋯" menu: start from a saved template, or save this one
- * as a template. Templates used to sit in the side rail under the policies,
+ * The editor header's "⋯" menu: start from a saved template, write this one
+ * back to the template it started from, or save it as a new template. Templates used to sit in the side rail under the policies,
  * taking room from Send on every contract for something used now and then.
  */
 export function EditorMenu({
@@ -14,6 +14,8 @@ export function EditorMenu({
   canPick,
   onPick,
   onSave,
+  updating,
+  onUpdate,
 }: {
   /** Packages' templates and the vendor's own (lib/templateChoices). */
   templates: { id: string; name: string }[];
@@ -22,6 +24,10 @@ export function EditorMenu({
   onPick: (templateId: string) => void;
   /** Resolves true once saved, so the menu can close. */
   onSave: (name: string) => Promise<boolean>;
+  /** The template this contract started from, which Update writes back to
+   *  (its items, payments and terms — never the client or event). */
+  updating?: string | null;
+  onUpdate?: () => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -89,6 +95,23 @@ export function EditorMenu({
                 ))}
               </select>
             </label>
+          ) : null}
+          {updating && onUpdate ? (
+            <div className="grid gap-1 text-sm text-ink-soft">
+              <Button
+                type="button"
+                variant="ghost"
+                size="md"
+                onClick={async () => {
+                  if (await onUpdate()) setOpen(false);
+                }}
+              >
+                Update “{updating}”
+              </Button>
+              <span className="text-xs text-ink-faint">
+                Contracts you start from it will begin like this one, without the client and event.
+              </span>
+            </div>
           ) : null}
           <div className="grid gap-1 text-sm text-ink-soft">
             <span>Save as a template</span>

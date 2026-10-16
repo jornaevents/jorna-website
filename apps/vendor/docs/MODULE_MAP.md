@@ -131,7 +131,8 @@ always "none, verify manually" until a test runner is added.
     it is. No list endpoint: it filters `listVendorBookings` to rows with a
     `contract_token`; status is `vendorPlan.ts`'s `contractStatus` (which
     reads a payment schedule when there is one). Rows open the detail page.
-  - `(vendor)/contracts/new/page.tsx` — the document editor: title, then
+  - `(vendor)/contracts/new/page.tsx` and `contracts/template/page.tsx` render
+    `components/contract-editor/ContractEditor.tsx` — the document editor: title, then
     blocks (parties, event, items, schedule, terms sections, signature) in an
     order the vendor sets, with a right rail for the total and Send / Copy
     link / Save as draft. `?lead=` converts a lead, `?edit=` reopens an
@@ -180,6 +181,10 @@ always "none, verify manually" until a test runner is added.
     templates, and scratch. `components/contract-editor/TemplatePicker.tsx`
     is the editor's first screen when the URL doesn't already say which
     (`?package=`, `?template=`, `?scratch=1`).
+    `/contracts/template?package=` / `?id=` is the same editor in template
+    mode (no client, event or Send; Save writes the template back, Reset to
+    package deletes the vendor's edit). Manage templates on `/contracts`
+    edits, renames, duplicates, deletes and resets.
   - `lib/contractLink.ts` builds the client's link; `app/booking-link/` is
     the client's page (plan, clauses, signs a specific revision, marks each
     payment sent). Unsigned, it runs as steps — email, details, the

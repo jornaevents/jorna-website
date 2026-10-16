@@ -13,6 +13,7 @@ import {
   createContractTemplate,
   deleteContractTemplate,
   listContractTemplates,
+  updateContractTemplate,
 } from "./jorna";
 import type { TemplateBody } from "@jorna/shared/lib/contractDraft";
 import type { AttachedDocumentKind, SavedContractTemplate, TemplateKind } from "./types";
@@ -120,3 +121,28 @@ export function deleteTemplate(templateId: string): Promise<unknown> {
 export function templateBody(t: SavedContractTemplate): TemplateBody {
   return t.body as unknown as TemplateBody;
 }
+
+/** Save an edited template: the stored one if there is one, or — for a
+ *  package's template the vendor hasn't edited before — a new one linked to
+ *  the package, which from then on takes the built one's place (backend
+ *  DECISIONS #31). */
+export function saveEditedTemplate(
+  target: { templateId?: string; serviceId?: string },
+  name: string,
+  body: TemplateBody,
+): Promise<SavedContractTemplate> {
+  const b = body as unknown as Record<string, unknown>;
+  if (target.templateId) return updateContractTemplate(target.templateId, { name, body: b });
+  return createContractTemplate(name, b, "agreement", target.serviceId);
+}
+
+export function renameTemplate(templateId: string, name: string): Promise<SavedContractTemplate> {
+  return updateContractTemplate(templateId, { name });
+}
+
+/** A copy is an ordinary template, even of a package's: it doesn't follow
+ *  or belong to anything. */
+export function duplicateTemplate(name: string, body: TemplateBody, kind: TemplateKind = "agreement") {
+  return createContractTemplate(`${name} (copy)`, body as unknown as Record<string, unknown>, kind);
+}
+

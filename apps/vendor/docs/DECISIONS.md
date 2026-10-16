@@ -855,3 +855,12 @@ Most contracts start from one package. Every way into a new contract — New →
 - **Answering a request** puts the requested package first, marked "Requested". Picking a template for that package keeps the client's own line (the quantity and price they asked at); a template for another package is the vendor's choice.
 - **The choice goes in the URL**, so a reload or Back keeps it, and the gallery's cards link straight past the picker.
 
+## Decision: templates are edited in the contract editor, without a client or event (2026-10-16)
+
+The second half of package templates (backend DECISIONS #31).
+
+- **Template mode** (`/contracts/template?package=` or `?id=`) is the contract editor itself (`ContractEditor`, shared with `/contracts/new`), so a template looks and edits exactly like the contracts made from it. It leaves out the parties and event blocks (they keep their place in the order), Send and the ⋯ menu, and the problems that are each contract's own (client, date). The rail has the template's name, **Save template**, and the hold days.
+- **Saving a package's template the first time** creates the vendor's edit (`service_id`); from then on it's tagged Edited and stops following the package. **Reset to package** deletes the edit and reloads the package's own.
+- **Manage templates** lists every package's template (Edit, Duplicate, and Rename / Reset to package once edited), the vendor's own (Edit, Rename, Duplicate, Delete), and addenda/cancellations (as before, plus Rename and Duplicate). A duplicate is always an ordinary template, even of a package's — it doesn't follow anything.
+- **⋯ Update "{template}"** in the contract editor writes the contract's items, payments and terms back to the template it started from — never the client or event. On a package's unedited template that makes it the vendor's edit.
+
