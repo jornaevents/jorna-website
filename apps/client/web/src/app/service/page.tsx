@@ -323,18 +323,19 @@ function PricePanel({ service }: { service: ServiceItem }) {
           so this can never promise less than the booking form will actually
           demand. */}
       <div className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5">
-        <p className="text-sm font-medium text-ink">To send a request, you&apos;ll need</p>
+        <p className="text-sm font-medium text-ink">Add it to your plan now</p>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+          Before you send your plan to vendors, it needs{" "}
           {describeGaps(
             requiredFields(service).map((field) => ({ field, label: GAP_LABELS[field] })),
           )}
-          .
+          {" "}— add them now or on the plan.
         </p>
       </div>
 
       <div className="mt-5 grid gap-2">
         <LinkButton href={`/book?service=${service.service_id}`} size="lg">
-          Request this package
+          Add to plan
         </LinkButton>
         {/* Beside the request, not instead of it. A client who isn't ready to
             book had one option on this page and it was a commitment — so the

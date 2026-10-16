@@ -249,3 +249,18 @@ Stripe regardless of what a vendor's profile still says.
   sign-in ones. It replaces `ClientOnlyRoute`, which guarded only five pages
   and sent vendors to the dashboard that no longer exists here. Sessions
   don't carry across (different origins), so the notice says to sign in there.
+
+## Decision: the request form adds to a plan; only the plan asks the vendors (2026-10-16)
+
+From the 2026-10-05 staging walkthrough (#164, #132), decided 2026-10-14: fields are required only at "Send to vendors", and the form keeps what was typed.
+
+- **One story.** Nothing on `/book` reaches the vendor (on a draft plan), so the page says "Add to your plan", the package page's button says "Add to plan", and both say the date, address and times are needed before the plan is sent — add them now or on the plan.
+- **The form never disappears.** A load failure is a page of its own; a refused add is said beside the button. A past date is caught as it's typed, under the date, and holds both add buttons — it used to reach the server and replace the whole form.
+- **Unset times read as unset.** The shared `TimeField` shows "--" with neither AM nor PM chosen until a time is picked (picking an hour first lands on :00 PM); it used to show 12:00 AM, which looked like an answer.
+- **Add-ons are listed, not picked.** `POST /bookings` takes no add-ons, so the form lists the package's add-ons and says to mention any in the note — the vendor adds them in the contract.
+- **"Add to" says where a plan stands:** nothing (draft), "sent to vendors", "partly booked", or "booked" — a plan with a signed contract was "(already sent)".
+- **The form sits under Market** in the nav, with the package it came from.
+- **Marketplace chips are the vendor categories** (`GET /vendors/categories`), named as vendors see them, with a second row of types for a category that has them (Beauty → Mehndi Artist). Home's picture tiles keep their friendly names and link into the same filters. `/browse` takes a signed-in client to the Marketplace.
+- **Addresses:** `parseAddress` puts only a unit (Suite, Apt, Floor, #…) on line 2; a venue name stays with its street, which used to land in "Apartment, suite, floor".
+- **Copy:** the plan's headcount hint goes once a count is in; "Your vendor has been asked" for one; "plan", not "bundle". The payment-complete page only mentions escrow when `ESCROW_ENABLED` is on (#132).
+
