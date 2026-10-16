@@ -174,6 +174,12 @@ always "none, verify manually" until a test runner is added.
     templates`), made from the builder and managed in `vendor-profile/`;
     moves any a browser saved in `localStorage` before that onto the account
     once.
+  - `lib/templateChoices.ts` — what "Send a contract" offers: each package's
+    template (`packageTemplate` in `packages/shared/lib/contractDraft.ts`, or
+    the vendor's edit of it — a saved template with `service_id`), their own
+    templates, and scratch. `components/contract-editor/TemplatePicker.tsx`
+    is the editor's first screen when the URL doesn't already say which
+    (`?package=`, `?template=`, `?scratch=1`).
   - `lib/contractLink.ts` builds the client's link; `app/booking-link/` is
     the client's page (plan, clauses, signs a specific revision, marks each
     payment sent). Unsigned, it runs as steps — email, details, the

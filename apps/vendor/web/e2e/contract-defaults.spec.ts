@@ -77,7 +77,7 @@ test.describe("contract defaults (/contracts → Defaults)", () => {
     });
     api.get("/contract-templates", { items: [], total: 0 });
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     const schedule = page.getByRole("region", { name: "Payment schedule" });
     await expect(schedule.getByLabel("Amount ($)").first()).toHaveValue("350");

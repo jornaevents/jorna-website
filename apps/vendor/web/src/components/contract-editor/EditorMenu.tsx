@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@jorna/shared/components/ui";
-import type { SavedContractTemplate } from "@/lib/types";
 import { inputClass } from "./shared";
 
 /**
@@ -16,7 +15,8 @@ export function EditorMenu({
   onPick,
   onSave,
 }: {
-  templates: SavedContractTemplate[];
+  /** Packages' templates and the vendor's own (lib/templateChoices). */
+  templates: { id: string; name: string }[];
   /** Only a new contract starts from a template. */
   canPick: boolean;
   onPick: (templateId: string) => void;
@@ -83,7 +83,7 @@ export function EditorMenu({
                   Choose…
                 </option>
                 {templates.map((t) => (
-                  <option key={t.template_id} value={t.template_id}>
+                  <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}

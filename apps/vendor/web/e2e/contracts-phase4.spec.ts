@@ -45,7 +45,7 @@ test.describe("contracts — Phase 4 (requests become proposals)", () => {
       email_sent: true,
     });
 
-    await page.goto("contracts/new/?request=vbooking-1");
+    await page.goto("contracts/new/?request=vbooking-1&scratch=1");
     await expect(page.getByRole("heading", { name: /Accept Priya Shah/ })).toBeVisible();
 
     // Starts with the requested package at the request's total.
@@ -96,7 +96,7 @@ test.describe("contracts — Phase 4 (requests become proposals)", () => {
       offset: 0,
     });
 
-    await page.goto("contracts/new/?request=vbooking-1");
+    await page.goto("contracts/new/?request=vbooking-1&scratch=1");
     await expect(page.getByText(/can't be accepted from here any more/)).toBeVisible();
   });
 });

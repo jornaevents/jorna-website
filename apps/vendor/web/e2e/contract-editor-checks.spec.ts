@@ -47,7 +47,7 @@ test.describe("contract editor checks", () => {
   test("a payment counted back past today is flagged; one after the event is only noted", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await fillEvent(page, iso(250));
     const schedule = page.getByRole("article", { name: "Contract document" }).getByRole("region", { name: "Payment schedule" });
 
@@ -65,7 +65,7 @@ test.describe("contract editor checks", () => {
   test("a discount bigger than the items is the one problem, shown as a negative total", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await fillEvent(page, iso(60));
     await page.getByLabel("Discount ($)").fill("3000");
     await expect(page.getByTestId("rail-total")).toHaveText("−$500.00");
@@ -95,7 +95,7 @@ test.describe("contract editor checks", () => {
       limit: 100,
       offset: 0,
     });
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await fillEvent(page, taken);
     await expect(page.getByText(/You're already booked then: Asha Mehta/)).toBeVisible();
     await page.getByLabel("Start time").fill("08:00");
@@ -106,7 +106,7 @@ test.describe("contract editor checks", () => {
   test("Travel uses the vendor's own radius and leaves the rate to fill in", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api, { travel_radius_miles: 60 });
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await fillEvent(page, iso(60));
     await page.getByRole("button", { name: "+ Travel" }).click();
     await expect(page.getByLabel("Section text").last()).toHaveValue(/Travel within 60 miles is included\. .*\$___ per mile/);
@@ -117,7 +117,7 @@ test.describe("contract editor checks", () => {
   test("a hold out of range is said under the field instead of quietly becoming 7 days", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByLabel("Hold the date for (days)").fill("-2");
     await expect(page.getByText("Hold the date for between 1 and 60 days.")).toBeVisible();
   });
@@ -125,7 +125,7 @@ test.describe("contract editor checks", () => {
   test("the package's included hours go into the contract", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     await expect(page.getByLabel("Add a package").locator("option", { hasText: "$2,500.00" })).toHaveCount(1);
     await expect(page.getByText(/5 hours included/).first()).toBeVisible();
@@ -135,7 +135,7 @@ test.describe("contract editor checks", () => {
     await loginAs(page, api);
     mockEditor(api);
     api.get("/leads", { items: [mockLead({ lead_id: "lead-9", name: "Rohan Das" })], total: 1 });
-    await page.goto("contracts/new/?lead=lead-9");
+    await page.goto("contracts/new/?lead=lead-9&scratch=1");
     await expect(page.getByRole("link", { name: "← Back to Leads" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: /Leads/ })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: /Contracts/ })).not.toHaveAttribute("aria-current", "page");

@@ -51,7 +51,7 @@ test.describe("vendor contracts list (/contracts)", () => {
     await page.goto("contracts/");
 
     await expect(page.getByRole("heading", { name: "Contracts", level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Blank contract/ })).toHaveAttribute("href", "/app/contracts/new/");
+    await expect(page.getByRole("link", { name: /Start from scratch/ })).toHaveAttribute("href", /\/app\/contracts\/new\/?\?scratch=1$/);
     await expect(page.getByText("Priya Shah")).not.toBeVisible();
 
     // Needs-you sorts ahead of a contract still with the client.

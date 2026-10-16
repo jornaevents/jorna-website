@@ -844,3 +844,14 @@ A lead becomes a booking the moment the client signs, with nothing for the vendo
 - **Only a client's signature counts.** A request the vendor accepted was their own doing.
 - An older backend without `vendor_seen_at` shows no pill and no badge, rather than every signed booking.
 
+## Decision: every package has a contract template, and Send a contract asks which (2026-10-15)
+
+Most contracts start from one package. Every way into a new contract — New → Send a contract, the Contracts page, a lead's Create contract, accepting a request — now opens on a picker: **Your packages**, **Your templates**, **Start from scratch** (backend DECISIONS #31).
+
+- **A package's template follows the package until it's edited.** `packageTemplate` builds it from the package: one line at its price, the hours and "What's included" as the line's description, and the package's own cancellation and overtime where it sets them. The payment schedule, clauses and anything else come from Contracts → Defaults when it's applied, as they do for scratch. Nothing is stored, so a new price reaches it with nothing to sync.
+- **The vendor's edit takes its place** — a saved template with the package's `service_id`, tagged "Edited". Editing them is the next PR (template editor); until then the editor's ⋯ "Save as a template" still saves an ordinary one.
+- **Archived packages** aren't offered, nor their edits. Private (hidden) ones are — they're exactly what contracts are for.
+- **Scratch** is the old Blank contract: no items, the vendor's usual terms. Answering a request from scratch keeps the requested package, as before.
+- **Answering a request** puts the requested package first, marked "Requested". Picking a template for that package keeps the client's own line (the quantity and price they asked at); a template for another package is the vendor's choice.
+- **The choice goes in the URL**, so a reload or Back keeps it, and the gallery's cards link straight past the picker.
+

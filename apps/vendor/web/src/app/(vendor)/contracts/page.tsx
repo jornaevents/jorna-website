@@ -9,8 +9,9 @@
 // comes from vendorPlan's contractStatus. Confirming a payment stays on
 // Bookings, which owns it.
 //
-// The gallery opens the contract editor (/contracts/new) — on the vendor's
-// usual terms, or on one of their saved templates — or the addendum and
+// The gallery opens the contract editor (/contracts/new) on a package's
+// template, scratch on the vendor's usual terms, or one of their saved
+// templates (backend DECISIONS #31) — or the addendum and
 // cancellation editor (/contracts/document), which first asks which signed
 // booking the document is for.
 
@@ -19,12 +20,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { getMyVendor, listVendorBookings, sendContract, voidContract } from "@/lib/jorna";
-import { categoryLabel, type SavedContractTemplate, type VendorBooking, type VendorDetail } from "@/lib/types";
+import { getMyVendor, listMyServices, listVendorBookings, sendContract, voidContract } from "@/lib/jorna";
+import { type SavedContractTemplate, type ServiceItem, type VendorBooking, type VendorDetail } from "@/lib/types";
 import { changesWaiting, contractNeedsVendor, contractStatus, type ContractStatus } from "@/lib/vendorPlan";
 import { signerMatches } from "@/lib/signerName";
 import { guestBookingLink, guestBookingPreviewLink } from "@/lib/contractLink";
-import { deleteTemplate, loadTemplates, templatesOfKind } from "@/lib/contractTemplates";
+import { deleteTemplate, loadTemplates } from "@/lib/contractTemplates";
+import { templateChoices } from "@/lib/templateChoices";
+import { money } from "@jorna/shared/lib/contractDraft";
 import { KIND_LABEL } from "@/lib/attachedDocuments";
 import { Button } from "@jorna/shared/components/ui";
 import { Drawer, FilterTabs, PageHeader, StatusPill, type Tone } from "@/components/vendor/ui";
@@ -229,6 +232,7 @@ export default function ContractsPage() {
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [contracts, setContracts] = useState<VendorBooking[] | null>(null);
   const [templates, setTemplates] = useState<SavedContractTemplate[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -254,13 +258,15 @@ export default function ContractsPage() {
           return;
         }
         setVendor(mine);
-        const [res, tpl] = await Promise.all([
+        const [res, tpl, svc] = await Promise.all([
           listVendorBookings(mine.vendor_id, { limit: 100 }),
           loadTemplates().catch(() => [] as SavedContractTemplate[]),
+          listMyServices(mine.vendor_id).catch(() => null),
         ]);
         if (cancelled) return;
         setContracts(res.items.filter((b) => b.contract_token));
         setTemplates(tpl);
+        setServices(svc?.items ?? []);
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your contracts."));
     return () => {
@@ -324,8 +330,10 @@ export default function ContractsPage() {
   }
 
   const brand = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
-  const agreements = templatesOfKind(templates, "agreement");
-  const speciality = vendor.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services";
+  const choices = templateChoices(services, templates);
+  // The first few packages here; every one is in Send a contract's list.
+  const shownPackages = choices.packages.slice(0, 2);
+  const morePackages = choices.packages.length - shownPackages.length;
   const count = (f: Filter) => (contracts ?? []).filter((b) => FILTER_TEST[f](contractStatus(b))).length;
 
   return (
@@ -367,34 +375,26 @@ export default function ContractsPage() {
             Manage templates
           </button>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <GalleryCard
-            href="/contracts/new"
+            href="/contracts/new?scratch=1"
             preview={
               <span className="grid h-36 place-items-center rounded-t-xl border-b border-dashed border-line bg-ground-2 text-3xl text-ink-faint">
                 +
               </span>
             }
-            name="Blank contract"
-            note="Starts from your usual terms"
+            name="Start from scratch"
+            note="Your usual terms, no items yet"
           />
-          {agreements.slice(0, 1).map((t) => (
+          {shownPackages.map((p) => (
             <GalleryCard
-              key={t.template_id}
-              href={`/contracts/new?template=${t.template_id}`}
-              preview={<DocPreview brand={brand} title={t.name} foot="Signature" />}
-              name={t.name}
-              note="Your saved template"
+              key={p.id}
+              href={`/contracts/new?package=${p.serviceId}`}
+              preview={<DocPreview brand={brand} title={p.body.title || `${p.name} agreement`} foot="Signature" />}
+              name={p.name}
+              note={p.edited ? "Your edited template" : `Package · ${money(Math.round((p.price ?? 0) * 100))}`}
             />
           ))}
-          {agreements.length === 0 ? (
-            <GalleryCard
-              href="/contracts/new"
-              preview={<DocPreview brand={brand} title={`${speciality} services agreement`} foot="Signature" />}
-              name={`${speciality} services agreement`}
-              note="Your packages and usual terms"
-            />
-          ) : null}
           <GalleryCard
             href="/contracts/document?kind=addendum"
             preview={<DocPreview brand={brand} title="Service addendum" foot="Signature" />}
@@ -408,13 +408,18 @@ export default function ContractsPage() {
             note="Ends a signed booking, in writing"
           />
         </div>
-        {templates.length > Math.min(1, agreements.length) ? (
+        {morePackages > 0 || choices.saved.length > 0 ? (
           <p className="mt-2 text-xs text-ink-faint">
-            {templates.length - Math.min(1, agreements.length)} more saved template
-            {templates.length - Math.min(1, agreements.length) === 1 ? "" : "s"} in{" "}
-            <button type="button" onClick={() => setManaging(true)} className="font-semibold text-gold">
-              Manage templates
-            </button>
+            {[
+              morePackages > 0 ? `${morePackages} more package${morePackages === 1 ? "" : "s"}` : null,
+              choices.saved.length > 0 ? `${choices.saved.length} saved template${choices.saved.length === 1 ? "" : "s"}` : null,
+            ]
+              .filter(Boolean)
+              .join(" and ")}{" "}
+            in{" "}
+            <Link href="/contracts/new" className="font-semibold text-gold">
+              Send a contract
+            </Link>
             .
           </p>
         ) : null}
