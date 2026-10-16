@@ -2,7 +2,7 @@
   "name": "jorna-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Jorna's two web apps \u2014 apps/client (book.jornaevents.com) and apps/vendor (jornaevents.com) \u2014 and packages/shared, which both use. One npm workspace: `npm install` here installs everything.",
+  "description": "Jorna's two web apps — apps/client (book.jornaevents.com) and apps/vendor (jornaevents.com) — and packages/shared, which both use. One npm workspace: `npm install` here installs everything.",
   "workspaces": [
     "apps/*/web",
     "packages/*"
@@ -13,7 +13,7 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "wrangler": "^4.141.0"
+    "wrangler": "^4.149.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
