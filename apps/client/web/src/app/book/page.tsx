@@ -24,6 +24,22 @@ function money(n: number) {
 
 const NEW_BUNDLE = "__new__";
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** How a plan reads in the "Add to" list: whether it's still being put
+ *  together, out with its vendors, or already booked — a plan with a signed
+ *  contract isn't merely "sent" (web #164). */
+function planLabel(b: BundleDetail): string {
+  const name = b.event_name || b.name;
+  if (b.status === "draft") return name;
+  const live = (b.bookings ?? []).filter((bk) => bk.status !== "rejected");
+  const booked = live.length > 0 && live.every((bk) => Boolean(bk.signed_at));
+  return `${name} (${booked ? "booked" : live.some((bk) => bk.signed_at) ? "partly booked" : "sent to vendors"})`;
+}
+
 function BookInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -33,6 +49,9 @@ function BookInner() {
   const [service, setService] = useState<ServiceItem | null>(null);
   const [bundles, setBundles] = useState<BundleDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  // Kept apart: a package that won't load is a page of its own, but a refused
+  // add is said beside the button, with everything typed still there (#164).
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -114,7 +133,7 @@ function BookInner() {
       })
       .catch((err) =>
         !cancelled &&
-        setError(err instanceof ApiError ? err.message : "Couldn't load this package."),
+        setLoadError(err instanceof ApiError ? err.message : "Couldn't load this package."),
       )
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -126,10 +145,10 @@ function BookInner() {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
 
-  if (error || !service) {
+  if (loadError || !service) {
     return (
       <div className="py-20 text-center">
-        <p className="text-ink-soft">{error ?? "Package not found."}</p>
+        <p className="text-ink-soft">{loadError ?? "Package not found."}</p>
         <Link href="/marketplace" className="mt-4 inline-block text-sm text-gold hover:underline">
           Back to marketplace
         </Link>
@@ -231,6 +250,10 @@ function BookInner() {
    */
   async function addAsDraft() {
     if (!service) return;
+    if (dateIso && dateIso < todayIso()) {
+      setError("That date has already passed — check the year.");
+      return;
+    }
     setDraftBusy(true);
     setError(null);
     try {
@@ -291,6 +314,10 @@ function BookInner() {
       setError("Confirm the overnight time window above before sending.");
       return;
     }
+    if (dateIso && dateIso < todayIso()) {
+      setError("That date has already passed — check the year.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -321,6 +348,11 @@ function BookInner() {
   const total = estimate();
   const overnight = crossesMidnight(timeStart, timeEnd);
   const blockedByOvernight = overnight && !overnightAck;
+  // Said under the date, before anything is sent — the server's refusal used
+  // to replace the whole form (#164).
+  const pastDate = Boolean(dateIso) && dateIso < todayIso();
+  const blocked = blockedByOvernight || pastDate;
+  const addOns = service.add_ons ?? [];
 
   return (
     <div className="mx-auto w-[min(var(--container-page),100%-2rem)] py-10">
@@ -332,7 +364,7 @@ function BookInner() {
       </Link>
 
       <header className="mt-5">
-        <span className="eyebrow">Request a booking</span>
+        <span className="eyebrow">{planAlreadySent ? "Add to a sent plan" : "Add to your plan"}</span>
         <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold">{service.name}</h1>
         <p className="mt-2 text-ink-soft">
           {service.vendor_name}
@@ -361,8 +393,7 @@ function BookInner() {
               <option value={NEW_BUNDLE}>A new plan</option>
               {bundles.map((b) => (
                 <option key={b.bundle_id} value={b.bundle_id}>
-                  {b.event_name || b.name}
-                  {b.status !== "draft" ? " (already sent)" : ""}
+                  {planLabel(b)}
                 </option>
               ))}
             </select>
@@ -429,6 +460,12 @@ function BookInner() {
             >
               Single day instead
             </button>
+          ) : null}
+
+          {pastDate ? (
+            <p role="alert" className="-mt-2 text-sm text-maroon dark:text-gold">
+              That date has already passed — check the year.
+            </p>
           ) : null}
 
           {dateConflict ? (
@@ -521,6 +558,26 @@ function BookInner() {
             />
           ) : null}
 
+          {addOns.length ? (
+            <div className="rounded-lg bg-panel px-3 py-2.5 text-sm text-ink-soft">
+              <p className="font-medium text-ink">Add-ons</p>
+              <p className="mt-0.5 text-xs text-ink-faint">
+                Mention any you want below — {service.vendor_name || "the vendor"} adds them to your contract.
+              </p>
+              <ul className="mt-1.5 grid gap-0.5">
+                {addOns.map((a) => (
+                  <li key={a.id ?? a.name}>
+                    {a.name}
+                    <span className="text-ink-faint">
+                      {" "}
+                      · {money(a.price)} {priceUnitLabel(a.price_unit)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <Field
             label="Anything the vendor should know? (optional)"
             placeholder="We need setup access an hour early"
@@ -557,7 +614,7 @@ function BookInner() {
               and a single send when the plan is already out with its vendors. */}
           {planAlreadySent ? (
             <>
-              <Button type="submit" size="lg" disabled={busy || draftBusy || blockedByOvernight}>
+              <Button type="submit" size="lg" disabled={busy || draftBusy || blocked}>
                 {busy ? "Sending request…" : "Send this request"}
               </Button>
               <p className="text-center text-xs text-ink-faint">
@@ -570,7 +627,7 @@ function BookInner() {
             </>
           ) : (
             <>
-              <Button type="submit" size="lg" disabled={busy || draftBusy || blockedByOvernight}>
+              <Button type="submit" size="lg" disabled={busy || draftBusy || blocked}>
                 {busy ? "Adding…" : "Add to plan"}
               </Button>
               {/* type="button" so it never trips the form's required fields —
@@ -579,15 +636,15 @@ function BookInner() {
                 type="button"
                 variant="ghost"
                 size="lg"
-                disabled={busy || draftBusy}
+                disabled={busy || draftBusy || blocked}
                 onClick={addAsDraft}
               >
                 {draftBusy ? "Adding…" : "Add and keep browsing"}
               </Button>
               <p className="text-center text-xs text-ink-faint">
-                Nothing reaches {service.vendor_name || "the vendor"} yet, and
-                nothing here is required — you can fill in the rest on your plan.
-                Sending the plan is what asks them.
+                Nothing reaches {service.vendor_name || "the vendor"} yet. The date,
+                address and start and end times are needed before you send your
+                plan — add them now or on the plan. Sending the plan is what asks them.
               </p>
             </>
           )}

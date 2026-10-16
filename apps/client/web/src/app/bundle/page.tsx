@@ -1536,7 +1536,7 @@ function BundleInner() {
             .catch(() => {});
         }
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this bundle."))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this plan."))
       .finally(() => setLoading(false));
   }, [bundleId, user]);
 
@@ -1684,10 +1684,19 @@ function BundleInner() {
     if (!bundleId || !bundle) return;
     setBundleBusy(true);
     setNotice(null);
+    // Sending asks the vendors who haven't answered yet (select_bundle), so
+    // the notice counts those (#164: "your vendors" for one vendor).
+    const asked = bundle.bookings.filter((b) => b.status === "pending").length;
     try {
       await selectBundle(bundleId);
       clearAttentionCache();
-      setNotice({ text: "Sent. Your vendors have been asked — you'll see their answers here.", ok: true });
+      setNotice({
+        text:
+          asked === 1
+            ? "Sent. Your vendor has been asked — you'll see their answer here."
+            : "Sent. Your vendors have been asked — you'll see their answers here.",
+        ok: true,
+      });
       await load();
     } catch (err) {
       setNotice({ text: err instanceof ApiError ? err.message : "Couldn't send these requests. Try again.", ok: false });
@@ -2288,7 +2297,7 @@ function BundleInner() {
 
       {bundle.bookings.length === 0 ? (
         <p className="mt-8 rounded-2xl border border-card-edge bg-panel p-6 text-center text-ink-soft">
-          No vendors in this bundle yet.
+          No vendors in this plan yet.
         </p>
       ) : null}
         </div>

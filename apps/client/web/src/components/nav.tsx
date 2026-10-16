@@ -83,13 +83,14 @@ export const CLIENT_TABS: NavItem[] = [
     href: "/marketplace",
     label: "Market",
     icon: icon(I.marketplace),
-    match: ["/marketplace", "/vendor"],
+    // A package and the form that adds it to a plan are both still shopping.
+    match: ["/marketplace", "/vendor", "/service", "/book"],
   },
   {
     href: "/bundles",
     label: "Dashboard",
     icon: icon(I.dashboard),
-    match: ["/bundles", "/bundle", "/book", "/events", "/event"],
+    match: ["/bundles", "/bundle", "/events", "/event"],
   },
   NEEDS_YOU,
   MESSAGES,

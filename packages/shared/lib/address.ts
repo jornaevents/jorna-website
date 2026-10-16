@@ -100,6 +100,8 @@ export function shortAddress(a: Address): string {
  * writes — comes back as city + state with no street, rather than as nothing.
  * Anything unrecognised lands in line 1 so it's never silently dropped.
  */
+const UNIT = /^(apt|apartment|suite|ste|unit|floor|fl|room|rm|bldg|building|#)\b|^#\s*\d/i;
+
 export function parseAddress(raw?: string | null): Address {
   const text = (raw ?? "").trim();
   if (!text) return { ...EMPTY_ADDRESS };
@@ -128,8 +130,12 @@ export function parseAddress(raw?: string | null): Address {
   }
 
   if (parts.length > 0) out.city = parts.pop() as string;
-  if (parts.length > 0) out.line1 = parts.shift() as string;
-  if (parts.length > 0) out.line2 = parts.join(", ");
+  // Line 2 is a unit — "Suite 4", "Apt 2B", "Floor 3" — and only that. Any
+  // other part before the city belongs with the street: "Royal Albert's
+  // Palace, 1050 King Georges Post Rd" is a venue and its street, and splitting
+  // them put the street in "Apartment, suite, floor" (web #164).
+  if (parts.length > 1 && UNIT.test(parts[parts.length - 1])) out.line2 = parts.pop() as string;
+  if (parts.length > 0) out.line1 = parts.join(", ");
 
   // A lone token with no state or zip beside it could be either half-finished
   // thought: a street somebody has started typing, or a city the bundle builder

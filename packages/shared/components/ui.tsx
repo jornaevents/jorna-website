@@ -231,7 +231,9 @@ type Meridiem = "AM" | "PM";
     controls, so an untouched field stays unanswered (see the empty-string
     contract this shares with the plain date input above it). */
 function parseTime(value: string): { hour12: number; minute: string; meridiem: Meridiem } {
-  if (!value) return { hour12: 12, minute: "00", meridiem: "AM" };
+  // What an unset time becomes once one part of it is picked: on the hour,
+  // and in the evening, when most events run.
+  if (!value) return { hour12: 12, minute: "00", meridiem: "PM" };
   const [hStr, mStr] = value.split(":");
   const hour24 = Number(hStr);
   const meridiem: Meridiem = hour24 >= 12 ? "PM" : "AM";
@@ -271,6 +273,9 @@ export function TimeField({
   onChange: (value: string) => void;
 }) {
   const { hour12, minute, meridiem } = parseTime(value);
+  // An unset time reads as unset — "--", no AM/PM chosen — not as midnight,
+  // which looked like an answer (web #164).
+  const empty = !value;
   const selectClass =
     "rounded-xl border border-card-edge bg-ground-2 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30";
 
@@ -282,10 +287,15 @@ export function TimeField({
       <div className="flex items-center gap-1.5">
         <select
           aria-label={label ? `${label} — hour` : "Hour"}
-          value={hour12}
+          value={empty ? "" : hour12}
           onChange={(e) => onChange(formatTime(Number(e.target.value), minute, meridiem))}
           className={`${selectClass} pl-3 pr-1.5`}
         >
+          {empty ? (
+            <option value="" disabled>
+              --
+            </option>
+          ) : null}
           {HOURS_12.map((h) => (
             <option key={h} value={h}>
               {h}
@@ -295,10 +305,15 @@ export function TimeField({
         <span className="text-ink-faint">:</span>
         <select
           aria-label={label ? `${label} — minute` : "Minute"}
-          value={minute}
+          value={empty ? "" : minute}
           onChange={(e) => onChange(formatTime(hour12, e.target.value, meridiem))}
           className={`${selectClass} pl-3 pr-1.5`}
         >
+          {empty ? (
+            <option value="" disabled>
+              --
+            </option>
+          ) : null}
           {MINUTES.map((m) => (
             <option key={m} value={m}>
               {m}
@@ -310,10 +325,10 @@ export function TimeField({
             <button
               key={m}
               type="button"
-              aria-pressed={meridiem === m}
+              aria-pressed={!empty && meridiem === m}
               onClick={() => onChange(formatTime(hour12, minute, m))}
               className={`min-h-11 px-3.5 text-sm font-semibold transition ${
-                meridiem === m
+                !empty && meridiem === m
                   ? "bg-gold/15 text-maroon dark:text-gold"
                   : "bg-ground-2 text-ink-soft hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
               }`}

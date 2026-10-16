@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { syncBookingPayment } from "@/lib/jorna";
 import { LinkButton } from "@jorna/shared/components/ui";
 import { clientAppUrl } from "@/lib/clientApp";
+import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 
 type Phase = "working" | "paid" | "cancelled" | "pending";
 
@@ -43,7 +44,11 @@ function PaymentCompleteInner() {
     working: { title: "Confirming your payment…", body: "One moment." },
     paid: {
       title: "Payment received",
-      body: "Your money is held safely in escrow and is only released to the vendor after the event, once you both confirm.",
+      // Escrow is off for now (lib/flags), so the money went to the vendor's
+      // side as a normal payment — only promise holding it when it's held (#132).
+      body: ESCROW_ENABLED
+        ? "Your money is held safely in escrow and is only released to the vendor after the event, once you both confirm."
+        : "Your vendor will confirm it on your booking.",
     },
     cancelled: {
       title: "Checkout cancelled",
@@ -51,7 +56,7 @@ function PaymentCompleteInner() {
     },
     pending: {
       title: "Payment is processing",
-      body: "We haven't been able to confirm it just yet. This usually settles within a minute — your bundle will update automatically.",
+      body: "We haven't been able to confirm it just yet. This usually settles within a minute — your plan will update automatically.",
     },
   };
 

@@ -28,9 +28,9 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
-import { searchVendors } from "@/lib/jorna";
+import { listVendorCategories, searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
-import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { categoryLabel, type TaxonomyCategory, type VendorSearchItem } from "@/lib/types";
 import { TILES } from "@jorna/shared/lib/categoryTiles";
 import { Button, Chip, Field, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
@@ -150,6 +150,20 @@ function MarketplaceInner() {
     searchParams.get("subcategory") ?? undefined,
   );
   const [showFilters, setShowFilters] = useState(false);
+  // The vendor categories, in the vendors' own words (#164): the chips used to
+  // be Home's tile names — "Photographer", "Mehndi" — which no vendor picks,
+  // so a mehndi artist filed under Beauty was only findable by a mapping
+  // nobody could see. Null until loaded; Home's tiles stand in meanwhile.
+  const [taxonomy, setTaxonomy] = useState<TaxonomyCategory[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    listVendorCategories()
+      .then((r) => !cancelled && setTaxonomy(r.categories))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [place, setPlace] = useState("");
   const [date, setDate] = useState("");
@@ -250,9 +264,9 @@ function MarketplaceInner() {
     };
   }, [availKey, candidateIds, date, timeStart, timeEnd]);
 
-  function pickCategory(tile: (typeof TILES)[number] | null) {
-    setCategory(tile?.category ?? "");
-    setSubcategory(tile?.subcategory);
+  function pickCategory(next: string | null, sub?: string) {
+    setCategory(next ?? "");
+    setSubcategory(sub);
   }
 
   function clearFilters() {
@@ -273,9 +287,12 @@ function MarketplaceInner() {
     availReady && avail ? candidates.filter((i) => avail.ids.has(i.vendor_id)) : candidates;
   // Paging is meaningless while a local filter works over a pulled pool.
   const hasMore = !narrowing && items.length < total;
-  const activeTile = TILES.find(
-    (t) => t.category === category && t.subcategory === subcategory,
-  );
+  // The categories as chips; before the taxonomy loads (or if it can't), the
+  // distinct categories Home's tiles link to, under the same labels.
+  const categories: { value: string; label: string; subcategories: { value: string; label: string }[] }[] =
+    taxonomy ??
+    [...new Set(TILES.map((t) => t.category))].map((c) => ({ value: c, label: categoryLabel(c), subcategories: [] }));
+  const activeCategory = categories.find((c) => c.value === category) ?? null;
   const activeFilters =
     (place ? 1 : 0) + (date ? 1 : 0) + (minRating ? 1 : 0) + (maxPrice ? 1 : 0);
   const placeUnrecognised = place.trim() !== "" && !state;
@@ -331,19 +348,32 @@ function MarketplaceInner() {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Chip active={!activeTile} onClick={() => pickCategory(null)}>
+        <Chip active={!category} onClick={() => pickCategory(null)}>
           All
         </Chip>
-        {TILES.map((tile) => (
-          <Chip
-            key={tile.label}
-            active={activeTile?.label === tile.label}
-            onClick={() => pickCategory(tile)}
-          >
-            {tile.label}
+        {categories.map((c) => (
+          <Chip key={c.value} active={category === c.value} onClick={() => pickCategory(c.value)}>
+            {c.label}
           </Chip>
         ))}
       </div>
+
+      {activeCategory && activeCategory.subcategories.length ? (
+        <div aria-label={`${activeCategory.label} types`} role="group" className="mt-2 flex flex-wrap gap-2">
+          <Chip active={!subcategory} onClick={() => pickCategory(activeCategory.value)}>
+            All {activeCategory.label.toLowerCase()}
+          </Chip>
+          {activeCategory.subcategories.map((sc) => (
+            <Chip
+              key={sc.value}
+              active={subcategory === sc.value}
+              onClick={() => pickCategory(activeCategory.value, sc.value)}
+            >
+              {sc.label}
+            </Chip>
+          ))}
+        </div>
+      ) : null}
 
       {showFilters ? (
         <div className="mt-4 rounded-2xl border border-card-edge bg-panel p-4 sm:p-5">
