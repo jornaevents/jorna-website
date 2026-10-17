@@ -21,6 +21,9 @@ What lives at the root instead of in each app:
 - **The pre-commit hook** — `.husky/pre-commit` + `lint-staged.config.mjs`,
   lint and typecheck for whichever app (or the shared package) is staged.
 - **Dependabot and issue templates** — `.github/`.
+- **Work tracking** — every feature or fix has an issue on the Jorna Dev Board
+  whose status matches the work; the steps are under "Issue & work tracking"
+  in each app's `CLAUDE.md`.
 
 The apps still duplicate what had drifted apart before the merge
 (`web/src/lib/jorna.ts`, most of `types.ts`, and components built on them).
