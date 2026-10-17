@@ -37,6 +37,7 @@ import { NegotiationPanel as ContractNegotiation } from "@/components/negotiatio
 import { Drawer, FilterTabs, PageHeader, StatTile, StatusPill, type Tone } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
+import { InquiryShareButton } from "@/components/vendor/InquiryShare";
 
 type Filter = "all" | "inquiry" | "negotiation" | "archived";
 type Sort = "recent" | "upcoming" | "value";
@@ -273,6 +274,7 @@ function LeadDrawer({
   const archived = item.archived;
   const status = item.contract_status;
   const ghost = "w-full sm:w-auto";
+  const fromForm = item.lead_source === "inquiry_form";
 
   const archiveAction = () =>
     item.lead_id
@@ -287,6 +289,15 @@ function LeadDrawer({
       subtitle={item.event_name && item.event_name !== item.name ? item.event_name : item.service_name ?? undefined}
       footer={
         <div className="flex flex-wrap gap-2">
+          {/* A form inquiry has no thread; email is how they asked to hear back. */}
+          {fromForm && item.email && !item.conversation_id ? (
+            <a
+              href={`mailto:${item.email}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04]"
+            >
+              <Icon name="messages" size={16} /> Reply by email
+            </a>
+          ) : null}
           {item.conversation_id ? (
             <Link
               href={`/conversation?id=${item.conversation_id}`}
@@ -311,6 +322,7 @@ function LeadDrawer({
       <div className="flex flex-wrap items-center gap-2">
         {archived ? <StatusPill tone="grey">{archivedLabel(item)}</StatusPill> : <StatusPill tone={l.tone} dot>{l.label}</StatusPill>}
         <StatusPill tone="grey">{item.stage === "negotiation" ? "Negotiation" : "Inquiry"}</StatusPill>
+        {fromForm ? <StatusPill tone="grey">From your inquiry form</StatusPill> : null}
       </div>
       {reason ? <p className="mt-2 text-sm text-ink-soft">{reason}</p> : null}
       {item.outcome_note ? (
@@ -343,7 +355,8 @@ function LeadDrawer({
 
       {item.note ? (
         <div className="mt-5">
-          <p className="eyebrow">Notes</p>
+          {/* A form inquiry's note is their message; anyone else's is the vendor's own. */}
+          <p className="eyebrow">{fromForm ? "What they wrote" : "Notes"}</p>
           <p className="mt-1.5 whitespace-pre-wrap text-sm text-ink-soft">{item.note}</p>
         </div>
       ) : null}
@@ -583,6 +596,7 @@ function LeadsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("recent");
@@ -599,7 +613,7 @@ function LeadsInner() {
   const load = useCallback(async () => {
     const mine = await getMyVendor();
     if (!mine) return "not-vendor" as const;
-    return getPipeline();
+    return { vendorId: mine.vendor_id, pipeline: await getPipeline() };
   }, []);
 
   useEffect(() => {
@@ -611,7 +625,8 @@ function LeadsInner() {
         if (r === "not-vendor") router.replace("/vendor-onboarding");
         else {
           setError(null);
-          setPipeline(r);
+          setVendorId(r.vendorId);
+          setPipeline(r.pipeline);
         }
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your leads."));
@@ -653,14 +668,17 @@ function LeadsInner() {
         title="Leads"
         subtitle="Everyone you're talking to who hasn't signed yet."
         action={
-          <NewMenu
-            first="client"
-            onClientAdded={(lead) => {
-              setNotice(`${lead.name} is on your leads as an inquiry.`);
-              setFilter("all");
-              setTick((n) => n + 1);
-            }}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {vendorId ? <InquiryShareButton vendorId={vendorId} /> : null}
+            <NewMenu
+              first="client"
+              onClientAdded={(lead) => {
+                setNotice(`${lead.name} is on your leads as an inquiry.`);
+                setFilter("all");
+                setTick((n) => n + 1);
+              }}
+            />
+          </div>
         }
       />
 
@@ -732,7 +750,7 @@ function LeadsInner() {
           <p className="py-14 text-center text-sm text-ink-faint">
             {filter === "archived"
               ? "Nothing archived."
-              : "No leads here yet. Requests from the marketplace, clients you add from Messages and contracts you send all show up here."}
+              : "No leads here yet. Inquiries from your inquiry form, requests from the marketplace, clients you add from Messages and contracts you send all show up here. Share your inquiry form to get your first one."}
           </p>
         ) : null}
 

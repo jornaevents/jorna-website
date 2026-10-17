@@ -300,6 +300,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           start.clientEmail = lead.email ?? "";
           start.clientPhone = lead.phone ?? "";
           if (lead.event_date_iso && lead.event_date_iso >= todayIso()) start.dateIso = lead.event_date_iso;
+          if (lead.guest_count) start.guestCount = String(lead.guest_count);
         }
         const picked = packageId
           ? offered.find((c) => c.id === packageChoiceId(packageId))

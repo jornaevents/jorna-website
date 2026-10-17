@@ -1371,8 +1371,13 @@ export interface Lead {
   phone: string | null;
   email: string | null;
   event_date_iso: string | null;
+  /** What the event is ("Sangeet") and a rough head count (backend 0077). */
+  event_type?: string | null;
+  guest_count?: number | null;
   note: string | null;
   status: LeadStatus;
+  /** Where it came from: the vendor, a Messages thread, or the inquiry form. */
+  source?: LeadSource;
   converted_booking_id: string | null;
   created_at: string;
   updated_at: string;
@@ -1382,11 +1387,15 @@ export interface Lead {
   conversation_id?: string | null;
 }
 
+export type LeadSource = "manual" | "messages" | "inquiry_form";
+
 export interface LeadCreateInput {
   name: string;
   phone?: string | null;
   email?: string | null;
   event_date_iso?: string | null;
+  event_type?: string | null;
+  guest_count?: number | null;
   note?: string | null;
 }
 
@@ -1395,6 +1404,8 @@ export interface LeadUpdateInput {
   phone?: string | null;
   email?: string | null;
   event_date_iso?: string | null;
+  event_type?: string | null;
+  guest_count?: number | null;
   note?: string | null;
   status?: LeadStatus;
   /** Hide from (true) or return to (false) the active leads. */
@@ -1449,6 +1460,8 @@ export interface PipelineItem {
   /** Leads only. */
   note?: string | null;
   lead_status?: LeadStatus;
+  /** A lead's own source; "inquiry_form" when it came from the public form. */
+  lead_source?: LeadSource;
 }
 
 export interface Pipeline {

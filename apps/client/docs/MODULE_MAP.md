@@ -97,7 +97,9 @@ always "none, verify manually" until a test runner is added.
 - **Responsible for:** client↔vendor chat (pre-booking questions and
   in-booking threads), price negotiation, and date-change requests.
 - **Code:** `web/src/lib/chat.ts`, `web/src/app/messages/`, `conversation/`,
-  `web/src/components/AskVendor.tsx`, `NegotiationPanel.tsx`,
+  `web/src/components/AskVendor.tsx`, `InquiryForm.tsx` + `InquiryButton.tsx` and
+  `web/src/app/inquire/` (the public inquiry form, DECISIONS 2026-10-17),
+  `NegotiationPanel.tsx`,
   `DateChangePanel.tsx`, `DateChangeRequest.tsx`, `ServiceSwapPanel.tsx`.
 - **Depends on:** `lib/jorna.ts`, `lib/types.ts`.
 - **Design context, already built despite the docs' own framing:**

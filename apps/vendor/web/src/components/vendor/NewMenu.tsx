@@ -140,6 +140,8 @@ function AddClientDrawer({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [guests, setGuests] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +151,8 @@ function AddClientDrawer({
     setEmail("");
     setPhone("");
     setDate("");
+    setEventType("");
+    setGuests("");
     setNote("");
     setError(null);
   }
@@ -167,6 +171,10 @@ function AddClientDrawer({
       return setError("That phone number doesn't look right — check it, or leave it blank.");
     }
     if (date && date < todayIso()) return setError("The event date has already passed.");
+    const count = guests.trim() ? Number(guests) : null;
+    if (count !== null && (!Number.isInteger(count) || count < 1 || count > 100_000)) {
+      return setError("Guest count must be between 1 and 100,000.");
+    }
     setBusy(true);
     setError(null);
     try {
@@ -175,6 +183,8 @@ function AddClientDrawer({
         email: email.trim() || null,
         phone: phone.trim() || null,
         event_date_iso: date || null,
+        event_type: eventType.trim() || null,
+        guest_count: count,
         note: note.trim() || null,
       });
       reset();
@@ -215,6 +225,25 @@ function AddClientDrawer({
           onChange={(e) => setDate(e.target.value)}
           hint="Leave it blank if they haven't picked one."
         />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Event"
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
+            placeholder="Sangeet, wedding…"
+            maxLength={50}
+          />
+          <Field
+            label="Guests"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={100000}
+            value={guests}
+            onChange={(e) => setGuests(e.target.value)}
+            placeholder="About how many"
+          />
+        </div>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-ink-soft">Note</span>
           <textarea

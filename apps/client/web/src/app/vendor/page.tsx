@@ -18,6 +18,7 @@ import {
 import { Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { AskVendor } from "@/components/AskVendor";
+import { InquiryButton } from "@/components/InquiryButton";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -387,12 +388,14 @@ function VendorInner() {
         <>
           <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
             <p className="text-ink-soft">
-              Want this vendor on your team? Build a bundle and we&apos;ll match them to your date
-              and budget.
+              Want this vendor on your team? Send them an inquiry, or build a bundle and we&apos;ll
+              match them to your date and budget.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <LinkButton href="/plan">Build my bundle</LinkButton>
-              <AskVendor vendorId={vendor.vendor_id} />
+              <InquiryButton vendorId={vendor.vendor_id} vendorName={name || "this vendor"} />
+              {/* A message thread needs an account; signed out, the inquiry is the way in. */}
+              {user ? <AskVendor vendorId={vendor.vendor_id} /> : null}
             </div>
           </div>
 
