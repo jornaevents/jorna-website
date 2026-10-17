@@ -36,7 +36,6 @@ import { ReviewPanel } from "@/components/ReviewPanel";
 import { VenueCheckIn } from "@/components/VenueCheckIn";
 import { RunSheet } from "@/components/RunSheet";
 import { DateChangePanel } from "@/components/DateChangePanel";
-import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import {
   BOOKING_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
