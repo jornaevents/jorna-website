@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { CLIENT, api, configured, ensureVendor, farDate, signIn, signInPage } from "./support/staging";
+import { CLIENT, api, configured, ensureVendor, onFreeDate, signIn, signInPage } from "./support/staging";
 
 // The contract round trip on the real staging stack: the vendor sends a
 // contract, the client opens their link, asks for a change if this staging
 // negotiates field by field (backend DECISIONS #26), the vendor accepts it,
 // the client signs, and the vendor sees it signed. Each run uses a fresh
-// date years out, so its hold never gets in another run's way.
+// date years out, and another if an earlier run's booking already has it.
 
 test.describe("staging: contract round trip", () => {
   test.beforeAll(() => {
@@ -18,12 +18,12 @@ test.describe("staging: contract round trip", () => {
     await signIn(CLIENT); // the client's account exists, as a returning client's would
     const token = vendor.tokens.access_token;
 
-    const contract = await api<{ booking_id: string; contract_token: string }>("/contracts", {
+    const contract = await onFreeDate((date_iso) => api<{ booking_id: string; contract_token: string }>("/contracts", {
       method: "POST",
       token,
       body: {
         service_id: vendor.serviceId,
-        date_iso: farDate(),
+        date_iso,
         time_start: "18:00",
         time_end: "22:00",
         amount_cents: 120_000,
@@ -33,7 +33,7 @@ test.describe("staging: contract round trip", () => {
         location: "Pines Manor, Edison NJ",
         email_client: false,
       },
-    });
+    }));
 
     // The client's link: no account needed to read it.
     await page.goto(`booking-link/?t=${contract.contract_token}`);

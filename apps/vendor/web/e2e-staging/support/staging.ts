@@ -114,12 +114,25 @@ export async function ensureVendor(): Promise<StagingVendor> {
   return { tokens, vendorId: vendor.vendor_id, serviceId: service.service_id };
 }
 
-/** A date years out that no other run will have picked, so holds never clash. */
+/** A date years out, picked at random so runs rarely clash. Every signed run
+ *  keeps its booking, so they still can: `onFreeDate` tries again. */
 export function farDate(): string {
   const d = new Date();
   d.setFullYear(d.getFullYear() + 3);
-  d.setDate(d.getDate() + Math.floor(Math.random() * 600));
+  d.setDate(d.getDate() + Math.floor(Math.random() * 3650));
   return d.toISOString().slice(0, 10);
+}
+
+/** Run `make` with a far date, and with another whenever the vendor already
+ *  has a booking on it (409 overlap). */
+export async function onFreeDate<T>(make: (dateIso: string) => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await make(farDate());
+    } catch (err) {
+      if (attempt >= 8 || !/→ 409: .*overlaps/.test(String(err))) throw err;
+    }
+  }
 }
 
 /** Put a session in the page the way the app stores one (lib/auth). */
