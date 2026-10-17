@@ -13,23 +13,23 @@
   },
   "dependencies": {
     "@jorna/shared": "*",
-    "@sentry/browser": "^11.0.0",
-    "@supabase/supabase-js": "^2.117.2",
+    "@sentry/browser": "^11.8.0",
+    "@supabase/supabase-js": "^2.118.0",
     "firebase": "^12.19.0",
-    "next": "16.3.6",
+    "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^4.1.11"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }
