@@ -264,3 +264,13 @@ From the 2026-10-05 staging walkthrough (#164, #132), decided 2026-10-14: fields
 - **Addresses:** `parseAddress` puts only a unit (Suite, Apt, Floor, #…) on line 2; a venue name stays with its street, which used to land in "Apartment, suite, floor".
 - **Copy:** the plan's headcount hint goes once a count is in; "Your vendor has been asked" for one; "plan", not "bundle". The payment-complete page only mentions escrow when `ESCROW_ENABLED` is on (#132).
 
+## Decision: anyone can send a vendor an inquiry, from their page or the link they share (2026-10-17)
+
+Backend #66, DECISIONS #32 there. Decided 2026-10-17: the form lives on the vendor's page and at a link of its own; short fields; spam is a honeypot plus rate limits.
+
+- **`/inquire?vendor=<id>` is the link vendors share** (Instagram bio, their site): the vendor's name and photo, then the form, with nothing else around it. **"Send an inquiry"** on `/vendor` opens the same form (`InquiryForm`) in a sheet.
+- **No account.** Signed in, the name, email and phone are filled in. Signed out, "Ask a question" (a message thread, which needs an account) is hidden and the inquiry is the way in.
+- **Name and email are required;** phone, date ("leave it blank if you're not sure yet"), event (suggested from the celebrations list), rough guest count and a message are optional.
+- **Errors stay with their field.** The server's messages don't name the field, so the form maps them by what they mention (email, phone, date, guest, name); anything else is said above the button. Nothing typed is lost.
+- **The honeypot** is an off-screen `website` input, sent empty by people.
+- **A 429 with its own message is shown as written** (a vendor's daily cap: "try again tomorrow"); `parseError` used to replace every 429 with the generic rate-limit line.

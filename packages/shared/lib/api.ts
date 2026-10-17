@@ -64,7 +64,8 @@ function fallbackMessage(status: number): string {
 }
 
 async function parseError(res: Response): Promise<string> {
-  if (res.status === 429) return fallbackMessage(429);
+  // A 429 with its own detail (a vendor's daily inquiry cap) says it; slowapi's
+  // {"error": …} has none and falls through to the fallback.
   try {
     const data = await res.json();
     if (typeof data?.detail === "string") return data.detail;

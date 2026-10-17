@@ -864,3 +864,10 @@ The second half of package templates (backend DECISIONS #31).
 - **Manage templates** lists every package's template (Edit, Duplicate, and Rename / Reset to package once edited), the vendor's own (Edit, Rename, Duplicate, Delete), and addenda/cancellations (as before, plus Rename and Duplicate). A duplicate is always an ordinary template, even of a package's — it doesn't follow anything.
 - **⋯ Update "{template}"** in the contract editor writes the contract's items, payments and terms back to the template it started from — never the client or event. On a package's unedited template that makes it the vendor's edit.
 
+## Decision: Leads shares the inquiry form, and says which leads came from it (2026-10-17)
+
+Backend #66, DECISIONS #32 there; the form itself is the client app's `/inquire`.
+
+- **"Share your inquiry form"** on Leads opens the link (with Copy and "See what clients see") and a QR code to download, for a bio, a website, a business card or an expo table. The empty Leads page points to it. The QR code is drawn in the browser (`qrcode`); nothing is stored.
+- **A lead from the form** is tagged "From your inquiry form" in the drawer, its note reads "What they wrote" (it's their message, not the vendor's), and it offers **Reply by email**: it has no Messages thread, and email is how they asked to hear back. The event they named shows where a request's event does.
+- **Leads carry an event and a guest count** (backend 0077). Add a client takes both, and Create contract from a lead starts with its guest count.
