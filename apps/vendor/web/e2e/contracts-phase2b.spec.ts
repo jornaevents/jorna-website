@@ -183,7 +183,13 @@ test.describe("contracts — Phase 2b (proposals)", () => {
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("Your payments")).toBeVisible();
     await page.getByRole("button", { name: "I've sent this" }).first().click();
+    // Asked how: the vendor's own way first (only Venmo here), then Other.
+    const how = page.getByRole("group", { name: "How did you send it?" });
+    await expect(how.getByRole("button")).toHaveText(["Venmo", "Other"]);
+    await how.getByRole("button", { name: "Venmo" }).click();
     await expect(page.getByText("Marked as sent — waiting for your vendor to confirm")).toBeVisible();
+    const [marked] = api.requestsTo("POST", "/guest-bookings/tok-1/payments/i1/mark-paid");
+    expect(marked.body).toEqual({ paid_via: "venmo" });
     await expect(page.getByRole("button", { name: "I've paid in full" })).toHaveCount(0);
   });
 });

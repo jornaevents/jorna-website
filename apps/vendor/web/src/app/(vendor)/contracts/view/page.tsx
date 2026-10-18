@@ -60,7 +60,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 function installmentState(i: Installment): { text: string; tone: string } {
   if (i.confirmed_at) return { text: "Received", tone: "text-green" };
-  if (i.marked_paid_at) return { text: "Client says it's sent", tone: "text-maroon dark:text-gold" };
+  if (i.marked_paid_at) {
+    const via = i.paid_via === "venmo" ? " by Venmo" : i.paid_via === "zelle" ? " by Zelle" : "";
+    return { text: `Client says it's sent${via}`, tone: "text-maroon dark:text-gold" };
+  }
   return { text: describeDue(i), tone: "text-ink-soft" };
 }
 

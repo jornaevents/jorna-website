@@ -2,6 +2,7 @@ node_modules/
 
 # Next.js build artifacts for the web app
 web/.next/
+web/.next-noescrow/
 web/out/
 web/next-env.d.ts
 

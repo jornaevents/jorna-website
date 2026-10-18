@@ -1803,3 +1803,82 @@ export function headcountGap(
     settled: counts.no_reply === 0 && counts.invited > 0,
   };
 }
+
+// ── Earnings ledger (backend DECISIONS #33) ──────────────────────────
+
+export type LedgerStatus = "received" | "client_says_sent" | "cancelled" | "overdue" | "due_soon" | "scheduled";
+export type PaidVia = "venmo" | "zelle" | "other";
+
+export interface LedgerEvent {
+  at: string;
+  kind: "payment_marked" | "payment_confirmed" | "payment_reminder" | "payment_not_received";
+  actor: "vendor" | "client" | "system";
+  paid_via?: PaidVia;
+  /** payment_reminder: "upcoming" | "due" (to the client), "overdue" (to the vendor), "manual". */
+  reminder?: string;
+  /** payment_not_received: "unmarked" | "unconfirmed". */
+  step?: string;
+}
+
+export interface LedgerBooking {
+  booking_id: string;
+  client_name: string;
+  event_name: string | null;
+  event_date: string;
+  event_date_end: string | null;
+  location: string | null;
+  state: "upcoming" | "done" | "cancelled";
+  total_cents: number | null;
+  has_contract: boolean;
+  contract_title: string | null;
+  signed_at: string | null;
+  signed_by: string | null;
+  addenda_count: number;
+  cancellation_document_id: string | null;
+}
+
+/** One payment on a signed contract, or the one "Full amount" row of a
+ *  booking from before contracts (installment_id null). */
+export interface LedgerRow {
+  row_id: string;
+  booking_id: string;
+  installment_id: string | null;
+  label: string;
+  sequence: number;
+  count: number;
+  amount_cents: number;
+  due_on: string | null;
+  due_type: "on_signing" | "date" | "before_event" | null;
+  due_days: number | null;
+  status: LedgerStatus;
+  marked_paid_at: string | null;
+  marked_by_client: boolean;
+  paid_via: PaidVia | null;
+  confirmed_at: string | null;
+  reminded_at: string | null;
+  can_remind: boolean;
+  can_undo: boolean;
+  events: LedgerEvent[];
+  booking: LedgerBooking;
+}
+
+export interface Ledger {
+  year: number | null;
+  /** The server's UTC day, which every status was decided against. */
+  today: string;
+  rows: LedgerRow[];
+  /** The rest of each shown booking's schedule, outside the year. */
+  other_rows: LedgerRow[];
+  totals: {
+    received_cents: number;
+    received_count: number;
+    to_come_cents: number;
+    to_come_count: number;
+    overdue_cents: number;
+    overdue_count: number;
+    waiting_cents: number;
+    waiting_count: number;
+  };
+  payment_methods: { venmo: string | null; zelle: string | null };
+}
+

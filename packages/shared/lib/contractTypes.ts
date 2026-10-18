@@ -45,6 +45,8 @@ export interface Installment {
   due_on: string | null;
   marked_paid_at: string | null;
   confirmed_at: string | null;
+  /** How the client said they sent it (backend DECISIONS #33). */
+  paid_via?: "venmo" | "zelle" | "other" | null;
 }
 
 export interface Clause {
