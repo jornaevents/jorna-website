@@ -504,6 +504,16 @@ function BookingLinkInner() {
     }
   }
 
+  /** A 410 means the offer ended while this page was open: the hold ran
+   *  out, or the vendor withdrew it. Reload it, so the page says which
+   *  instead of leaving an error on a form that can't be sent any more. */
+  function endedWhileOpen(err: unknown): boolean {
+    if (!(err instanceof ApiError && err.status === 410)) return false;
+    setProposing(false);
+    getGuestBooking(token, preview).then(setBooking).catch(() => undefined);
+    return true;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -517,6 +527,7 @@ function BookingLinkInner() {
       const signed = await signGuestBooking(token, signerName, booking?.revision, waiting && signAsIs, proof);
       setBooking(signed);
     } catch (err) {
+      if (endedWhileOpen(err)) return;
       // The vendor changed it after this page loaded: show the new version,
       // keep what the client typed, and say why they're signing again.
       if (err instanceof ApiError && err.status === 409) {
@@ -844,11 +855,25 @@ function BookingLinkInner() {
             vendorName={vendorName}
             clientName={booking.guest_name || "You"}
             onClose={() => setProposing(false)}
+            footerNote={
+              holdUntil ? <>{vendorName} is holding your date until {holdUntil} — send your answers before then.</> : null
+            }
             onSaveDraft={async (answers, message) => {
-              await saveGuestNegotiationDraft(token, answers, message);
+              try {
+                await saveGuestNegotiationDraft(token, answers, message);
+              } catch (err) {
+                endedWhileOpen(err);
+                throw err;
+              }
             }}
             onSend={async (answers, message) => {
-              const next = await sendGuestNegotiation(token, fields.round, answers, message);
+              let next: FieldNegotiationState;
+              try {
+                next = await sendGuestNegotiation(token, fields.round, answers, message);
+              } catch (err) {
+                endedWhileOpen(err);
+                throw err;
+              }
               setFields(next);
               setProposing(false);
               setProposalNotice(

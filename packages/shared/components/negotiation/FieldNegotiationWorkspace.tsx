@@ -178,6 +178,7 @@ export function FieldNegotiationWorkspace({
   onClose,
   headerActions,
   signSlot,
+  footerNote,
 }: {
   state: FieldNegotiationState;
   title: string;
@@ -189,6 +190,8 @@ export function FieldNegotiationWorkspace({
   headerActions?: ReactNode;
   /** The client's Sign block, shown once nothing is waiting. */
   signSlot?: ReactNode;
+  /** A line above the note box, e.g. how long the vendor is holding the date. */
+  footerNote?: ReactNode;
 }) {
   const side = state.side;
   const otherName = side === "client" ? vendorName : clientName;
@@ -525,6 +528,7 @@ export function FieldNegotiationWorkspace({
               {state.terms.payment_schedule?.length && total !== state.terms.amount_cents ? (
                 <p className="text-xs text-ink-faint">If it&apos;s agreed, the payments are rescaled to the new total.</p>
               ) : null}
+              {footerNote ? <p className="text-xs text-ink-faint">{footerNote}</p> : null}
               <textarea
                 aria-label={`A note for ${otherName} (optional)`}
                 placeholder={`A note for ${otherName} (optional)`}

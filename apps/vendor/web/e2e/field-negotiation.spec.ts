@@ -228,6 +228,60 @@ test.describe("field-by-field negotiation", () => {
     await expect(page.getByRole("button", { name: /^Send/ })).toBeDisabled();
   });
 
+  test("an offer that expires while the client answers shows as expired, not as a failed send", async ({ page, api }) => {
+    // The page reads the booking again after a 410; by then the backend says expired.
+    let expired = false;
+    api.get("/guest-bookings/tok-1", () => (expired ? { ...contract, contract_status: "expired" } : contract));
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", state({
+      side: "client", turn: "client", round: 3, waiting_count: 1,
+      fields: [field("policy.overtime", "Overtime rate", 15000, { state: "waiting_client", proposed: 20000, proposed_by: "vendor" })],
+    }));
+    api.post("/guest-bookings/tok-1/negotiation/send", ({ route }: HandlerArgs) => {
+      expired = true;
+      return route.fulfill({
+        status: 410,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "This offer has expired — ask your vendor to resend it if the date is still open" }),
+      });
+    });
+
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Review their answers" }).click();
+    // How long they have, where they answer.
+    await expect(page.getByText(/Arjun Kapoor is holding your date until .+ — send your answers before then\./)).toBeVisible();
+    await page.getByRole("region", { name: "Overtime rate" }).getByRole("button", { name: "Accept" }).click();
+    await page.getByRole("button", { name: "Send 1 answer" }).click();
+
+    await expect(page.getByRole("heading", { name: "This offer has expired" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
+  });
+
+  test("signing an offer that expired meanwhile shows it as expired", async ({ page, api }) => {
+    let expired = false;
+    api.get("/guest-bookings/tok-1", () => (expired ? { ...contract, contract_status: "expired" } : contract));
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", state({ side: "client", turn: "client", can_sign: true, waiting_count: 0, fields: [] }));
+    api.patch("/guest-bookings/tok-1", contract);
+    api.post("/guest-bookings/tok-1/sign", ({ route }: HandlerArgs) => {
+      expired = true;
+      return route.fulfill({
+        status: 410,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "This offer has expired — ask your vendor to resend it if the date is still open" }),
+      });
+    });
+
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await toSigning(page);
+    await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
+    await page.getByRole("button", { name: "Confirm booking →" }).click();
+
+    await expect(page.getByRole("heading", { name: "This offer has expired" })).toBeVisible();
+  });
+
   test("the vendor's notice says whether the client was emailed (#155)", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/me", mockVendorDetail());
