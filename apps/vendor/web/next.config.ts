@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   // Emit /app/plan/index.html etc. so Cloudflare serves clean URLs.
   trailingSlash: true,
+  // The e2e suite runs a second dev server with escrow off (production's
+  // setting) next to the escrow-on one; each needs its own build folder.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
 };
 
 export default nextConfig;

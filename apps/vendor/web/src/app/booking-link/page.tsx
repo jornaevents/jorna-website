@@ -35,7 +35,7 @@ import { describeDue } from "@jorna/shared/lib/contractDraft";
 import { termsOf } from "@jorna/shared/lib/contractDiff";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { ContractCompare } from "@jorna/shared/components/negotiation/ContractCompare";
-import type { GuestBooking, Installment, ProposalHistory, SigningProof } from "@/lib/types";
+import type { GuestBooking, Installment, PaidVia, ProposalHistory, SigningProof } from "@/lib/types";
 import { DocumentView } from "./DocumentView";
 import { SignatureStep } from "./SignatureStep";
 import { Stepper } from "./Stepper";
@@ -125,11 +125,20 @@ function Schedule({
   schedule,
   onMark,
   busyId,
+  ways = [],
 }: {
   schedule: Installment[];
-  onMark?: (id: string) => void;
+  onMark?: (id: string, paidVia: PaidVia) => void;
   busyId?: string | null;
+  /** The vendor's own ways to be paid, offered first (backend DECISIONS #33). */
+  ways?: PaidVia[];
 }) {
+  // Which payment is asking "How did you send it?".
+  const [asking, setAsking] = useState<string | null>(null);
+  const choices: { value: PaidVia; label: string }[] = [
+    ...ways.map((w) => ({ value: w, label: w === "venmo" ? "Venmo" : "Zelle" })),
+    { value: "other", label: "Other" },
+  ];
   return (
     <ul className="grid gap-2 text-sm">
       {schedule.map((i) => {
@@ -151,9 +160,29 @@ function Schedule({
             </p>
           </div>
           {onMark && !i.marked_paid_at ? (
-            <Button size="md" variant="ghost" disabled={busyId === i.id} onClick={() => onMark(i.id)}>
-              {busyId === i.id ? "Marking…" : "I've sent this"}
-            </Button>
+            asking === i.id ? (
+              <div role="group" aria-label="How did you send it?" className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-ink-soft">How did you send it?</span>
+                {choices.map((c) => (
+                  <Button
+                    key={c.value}
+                    size="md"
+                    variant="ghost"
+                    disabled={busyId === i.id}
+                    onClick={() => {
+                      setAsking(null);
+                      onMark(i.id, c.value);
+                    }}
+                  >
+                    {c.label}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <Button size="md" variant="ghost" disabled={busyId === i.id} onClick={() => setAsking(i.id)}>
+                {busyId === i.id ? "Marking…" : "I've sent this"}
+              </Button>
+            )
           ) : null}
         </li>
         );
@@ -529,11 +558,11 @@ function BookingLinkInner() {
     }
   }
 
-  async function markInstallment(id: string) {
+  async function markInstallment(id: string, paidVia: PaidVia) {
     setPaymentBusy(id);
     setPaymentNotice(null);
     try {
-      setBooking(await guestMarkInstallmentPaid(token, id));
+      setBooking(await guestMarkInstallmentPaid(token, id, paidVia));
       setPaymentNotice("Marked as sent — your vendor still needs to confirm receiving it.");
     } catch (err) {
       setPaymentNotice(err instanceof ApiError ? err.message : "Couldn't mark that as sent.");
@@ -731,7 +760,15 @@ function BookingLinkInner() {
         {schedule ? (
           <Card className="mt-5 p-5">
             <p className="mb-3 text-sm font-medium text-ink-soft">Your payments</p>
-            <Schedule schedule={schedule} onMark={preview ? undefined : markInstallment} busyId={paymentBusy} />
+            <Schedule
+              schedule={schedule}
+              onMark={preview ? undefined : markInstallment}
+              busyId={paymentBusy}
+              ways={[
+                ...(booking.vendor_venmo_handle ? (["venmo"] as const) : []),
+                ...(booking.vendor_zelle_contact ? (["zelle"] as const) : []),
+              ]}
+            />
           </Card>
         ) : (
         <div className="mt-5 grid gap-2">

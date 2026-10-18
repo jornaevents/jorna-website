@@ -2,6 +2,9 @@
 
 import { ApiError, apiFetch, apiUpload } from "@jorna/shared/lib/api";
 import type {
+  Ledger,
+  LedgerRow,
+  PaidVia,
   BundleDetail,
   BundleRequest,
   ChangeRequest,
@@ -1008,6 +1011,22 @@ export function proposeFromRequest(
   return apiFetch<Contract>(`/bookings/${bookingId}/propose`, { method: "POST", body: input });
 }
 
+/** Vendor: every payment on their signed bookings, due in `year` (all
+ *  time when omitted) — the Earnings ledger (backend DECISIONS #33). */
+export function getLedger(year?: number): Promise<Ledger> {
+  return apiFetch<Ledger>(`/vendors/me/ledger${year ? `?year=${year}` : ""}`);
+}
+
+/** Vendor: email the client about one overdue payment (once a day). */
+export function remindPayment(bookingId: string, installmentId: string): Promise<LedgerRow> {
+  return apiFetch<LedgerRow>(`/contracts/${bookingId}/payments/${installmentId}/remind`, { method: "POST" });
+}
+
+/** Vendor: undo one step — the client's "sent", or their own "received". */
+export function markPaymentNotReceived(bookingId: string, installmentId: string): Promise<LedgerRow> {
+  return apiFetch<LedgerRow>(`/contracts/${bookingId}/payments/${installmentId}/not-received`, { method: "POST" });
+}
+
 /** Vendor: one scheduled payment arrived (marked by the client or not). */
 export function confirmInstallment(bookingId: string, installmentId: string): Promise<Contract> {
   return apiFetch<Contract>(`/contracts/${bookingId}/payments/${installmentId}/confirm`, {
@@ -1217,9 +1236,14 @@ export function signGuestBooking(
 }
 
 /** Client: one scheduled payment is sent. Returns the refreshed booking. */
-export function guestMarkInstallmentPaid(token: string, installmentId: string): Promise<GuestBooking> {
+export function guestMarkInstallmentPaid(
+  token: string,
+  installmentId: string,
+  paidVia?: PaidVia,
+): Promise<GuestBooking> {
   return apiFetch<GuestBooking>(`/guest-bookings/${token}/payments/${installmentId}/mark-paid`, {
     method: "POST",
+    body: paidVia ? { paid_via: paidVia } : undefined,
   });
 }
 

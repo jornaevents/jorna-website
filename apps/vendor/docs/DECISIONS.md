@@ -871,3 +871,16 @@ Backend #66, DECISIONS #32 there; the form itself is the client app's `/inquire`
 - **"Share your inquiry form"** on Leads opens the link (with Copy and "See what clients see") and a QR code to download, for a bio, a website, a business card or an expo table. The empty Leads page points to it. The QR code is drawn in the browser (`qrcode`); nothing is stored.
 - **A lead from the form** is tagged "From your inquiry form" in the drawer, its note reads "What they wrote" (it's their message, not the vendor's), and it offers **Reply by email**: it has no Messages thread, and email is how they asked to hear back. The event they named shows where a request's event does.
 - **Leads carry an event and a guest count** (backend 0077). Add a client takes both, and Create contract from a lead starts with its guest count.
+
+## Decision: Earnings is a ledger of every payment, each tied to its contract (2026-10-17)
+
+Backend #123, DECISIONS #33 there. Spec and plan: https://claude.ai/artifact/3iXq72ZaidefdZZ2gbGvkm
+
+- **With escrow off (production), `/my-earnings` is the ledger** (`components/earnings/LedgerView.tsx`): one row per payment from `GET /vendors/me/ledger`, grouped by the month it's due or by booking. A received payment stays in the month it was due, with "Received Sep 16" under the date. Month subtotals leave out cancelled payments. With escrow on, the Stripe-era page is unchanged.
+- **The server decides each status**; `lib/ledger.ts` only filters, groups, words the history and writes the CSV (unit-tested).
+- **Rows aren't one big button.** The client cell is the row's target (stretched over the row), and Confirm received, Remind client and the Contract link are their own buttons, so nothing interactive is nested. The Contract link opens the drawer at its Proof and stays on phones.
+- **By booking shows each booking's whole schedule**, whatever the year or tab, so "Contract total · Received · Overdue · Still to come" adds up. Booking states are Upcoming / Done / Cancelled.
+- **The drawer** has the payment's history in date order, the signed contract as proof (title, who signed, this payment's line, PDF download, cancellation agreement), and the actions. Undo asks inside the drawer first and says where the payment goes back to.
+- **"I've sent this" on the booking link asks how** (the vendor's own Venmo/Zelle first, then Other), and the contract page shows "by Zelle".
+- **Testing:** the e2e suite runs with escrow on for the Stripe specs. Specs named `*.noescrow.spec.ts` run in a second Playwright project against a second dev server built with escrow off (its own `.next-noescrow` folder, via `NEXT_DIST_DIR`).
+

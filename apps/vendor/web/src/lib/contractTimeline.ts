@@ -70,8 +70,15 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       return `Your client declined${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "voided":
       return "You voided it";
-    case "payment_marked":
-      return `Your client says ${typeof d.label === "string" ? d.label : "a payment"}${cents(d)} is sent`;
+    case "payment_marked": {
+      const via = d.paid_via === "venmo" ? " by Venmo" : d.paid_via === "zelle" ? " by Zelle" : "";
+      return `Your client says ${typeof d.label === "string" ? d.label : "a payment"}${cents(d)} is sent${via}`;
+    }
+    case "payment_not_received":
+      // The vendor undid one step from Earnings (backend DECISIONS #33).
+      return d.step === "unmarked"
+        ? `You told your client ${typeof d.label === "string" ? d.label : "a payment"}${cents(d)} hasn't arrived`
+        : `You took back confirming ${typeof d.label === "string" ? d.label : "a payment"}${cents(d)}`;
     case "payment_confirmed":
       return `You confirmed ${typeof d.label === "string" ? d.label : "a payment"}${cents(d)} arrived`;
     case "payment_reminder": {
@@ -79,7 +86,9 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       // on the due date, this vendor once it's overdue.
       const what = `${typeof d.label === "string" ? d.label : "a payment"}${cents(d)}`;
       const due = typeof d.due_on === "string" ? prettyDate(d.due_on) : "its due date";
-      return d.reminder === "overdue"
+      return d.reminder === "manual"
+        ? `You reminded your client ${what} is overdue`
+        : d.reminder === "overdue"
         ? `Overdue: ${what} was due ${due} — we let you know`
         : d.reminder === "due"
           ? `Reminded your client ${what} is due today`

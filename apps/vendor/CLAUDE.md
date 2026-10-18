@@ -149,7 +149,9 @@ exercise it. Add a spec next to the existing ones (`home`, `auth`,
 `marketplace`, `booking`, `vendor-onboarding`, `vendor-bookings`,
 `vendor-earnings`) when a flow is worth covering beyond a manual dev-server
 check — favor the ones with real logic (gating, redirects, status-dependent
-rendering) over pure layout.
+rendering) over pure layout. The suite runs with escrow on (the
+Stripe specs need it); a spec named `*.noescrow.spec.ts` runs instead against
+a second dev server with escrow off, as production is (`playwright.config.ts`).
 
 Note: `react-hooks/set-state-in-effect` is an error (it was a warning until
 [issue #2](https://github.com/jornaevents-commits/jorna-website/issues/2) was

@@ -21,6 +21,7 @@ import {
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
 import { Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { PageHeader } from "@/components/vendor/ui";
+import { LedgerView } from "@/components/earnings/LedgerView";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -49,7 +50,9 @@ function Stat({
   );
 }
 
-function EarningsInner() {
+/** The escrow-era page: Stripe setup, paid out / held / upcoming, and a
+ *  per-booking history. Only while ESCROW_ENABLED is on. */
+function EscrowEarnings() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
@@ -471,10 +474,22 @@ function EarningsInner() {
   );
 }
 
+/** Production (escrow off): the ledger — every payment on every signed
+ *  booking, each tied to its contract (DECISIONS 2026-10-17). */
+function LedgerEarnings() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login?next=/my-earnings");
+  }, [loading, user, router]);
+  if (loading || !user) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  return <LedgerView />;
+}
+
 export default function EarningsPage() {
   return (
     <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
-      <EarningsInner />
+      {ESCROW_ENABLED ? <EscrowEarnings /> : <LedgerEarnings />}
     </Suspense>
   );
 }

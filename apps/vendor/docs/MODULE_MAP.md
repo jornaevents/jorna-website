@@ -122,7 +122,8 @@ always "none, verify manually" until a test runner is added.
 - **Code:** `web/src/lib/vendorPlan.ts` (task rules, incl. `pipelineStage`/
   `pipelineStats`), `web/src/app/vendor/`, `(vendor)/vendor-profile/`,
   `my-availability/`, `(vendor)/my-bookings/`, `(vendor)/my-calendar/`,
-  `(vendor)/my-earnings/`,
+  `(vendor)/my-earnings/` (escrow off: the ledger — `components/earnings/`,
+  `lib/ledger.ts`; escrow on: the Stripe-era page),
   `(vendor)/overview/`, `(vendor)/contracts/`, `(vendor)/leads/`,
   `(vendor)/settings/`,
   `web/src/components/ServicesManager.tsx`, `VendorCard.tsx`,
