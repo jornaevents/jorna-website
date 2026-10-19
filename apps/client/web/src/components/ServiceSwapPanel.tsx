@@ -103,8 +103,9 @@ export function ServiceSwapPanel({
       }
 
       // A signed contract stays as the record of what was agreed, under "Not
-      // going ahead" — the server refuses to delete one.
-      if (!booking.signed_at) await removeBookingFromBundle(bundleId, booking.booking_id);
+      // going ahead" — the server refuses to delete one, including one only
+      // the client has signed so far (backend DECISIONS #34).
+      if (!booking.signed_at && !booking.client_signed_at) await removeBookingFromBundle(bundleId, booking.booking_id);
       onSwapped();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't swap the package.");

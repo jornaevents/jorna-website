@@ -378,6 +378,7 @@ const STAGE_TONE: Record<BookingStage, string> = {
   contract_to_review: "text-gold",
   changes_proposed: "text-ink-soft",
   new_version: "text-gold",
+  awaiting_vendor: "text-ink-soft",
   deposit_due: "text-gold",
   confirmed: "text-green",
   completed: "text-ink-soft",

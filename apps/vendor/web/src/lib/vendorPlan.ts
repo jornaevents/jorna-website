@@ -350,6 +350,8 @@ export type ContractStatus =
   | "draft"
   | "changes_waiting"
   | "awaiting_signature"
+  /** The client signed; the vendor's countersignature books it (#34). */
+  | "countersign"
   | "expired"
   | "declined"
   | "deposit_due"
@@ -377,6 +379,7 @@ export function contractStatus(b: VendorBooking): ContractStatus {
   // Whether the client has opened it is b.viewed_at — a detail on the row,
   // not a status of its own: either way it's waiting on them.
   if (!b.signed_at) {
+    if (b.contract_status === "awaiting_vendor") return "countersign";
     if (b.contract_status === "draft") return "draft";
     // The client asked for changes and it's the vendor's turn to answer —
     // not "awaiting signature" (web #151): field by field, or an open
@@ -413,10 +416,11 @@ export function changesWaiting(b: Pick<VendorBooking, "negotiation" | "proposal_
 }
 
 /** The statuses where the vendor, not the client, owes the next move — a
- *  payment to confirm, changes to answer, or an offer to send or resend (or
- *  let go). */
+ *  signature, a payment to confirm, changes to answer, or an offer to send or
+ *  resend (or let go). */
 export function contractNeedsVendor(status: ContractStatus): boolean {
   return (
+    status === "countersign" ||
     status === "changes_waiting" ||
     status === "confirm_deposit" ||
     status === "confirm_payment" ||

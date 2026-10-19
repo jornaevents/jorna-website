@@ -1114,6 +1114,11 @@ export interface VendorBooking {
   contract_terms?: ContractTerms | null;
   signer_name?: string | null;
   signed_at?: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
   /** When the vendor first opened it on Bookings (backend DECISIONS #30).
    *  Absent from a backend older than that — not the same as null. */
   vendor_seen_at?: string | null;
@@ -1143,6 +1148,8 @@ export type ContractLifecycle =
   | "draft"
   | "sent"
   | "viewed"
+  /** The client signed; it waits on the vendor's countersignature (#34). */
+  | "awaiting_vendor"
   | "signed"
   | "declined"
   | "voided"
@@ -1179,6 +1186,14 @@ export interface Contract {
   guest_phone: string | null;
   signer_name: string | null;
   signed_at: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
+  /** The e-records consent the countersignature asks for, and whether
+   *  this vendor already gave it (backend DECISIONS #34). */
+  vendor_esign_consent?: VendorEsignConsent;
   /** "approved" while live; "rejected" once voided or declined. */
   status: string;
   payment_status?: string;
@@ -1256,11 +1271,18 @@ export interface AttachedDocument {
   kind: AttachedDocumentKind;
   title: string;
   sections: Clause[];
-  status: "draft" | "sent" | "viewed" | "signed" | "declined" | "voided";
+  /** awaiting_vendor: the client signed, the vendor hasn't yet (#34). */
+  status: "draft" | "sent" | "viewed" | "awaiting_vendor" | "signed" | "declined" | "voided";
   sent_at: string | null;
   viewed_at: string | null;
   signed_at: string | null;
   signer_name: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
+
   declined_at: string | null;
   decline_reason: string | null;
   voided_at: string | null;
@@ -1273,6 +1295,7 @@ export interface AttachedDocument {
   location: string | null;
   /** The vendor's view only — the couple's link is the token. */
   token?: string;
+  vendor_esign_consent?: VendorEsignConsent;
   /** The couple's view only (backend DECISIONS #27). */
   esign_consent?: EsignConsent;
   signing_code_required?: boolean;
@@ -1283,6 +1306,12 @@ export interface AttachedDocument {
 export interface EsignConsent {
   version: string;
   text: string;
+}
+
+/** The same words for the vendor's countersignature, asked only until
+ *  they've agreed to this version once (backend DECISIONS #34). */
+export interface VendorEsignConsent extends EsignConsent {
+  given: boolean;
 }
 
 /** What a signature by link sends besides the name (backend DECISIONS #27). */
@@ -1329,10 +1358,19 @@ export interface GuestBooking {
   guest_phone: string | null;
   signer_name: string | null;
   signed_at: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
   payment_status: string;
   /** "rejected" once voided or declined — the link still opens, but
    *  nothing on it can be acted on. */
   status?: string;
+  /** "vendor_declined_signature" when the vendor wouldn't countersign;
+   *  their reason is vendor_decline_note. */
+  rejected_reason?: string | null;
+  vendor_decline_note?: string | null;
   contract_status?: ContractLifecycle | null;
   /** Until when the vendor is holding this date for the client. */
   hold_expires_at?: string | null;
@@ -1440,8 +1478,9 @@ export interface PipelineItem {
   contract_status: string | null;
   hold_expires_at: string | null;
   attention: PipelineAttention | null;
-  /** changes_proposed, new_request, new_lead, draft, counter_offer,
-   *  declined, expired — or, while waiting: sent, viewed, revised,
+  /** countersign (the client signed; the vendor's turn), changes_proposed,
+   *  new_request, new_lead, draft, counter_offer, declined, expired — or,
+   *  while waiting: sent, viewed, revised,
    *  counter_sent, contacted, quoted. */
   attention_reason: string | null;
   proposal_status?: ProposalStatus | null;

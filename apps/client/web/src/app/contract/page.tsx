@@ -72,7 +72,9 @@ function standing(c: Contract, token: string): { text: string; tone: string } {
   if (stage === "deposit_due" || stage === "contract_to_review" || stage === "new_version") {
     return { text: STAGE_LABELS[stage], tone: "text-gold" };
   }
-  if (stage === "changes_proposed") return { text: STAGE_LABELS[stage], tone: "text-ink-soft" };
+  if (stage === "changes_proposed" || stage === "awaiting_vendor") {
+    return { text: STAGE_LABELS[stage], tone: "text-ink-soft" };
+  }
   // Signed but off the lifecycle — a booking cancelled after signing.
   if (c.signed_at) return { text: "Signed", tone: "text-ink-soft" };
   switch (c.contract_status) {
@@ -216,7 +218,10 @@ function ContractInner() {
   const status = standing(c, token);
   const rows = paymentRows(c);
   const awaitingSignature = !c.signed_at && (c.contract_status === "sent" || c.contract_status === "viewed");
-  const signed = signedOn(c.signed_at);
+  // The client signs first, then the vendor; it's booked once both have
+  // (backend DECISIONS #34). Older contracts have only signed_at.
+  const clientSigned = signedOn(c.client_signed_at ?? c.signed_at);
+  const vendorSigned = c.vendor_signer_name ? signedOn(c.vendor_signed_at ?? c.signed_at) : null;
 
   return (
     <div className="mx-auto w-[min(var(--container-page),100%-2rem)] py-10">
@@ -331,12 +336,20 @@ function ContractInner() {
           <Terms c={c} />
         </Section>
 
-        {c.signed_at ? (
-          <Section title="Signature">
+        {c.signed_at || c.client_signed_at ? (
+          <Section title="Signatures">
             <p className="text-sm text-ink">
               Signed by <span className="font-semibold">{c.signer_name}</span>
-              {signed ? ` on ${signed}` : ""}.
+              {clientSigned ? ` on ${clientSigned}` : ""}.
             </p>
+            {c.vendor_signer_name ? (
+              <p className="text-sm text-ink">
+                Signed for {vendor} by <span className="font-semibold">{c.vendor_signer_name}</span>
+                {vendorSigned ? ` on ${vendorSigned}` : ""}.
+              </p>
+            ) : !c.signed_at ? (
+              <p className="text-sm text-ink-soft">Waiting for {vendor} to sign. It&apos;s booked once they do.</p>
+            ) : null}
             {c.signed_snapshot_sha256 ? (
               <p className="mt-1 text-xs text-ink-faint">
                 Fingerprint of the signed copy:{" "}

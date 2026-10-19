@@ -19,6 +19,8 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   archiveBooking,
+  countersignContract,
+  declineContractSignature,
   getContract,
   getMyVendor,
   getPipeline,
@@ -38,12 +40,14 @@ import { Drawer, FilterTabs, PageHeader, StatTile, StatusPill, type Tone } from 
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
 import { InquiryShareButton } from "@/components/vendor/InquiryShare";
+import { CountersignPanel } from "@/components/vendor/CountersignPanel";
 
 type Filter = "all" | "inquiry" | "negotiation" | "archived";
 type Sort = "recent" | "upcoming" | "value";
 type Look = "attention" | "waiting" | "inquiry";
 
 const REASON: Record<string, string> = {
+  countersign: "They signed — it's booked once you sign too",
   changes_proposed: "They proposed changes to the contract",
   revised: "Your new version is with them",
   new_request: "New request — they're waiting for your reply",
@@ -213,6 +217,7 @@ function LeadDrawer({
   onChanged: () => void;
   onNegotiate: (bookingId: string) => void;
 }) {
+  const router = useRouter();
   const [contract, setContract] = useState<Contract | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -306,7 +311,8 @@ function LeadDrawer({
               <Icon name="messages" size={16} /> Message
             </Link>
           ) : null}
-          {item.outcome ? null : (
+          {/* Signed by the client: theirs to sign or decline, not to shelve. */}
+          {item.outcome || item.contract_status === "awaiting_vendor" ? null : (
             <Button
               variant="quiet"
               className="ml-auto"
@@ -364,6 +370,27 @@ function LeadDrawer({
       {/* What this stage can do. A closed lead has nothing left to do. */}
       <div className={`mt-6 ${item.outcome ? "hidden" : ""}`}>
         <p className="eyebrow">Next step</p>
+        {isContract && status === "awaiting_vendor" ? (
+          <div className="mt-2.5">
+            {/* Once it's signed or declined it leaves Leads, so the contract
+                page is where the vendor lands, with what happened. */}
+            <CountersignPanel
+              clientName={item.name}
+              clientSignedAt={contract?.client_signed_at}
+              what="the contract"
+              freesDate={eventDate(item.event_date)}
+              consent={contract?.vendor_esign_consent}
+              onSign={(input) => countersignContract(item.booking_id!, input)}
+              onDecline={(reason) => declineContractSignature(item.booking_id!, reason)}
+              onDone={(message) =>
+                router.push(`/contracts/view?id=${item.booking_id}&notice=${encodeURIComponent(message)}`)
+              }
+            />
+            <Link href={`/contracts/view?id=${item.booking_id}`} className="mt-2 inline-block text-sm font-semibold text-gold">
+              Read what they signed
+            </Link>
+          </div>
+        ) : null}
         <div className="mt-2.5 flex flex-wrap gap-2">
           {item.source === "request" ? (
             <>

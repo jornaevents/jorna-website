@@ -27,10 +27,13 @@ export function contractViewPath(token: string): string {
 }
 
 /** Where a booking's contract stands, as far as the client has anything to
- *  do: "sign" (it's waiting on them), "expired" (it lapsed unsigned), or
- *  null — no contract, or nothing left to sign. */
-export function contractStep(b: BundleBooking): "sign" | "expired" | null {
+ *  do: "sign" (it's waiting on them), "expired" (it lapsed unsigned),
+ *  "awaiting_vendor" (they signed; nothing is owed until the vendor signs
+ *  too, backend DECISIONS #34), or null — no contract, or nothing left to
+ *  sign. */
+export function contractStep(b: BundleBooking): "sign" | "expired" | "awaiting_vendor" | null {
   if (!b.contract_token || b.signed_at) return null;
+  if (b.contract_status === "awaiting_vendor") return "awaiting_vendor";
   if (b.contract_status === "sent" || b.contract_status === "viewed") return "sign";
   if (b.contract_status === "expired") return "expired";
   return null;
@@ -53,6 +56,7 @@ export type BookingStage =
   | "contract_to_review"
   | "changes_proposed"
   | "new_version"
+  | "awaiting_vendor"
   | "deposit_due"
   | "confirmed"
   | "completed";
@@ -73,6 +77,7 @@ export function bookingStage(
     return schedule.length > 1 && !schedule[0].confirmed_at ? "deposit_due" : "confirmed";
   }
   if (b.contract_token) {
+    if (b.contract_status === "awaiting_vendor") return "awaiting_vendor";
     if (b.contract_status !== "sent" && b.contract_status !== "viewed") return null;
     // Negotiation (DECISIONS #23): the client's proposal is with the vendor,
     // or the vendor has answered it with a version to read.
@@ -90,6 +95,7 @@ export const STAGE_LABELS: Record<BookingStage, string> = {
   contract_to_review: "Contract to review",
   changes_proposed: "Changes proposed",
   new_version: "New version to review",
+  awaiting_vendor: "Signed · waiting for the vendor to sign",
   deposit_due: "Signed · deposit due",
   confirmed: "Confirmed",
   completed: "Completed",

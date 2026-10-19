@@ -57,6 +57,8 @@ export function documentStatus(d: AttachedDocument): { label: string; tone: Docu
       return { label: "Sent", tone: "amber" };
     case "viewed":
       return { label: "Viewed", tone: "amber" };
+    case "awaiting_vendor":
+      return { label: "Your signature", tone: "red" };
     case "signed":
       return { label: "Signed", tone: "green" };
     case "declined":

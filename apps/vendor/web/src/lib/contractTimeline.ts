@@ -66,6 +66,13 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       return `You edited it${typeof d.revision === "number" ? ` (version ${d.revision})` : ""}`;
     case "signed":
       return `Signed by ${typeof d.signer_name === "string" ? d.signer_name : c.signer_name ?? "your client"}${forName(d)}`;
+    // The vendor's half (backend DECISIONS #34).
+    case "countersigned":
+      return `You signed it${typeof d.signer_name === "string" ? ` as ${d.signer_name}` : ""} — it's booked`;
+    case "signature_declined":
+      return `You didn't sign${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
+    case "countersign_reminder":
+      return d.which === "day3" ? "Reminded you to sign — 3 days since your client did" : "Reminded you to sign";
     case "declined":
       return `Your client declined${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "voided":
@@ -125,6 +132,10 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       return "Your client opened an attached document";
     case "document_signed":
       return `${typeof d.signer_name === "string" ? d.signer_name : "Your client"} signed “${docTitle(d)}”${forName(d)}`;
+    case "document_countersigned":
+      return `You signed “${docTitle(d)}”`;
+    case "document_signature_declined":
+      return `You didn't sign “${docTitle(d)}”${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "document_declined":
       return `Your client declined an attached document${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
     case "document_voided":
