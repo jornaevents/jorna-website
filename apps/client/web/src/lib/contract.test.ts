@@ -119,6 +119,13 @@ describe("bookingStage", () => {
     );
   });
 
+  it("waits on the vendor once the client has signed, with nothing to pay yet (backend #34)", () => {
+    const waiting = booking({ contract_status: "awaiting_vendor", client_signed_at: "2026-05-01T00:00:00Z" });
+    expect(bookingStage(waiting)).toBe("awaiting_vendor");
+    expect(contractStep(waiting)).toBe("awaiting_vendor");
+    expect(paymentRows({ ...waiting, payment_schedule: [inst()] })).toEqual([]);
+  });
+
   it("is Contract to review while a sent contract is unsigned", () => {
     expect(bookingStage(booking())).toBe("contract_to_review");
     expect(bookingStage(booking({ contract_status: "viewed" }))).toBe("contract_to_review");

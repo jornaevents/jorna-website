@@ -884,3 +884,14 @@ Backend #123, DECISIONS #33 there. Spec and plan: https://claude.ai/artifact/3iX
 - **"I've sent this" on the booking link asks how** (the vendor's own Venmo/Zelle first, then Other), and the contract page shows "by Zelle".
 - **Testing:** the e2e suite runs with escrow on for the Stripe specs. Specs named `*.noescrow.spec.ts` run in a second Playwright project against a second dev server built with escrow off (its own `.next-noescrow` folder, via `NEXT_DIST_DIR`).
 
+
+## Decision: the vendor countersigns after the client (2026-10-19)
+
+Backend #127, DECISIONS #34 there. A contract (or addendum/cancellation) the client signed now waits as `awaiting_vendor`; `signed_at` is set only by the vendor's countersignature, so everything that reads `signed_at` as "booked" stays right.
+
+- **Where the vendor signs:** `components/vendor/CountersignPanel.tsx`, on the Leads drawer (the lead's Next step; it says `countersign`) and on `/contracts/view`, for the contract and for each document waiting on them. Typed full legal name, prefilled from the account, plus the e-records consent only while `vendor_esign_consent.given` is false. No emailed code: they're signed in.
+- **Don't sign** asks for a reason (required) and says the date opens up; the client is emailed it, and their link shows it (`rejected_reason: vendor_declined_signature`).
+- **Once the client has signed, nothing changes:** no Edit, Void, Resend or negotiation on the contract page, and no Archive on the lead.
+- **Leads drawer → contract page after signing or declining**, with what happened as the `notice`: the lead leaves Leads as soon as it's signed, which would close the drawer.
+- **Contracts list:** `vendorPlan.contractStatus` has `countersign` ("Your signature", needs you).
+- **Client side:** the booking link and an attached document say "Waiting for <vendor> to sign" with nothing to pay; the client app's `bookingStage`/`contractStep` have `awaiting_vendor` (no sign task, no payment buttons), and `/contract` shows both signatures.

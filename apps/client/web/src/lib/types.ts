@@ -363,12 +363,27 @@ export interface BundleBooking {
    *  site's no-login page (backend DECISIONS.md #17) — see lib/contract.ts.
    *  Null on a request accepted before that, which has nothing to sign. */
   contract_token?: string | null;
-  contract_status?: "draft" | "sent" | "viewed" | "signed" | "declined" | "voided" | "expired" | null;
+  /** awaiting_vendor: the client signed; it waits on the vendor's signature. */
+  contract_status?:
+    | "draft"
+    | "sent"
+    | "viewed"
+    | "awaiting_vendor"
+    | "signed"
+    | "declined"
+    | "voided"
+    | "expired"
+    | null;
   /** The latest change proposal on an unsigned contract (backend
    *  DECISIONS #23): "open" while the vendor owes an answer; "accepted" or
    *  "revised" once a new version is back. Null when there's none. */
   proposal_status?: ProposalStatus | null;
   signed_at?: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too, which is what books it (backend DECISIONS #34). */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
   hold_expires_at?: string | null;
   /** The contract's payments, in order. Null for a booking paid in one go,
    *  which payment_status describes on its own. See lib/contract's
@@ -535,6 +550,11 @@ export interface Contract {
   guest_email?: string | null;
   signer_name?: string | null;
   signed_at?: string | null;
+  /** The client's own signature; signed_at is set only once the vendor has
+   *  countersigned too, which is what books it (backend DECISIONS #34). */
+  client_signed_at?: string | null;
+  vendor_signer_name?: string | null;
+  vendor_signed_at?: string | null;
   signed_snapshot_sha256?: string | null;
   status?: string;
   contract_status?: BundleBooking["contract_status"];

@@ -649,6 +649,22 @@ function BookingLinkInner() {
     );
   }
 
+  // The client signed and the vendor chose not to (backend DECISIONS #34).
+  if (booking.status === "rejected" && booking.rejected_reason === "vendor_declined_signature") {
+    return (
+      <Shell>
+        <p className="eyebrow">Not signed</p>
+        <h1 className="serif mt-2 text-2xl text-maroon dark:text-gold">{vendorName} didn&apos;t sign this</h1>
+        <p className="mt-3 text-ink-soft">
+          You signed, but {vendorName} decided not to, so it isn&apos;t booked and nothing is owed.
+        </p>
+        {booking.vendor_decline_note ? (
+          <p className="mt-3 text-ink-soft">They said: “{booking.vendor_decline_note}”</p>
+        ) : null}
+      </Shell>
+    );
+  }
+
   // Voided by the vendor. The backend still serves the link so this can say
   // so, instead of the generic "not valid" a dead token gets.
   if (booking.status === "rejected") {
@@ -679,6 +695,34 @@ function BookingLinkInner() {
           resend it — they&apos;ll check the date is still free.
         </p>
       </Shell>
+    );
+  }
+
+  // Signed by the client; booked once the vendor signs too (DECISIONS #34).
+  if (booking.contract_status === "awaiting_vendor" && !booking.signed_at) {
+    return (
+      <div className="mx-auto w-[min(560px,100%-2rem)] py-14">
+        <div className="text-center">
+          <p className="eyebrow">You signed</p>
+          <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">Waiting for {vendorName} to sign</h1>
+          <p className="mt-2 text-ink-soft">
+            Signed by {booking.signer_name}
+            {booking.client_signed_at ? ` on ${mediumDate(booking.client_signed_at)}` : ""}. {vendorName} signs next,
+            and it&apos;s booked once they do. {prettyDate(booking.date_iso)} is held for you until then.
+          </p>
+          <p className="mt-2 text-ink-soft">We&apos;ll email you the signed copy, with both signatures, as soon as it&apos;s booked.</p>
+        </div>
+        <Card className="mt-6 p-5">
+          <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
+          </p>
+          <p className="text-sm text-ink-faint">{booking.location}</p>
+          <Items booking={booking} />
+          <p className="mt-3 text-sm text-ink-soft">Total: {money(booking.amount_cents)}</p>
+        </Card>
+        <p className="mt-4 text-center text-sm text-ink-faint">Nothing is due until {vendorName} has signed.</p>
+      </div>
     );
   }
 
@@ -730,7 +774,11 @@ function BookingLinkInner() {
           <p className="eyebrow">Signed</p>
           <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">You signed with {vendorName}</h1>
           <p className="mt-2 text-ink-soft">
-            Signed by {booking.signer_name} on {mediumDate(booking.signed_at)}.
+            Signed by {booking.signer_name} on {mediumDate(booking.client_signed_at ?? booking.signed_at)}
+            {booking.vendor_signer_name
+              ? ` and by ${booking.vendor_signer_name} on ${mediumDate(booking.vendor_signed_at ?? booking.signed_at)}`
+              : ""}
+            .
           </p>
           {securedBy ? (
             <p className="mt-1 text-ink-soft">

@@ -307,6 +307,24 @@ describe("contractStatus", () => {
     expect(contractStatus(contract({ contract_status: "viewed" }))).toBe("awaiting_signature");
   });
 
+  it("is the vendor's to sign once the client has, and booked only after (backend #34)", () => {
+    const waiting = contractStatus(
+      contract({ contract_status: "awaiting_vendor", client_signed_at: "2026-05-01T00:00:00Z", deposit_percent: 25 }),
+    );
+    expect(waiting).toBe("countersign");
+    expect(contractNeedsVendor(waiting)).toBe(true);
+    expect(
+      contractStatus(
+        contract({
+          contract_status: "signed",
+          client_signed_at: "2026-05-01T00:00:00Z",
+          signed_at: "2026-05-02T00:00:00Z",
+          deposit_percent: 25,
+        }),
+      ),
+    ).toBe("deposit_due");
+  });
+
   it("says declined rather than cancelled when the client turned it down", () => {
     expect(
       contractStatus(contract({ status: "rejected", contract_status: "declined" })),

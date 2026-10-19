@@ -1106,6 +1106,37 @@ export function voidDocument(documentId: string): Promise<AttachedDocument> {
   return apiFetch(`/contract-documents/${documentId}/void`, { method: "POST" });
 }
 
+// The vendor's countersignature on what the client signed (backend
+// DECISIONS #34): it's booked only once they sign too. `consent` is needed
+// only while vendor_esign_consent.given is false.
+
+export interface CountersignInput {
+  signerName: string;
+  consentVersion?: string | null;
+}
+
+function countersignBody({ signerName, consentVersion }: CountersignInput) {
+  return { signer_name: signerName, ...(consentVersion ? { consent: true, consent_version: consentVersion } : {}) };
+}
+
+export function countersignContract(bookingId: string, input: CountersignInput): Promise<Contract> {
+  return apiFetch<Contract>(`/contracts/${bookingId}/countersign`, { method: "POST", body: countersignBody(input) });
+}
+
+/** Won't sign what the client signed: voids it, frees the date, and emails
+ *  the client the reason. */
+export function declineContractSignature(bookingId: string, reason: string): Promise<Contract> {
+  return apiFetch<Contract>(`/contracts/${bookingId}/decline-signature`, { method: "POST", body: { reason } });
+}
+
+export function countersignDocument(documentId: string, input: CountersignInput): Promise<AttachedDocument> {
+  return apiFetch(`/contract-documents/${documentId}/countersign`, { method: "POST", body: countersignBody(input) });
+}
+
+export function declineDocumentSignature(documentId: string, reason: string): Promise<AttachedDocument> {
+  return apiFetch(`/contract-documents/${documentId}/decline-signature`, { method: "POST", body: { reason } });
+}
+
 /** Withdraw an unsigned contract, freeing its date. Signed ones 400. */
 export function voidContract(bookingId: string): Promise<Contract> {
   return apiFetch<Contract>(`/contracts/${bookingId}/void`, { method: "POST" });

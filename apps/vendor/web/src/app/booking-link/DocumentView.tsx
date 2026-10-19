@@ -136,6 +136,26 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
     );
   }
 
+  // Signed by the client; it applies once the vendor signs too (DECISIONS #34).
+  if (doc.status === "awaiting_vendor") {
+    return (
+      <div className="mx-auto w-[min(640px,100%-2rem)] py-14">
+        <div className="text-center">
+          <p className="eyebrow">You signed</p>
+          <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">Waiting for {vendorName} to sign</h1>
+          <p className="mt-2 text-ink-soft">
+            Signed by {doc.signer_name}
+            {doc.client_signed_at ? ` on ${prettyDate(doc.client_signed_at)}` : ""}. Once {vendorName} signs too, it&apos;s
+            part of {forBooking}, and we&apos;ll email you the signed copy.
+          </p>
+        </div>
+        <Card className="mt-6 p-6">
+          <Sections doc={doc} />
+        </Card>
+      </div>
+    );
+  }
+
   if (doc.status === "signed") {
     return (
       <div className="mx-auto w-[min(640px,100%-2rem)] py-14">
@@ -143,7 +163,9 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
           <p className="eyebrow">Signed</p>
           <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">{doc.title}</h1>
           <p className="mt-2 text-ink-soft">
-            Signed by {doc.signer_name} on {prettyDate(doc.signed_at)}. It&apos;s part of {forBooking}.
+            Signed by {doc.signer_name}
+            {doc.vendor_signer_name ? ` and ${doc.vendor_signer_name}` : ""} on {prettyDate(doc.signed_at)}. It&apos;s part
+            of {forBooking}.
           </p>
         </div>
         <Card className="mt-6 p-6">

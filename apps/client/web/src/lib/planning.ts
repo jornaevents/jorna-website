@@ -352,6 +352,8 @@ function bookingTask(b: BundleBooking): PlanTask | null {
       bookingId: b.booking_id,
     };
   }
+  // Signed by the client; nothing is theirs to do until the vendor signs.
+  if (step === "awaiting_vendor") return null;
   if (step === "expired") {
     return {
       id: `expired-${b.booking_id}`,

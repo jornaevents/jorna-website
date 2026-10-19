@@ -14,6 +14,10 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   confirmInstallment,
+  countersignContract,
+  countersignDocument,
+  declineContractSignature,
+  declineDocumentSignature,
   getContract,
   listDocuments,
   sendContract,
@@ -34,6 +38,7 @@ import {
 import { describeEvent, prettyDate, visibleEvents } from "@/lib/contractTimeline";
 import { changesWaiting } from "@/lib/vendorPlan";
 import type { AttachedDocument, Contract, Installment } from "@/lib/types";
+import { CountersignPanel } from "@/components/vendor/CountersignPanel";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { StatusPill } from "@/components/vendor/ui";
 
@@ -51,6 +56,7 @@ const STATUS_LABEL: Record<string, string> = {
   draft: "Draft — not sent",
   sent: "Sent — not opened yet",
   viewed: "Opened — awaiting signature",
+  awaiting_vendor: "Signed by your client — your signature next",
   expired: "Expired — date released",
   signed: "Signed",
   declined: "Declined",
@@ -84,6 +90,8 @@ function ContractViewInner() {
   const [copied, setCopied] = useState(false);
   const [confirmVoid, setConfirmVoid] = useState(false);
   const [emailOnSend, setEmailOnSend] = useState(true);
+  /** What signing or declining just did (the countersign panel). */
+  const [done, setDone] = useState<string | null>(null);
   /** The send went through but the client's email didn't (backend email_sent). */
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
@@ -163,7 +171,11 @@ function ContractViewInner() {
 
   const status = c.contract_status ?? (c.signed_at ? "signed" : "sent");
   const closed = status === "declined" || status === "voided";
-  const unsigned = !c.signed_at && !closed;
+  // The client signed and it waits on the vendor (backend DECISIONS #34):
+  // nothing can change now, only sign or decline.
+  const awaitingVendor = status === "awaiting_vendor";
+  const unsigned = !c.signed_at && !closed && !awaitingVendor;
+  const client = c.guest_name || c.signer_name || "Your client";
   const canSend = unsigned && (status === "draft" || status === "expired" || status === "sent" || status === "viewed");
   const lines = c.line_items ?? [];
   // The client's changes waiting on the vendor: the status says so and the
@@ -200,9 +212,35 @@ function ContractViewInner() {
         ) : null
       ) : null}
 
-      {notice ? (
+      {notice || done ? (
         <p role="status" className="mt-4 rounded-lg bg-ground-2 px-3 py-2 text-sm text-ink-soft">
-          ✓ {notice}
+          ✓ {done ?? notice}
+        </p>
+      ) : null}
+
+      {awaitingVendor ? (
+        <div className="mt-4">
+          <CountersignPanel
+            clientName={client}
+            clientSignedAt={c.client_signed_at}
+            what="the contract"
+            freesDate={prettyDate(c.date_iso)}
+            consent={c.vendor_esign_consent}
+            onSign={(input) => countersignContract(c.booking_id, input)}
+            onDecline={(reason) => declineContractSignature(c.booking_id, reason)}
+            onDone={(message) => {
+              setDone(message);
+              act("reload", async () => {});
+            }}
+          />
+        </div>
+      ) : null}
+
+      {c.signed_at && c.vendor_signer_name ? (
+        <p className="mt-3 text-sm text-ink-soft">
+          Signed by {c.signer_name}
+          {c.client_signed_at ? ` on ${prettyDate(c.client_signed_at)}` : ""} and by you ({c.vendor_signer_name}) on{" "}
+          {prettyDate(c.vendor_signed_at ?? c.signed_at)}.
         </p>
       ) : null}
 
@@ -461,7 +499,11 @@ function ContractViewInner() {
                         <p className="truncate text-ink">{d.title}</p>
                         <p className="text-xs text-ink-faint">
                           {KIND_LABEL[d.kind]}
-                          {d.signed_at ? ` · signed by ${d.signer_name} ${prettyDate(d.signed_at)}` : ""}
+                          {d.signed_at
+                            ? ` · signed by ${d.signer_name}${d.vendor_signer_name ? ` and ${d.vendor_signer_name}` : ""} ${prettyDate(d.signed_at)}`
+                            : d.status === "awaiting_vendor"
+                              ? ` · signed by ${d.signer_name} — your signature next`
+                              : ""}
                           {d.decline_reason ? ` · “${d.decline_reason}”` : ""}
                         </p>
                       </div>
@@ -519,6 +561,23 @@ function ContractViewInner() {
                           </>
                         ) : null}
                       </span>
+                      {d.status === "awaiting_vendor" ? (
+                        <div className="basis-full">
+                          <CountersignPanel
+                            clientName={d.signer_name || client}
+                            clientSignedAt={d.client_signed_at}
+                            what={`“${d.title}”`}
+                            freesDate={null}
+                            consent={d.vendor_esign_consent}
+                            onSign={(input) => countersignDocument(d.document_id, input)}
+                            onDecline={(reason) => declineDocumentSignature(d.document_id, reason)}
+                            onDone={(message) => {
+                              setDone(message);
+                              act("reload", async () => {});
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </li>
                   );
                 })}

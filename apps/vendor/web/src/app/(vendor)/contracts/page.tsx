@@ -50,6 +50,8 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
       return { label: "Draft", tone: "grey" };
     case "changes_waiting":
       return { label: "Your turn", tone: "red" };
+    case "countersign":
+      return { label: "Your signature", tone: "red" };
     case "awaiting_signature":
       return b.viewed_at ? { label: "Viewed", tone: "amber" } : { label: "Sent", tone: "amber" };
     case "expired":
@@ -102,6 +104,9 @@ function offerLine(b: VendorBooking, s: ContractStatus): string | null {
   if (s === "changes_waiting") {
     const n = changesWaiting(b);
     return `${clientOf(b)} asked for ${n === 1 ? "a change" : `${n} changes`} — answer them`;
+  }
+  if (s === "countersign") {
+    return `${b.signer_name || clientOf(b)} signed${b.client_signed_at ? ` ${prettyDate(b.client_signed_at)}` : ""} — add your signature to book it`;
   }
   if (b.signed_at && b.signer_name) {
     // Who signed, and whether that's who the contract is for (#167).
