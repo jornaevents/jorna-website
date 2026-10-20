@@ -45,8 +45,9 @@ const IconInstagram = (
 function StorefrontAvatar({ src, name }: { src?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   if (src && !failed) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // The static export can't use next/image.
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={name}
