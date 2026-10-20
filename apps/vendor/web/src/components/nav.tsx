@@ -194,16 +194,16 @@ export const VENDOR_DESKTOP_TABS: NavItem[] = [
     match: ["/my-bookings"],
   },
   {
-    href: "/contracts",
-    label: "Contracts",
-    icon: icon(I.document),
-    match: ["/contracts"],
-  },
-  {
     href: "/leads",
     label: "Leads",
     icon: icon(I.leads),
     match: ["/leads"],
+  },
+  {
+    href: "/contracts",
+    label: "Contracts",
+    icon: icon(I.document),
+    match: ["/contracts"],
   },
   {
     href: "/my-calendar",

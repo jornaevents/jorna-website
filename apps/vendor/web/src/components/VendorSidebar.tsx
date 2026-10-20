@@ -36,13 +36,12 @@ interface SidebarItem {
 const prefix = (...paths: string[]) => (pathname: string) =>
   paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+// Order agreed 2026-10-20. The vendor's profile isn't in this list: the
+// profile card at the bottom of the rail opens it.
 const ITEMS: SidebarItem[] = [
   { href: "/overview", label: "Overview", icon: "overview", match: prefix("/overview") },
   { href: "/my-bookings", label: "Bookings", icon: "bookings", match: prefix("/my-bookings"), badge: "bookings" },
-  { href: "/contracts", label: "Contracts", icon: "contract", match: prefix("/contracts") },
-  { href: "/my-calendar", label: "Calendar", icon: "calendar", match: prefix("/my-calendar") },
   { href: "/leads", label: "Leads", icon: "leads", match: prefix("/leads"), badge: "leads" },
-  { href: "/vendor-profile", label: "Vendor Profile", icon: "profile", match: prefix("/vendor-profile") },
   // A thread lives at /conversation, so it keeps Messages lit too.
   {
     href: "/messages",
@@ -51,8 +50,12 @@ const ITEMS: SidebarItem[] = [
     match: prefix("/messages", "/conversation"),
     badge: "messages",
   },
+  { href: "/contracts", label: "Contracts", icon: "contract", match: prefix("/contracts") },
+  { href: "/my-calendar", label: "Calendar", icon: "calendar", match: prefix("/my-calendar") },
   { href: "/my-earnings", label: "Earnings", icon: "earnings", match: prefix("/my-earnings") },
 ];
+
+const onProfile = prefix("/vendor-profile");
 
 const SETTINGS: SidebarItem = {
   href: "/settings",
@@ -238,8 +241,13 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
       <Link
         href="/vendor-profile"
         onClick={onNavigate}
-        style={{ background: "var(--rail-hover)", borderColor: "var(--rail-edge)" }}
-        className="flex items-center gap-2.5 rounded-xl border p-2.5 text-white"
+        aria-label={`Your profile: ${name || "Your business"}`}
+        aria-current={onProfile(pathname) ? "page" : undefined}
+        style={{
+          background: "var(--rail-hover)",
+          borderColor: onProfile(pathname) ? "var(--rail-gold)" : "var(--rail-edge)",
+        }}
+        className="flex items-center gap-2.5 rounded-xl border p-2.5 text-white transition hover:brightness-110"
       >
         <Avatar src={vendor?.pfp_url} name={name} size={36} />
         <span className="grid min-w-0">
