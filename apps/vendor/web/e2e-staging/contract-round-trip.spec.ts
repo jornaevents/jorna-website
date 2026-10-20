@@ -77,15 +77,29 @@ test.describe("staging: contract round trip", () => {
       await page.getByRole("checkbox", { name: /I agree to sign this agreement electronically/ }).check();
     }
     await page.getByRole("button", { name: "Confirm booking →" }).click();
-    await expect(page.getByText(/Signed by/)).toBeVisible({ timeout: 20_000 });
+    // The client's signature waits on the vendor's (backend DECISIONS #34).
+    await expect(page.getByRole("heading", { name: /Waiting for .* to sign/ })).toBeVisible({ timeout: 20_000 });
 
-    const signed = await api<{ signed_at: string | null; guest_count: number | null }>(`/contracts/${contract.booking_id}`, { token });
-    expect(signed.signed_at).toBeTruthy();
-    if (fields) expect(signed.guest_count).toBe(150);
+    type Signatures = { signed_at: string | null; client_signed_at: string | null; contract_status: string; guest_count: number | null };
+    const waiting = await api<Signatures>(`/contracts/${contract.booking_id}`, { token });
+    expect(waiting.client_signed_at).toBeTruthy();
+    expect(waiting.signed_at).toBeNull();
+    expect(waiting.contract_status).toBe("awaiting_vendor");
+    if (fields) expect(waiting.guest_count).toBe(150);
 
-    // And the vendor sees it signed on their contract page.
+    // The vendor countersigns on their contract page, which books it.
     await signInPage(page, vendor.tokens);
     await page.goto(`contracts/view/?id=${contract.booking_id}`);
-    await expect(page.getByText(/Signed/).first()).toBeVisible();
+    await page.getByRole("button", { name: "Sign", exact: true }).click();
+    await page.getByLabel("Your full legal name").fill("Staging Vendor");
+    // Asked once per vendor; a vendor from an earlier run already agreed.
+    const consent = page.getByRole("checkbox");
+    if (await consent.isVisible()) await consent.check();
+    await page.getByRole("button", { name: "Sign", exact: true }).click();
+    await expect(page.getByText(/Signed\. It's booked/)).toBeVisible({ timeout: 20_000 });
+
+    const booked = await api<Signatures>(`/contracts/${contract.booking_id}`, { token });
+    expect(booked.signed_at).toBeTruthy();
+    expect(booked.contract_status).toBe("signed");
   });
 });
