@@ -905,5 +905,9 @@ Backend #130 and #131, DECISIONS #35 there.
   - Before typing, the picker shows popular chips and a "Browse all services" list grouped by category.
 - **Onboarding step 1 and the profile's About section** use it for "Services you offer" and save `specialties`. The backend derives `category`, `subcategory` and `specializations` from those for older readers.
 - **"Which of these do you offer?"** appears for each entry in the vendor's `service_picks_needed` (an old category such as Beauty that doesn't say which service). It goes away as soon as one of its choices is picked.
-- **Not yet:** the package form, which still uses `/vendors/categories`, and the client surfaces. They're next.
+- **The package form** (`ServicesManager`) asks "What is this package?". The choices are the vendor's own services, as chips; "Something else…" opens the full picker, and saving adds that service to their specialties server-side. Under it are the details clients filter by (cuisine, venue type, capacity…), drawn by attribute type (`components/packages/AttributeFields.tsx`).
+  - Changing the service clears the old service's details.
+  - A package saved under a vague old category has no `service_key` yet, so editing it asks the vendor to choose before saving.
+  - The free-text "Speciality" for Other is gone; Other is now a service like any other.
+- **Not yet:** the client surfaces. They're next.
 - **Ship order:** this needs the backend's 0080 live first. An older backend ignores `specialties`, so a new vendor would be saved as "other".

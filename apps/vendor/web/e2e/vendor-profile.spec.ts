@@ -15,6 +15,7 @@ function pkg(overrides: Record<string, unknown> = {}) {
     price: 1400,
     price_unit: "event",
     category: "photography",
+    service_key: "photography",
     status: "active",
     inclusions: [],
     add_ons: [],
@@ -136,4 +137,39 @@ test("a vague old category asks which service, and the answer saves as specialti
   await expect(about.getByText("Saved", { exact: true })).toBeVisible();
   const [call] = api.requestsTo("PATCH", "/vendors/me");
   expect(call.body).toMatchObject({ specialties: ["photography", "mehndi_artist"] });
+});
+
+test("a package names its service from the vendor's own and fills that service's details", async ({ page, api }) => {
+  const { setServices } = await openProfile(page, api, {
+    vendor: { bio: "Caterer and photographer.", specialties: ["photography", "catering"] },
+  });
+  api.patch("/services/svc-1", ({ route }: HandlerArgs) => {
+    const updated = pkg(route.request().postDataJSON());
+    setServices([updated]);
+    return updated;
+  });
+  await page.getByRole("button", { name: /Reception set/ }).first().click();
+  await page.getByRole("button", { name: "Edit package" }).click();
+
+  const what = page.getByRole("radiogroup", { name: "What is this package?" });
+  await expect(what.getByRole("button", { name: "Photographer" })).toHaveAttribute("aria-pressed", "true");
+  await what.getByRole("button", { name: "Caterer" }).click();
+  const cuisine = page.getByRole("group", { name: "Cuisine" });
+  await cuisine.getByRole("button", { name: "Punjabi" }).click();
+  await cuisine.getByRole("button", { name: "Gujarati" }).click();
+  await page.locator("form").getByRole("button", { name: /Save/ }).first().click();
+
+  await expect.poll(() => api.requestsTo("PATCH", "/services/svc-1").length).toBe(1);
+  const [call] = api.requestsTo("PATCH", "/services/svc-1");
+  expect(call.body).toMatchObject({ service_key: "catering", attributes: { cuisine: ["punjabi", "gujarati"] } });
+  expect(call.body).not.toHaveProperty("category");
+});
+
+test("a package saved under a vague old category has to say what it is", async ({ page, api }) => {
+  await openProfile(page, api, { services: [pkg({ service_key: null, category: "beauty" })] });
+  await page.getByRole("button", { name: /Reception set/ }).first().click();
+  await page.getByRole("button", { name: "Edit package" }).click();
+  await page.locator("form").getByRole("button", { name: /Save/ }).first().click();
+  await expect(page.getByText("Choose what this package is.")).toBeVisible();
+  expect(api.requestsTo("PATCH", "/services/svc-1")).toHaveLength(0);
 });
