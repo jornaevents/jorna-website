@@ -128,9 +128,26 @@ export function mockServiceTaxonomy() {
   });
   return {
     version: "e2e",
-    attributes: {},
+    attributes: {
+      cuisine: {
+        key: "cuisine",
+        label: "Cuisine",
+        type: "multi",
+        options: [
+          { key: "punjabi", label: "Punjabi" },
+          { key: "gujarati", label: "Gujarati" },
+          { key: "south_indian", label: "South Indian" },
+        ],
+      },
+    },
     groups: [
       { key: "photo_video", label: "Photo & Video", bundle: false, services: [svc("photography", "Photographer", ["photos", "candid"], 4)] },
+      {
+        key: "food_drink",
+        label: "Food & Drink",
+        bundle: false,
+        services: [{ ...svc("catering", "Caterer", ["catering", "food"], 2), attributes: ["cuisine"] }],
+      },
       { key: "entertainment", label: "Entertainment", bundle: true, services: [svc("dj", "DJ", ["disc jockey"], 5)] },
       {
         key: "beauty",
