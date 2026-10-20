@@ -26,6 +26,22 @@ test.describe("vendor sidebar shell", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
   });
 
+  test("the sidebar's order, and the profile card is the way to the profile", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, { items: [], total: 0, limit: 100, offset: 0 });
+
+    await page.goto("my-calendar/");
+
+    const names = (await sidebar(page).getByRole("link").allInnerTexts()).map((t) => t.replace(/\d+/g, "").trim());
+    expect(names).toEqual(["Overview", "Bookings", "Leads", "Messages", "Contracts", "Calendar", "Earnings"]);
+    await expect(page.getByRole("link", { name: /^Your profile/ }).first()).toHaveAttribute(
+      "href",
+      /\/vendor-profile\/?$/,
+    );
+  });
+
   test("a vendor reads Messages inside the sidebar, with the unread badge", async ({
     page,
     api,
