@@ -5,159 +5,63 @@
 // (where they're all just settings). One copy so wording and validation can't
 // drift between the two.
 
-import { useState } from "react";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
-import type { TaxonomyCategory, VendorSpecialization } from "@/lib/types";
+import { taxonomyLabel, type Taxonomy } from "@jorna/shared/lib/taxonomy";
+import { ServicePicker } from "@jorna/shared/components/ServicePicker";
+import type { ServicePickNeeded } from "@/lib/types";
 import { Chip, Field } from "@jorna/shared/components/ui";
 
-function specKey(s: VendorSpecialization): string {
-  return `${s.category}:${s.subcategory ?? ""}`;
-}
-
-function specLabel(s: VendorSpecialization, categories: TaxonomyCategory[]): string {
-  const cat = categories.find((c) => c.value === s.category);
-  const sub = cat?.subcategories.find((o) => o.value === s.subcategory);
-  return sub ? `${cat?.label ?? s.category} · ${sub.label}` : cat?.label ?? s.category;
-}
-
 export function VendorIdentityFields({
-  categories,
-  specializations,
+  taxonomy,
+  specialties,
+  picksNeeded = [],
   bio,
   yearsExperience,
-  onSpecializationsChange,
+  onSpecialtiesChange,
   onBioChange,
   onYearsExperienceChange,
 }: {
-  categories: TaxonomyCategory[];
-  specializations: VendorSpecialization[];
+  taxonomy: Taxonomy | null;
+  /** Service keys (backend DECISIONS #35). */
+  specialties: string[];
+  /** Old categories saved without saying which service (backend
+   *  service_picks_needed); each is answered by picking one of its choices. */
+  picksNeeded?: ServicePickNeeded[];
   bio: string;
   /** Asked once, here, rather than on every package (backend 0063). */
   yearsExperience: string;
-  onSpecializationsChange: (next: VendorSpecialization[]) => void;
+  onSpecialtiesChange: (next: string[]) => void;
   onBioChange: (value: string) => void;
   onYearsExperienceChange: (value: string) => void;
 }) {
-  // Which category's options are on screen — a picker, not part of the
-  // selection itself. Starts on the first thing already picked so reopening
-  // this form (settings) doesn't land on an empty picker.
-  const [pickerCategory, setPickerCategory] = useState(specializations[0]?.category ?? "");
-  const pickerCat = categories.find((c) => c.value === pickerCategory);
-  const subOptions = pickerCat?.subcategories ?? [];
-
-  function has(category: string, subcategory: string | null) {
-    return specializations.some(
-      (s) => s.category === category && (s.subcategory ?? null) === subcategory,
-    );
-  }
-
-  function toggle(category: string, subcategory: string | null) {
-    if (has(category, subcategory)) {
-      onSpecializationsChange(
-        specializations.filter(
-          (s) => !(s.category === category && (s.subcategory ?? null) === subcategory),
-        ),
-      );
-    } else {
-      onSpecializationsChange([...specializations, { category, subcategory }]);
-    }
-  }
-
-  function remove(target: VendorSpecialization) {
-    onSpecializationsChange(specializations.filter((s) => specKey(s) !== specKey(target)));
-  }
+  // Answered once one of its choices is picked; the backend agrees on save.
+  const open = picksNeeded.filter((p) => !p.choices.some((c) => specialties.includes(c)));
 
   return (
     <>
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-ink-soft">
-          Add a category
-        </span>
-        <select
-          value={pickerCategory}
-          onChange={(e) => {
-            const category = e.target.value;
-            setPickerCategory(category);
-            // Choosing a category is choosing it: add it at the category level
-            // unless something in it is already picked. Before, the dropdown
-            // only revealed the chips below, and "Continue" then said nothing
-            // was picked.
-            if (!specializations.some((s) => s.category === category)) {
-              onSpecializationsChange([...specializations, { category, subcategory: null }]);
-            }
-          }}
-          className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
-        >
-          <option value="" disabled>
-            Choose a category
-          </option>
-          {categories.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <span className="mt-1 block text-xs text-ink-faint">
-          Add each category you work in. You can narrow each one down below.
-        </span>
-      </label>
-
-      {pickerCat ? (
-        <div>
-          <span className="mb-1.5 block text-sm font-medium text-ink-soft">
-            What you offer in {pickerCat.label}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {/* "All of it" rather than the category's own name again
-                (#162: Photography offered a "Photography" chip). */}
-            <Chip
-              active={has(pickerCat.value, null)}
-              onClick={() => toggle(pickerCat.value, null)}
-            >
-              {subOptions.length ? `All ${pickerCat.label.toLowerCase()}` : pickerCat.label}
-            </Chip>
-            {subOptions.map((s) => (
-              <Chip
-                key={s.value}
-                active={has(pickerCat.value, s.value)}
-                onClick={() => toggle(pickerCat.value, s.value)}
-              >
-                {s.label}
+      {open.map((p) => (
+        <div key={p.category} className="rounded-xl border border-gold/40 bg-gold/10 p-3.5">
+          <p className="text-sm text-ink">
+            <strong>Your listing says “{p.category.replace(/_/g, " ")}”. Which of these do you offer?</strong>{" "}
+            <span className="text-ink-soft">Clients search for each one on its own.</span>
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {p.choices.map((key) => (
+              <Chip key={key} active={specialties.includes(key)} onClick={() => onSpecialtiesChange([...specialties, key])}>
+                {taxonomyLabel(taxonomy, key)}
               </Chip>
             ))}
           </div>
         </div>
-      ) : null}
+      ))}
 
-      <div>
-        <span className="mb-1.5 block text-sm font-medium text-ink-soft">
-          Your specializations
-        </span>
-        {specializations.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {specializations.map((s) => (
-              <span
-                key={specKey(s)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-gold/12 py-1 pl-3 pr-1.5 text-xs font-semibold text-maroon dark:text-gold"
-              >
-                {specLabel(s, categories)}
-                <button
-                  type="button"
-                  onClick={() => remove(s)}
-                  aria-label={`Remove ${specLabel(s, categories)}`}
-                  className="relative grid size-4 place-items-center rounded-full after:absolute after:-inset-3 after:content-[''] hover:bg-maroon/15 dark:hover:bg-gold/20"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-ink-faint">
-            Pick at least one category above — clients filter by this.
-          </p>
-        )}
-      </div>
+      <ServicePicker
+        taxonomy={taxonomy}
+        value={specialties}
+        onChange={onSpecialtiesChange}
+        label="Services you offer"
+        hint="Add each one you're booked for. Clients search for each on its own."
+      />
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-ink-soft">About you</span>
