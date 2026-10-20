@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { taxonomyLabel, useTaxonomy, type Taxonomy } from "@jorna/shared/lib/taxonomy";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   getMyVendor,
@@ -23,12 +24,10 @@ import {
 import {
   categoryLabel,
   priceUnitLabel,
-  vendorSpecializations,
   type Review,
   type ServiceItem,
   type TaxonomyCategory,
   type VendorDetail,
-  type VendorSpecialization,
 } from "@/lib/types";
 import { Avatar, Button, Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { ServicesManager, type ServicesManagerHandle } from "@/components/ServicesManager";
@@ -48,7 +47,8 @@ function prettyDate(iso?: string | null): string | null {
 interface About {
   bio: string;
   yearsExperience: string;
-  specializations: VendorSpecialization[];
+  /** Service keys (backend DECISIONS #35). */
+  specialties: string[];
   radius: string;
   longDistance: boolean;
   instagram: string;
@@ -58,19 +58,14 @@ function aboutOf(v: VendorDetail): About {
   return {
     bio: v.bio ?? "",
     yearsExperience: v.years_experience?.toString() ?? "",
-    specializations: vendorSpecializations(v),
+    specialties: v.specialties ?? [],
     radius: v.travel_radius_miles?.toString() ?? "",
     longDistance: Boolean(v.open_to_long_distance),
     instagram: v.instagram_username ?? "",
   };
 }
 
-// A missing subcategory and a null one are the same choice.
-const comparable = (a: About) => ({
-  ...a,
-  specializations: a.specializations.map((s) => ({ category: s.category, subcategory: s.subcategory ?? null })),
-});
-const sameAbout = (a: About, b: About) => JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
+const sameAbout = (a: About, b: About) => JSON.stringify(a) === JSON.stringify(b);
 
 /** What decides whether a listing shows up and gets booked. Each item links
  *  to where it's fixed; the card goes away once they're all done. */
@@ -104,6 +99,7 @@ export default function VendorProfilePage() {
   const [previewing, setPreviewing] = useState(false);
 
   const [about, setAbout] = useState<About | null>(null);
+  const taxonomy = useTaxonomy();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -160,19 +156,17 @@ export default function VendorProfilePage() {
   async function saveAbout(e: React.FormEvent) {
     e.preventDefault();
     if (!about) return;
-    if (about.specializations.length === 0) {
-      setError("Pick at least one category first.");
+    if (about.specialties.length === 0) {
+      setError("Pick at least one service first.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const [primary] = about.specializations;
+      // The backend derives category/subcategory and the old pairs from these.
       const updated = await updateMyVendor({
         bio: about.bio,
-        category: primary.category,
-        subcategory: primary.subcategory ?? null,
-        specializations: about.specializations,
+        specialties: about.specialties,
         years_experience: about.yearsExperience ? Number(about.yearsExperience) : null,
         // Left out when blank: the backend rejects an explicit null (it
         // validates any radius it's sent as 1–500), and blank means "not set".
@@ -215,7 +209,14 @@ export default function VendorProfilePage() {
           <div className="min-w-0">
             <strong className="serif block truncate text-xl text-ink">{displayName || "Your business"}</strong>
             <p className="mt-0.5 text-sm text-ink-faint">
-              {[vendor.category ? categoryLabel(vendor.subcategory || vendor.category) : null, vendor.location]
+              {[
+                vendor.specialties?.length
+                  ? taxonomyLabel(taxonomy, vendor.specialties[0])
+                  : vendor.category
+                    ? categoryLabel(vendor.subcategory || vendor.category)
+                    : null,
+                vendor.location,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
@@ -296,11 +297,12 @@ export default function VendorProfilePage() {
               <Card className="mt-4 p-6">
                 <div className="grid gap-4">
                   <VendorIdentityFields
-                    categories={categories}
-                    specializations={about.specializations}
+                    taxonomy={taxonomy}
+                    specialties={about.specialties}
+                    picksNeeded={vendor.service_picks_needed}
                     bio={about.bio}
-                    onSpecializationsChange={(next) => {
-                      patch({ specializations: next });
+                    onSpecialtiesChange={(next) => {
+                      patch({ specialties: next });
                       if (next.length > 0) setError(null);
                     }}
                     onBioChange={(bio) => patch({ bio })}
@@ -398,7 +400,7 @@ export default function VendorProfilePage() {
 
         {previewing ? (
           <aside aria-label="Client preview" className="hidden xl:sticky xl:top-6 xl:block">
-            <ClientPreview vendor={vendor} about={about} categories={categories} services={services} />
+            <ClientPreview vendor={vendor} about={about} taxonomy={taxonomy} services={services} />
           </aside>
         ) : null}
       </div>
@@ -411,20 +413,16 @@ export default function VendorProfilePage() {
 function ClientPreview({
   vendor,
   about,
-  categories,
+  taxonomy,
   services,
 }: {
   vendor: VendorDetail;
   about: About;
-  categories: TaxonomyCategory[];
+  taxonomy: Taxonomy | null;
   services: ServiceItem[];
 }) {
   const name = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
-  const primary = about.specializations[0];
-  const category = primary
-    ? (categories.find((c) => c.value === primary.category)?.subcategories?.find((s) => s.value === primary.subcategory)
-        ?.label ?? categoryLabel(primary.subcategory || primary.category))
-    : null;
+  const category = about.specialties[0] ? taxonomyLabel(taxonomy, about.specialties[0]) : null;
   const listed = services
     .filter((s) => s.status !== "hidden" && s.status !== "archived")
     .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9));

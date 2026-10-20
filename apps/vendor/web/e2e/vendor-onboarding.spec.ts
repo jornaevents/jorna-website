@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockBundleDetail, mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
+import { mockBundleDetail, mockServiceTaxonomy, mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
 
 test.describe("vendor onboarding", () => {
@@ -10,6 +10,7 @@ test.describe("vendor onboarding", () => {
   }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     // Not dead (status "approved") and not yet released — hasActiveBookings()
     // in lib/planning.ts should read this as "still a client".
@@ -24,6 +25,7 @@ test.describe("vendor onboarding", () => {
   test("creates a vendor profile and advances to the reach step", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     api.get("/bundles", []);
     api.post("/vendors", mockVendorDetail());
@@ -31,19 +33,18 @@ test.describe("vendor onboarding", () => {
     await page.goto("vendor-onboarding/");
     await expect(page.getByRole("heading", { name: "What do you sell?" })).toBeVisible();
 
-    // Choosing the category picks it; the chip below shows it selected.
-    await page.getByLabel("Add a category").selectOption({ label: "Photography" });
-    await expect(page.getByRole("button", { name: "All photography", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    // Typing finds a service by what people call it ("candid" → Photographer).
+    await page.getByLabel("Services you offer").fill("candid");
+    await page.getByRole("option", { name: /Photographer/ }).click();
+    await expect(page.getByRole("button", { name: "Remove Photographer" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Photographer", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "How far you go, and how you're paid" })).toBeVisible();
     const createCalls = api.requestsTo("POST", "/vendors");
     expect(createCalls).toHaveLength(1);
-    expect(createCalls[0].body).toMatchObject({ category: "photography" });
+    expect(createCalls[0].body).toMatchObject({ specialties: ["photography"] });
   });
 
   test("the wizard has no site navigation, and vendor pages wait for a first package (#162)", async ({
@@ -52,6 +53,7 @@ test.describe("vendor onboarding", () => {
   }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.get("/bundles", []);
     const vendor = mockVendorDetail({ venmo_handle: null, zelle_contact: null });
     let hasVendor = false;
@@ -74,7 +76,7 @@ test.describe("vendor onboarding", () => {
     await expect(page.getByRole("link", { name: "Get started" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Browse vendors" })).toHaveCount(0);
 
-    await page.getByLabel("Add a category").selectOption({ label: "Photography" });
+    await page.getByRole("button", { name: "Photographer", exact: true }).click();
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "How far you go, and how you're paid" })).toBeVisible();
@@ -87,9 +89,10 @@ test.describe("vendor onboarding", () => {
     await expect(page).toHaveURL(/vendor-onboarding/);
   });
 
-  test("requires at least one category before continuing", async ({ page, api }) => {
+  test("requires at least one service before continuing", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     api.get("/bundles", []);
 
@@ -97,7 +100,7 @@ test.describe("vendor onboarding", () => {
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByText("Pick at least one category first.")).toBeVisible();
+    await expect(page.getByText("Pick at least one service first.")).toBeVisible();
     expect(api.requestsTo("POST", "/vendors")).toHaveLength(0);
   });
 });
@@ -105,6 +108,7 @@ test.describe("vendor onboarding", () => {
 test("a reload after step 2 carries on at the packages (#162)", async ({ page, api }) => {
   await loginAs(page, api);
   api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+  api.get("/taxonomy", mockServiceTaxonomy());
   api.get("/vendors/me", mockVendorDetail({ payment_method: "stripe", venmo_handle: "@studio" }));
   api.get("/services", { items: [], total: 0, limit: 100, offset: 0 });
   await page.goto("vendor-onboarding/");

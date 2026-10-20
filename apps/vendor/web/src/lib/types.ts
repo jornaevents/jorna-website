@@ -232,6 +232,11 @@ export interface VendorSearchItem {
 /** One category, optionally narrowed to a speciality within it — what a
  *  vendor picks any number of during onboarding. See `specializations`
  *  below for why this is a list rather than a single pair. */
+export interface ServicePickNeeded {
+  category: string;
+  choices: string[];
+}
+
 export interface VendorSpecialization {
   category: string;
   subcategory?: string | null;
@@ -255,6 +260,13 @@ export interface VendorDetail {
    *  predates it, `vendorSpecializations()` below reconstructs a one-item
    *  list from `category`/`subcategory` on reload. */
   specializations?: VendorSpecialization[];
+  /** The service keys this vendor sells (backend DECISIONS #35) — what the
+   *  picker sets; specializations and category/subcategory are derived from
+   *  it there. Absent from a backend older than 0080. */
+  specialties?: string[];
+  /** Old categories that don't say which service yet ("Beauty"), with the
+   *  services to choose from — the "Which of these do you offer?" prompt. */
+  service_picks_needed?: ServicePickNeeded[];
   rating?: number | null;
   num_events?: number | null;
   travel_radius_miles?: number | null;
@@ -782,6 +794,8 @@ export interface VendorCreateInput {
    *  `VendorDetail.specializations`), so they stay in sync rather than one
    *  being derived from the other. */
   specializations?: VendorSpecialization[];
+  /** Service keys; when sent, the backend derives the rest from them. */
+  specialties?: string[];
   years_experience?: number | null;
 }
 
@@ -790,6 +804,7 @@ export interface VendorUpdateInput {
   category?: string;
   subcategory?: string | null;
   specializations?: VendorSpecialization[];
+  specialties?: string[];
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;

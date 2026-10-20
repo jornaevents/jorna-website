@@ -23,6 +23,10 @@ for signing in its own app (plan phase 4): the contract's types
 wider types fit. The wrappers that call the API (`VendorNegotiation`,
 `ClientNegotiation`) stay in the vendor app.
 
+The service taxonomy (backend DECISIONS #35) is here too: `lib/taxonomy`
+(`useTaxonomy`, search and labels) and `components/ServicePicker`, so a
+service is found and named the same way in both apps.
+
 Change something here and both apps get it. What isn't here yet — the
 typed API layer (`lib/jorna.ts`), most of `lib/types.ts`, auth and the
 components built on them — has drifted apart between the apps and is being

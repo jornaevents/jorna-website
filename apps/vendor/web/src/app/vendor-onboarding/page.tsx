@@ -27,12 +27,12 @@ import {
 } from "@/lib/jorna";
 import { hasActiveBookings } from "@/lib/planning";
 import { clearRoleCache } from "@/lib/role";
+import { useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import {
-  vendorSpecializations,
   type ServiceItem,
+  type ServicePickNeeded,
   type TaxonomyCategory,
   type VendorDetail,
-  type VendorSpecialization,
 } from "@/lib/types";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import {
@@ -72,7 +72,10 @@ export default function VendorOnboardingPage() {
   // Step 1 — identity
   const [bio, setBio] = useState("");
   const [yearsExperience, setYearsExperience] = useState("");
-  const [specializations, setSpecializations] = useState<VendorSpecialization[]>([]);
+  // Service keys from the taxonomy (backend DECISIONS #35).
+  const taxonomy = useTaxonomy();
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [picksNeeded, setPicksNeeded] = useState<ServicePickNeeded[]>([]);
 
   // Step 2 — reach (plus payment info, since with escrow disabled it's the
   // only payment path and there's otherwise no step that ever asks for it)
@@ -120,7 +123,8 @@ export default function VendorOnboardingPage() {
         setVendor(mine);
         setBio(mine.bio ?? "");
         setYearsExperience(mine.years_experience?.toString() ?? "");
-        setSpecializations(vendorSpecializations(mine));
+        setSpecialties(mine.specialties ?? []);
+        setPicksNeeded(mine.service_picks_needed ?? []);
         setRadius(mine.travel_radius_miles?.toString() ?? "");
         setLongDistance(Boolean(mine.open_to_long_distance));
         setInstagram(mine.instagram_username ?? "");
@@ -156,32 +160,32 @@ export default function VendorOnboardingPage() {
     };
   }, [user, router, retryTick]);
 
-  function updateSpecializations(next: VendorSpecialization[]) {
-    setSpecializations(next);
+  function updateSpecialties(next: string[]) {
+    setSpecialties(next);
     if (next.length > 0) setError(null);
   }
 
   async function submitIdentity(e: React.FormEvent) {
     e.preventDefault();
-    if (specializations.length === 0) {
-      setError("Pick at least one category first.");
+    if (specialties.length === 0) {
+      setError("Pick at least one service first.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const [primary] = specializations;
+      // The backend derives category/subcategory and the old pairs from these.
       const payload = {
         bio,
-        category: primary.category,
-        subcategory: primary.subcategory ?? undefined,
-        specializations,
+        specialties,
         years_experience: yearsExperience ? Number(yearsExperience) : null,
       };
       if (vendor) {
         // Reached via Back from step 2 — the vendor record already exists, so
         // this edits it instead of trying (and failing) to create a second one.
-        setVendor(await updateMyVendor(payload));
+        const updated = await updateMyVendor(payload);
+        setVendor(updated);
+        setPicksNeeded(updated.service_picks_needed ?? []);
       } else {
         const created = await createVendor(payload);
         // The account just became a vendor's — nav and ClientOnlyRoute read a
@@ -330,10 +334,11 @@ export default function VendorOnboardingPage() {
           <Card className="mt-8 p-6">
             <form onSubmit={submitIdentity} className="grid gap-4">
               <VendorIdentityFields
-                categories={categories}
-                specializations={specializations}
+                taxonomy={taxonomy}
+                specialties={specialties}
+                picksNeeded={picksNeeded}
                 bio={bio}
-                onSpecializationsChange={updateSpecializations}
+                onSpecialtiesChange={updateSpecialties}
                 onBioChange={setBio}
                 yearsExperience={yearsExperience}
                 onYearsExperienceChange={setYearsExperience}
