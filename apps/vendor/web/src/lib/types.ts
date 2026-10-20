@@ -232,6 +232,9 @@ export interface VendorSearchItem {
 /** One category, optionally narrowed to a speciality within it — what a
  *  vendor picks any number of during onboarding. See `specializations`
  *  below for why this is a list rather than a single pair. */
+/** One filter's value on a package — what the attribute's type allows. */
+export type PackageAttributeValue = string | string[] | number | boolean;
+
 export interface ServicePickNeeded {
   category: string;
   choices: string[];
@@ -346,6 +349,10 @@ export interface ServiceItem {
   media?: MediaItem[];
   category?: string | null;
   subcategory?: string | null;
+  /** The service this package is (backend DECISIONS #35). Null on a package
+   *  saved under a category that doesn't say which; its vendor is asked. */
+  service_key?: string | null;
+  attributes?: Record<string, PackageAttributeValue>;
   description?: string | null;
   negotiable?: boolean;
   // Opt-in on top of whatever the price unit already demands — a vendor can

@@ -3,7 +3,14 @@
 // fields while typing, parsed in ServicesManager's save()).
 
 import type { ServiceInput } from "@/lib/jorna";
-import { categoryLabel, type AddOn, type ServiceItem, type TaxonomyCategory } from "@/lib/types";
+import { taxonomyLabel, type Taxonomy } from "@jorna/shared/lib/taxonomy";
+import {
+  categoryLabel,
+  type AddOn,
+  type PackageAttributeValue,
+  type ServiceItem,
+  type TaxonomyCategory,
+} from "@/lib/types";
 
 export function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -20,7 +27,8 @@ export function coverage(s: ServiceItem): string {
 }
 
 /** The speciality it's listed under, in words. */
-export function bestFor(s: ServiceItem, categories: TaxonomyCategory[]): string {
+export function bestFor(s: ServiceItem, categories: TaxonomyCategory[], taxonomy?: Taxonomy | null): string {
+  if (s.service_key && taxonomy) return taxonomyLabel(taxonomy, s.service_key);
   const cat = categories.find((c) => c.value === s.category);
   const sub = cat?.subcategories?.find((x) => x.value === s.subcategory);
   return sub?.label ?? cat?.label ?? (s.category ? categoryLabel(s.subcategory || s.category) : "Any event");
@@ -74,6 +82,9 @@ export type FormState = Omit<
   deposit_percent: string;
   cancellation_days: string;
   overtime_rate: string;
+  /** The package's service key ("" until chosen) and its filters. */
+  service_key: string;
+  attributes: Record<string, PackageAttributeValue>;
 };
 
 export const blank: FormState = {
@@ -96,6 +107,8 @@ export const blank: FormState = {
   deposit_percent: "",
   cancellation_days: "",
   overtime_rate: "",
+  service_key: "",
+  attributes: {},
 };
 
 /** The editable form for an existing package — also what Duplicate starts
@@ -123,6 +136,8 @@ export function formFrom(s: ServiceItem): FormState {
     cancellation_days:
       s.cancellation_window_hours != null ? String(Math.round(s.cancellation_window_hours / 24)) : "",
     overtime_rate: s.overtime_rate_cents != null ? String(s.overtime_rate_cents / 100) : "",
+    service_key: s.service_key ?? "",
+    attributes: s.attributes ?? {},
   };
 }
 

@@ -17,6 +17,7 @@ import type {
   SavedContractTemplate,
   TemplateKind,
   AttachedDocument,
+  PackageAttributeValue,
   AttachedDocumentKind,
   ConversationSummary,
   Earnings,
@@ -434,6 +435,11 @@ export interface ServiceInput {
   price_unit?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  /** The service this package is (backend DECISIONS #35); category and
+   *  subcategory are derived from it there. */
+  service_key?: string | null;
+  /** Its filters: {attribute key: option key | option keys | number | bool}. */
+  attributes?: Record<string, PackageAttributeValue> | null;
   description?: string | null;
   negotiable?: boolean;
   /** Opt-in requirement on top of whatever price_unit already demands. */

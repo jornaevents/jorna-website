@@ -45,6 +45,9 @@ import { Button, Card, Chip, Field } from "@jorna/shared/components/ui";
 import { AddOnFields } from "@/components/packages/AddOnFields";
 import { PackageTermsFields } from "@/components/packages/PackageTermsFields";
 import { VenueLocationFields } from "@/components/packages/VenueLocationFields";
+import { PackageServiceField } from "@/components/packages/PackageServiceField";
+import { AttributeFields } from "@/components/packages/AttributeFields";
+import { useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import {
   PRICE_UNITS,
   bestFor,
@@ -100,6 +103,7 @@ export function ServicesManager({
   ref?: Ref<ServicesManagerHandle>;
 }) {
   const [services, setServices] = useState<ServiceItem[]>(initial);
+  const taxonomy = useTaxonomy();
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   /** The address as the Census matched it, shown back after a successful pin. */
@@ -110,7 +114,7 @@ export function ServicesManager({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(
     autoStartNew
-      ? { ...blank, category: vendor.category ?? "", subcategory: vendor.subcategory ?? "" }
+      ? { ...blank, service_key: vendor.specialties?.[0] ?? "" }
       : blank,
   );
   const [busy, setBusy] = useState(false);
@@ -184,14 +188,12 @@ export function ServicesManager({
     return res.items;
   }
 
-  const subOptions =
-    categories.find((c) => c.value === form.category)?.subcategories ?? [];
-  const isVenue = form.category === "venue";
-  const isOther = form.category === "other";
+  // A package from before services (no service_key) still reads its category.
+  const isVenue = form.service_key ? form.service_key === "venue" : form.category === "venue";
 
   function startNew() {
     // Default to what this vendor does, so most services need no category fiddling.
-    setForm({ ...blank, category: vendor.category ?? "", subcategory: vendor.subcategory ?? "" });
+    setForm({ ...blank, service_key: vendor.specialties?.[0] ?? "" });
     setNewPhotos([]);
     setNewVideos([]);
     setEditing("new");
@@ -302,8 +304,8 @@ export function ServicesManager({
       setError("Give the package a name.");
       return;
     }
-    if (!form.category) {
-      setError("Choose the package's category.");
+    if (!form.service_key) {
+      setError("Choose what this package is.");
       return;
     }
     if (!form.price_unit) {
@@ -338,8 +340,9 @@ export function ServicesManager({
         name: form.name,
         price,
         price_unit: form.price_unit,
-        category: form.category,
-        subcategory: form.subcategory || null,
+        // The backend derives category/subcategory from the service.
+        service_key: form.service_key,
+        attributes: form.attributes,
         description: form.description,
         require_guest_count: form.require_guest_count,
         require_performer_count: form.require_performer_count,
@@ -638,61 +641,15 @@ export function ServicesManager({
               </div>
             ) : null}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-ink-soft">
-                  Category
-                </span>
-                <select
-                  required
-                  value={form.category ?? ""}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value, subcategory: "" })
-                  }
-                  className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
-                >
-                  <option value="" disabled>
-                    Choose
-                  </option>
-                  {categories.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {isOther ? (
-                // "Other" has no subcategories in the taxonomy, so there is
-                // nothing to pick from — the vendor types what they do, as they
-                // do on iOS. The backend only validates a subcategory against
-                // the list when its category has one, so free text is accepted.
-                <Field
-                  label="Speciality"
-                  placeholder="Describe what you offer"
-                  required
-                  value={form.subcategory ?? ""}
-                  onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-                />
-              ) : subOptions.length > 0 ? (
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium text-ink-soft">
-                    Speciality
-                  </span>
-                  <select
-                    value={form.subcategory ?? ""}
-                    onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-                    className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
-                  >
-                    <option value="">None</option>
-                    {subOptions.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-            </div>
+            <PackageServiceField
+              taxonomy={taxonomy}
+              specialties={vendor.specialties ?? []}
+              value={form.service_key}
+              onChange={(key) =>
+                // Another service's details don't apply to this one.
+                setForm({ ...form, service_key: key, attributes: key === form.service_key ? form.attributes : {} })
+              }
+            />
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-ink-soft">
@@ -719,6 +676,13 @@ export function ServicesManager({
                 className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
               />
             </label>
+
+            <AttributeFields
+              taxonomy={taxonomy}
+              serviceKey={form.service_key}
+              value={form.attributes}
+              onChange={(attributes) => setForm({ ...form, attributes })}
+            />
 
             <AddOnFields form={form} setForm={setForm} />
 
@@ -1035,7 +999,7 @@ export function ServicesManager({
                   </span>
                   <span className="hidden min-w-0 md:grid">
                     <small className="text-[0.68rem] text-ink-faint">Category</small>
-                    <strong className="truncate text-sm text-ink">{bestFor(s, categories)}</strong>
+                    <strong className="truncate text-sm text-ink">{bestFor(s, categories, taxonomy)}</strong>
                   </span>
                   <span className="grid text-right">
                     {/* A flat price is the price, not a starting point (#163). */}
@@ -1094,7 +1058,7 @@ export function ServicesManager({
                   <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-card-edge bg-card text-sm">
                     {[
                       ["Coverage", coverage(s)],
-                      ["Category", bestFor(s, categories)],
+                      ["Category", bestFor(s, categories, taxonomy)],
                       [s.price_unit === "event" || !s.price_unit ? "Price" : "Starting price", `${money(s.price)} ${unit}`.trim()],
                       ["Add-ons", s.add_ons?.length ? s.add_ons.map((a) => a.name).join(", ") : "None"],
                       ["Listing", s.status === "hidden" ? "Private" : "Public"],
