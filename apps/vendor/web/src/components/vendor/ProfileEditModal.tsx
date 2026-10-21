@@ -53,7 +53,7 @@ export const validYears = (s: string) => /^\d{0,2}$/.test(s.trim());
 
 const inputClass =
   "w-full rounded-[10px] border border-card-edge bg-ground-2 px-3 py-2.5 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
-const labelClass = "mb-1.5 block text-sm font-semibold text-ink-soft";
+const labelClass = "mb-1.5 block text-sm font-medium text-ink-soft";
 
 export function ProfileEditModal({
   vendor,
@@ -232,7 +232,7 @@ export function ProfileEditModal({
                   className="mt-0.5 size-[18px] shrink-0 accent-[var(--color-gold)]"
                 />
                 <span className="grid gap-1">
-                  <span className="text-sm font-semibold text-ink-soft">Open to events out of state</span>
+                  <span className="text-sm font-medium text-ink-soft">Open to events out of state</span>
                   <span className="text-xs leading-snug text-ink-faint">
                     Clients planning events outside your state can find and contact you.
                   </span>
