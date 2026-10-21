@@ -38,6 +38,51 @@ export function VendorIdentityFields({
   onBioChange: (value: string) => void;
   onYearsExperienceChange: (value: string) => void;
 }) {
+  return (
+    <>
+      <VendorSpecializationFields
+        categories={categories}
+        specializations={specializations}
+        onChange={onSpecializationsChange}
+      />
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-ink-soft">About you</span>
+        <textarea
+          required
+          rows={4}
+          value={bio}
+          onChange={(e) => onBioChange(e.target.value)}
+          placeholder="What you offer, your style, and what makes your work yours."
+          className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
+        />
+      </label>
+
+      <Field
+        label="Years in business (optional)"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={99}
+        step={1}
+        placeholder="e.g. 5"
+        value={yearsExperience}
+        onChange={(e) => onYearsExperienceChange(e.target.value)}
+      />
+    </>
+  );
+}
+
+/** Which categories (and what in them) a vendor works in — the identity
+ *  form's first question, and the Specialty field in the profile editor. */
+export function VendorSpecializationFields({
+  categories,
+  specializations,
+  onChange,
+}: {
+  categories: TaxonomyCategory[];
+  specializations: VendorSpecialization[];
+  onChange: (next: VendorSpecialization[]) => void;
+}) {
   // Which category's options are on screen — a picker, not part of the
   // selection itself. Starts on the first thing already picked so reopening
   // this form (settings) doesn't land on an empty picker.
@@ -53,18 +98,18 @@ export function VendorIdentityFields({
 
   function toggle(category: string, subcategory: string | null) {
     if (has(category, subcategory)) {
-      onSpecializationsChange(
+      onChange(
         specializations.filter(
           (s) => !(s.category === category && (s.subcategory ?? null) === subcategory),
         ),
       );
     } else {
-      onSpecializationsChange([...specializations, { category, subcategory }]);
+      onChange([...specializations, { category, subcategory }]);
     }
   }
 
   function remove(target: VendorSpecialization) {
-    onSpecializationsChange(specializations.filter((s) => specKey(s) !== specKey(target)));
+    onChange(specializations.filter((s) => specKey(s) !== specKey(target)));
   }
 
   return (
@@ -83,7 +128,7 @@ export function VendorIdentityFields({
             // only revealed the chips below, and "Continue" then said nothing
             // was picked.
             if (!specializations.some((s) => s.category === category)) {
-              onSpecializationsChange([...specializations, { category, subcategory: null }]);
+              onChange([...specializations, { category, subcategory: null }]);
             }
           }}
           className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
@@ -159,29 +204,6 @@ export function VendorIdentityFields({
         )}
       </div>
 
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-ink-soft">About you</span>
-        <textarea
-          required
-          rows={4}
-          value={bio}
-          onChange={(e) => onBioChange(e.target.value)}
-          placeholder="What you offer, your style, and what makes your work yours."
-          className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none focus:border-gold"
-        />
-      </label>
-
-      <Field
-        label="Years in business (optional)"
-        type="number"
-        inputMode="numeric"
-        min={0}
-        max={99}
-        step={1}
-        placeholder="e.g. 5"
-        value={yearsExperience}
-        onChange={(e) => onYearsExperienceChange(e.target.value)}
-      />
     </>
   );
 }

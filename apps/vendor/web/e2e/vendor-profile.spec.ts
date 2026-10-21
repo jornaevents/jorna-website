@@ -1,12 +1,12 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
+import { mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
 import type { Page } from "@playwright/test";
 import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
 // Vendor Profile (plan 2.5): only what clients see, each section saving
-// itself, a checklist of what's missing, a live client preview and a "Most
-// popular" package.
+// itself (the business details through the Edit profile popup), a checklist
+// of what's missing, a live client preview and a "Most popular" package.
 function pkg(overrides: Record<string, unknown> = {}) {
   return {
     service_id: "svc-1",
@@ -42,14 +42,15 @@ async function openProfile(
 }
 
 test.describe("vendor profile (/vendor-profile)", () => {
-  test("the checklist says what's missing and links to where it's fixed", async ({ page, api }) => {
+  test("the checklist says what's missing and opens where it's fixed", async ({ page, api }) => {
     await openProfile(page, api);
     const list = page.getByRole("region", { name: "Listing checklist" });
 
-    await expect(list.getByRole("link", { name: "Write a few lines about your business" })).toHaveAttribute("href", "#about");
+    await expect(list.getByRole("button", { name: "Link your Instagram" })).toBeVisible();
     await expect(list.getByRole("link", { name: "List a priced package with a photo" })).toBeVisible();
     await expect(list.getByRole("link", { name: "Set the hours you're available" })).toBeVisible();
-    await expect(list.getByRole("link", { name: "Link your Instagram" })).toBeVisible();
+    await list.getByRole("button", { name: "Write a few lines about your business" }).click();
+    await expect(page.getByRole("dialog", { name: "Edit profile" })).toBeVisible();
   });
 
   test("the checklist goes away once the listing is complete", async ({ page, api }) => {
@@ -58,39 +59,92 @@ test.describe("vendor profile (/vendor-profile)", () => {
       services: [pkg({ media: [{ url: "https://example.test/p.jpg", type: "image" }] })],
       hours: [{ day_of_week: 5, start_time: "10:00", end_time: "23:00" }],
     });
-    await expect(page.getByRole("region", { name: "About your business" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit profile" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Listing checklist" })).toHaveCount(0);
   });
 
-  test("About saves on its own and says when it has unsaved changes", async ({ page, api }) => {
-    const { vendor } = await openProfile(page, api, { vendor: { bio: "Sangeet and reception DJ." } });
+  test("Edit profile saves out of state and years in business, not a travel radius", async ({ page, api }) => {
+    const { vendor } = await openProfile(page, api, { vendor: { bio: "Sangeet and reception DJ.", location: "Edison, NJ" } });
     api.patch("/vendors/me", ({ route }: HandlerArgs) => ({ ...vendor, ...route.request().postDataJSON() }));
-    const about = page.getByRole("region", { name: "About your business" });
 
-    await expect(about.getByText("Saved", { exact: true })).toBeVisible();
-    await expect(about.getByRole("button", { name: "Save about" })).toBeDisabled();
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit profile" });
+    await expect(dialog.getByLabel(/Travel radius/)).toHaveCount(0);
 
-    await about.getByLabel("Instagram").fill("studio");
-    await expect(about.getByText("Unsaved changes")).toBeVisible();
-    await about.getByRole("button", { name: "Save about" }).click();
+    await dialog.getByLabel("Open to events out of state").check();
+    await dialog.getByLabel("Years in business").fill("12");
+    await dialog.getByLabel("Instagram (optional)").fill("studio");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
 
-    await expect(about.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(dialog).toHaveCount(0);
     const [call] = api.requestsTo("PATCH", "/vendors/me");
-    expect(call.body).toMatchObject({ instagram_username: "studio" });
-    // Contract defaults aren't this page's any more, so it can't overwrite them.
+    expect(call.body).toMatchObject({ open_to_long_distance: true, years_experience: 12, instagram_username: "studio" });
+    expect(call.body).not.toHaveProperty("travel_radius_miles");
+    // Contract defaults aren't this page's, so it can't overwrite them.
     expect(call.body).not.toHaveProperty("default_deposit_percent");
-    expect(call.body).not.toHaveProperty("default_guest_count_mode");
+    // The city didn't change, so the account isn't touched.
+    expect(api.requestsTo("PATCH", "/me")).toHaveLength(0);
+
+    const details = page.getByLabel("Profile details");
+    await expect(details).toContainText("Edison, NJ");
+    await expect(details).toContainText("Open to out-of-state events");
+    await expect(details).toContainText("12 years in business");
   });
 
-  test("the client preview follows the About fields as they're typed", async ({ page, api }) => {
+  test("years in business takes whole numbers only", async ({ page, api }) => {
+    await openProfile(page, api);
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit profile" });
+    const years = dialog.getByLabel("Years in business");
+    const save = dialog.getByRole("button", { name: "Save profile" });
+
+    for (const bad of ["abc", "4.5", "120"]) {
+      await years.fill(bad);
+      await expect(dialog.getByText("Enter a whole number of years (0–99).")).toBeVisible();
+      await expect(save).toBeDisabled();
+    }
+    await years.fill("1");
+    await expect(dialog.getByText("Enter a whole number of years (0–99).")).toHaveCount(0);
+    await expect(dialog.getByRole("complementary", { name: "Profile preview" })).toContainText("1 year in business");
+    await expect(save).toBeEnabled();
+  });
+
+  test("a new city saves to the account, and Cancel keeps nothing", async ({ page, api }) => {
+    const { vendor } = await openProfile(page, api, { vendor: { location: "Edison, NJ" } });
+    api.patch("/me", ({ route }: HandlerArgs) => mockUser(route.request().postDataJSON()));
+    api.patch("/vendors/me", ({ route }: HandlerArgs) => ({ ...vendor, ...route.request().postDataJSON(), location: "Austin, TX" }));
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    let dialog = page.getByRole("dialog", { name: "Edit profile" });
+    await dialog.getByLabel("Years in business").fill("8");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByLabel("Profile details")).not.toContainText("years in business");
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    dialog = page.getByRole("dialog", { name: "Edit profile" });
+    await expect(dialog.getByLabel("Years in business")).toHaveValue("");
+    await dialog.getByLabel("Business location").fill("Austin, TX");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
+
+    await expect(dialog).toHaveCount(0);
+    const [me] = api.requestsTo("PATCH", "/me");
+    expect(me.body).toEqual({ location: "Austin, TX" });
+    await expect(page.getByLabel("Profile details")).toContainText("Austin, TX");
+  });
+
+  test("the popup's preview follows the fields as they're typed", async ({ page, api }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openProfile(page, api, { services: [pkg({ is_popular: true })] });
     await page.getByRole("button", { name: "See it as a client" }).click();
-    const preview = page.getByRole("complementary", { name: "Client preview" });
+    await expect(page.getByRole("complementary", { name: "Client preview" }).getByText("Most popular")).toBeVisible();
 
-    await expect(preview.getByText("Most popular")).toBeVisible();
-    await page.getByLabel("About you", { exact: true }).fill("Live music for every kind of celebration.");
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit profile" });
+    await dialog.getByLabel("Short introduction").fill("Live music for every kind of celebration.");
+    await dialog.getByLabel("Open to events out of state").check();
+    const preview = dialog.getByRole("complementary", { name: "Profile preview" });
     await expect(preview.getByText("Live music for every kind of celebration.")).toBeVisible();
+    await expect(preview.getByText("Open to out-of-state events")).toBeVisible();
   });
 
   test("a package can be marked most popular", async ({ page, api }) => {
