@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
+import { mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
 import type { Page } from "@playwright/test";
 import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
@@ -111,7 +111,7 @@ test.describe("vendor profile (/vendor-profile)", () => {
 
   test("a new city saves to the account, and Cancel keeps nothing", async ({ page, api }) => {
     const { vendor } = await openProfile(page, api, { vendor: { location: "Edison, NJ" } });
-    api.patch("/me", ({ route }: HandlerArgs) => ({ id: "user-1", ...route.request().postDataJSON() }));
+    api.patch("/me", ({ route }: HandlerArgs) => mockUser(route.request().postDataJSON()));
     api.patch("/vendors/me", ({ route }: HandlerArgs) => ({ ...vendor, ...route.request().postDataJSON(), location: "Austin, TX" }));
 
     await page.getByRole("button", { name: "Edit profile" }).click();

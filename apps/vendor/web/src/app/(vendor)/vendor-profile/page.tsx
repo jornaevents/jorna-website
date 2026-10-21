@@ -81,8 +81,12 @@ export default function VendorProfilePage() {
     if (!authLoading && !user) router.replace("/login?next=/vendor-profile&role=vendor");
   }, [authLoading, user, router]);
 
+  // Keyed on who's signed in, not the user object: the Edit profile popup
+  // updates the user (photo, city), and reloading then could land after the
+  // save and put the old details back.
+  const userId = user?.user_id;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let cancelled = false;
     Promise.all([listVendorCategories(), getMyVendor()])
       .then(async ([tax, mine]) => {
@@ -112,7 +116,7 @@ export default function VendorProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router]);
+  }, [userId, router]);
 
   if (authLoading || !user || loading || !vendor) {
     return error ? (
