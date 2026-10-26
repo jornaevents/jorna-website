@@ -92,7 +92,7 @@ test.describe("contracts — Phase 2a (offers and holds)", () => {
 
     await page.goto("booking-link/?t=tok-2");
     await expect(page.getByRole("heading", { name: "This offer has expired" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Sign the contract/ })).toHaveCount(0);
   });
 
   test("the vendor's preview doesn't count as the client opening it", async ({ page, api }) => {
@@ -105,6 +105,6 @@ test.describe("contracts — Phase 2a (offers and holds)", () => {
     await page.getByRole("button", { name: "Continue to the contract" }).click();
     expect(api.requestsTo("PATCH", "/guest-bookings/tok-3")).toHaveLength(0);
     await page.getByRole("navigation", { name: "Steps" }).getByRole("button", { name: /Sign/ }).click();
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Sign the contract/ })).toBeDisabled();
   });
 });

@@ -199,7 +199,7 @@ test.describe("contracts — Phase 0", () => {
     await expect(
       page.getByRole("heading", { name: "Arjun Kapoor withdrew this booking offer" }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Sign the contract/ })).toHaveCount(0);
   });
 
   test("a client's Book this goes to the client app, not a 404 here", async ({ page, api }) => {

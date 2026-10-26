@@ -139,7 +139,7 @@ test.describe("field-by-field negotiation", () => {
     // Signing with changes open needs "as it is".
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    await page.getByRole("button", { name: "Confirm booking →" }).click();
+    await page.getByRole("button", { name: "Sign the contract →" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Sign it as it is" })).toBeVisible();
     expect(api.requestsTo("POST", "/guest-bookings/tok-1/sign")).toHaveLength(0);
 
@@ -186,7 +186,7 @@ test.describe("field-by-field negotiation", () => {
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
     await page.getByLabel(/Sign it as it is/).check();
-    await page.getByRole("button", { name: "Confirm booking →" }).click();
+    await page.getByRole("button", { name: "Sign the contract →" }).click();
     await expect.poll(() => api.requestsTo("POST", "/guest-bookings/tok-1/sign").length).toBe(1);
     expect(api.requestsTo("POST", "/guest-bookings/tok-1/sign")[0].body).toMatchObject({ signer_name: "Priya Mehta", as_is: true });
   });
@@ -277,7 +277,7 @@ test.describe("field-by-field negotiation", () => {
     await page.goto("booking-link/?t=tok-1");
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    await page.getByRole("button", { name: "Confirm booking →" }).click();
+    await page.getByRole("button", { name: "Sign the contract →" }).click();
 
     await expect(page.getByRole("heading", { name: "This offer has expired" })).toBeVisible();
   });

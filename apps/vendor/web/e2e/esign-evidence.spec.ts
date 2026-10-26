@@ -43,7 +43,7 @@ test.describe("signing evidence", () => {
     await page.goto("booking-link/?t=tok-1");
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    const confirm = page.getByRole("button", { name: /Confirm booking/ });
+    const confirm = page.getByRole("button", { name: /Sign the contract/ });
     await expect(confirm).toBeDisabled();
 
     await page.getByRole("button", { name: "Email me a code" }).click();
@@ -91,7 +91,7 @@ test.describe("signing evidence", () => {
     await toSigning(page);
     await expect(page.getByRole("button", { name: "Email me a code" })).toHaveCount(0);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Sign the contract/ })).toBeEnabled();
   });
 
   test("an addendum signs with its own code", async ({ page, api }) => {

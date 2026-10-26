@@ -1113,10 +1113,16 @@ export function voidDocument(documentId: string): Promise<AttachedDocument> {
 export interface CountersignInput {
   signerName: string;
   consentVersion?: string | null;
+  /** The name isn't the one on the vendor's account, and they've said so. */
+  nameConfirmed?: boolean;
 }
 
-function countersignBody({ signerName, consentVersion }: CountersignInput) {
-  return { signer_name: signerName, ...(consentVersion ? { consent: true, consent_version: consentVersion } : {}) };
+function countersignBody({ signerName, consentVersion, nameConfirmed }: CountersignInput) {
+  return {
+    signer_name: signerName,
+    ...(consentVersion ? { consent: true, consent_version: consentVersion } : {}),
+    ...(nameConfirmed ? { name_confirmed: true } : {}),
+  };
 }
 
 export function countersignContract(bookingId: string, input: CountersignInput): Promise<Contract> {

@@ -47,7 +47,7 @@ test.describe("client signing page", () => {
     await expect(
       page.getByText("This doesn't match the name on the contract (Asha Mehta). You can still sign — Priya Lens will see the difference."),
     ).toBeVisible();
-    await page.getByRole("button", { name: /Confirm booking/ }).click();
+    await page.getByRole("button", { name: /Sign the contract/ }).click();
     await expect(page.getByRole("heading", { name: "You signed with Priya Lens" })).toBeVisible();
   });
 

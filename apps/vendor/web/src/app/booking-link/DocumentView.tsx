@@ -114,6 +114,8 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
   const vendorName = doc.vendor_display_name ?? "your vendor";
   const kindLabel = KIND_LABEL[doc.kind].toLowerCase();
   const forBooking = `your booking with ${vendorName}${doc.date_iso ? ` on ${prettyDate(doc.date_iso)}` : ""}`;
+  // A cancellation ends the booking rather than joining it.
+  const takesEffect = doc.kind === "cancellation" ? `${forBooking} ends` : `it's part of ${forBooking}`;
 
   if (doc.status === "voided") {
     return (
@@ -145,8 +147,8 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
           <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">Waiting for {vendorName} to sign</h1>
           <p className="mt-2 text-ink-soft">
             Signed by {doc.signer_name}
-            {doc.client_signed_at ? ` on ${prettyDate(doc.client_signed_at)}` : ""}. Once {vendorName} signs too, it&apos;s
-            part of {forBooking}, and we&apos;ll email you the signed copy.
+            {doc.client_signed_at ? ` on ${prettyDate(doc.client_signed_at)}` : ""}. Once {vendorName} signs too,{" "}
+            {takesEffect}, and we&apos;ll email you the signed copy.
           </p>
         </div>
         <Card className="mt-6 p-6">
@@ -164,8 +166,8 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
           <h1 className="serif mt-2 text-3xl text-maroon dark:text-gold">{doc.title}</h1>
           <p className="mt-2 text-ink-soft">
             Signed by {doc.signer_name}
-            {doc.vendor_signer_name ? ` and ${doc.vendor_signer_name}` : ""} on {prettyDate(doc.signed_at)}. It&apos;s part
-            of {forBooking}.
+            {doc.vendor_signer_name ? ` and ${doc.vendor_signer_name}` : ""} on {prettyDate(doc.signed_at)}.{" "}
+            {doc.kind === "cancellation" ? `${forBooking[0].toUpperCase()}${forBooking.slice(1)} has ended.` : `It's part of ${forBooking}.`}
           </p>
         </div>
         <Card className="mt-6 p-6">

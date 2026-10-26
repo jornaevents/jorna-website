@@ -48,7 +48,7 @@ const inputClass =
   "w-full rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30";
 
 const clientOf = (b: VendorBooking) => b.guest_name || b.client_name || "Client";
-const agreementOf = (b: VendorBooking) => b.event_name || `${b.service_name || "Services"} agreement`;
+const agreementOf = (b: VendorBooking) => b.document_title || b.event_name || `${b.service_name || "Services"} agreement`;
 const backTo = (b: VendorBooking) =>
   b.contract_token ? `/contracts/view?id=${b.booking_id}` : `/my-bookings?id=${b.booking_id}`;
 
@@ -146,7 +146,10 @@ function DocumentEditorInner() {
     }
   }
 
+  // Same rule as a contract's sections, and the backend's on send.
+  const blank = sections.find((x) => `${x.title} ${x.body}`.includes("___"));
   const problems = [
+    ...(blank ? [`Fill in the blank (___) in “${blank.title || "a section"}”.`] : []),
     !sections.length ? "Add at least one section." : null,
     sections.some((s) => !s.title.trim() || !s.body.trim()) ? "Every section needs a title and some text." : null,
   ].filter((p): p is string => Boolean(p));

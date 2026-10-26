@@ -158,11 +158,11 @@ test.describe("contracts — Phase 2b (proposals)", () => {
 
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    await page.getByRole("button", { name: /Confirm booking/ }).click();
+    await page.getByRole("button", { name: /Sign the contract/ }).click();
     await expect(page.getByText(/updated this contract after you opened it/)).toBeVisible();
 
     // The page reloaded version 2; signing again sends it.
-    await page.getByRole("button", { name: /Confirm booking/ }).click();
+    await page.getByRole("button", { name: /Sign the contract/ }).click();
     await expect(page.getByRole("heading", { name: /You signed with Arjun Kapoor/ })).toBeVisible();
     const signs = api.requestsTo("POST", "/guest-bookings/tok-1/sign");
     expect(signs.map((s) => (s.body as { revision: number }).revision)).toEqual([1, 2]);
