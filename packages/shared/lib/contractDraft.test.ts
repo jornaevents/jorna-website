@@ -28,11 +28,15 @@ import {
   toDocument,
   toTemplate,
   totalCents,
+  fitSchedule,
+  canMove,
+  reconcileLayout,
   type ContractTermsSource,
   type Draft,
   type LineDraft,
   type RequestSource,
 } from "./contractDraft";
+import type { DueType } from "./contractTypes";
 
 const pkg = (over: Partial<LineDraft> = {}): LineDraft => ({
   key: "p",
@@ -394,3 +398,45 @@ describe("keepRequestedLine", () => {
   });
 });
 
+
+describe("fitSchedule", () => {
+  const row = (dueType: DueType, dueDays: string) => ({ key: dueDays, label: "P", amount: "1", dueType, dueDate: "", dueDays });
+
+  it("moves a payment that would already be past due to the day before", () => {
+    const out = fitSchedule([row("on_signing", ""), row("before_event", "60"), row("before_event", "14")], "2026-12-12", "2026-10-26");
+    expect(out.map((i) => [i.dueType, i.dueDays])).toEqual([["on_signing", ""], ["before_event", "46"], ["before_event", "14"]]);
+  });
+
+  it("makes one that can't fit due on signing, and leaves a fitting schedule alone", () => {
+    expect(fitSchedule([row("before_event", "14")], "2026-10-27", "2026-10-26")[0].dueType).toBe("on_signing");
+    const fine = [row("before_event", "14")];
+    expect(fitSchedule(fine, "2026-12-12", "2026-10-26")).toBe(fine);
+  });
+});
+
+describe("the document's order", () => {
+  const clauses = [{ key: "travel" }, { key: "meals" }];
+
+  it("puts a saved layout's structured blocks back in their order, signatures last", () => {
+    const saved = [
+      { id: "signature", type: "signature" as const },
+      { id: "parties", type: "parties" as const },
+      { id: "travel", type: "terms" as const },
+      { id: "event", type: "event" as const },
+      { id: "items", type: "items" as const },
+      { id: "schedule", type: "schedule" as const },
+      { id: "meals", type: "terms" as const },
+    ];
+    expect(reconcileLayout(saved, clauses).map((b) => b.id)).toEqual([
+      "parties", "travel", "event", "items", "schedule", "meals", "signature",
+    ]);
+  });
+
+  it("moves only terms sections, and never below the signatures", () => {
+    const draft = { ...emptyDraft(), clauses: clauses.map((c) => ({ ...c, title: c.key, body: "x" })) };
+    expect(canMove(draft, "signature", -1)).toBe(false);
+    expect(canMove(draft, "items", 1)).toBe(false);
+    expect(canMove(draft, "meals", 1)).toBe(false);
+    expect(moveBlock(draft, "meals", -1).map((b) => b.id).slice(-3)).toEqual(["meals", "travel", "signature"]);
+  });
+});

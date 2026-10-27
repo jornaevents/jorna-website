@@ -1,6 +1,6 @@
 import { test, expect, loginAs } from "./support/fixtures";
 import { mockLead, mockVendorDetail } from "./support/mock-data";
-import type { ApiMock } from "./support/api-mock";
+import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
 // The contract editor says what's wrong before Send, not after (web #166):
 // payments due in the past, a total the discount wipes out, a date that's
@@ -139,5 +139,73 @@ test.describe("contract editor checks", () => {
     await expect(page.getByRole("link", { name: "← Back to Leads" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: /Leads/ })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: /Contracts/ })).not.toHaveAttribute("aria-current", "page");
+  });
+
+  // ── Batch 3 of the contract fix plan (2026-10-26 staging test) ──
+
+  test("Three payments fits an event under two months away", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    await page.goto("contracts/new/?scratch=1");
+    await fillEvent(page, iso(40));
+    await page.getByRole("button", { name: "Three payments" }).click();
+    await expect(page.getByText("Moved a payment so it falls before the event — check its date.")).toBeVisible();
+    await expect(page.getByLabel("Days before the event").first()).toHaveValue("39");
+    await expect(page.getByText(/has already passed/)).toHaveCount(0);
+  });
+
+  test("only terms sections move, and nothing goes below the signatures", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    await page.goto("contracts/new/?scratch=1");
+    await page.getByRole("button", { name: "+ Meals" }).click();
+    await page.getByRole("button", { name: "Signatures options" }).click();
+    await expect(page.getByRole("menuitem", { name: /Move signatures/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const meals = page.getByRole("region", { name: "Meals" });
+    await meals.hover();
+    await meals.getByRole("button", { name: "Meals options" }).click();
+    await expect(page.getByRole("menuitem", { name: "Move meals down" })).toBeDisabled();
+    await expect(page.getByRole("menuitem", { name: "Move meals up" })).toBeEnabled();
+  });
+
+  test("unsaved work is offered back after leaving the editor", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    await page.goto("contracts/new/?scratch=1");
+    await page.getByLabel("Client name").fill("Meera Iyer");
+    await page.goto("contracts/new/?scratch=1");
+    await expect(page.getByText(/You have unsaved changes from/)).toBeVisible();
+    await expect(page.getByLabel("Client name")).toHaveValue("");
+    await page.getByRole("button", { name: "Restore them" }).click();
+    await expect(page.getByLabel("Client name")).toHaveValue("Meera Iyer");
+  });
+
+  test("a date another offer is holding can be sent anyway, with the client's name as the title", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    let tries = 0;
+    api.post("/contracts", async ({ route }: HandlerArgs) => {
+      tries += 1;
+      if (tries === 1) {
+        await route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Priya Sharma has this date held until Nov 2. Send anyway? Whoever signs first books it." }),
+        });
+        return undefined;
+      }
+      return { booking_id: "c-1", contract_token: "tok-1", status: "approved", contract_status: "sent", hold_expires_at: "2030-05-08T12:00:00" };
+    });
+    await page.goto("contracts/new/?scratch=1");
+    await page.getByLabel("Client name").fill("Meera Iyer");
+    await fillEvent(page, iso(90));
+    await send(page);
+    await expect(page.getByText(/Priya Sharma has this date held until Nov 2/)).toBeVisible();
+    await page.getByRole("button", { name: "Send anyway" }).click();
+    await expect(page.getByRole("heading", { name: /Send this link|On its way/ })).toBeVisible();
+    const calls = api.requestsTo("POST", "/contracts");
+    expect(calls[1].body).toMatchObject({ allow_held_clash: true, document_title: "Meera Iyer — Sangeet Night Coverage agreement" });
+    expect(calls[0].body).not.toHaveProperty("allow_held_clash");
   });
 });

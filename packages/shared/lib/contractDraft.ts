@@ -289,6 +289,32 @@ export function presetSchedule(
   ];
 }
 
+/** Days from `today` to `eventDate` (both YYYY-MM-DD), or null if unknown. */
+function daysUntil(eventDate: string, today: string): number | null {
+  const e = Date.parse(`${eventDate.slice(0, 10)}T00:00:00Z`);
+  const t = Date.parse(`${today.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(e) || Number.isNaN(t) ? null : Math.round((e - t) / 86_400_000);
+}
+
+/**
+ * A schedule whose "days before the event" payments all fall after today.
+ * "Three payments" put one 60 days out, so a contract for an event 47 days
+ * away opened with a payment already past due (2026-10-26). One that can't
+ * fit before the event is due on signing instead. Returns the schedule as
+ * it was when nothing had to move.
+ */
+export function fitSchedule(schedule: InstallmentDraft[], eventDate: string, today: string): InstallmentDraft[] {
+  const left = eventDate ? daysUntil(eventDate, today) : null;
+  if (left == null) return schedule;
+  let moved = false;
+  const out = schedule.map((i) => {
+    if (i.dueType !== "before_event" || i.dueDays === "" || Number(i.dueDays) < left) return i;
+    moved = true;
+    return left > 1 ? { ...i, dueDays: String(left - 1) } : { ...i, dueType: "on_signing" as DueType, dueDays: "" };
+  });
+  return moved ? out : schedule;
+}
+
 export function scheduledCents(draft: Draft): number {
   return draft.schedule.reduce((sum, i) => sum + toCents(i.amount), 0);
 }
@@ -404,22 +430,42 @@ export function reconcileLayout(layout: LayoutBlock[], clauses: { key: string }[
     const sig = out.findIndex((b) => b.type === "signature");
     out.splice(sig < 0 ? out.length : sig, 0, { id: c.key, type: "terms" });
   }
-  return out;
+  // The structured blocks keep their natural order and the signatures come
+  // last; only terms sections move between them. A contract could open
+  // with its signature lines above the parties (2026-10-26 test). A layout
+  // saved in another order is put back in this one, its sections where
+  // they were relative to the blocks around them.
+  const order = STRUCTURED.filter((t) => t !== "signature");
+  let next = 0;
+  const fixed = out
+    .filter((b) => b.type !== "signature")
+    .map((b) => (b.type === "terms" ? b : { id: order[next], type: order[next++] }));
+  return [...fixed, { id: "signature", type: "signature" }];
 }
 
 export function layoutOf(draft: Draft): LayoutBlock[] {
   return reconcileLayout(draft.layout, draft.clauses);
 }
 
-/** Move a block up (-1) or down (+1); at either end it stays put. */
+/** Move a terms section up (-1) or down (+1), past one block. Structured
+ *  blocks don't move, and nothing goes below the signatures. */
 export function moveBlock(draft: Draft, id: string, delta: -1 | 1): LayoutBlock[] {
   const layout = layoutOf(draft);
   const from = layout.findIndex((b) => b.id === id);
   const to = from + delta;
-  if (from < 0 || to < 0 || to >= layout.length) return layout;
+  if (from < 0 || layout[from].type !== "terms" || to < 0 || to >= layout.length - 1) return layout;
   const next = [...layout];
   [next[from], next[to]] = [next[to], next[from]];
-  return next;
+  return reconcileLayout(next, draft.clauses);
+}
+
+/** Whether a block can move that way: terms sections only, never past the
+ *  signatures. */
+export function canMove(draft: Draft, id: string, delta: -1 | 1): boolean {
+  const layout = layoutOf(draft);
+  const from = layout.findIndex((b) => b.id === id);
+  const to = from + delta;
+  return from >= 0 && layout[from].type === "terms" && to >= 0 && to < layout.length - 1;
 }
 
 /** A new terms section at a position in the document (default: before the

@@ -6,7 +6,7 @@
 // the editing happens in the revision panel beside it.
 
 import type { ReactNode } from "react";
-import { describeDue, layoutOf, lineTotalCents, money, totalCents, toCents, type Draft } from "../../lib/contractDraft";
+import { cancellationClause, describeDue, layoutOf, lineTotalCents, money, totalCents, toCents, type Draft } from "../../lib/contractDraft";
 import { lineId, showValue, type ValueKind } from "../../lib/negotiation";
 
 export type Mark = "other" | "yours" | null;
@@ -46,6 +46,15 @@ export function ContractPaper({
   title: string;
 }) {
   const show = (id: string, kind: ValueKind, raw: string) => <V mark={markOf(id)}>{showValue(kind, raw)}</V>;
+  // The window prints inside the Cancellation section when there is one —
+  // one place says what cancelling costs (2026-10-26 test). Without one it
+  // stays with the policies, as before.
+  const cancelling = cancellationClause(draft);
+  const windowLine = draft.cancellationDays ? (
+    <p>
+      Cancelling within {show("policy.cancellation", "days", draft.cancellationDays)} of the event may forfeit what&apos;s been paid.
+    </p>
+  ) : null;
   let n = 0;
 
   const blocks = layoutOf(draft).map((b) => {
@@ -100,7 +109,8 @@ export function ContractPaper({
           </Term>
         );
       case "schedule": {
-        const policies = draft.cancellationDays || draft.overtimeRate;
+        const windowHere = Boolean(draft.cancellationDays) && !cancelling;
+        const policies = windowHere || draft.overtimeRate;
         return (
           <div key={b.id}>
             {draft.schedule.length ? (
@@ -128,13 +138,8 @@ export function ContractPaper({
               </Term>
             ) : null}
             {policies ? (
-              <Term n={++n} title="Cancellation and overtime">
-                {draft.cancellationDays ? (
-                  <p>
-                    Cancelling within {show("policy.cancellation", "days", draft.cancellationDays)} of the event may
-                    forfeit what&apos;s been paid.
-                  </p>
-                ) : null}
+              <Term n={++n} title={windowHere ? (draft.overtimeRate ? "Cancellation and overtime" : "Cancellation") : "Overtime"}>
+                {windowHere ? windowLine : null}
                 {draft.overtimeRate ? (
                   <p>Additional time is billed at {show("policy.overtime", "money", draft.overtimeRate)} per hour.</p>
                 ) : null}
@@ -148,9 +153,12 @@ export function ContractPaper({
         if (!c) return null;
         return (
           <Term key={b.id} n={++n} title={c.title || "Untitled clause"}>
-            <p className="whitespace-pre-line">
-              <V mark={markOf(`clause:${c.key}`)}>{c.body || "—"}</V>
-            </p>
+            {c === cancelling ? windowLine : null}
+            {c.body || c !== cancelling ? (
+              <p className="whitespace-pre-line">
+                <V mark={markOf(`clause:${c.key}`)}>{c.body || "—"}</V>
+              </p>
+            ) : null}
           </Term>
         );
       }
