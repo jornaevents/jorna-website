@@ -133,6 +133,11 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
       return "Your client opened an attached document";
     case "document_signed":
       return `${typeof d.signer_name === "string" ? d.signer_name : "Your client"} signed “${docTitle(d)}”${forName(d)}`;
+    // An addendum's priced items applied once both signed (backend DECISIONS #38).
+    case "addendum_applied":
+      return typeof d.total_before === "number" && typeof d.total_after === "number"
+        ? `${docTitle(d)} changed the total from ${money(d.total_before)} to ${money(d.total_after)}`
+        : `${docTitle(d)} changed what's included`;
     case "document_countersigned":
       return `You signed “${docTitle(d)}”`;
     case "document_signature_declined":

@@ -76,6 +76,9 @@ function DocumentEditorInner() {
   const [kind, setKind] = useState<AttachedDocumentKind>(kindParam === "cancellation" ? "cancellation" : "addendum");
   const [title, setTitle] = useState("");
   const [sections, setSections] = useState<SectionDraft[]>([]);
+  // An addendum's priced items (decision B, backend DECISIONS #38): once both
+  // sign, the booking's total and remaining payments follow.
+  const [added, setAdded] = useState<{ key: string; name: string; price: string; quantity: string }[]>([]);
   const [emailClient, setEmailClient] = useState(true);
   const [templateName, setTemplateName] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -117,6 +120,7 @@ function DocumentEditorInner() {
           setKind(found.kind);
           setTitle(found.title);
           setSections(found.sections.map((s) => ({ ...s })));
+          setAdded((found.line_items ?? []).map((l) => ({ key: newKey(), name: l.name, price: String(l.unit_price_cents / 100), quantity: String(l.quantity) })));
         }
       })
       .catch((err) => !cancelled && setLoadError(err instanceof ApiError ? err.message : "Couldn't load your bookings."));
@@ -152,7 +156,11 @@ function DocumentEditorInner() {
     ...(blank ? [`Fill in the blank (___) in “${blank.title || "a section"}”.`] : []),
     !sections.length ? "Add at least one section." : null,
     sections.some((s) => !s.title.trim() || !s.body.trim()) ? "Every section needs a title and some text." : null,
+    added.some((l) => !l.name.trim() || !(Number(l.price) >= 0) || l.price === "" || !(Number(l.quantity) > 0))
+      ? "Every added item needs a name, a price and a quantity."
+      : null,
   ].filter((p): p is string => Boolean(p));
+  const addedCents = added.reduce((sum, l) => sum + Math.round(Number(l.price || 0) * 100) * (Number(l.quantity) || 0), 0);
 
   function update(key: string, patch: Partial<SectionDraft>) {
     setSections((all) => all.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -214,6 +222,15 @@ function DocumentEditorInner() {
     const payload = {
       title: title.trim() || null,
       sections: sections.map((s) => ({ key: s.key, title: s.title.trim(), body: s.body.trim() })),
+      ...(kind === "addendum"
+        ? {
+            line_items: added.map((l) => ({
+              name: l.name.trim(),
+              unit_price_cents: Math.round(Number(l.price) * 100),
+              quantity: Number(l.quantity),
+            })),
+          }
+        : {}),
     };
     const email = mode === "send" && emailClient;
     try {
@@ -329,7 +346,11 @@ function DocumentEditorInner() {
         <p className="mt-3 text-ink-soft">
           {isDraft
             ? "Nothing has gone to your client. Send it from the contract when it's ready."
-            : `${clientOf(booking)} reads it and signs on its own link. It doesn't change the booking's price, date or payments.`}
+            : `${clientOf(booking)} reads it and signs on its own link.${
+                kind === "addendum" && added.length
+                  ? " Once you both sign, the total and the payments still to come change as it says."
+                  : " It doesn't change the booking's price, date or payments."
+              }`}
         </p>
         {!isDraft && doc.token ? (
           <div className="mt-8 rounded-2xl border border-card-edge bg-card p-5 text-left shadow-[var(--shadow-card)]">
@@ -380,8 +401,9 @@ function DocumentEditorInner() {
           {existing ? `Edit ${KIND_LABEL[kind].toLowerCase()}` : `New ${KIND_LABEL[kind].toLowerCase()}`}
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          For {clientOf(booking)}&apos;s booking on {prettyDate(booking.date_iso) ?? "their date"}. Text only — it
-          doesn&apos;t change the price, date or payments.
+          For {clientOf(booking)}&apos;s booking on {prettyDate(booking.date_iso) ?? "their date"}. {kind === "addendum"
+            ? "Its priced items, if you add any, change the total once you both sign; its text changes nothing else."
+            : "Text only — it doesn't change the price, date or payments."}
         </p>
       </header>
 
@@ -455,6 +477,46 @@ function DocumentEditorInner() {
               + Add a section
             </button>
           </div>
+
+          {kind === "addendum" ? (
+            <section aria-label="Priced changes" className="mt-6 border-t border-line-soft pt-5">
+              <p className="text-sm font-semibold text-ink">Add to what&apos;s sold (optional)</p>
+              <p className="mt-1 text-xs text-ink-faint">
+                Once you both sign, the total goes up by these and the difference goes on the payments still to come.
+              </p>
+              <div className="mt-3 grid gap-2">
+                {added.map((l) => (
+                  <div key={l.key} className="grid grid-cols-[minmax(0,1fr)_5rem_7rem_auto] items-center gap-2">
+                    <input aria-label="Added item" placeholder="e.g. Two more uplights" value={l.name}
+                      onChange={(e) => setAdded((all) => all.map((x) => (x.key === l.key ? { ...x, name: e.target.value } : x)))}
+                      className="rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none focus:border-gold" />
+                    <input aria-label="Added item quantity" type="number" min={1} value={l.quantity}
+                      onChange={(e) => setAdded((all) => all.map((x) => (x.key === l.key ? { ...x, quantity: e.target.value } : x)))}
+                      className="rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none focus:border-gold" />
+                    <input aria-label="Added item price ($ each)" type="number" min={0} step="0.01" value={l.price}
+                      onChange={(e) => setAdded((all) => all.map((x) => (x.key === l.key ? { ...x, price: e.target.value } : x)))}
+                      className="rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none focus:border-gold" />
+                    <button type="button" className="text-xs text-ink-faint hover:text-maroon" onClick={() => setAdded((all) => all.filter((x) => x.key !== l.key))}>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdded((all) => [...all, { key: newKey(), name: "", price: "", quantity: "1" }])}
+                className="mt-2 rounded-full border border-dashed border-card-edge px-3 py-1 text-xs font-semibold text-ink-soft hover:text-ink"
+              >
+                + Add a priced item
+              </button>
+              {added.length && booking.amount_cents != null ? (
+                <p className="mt-3 text-sm text-ink">
+                  Total goes from ${(booking.amount_cents / 100).toLocaleString()} to $
+                  {((booking.amount_cents + addedCents) / 100).toLocaleString()}.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
           <div className="mt-8 grid gap-6 border-t border-line-soft pt-6 sm:grid-cols-2">
             <div>

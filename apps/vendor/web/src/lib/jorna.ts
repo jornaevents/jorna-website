@@ -1097,6 +1097,7 @@ export function createDocument(
     sections: { key?: string; title: string; body: string }[];
     send?: boolean;
     email_client?: boolean;
+    line_items?: { name: string; unit_price_cents: number; quantity: number }[];
   },
 ): Promise<AttachedDocument> {
   return apiFetch(`/contracts/${bookingId}/documents`, { method: "POST", body: input });
@@ -1104,7 +1105,11 @@ export function createDocument(
 
 export function updateDocument(
   documentId: string,
-  input: { title?: string | null; sections?: { key?: string; title: string; body: string }[] },
+  input: {
+    title?: string | null;
+    sections?: { key?: string; title: string; body: string }[];
+    line_items?: { name: string; unit_price_cents: number; quantity: number }[];
+  },
 ): Promise<AttachedDocument> {
   return apiFetch(`/contract-documents/${documentId}`, { method: "PATCH", body: input });
 }

@@ -473,7 +473,7 @@ function ContractViewInner() {
             {docs.length === 0 ? (
               <p className="mt-2 text-sm text-ink-faint">
                 Need to change or end what was signed? An addendum or cancellation agreement goes to your client to
-                sign on its own link. It doesn&apos;t change the price, date or payments here.
+                sign on its own link. An addendum can add priced items; the total and remaining payments change once you both sign.
               </p>
             ) : (
               <ul className="mt-3 grid gap-2">
