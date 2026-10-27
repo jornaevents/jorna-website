@@ -257,6 +257,10 @@ export interface FieldNegotiationState {
   locks: LockGroup[];
   /** From round 6: suggest talking it through. */
   nudge: boolean;
+  /** Whether this side may send now: their turn, or the vendor's when
+   *  nothing waits on the client (backend DECISIONS #37). Older backends
+   *  don't send it; the turn decides then. */
+  may_send?: boolean;
   can_sign: boolean;
   waiting_count: number;
   terms: TermsVersion;

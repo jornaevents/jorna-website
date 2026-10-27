@@ -68,7 +68,8 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
     case "paid":
       return { label: "Paid", tone: "green" };
     case "cancelled":
-      return { label: "Void", tone: "grey" };
+      // Signed by both, then ended — not the same as never agreed.
+      return b.signed_at ? { label: "Cancelled", tone: "grey" } : { label: "Void", tone: "grey" };
   }
 }
 
@@ -107,6 +108,9 @@ function offerLine(b: VendorBooking, s: ContractStatus): string | null {
   }
   if (s === "countersign") {
     return `${b.signer_name || clientOf(b)} signed${b.client_signed_at ? ` ${prettyDate(b.client_signed_at)}` : ""} — add your signature to book it`;
+  }
+  if (s === "cancelled" && b.signed_at) {
+    return `Cancelled after signing${b.vendor_decline_note ? ` — “${b.vendor_decline_note}”` : ""}`;
   }
   if (b.signed_at && b.signer_name) {
     // Who signed, and whether that's who the contract is for (#167).
@@ -688,6 +692,10 @@ export default function ContractsPage() {
                     {s === "changes_waiting" ? (
                       <Link href={`/contracts/view?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
                         Answer
+                      </Link>
+                    ) : s === "countersign" ? (
+                      <Link href={`/contracts/view?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
+                        Sign
                       </Link>
                     ) : contractNeedsVendor(s) && s !== "draft" && s !== "expired" ? (
                       <Link

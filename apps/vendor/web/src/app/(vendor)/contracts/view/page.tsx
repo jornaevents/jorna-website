@@ -338,8 +338,16 @@ function ContractViewInner() {
         </Button>
         {unsigned ? (
           <>
+            {/* Once sent, agreed terms change through the negotiation, where the
+                client sees and answers each one; the editor keeps the wording
+                (backend DECISIONS #37). */}
+            {c.negotiation && c.contract_status !== "draft" ? (
+              <LinkButton href={`/contracts/changes?id=${c.booking_id}`} variant="ghost">
+                Change terms
+              </LinkButton>
+            ) : null}
             <LinkButton href={`/contracts/new?edit=${c.booking_id}`} variant="ghost">
-              Edit
+              {c.negotiation && c.contract_status !== "draft" ? "Edit wording" : "Edit"}
             </LinkButton>
             <Button variant="quiet" onClick={() => setConfirmVoid(true)}>
               Void
@@ -568,6 +576,7 @@ function ContractViewInner() {
                             clientSignedAt={d.client_signed_at}
                             what={`“${d.title}”`}
                             freesDate={null}
+                            documentKind={d.kind === "cancellation" ? "cancellation" : "addendum"}
                             consent={d.vendor_esign_consent}
                             onSign={(input) => countersignDocument(d.document_id, input)}
                             onDecline={(reason) => declineDocumentSignature(d.document_id, reason)}

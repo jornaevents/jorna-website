@@ -188,6 +188,11 @@ function Expanded({
   onChangeRequest: (accept: boolean, message?: string) => Promise<void>;
 }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  // A contract both sides signed: its terms still apply, money may have been
+  // paid, and the backend asks for a reason (DECISIONS #37 there).
+  const signedContract = Boolean(b.contract_token && b.signed_at);
+  const receivedCents = (b.payment_schedule ?? []).filter((i) => i.confirmed_at).reduce((sum, i) => sum + i.amount_cents, 0);
   const m = bookingMoney(b);
   const toConfirm = paymentsToConfirm(b);
   const release = releaseStep(b);
@@ -332,17 +337,47 @@ function Expanded({
         <div className="mt-3 rounded-xl border border-card-edge bg-card p-4">
           <p className="text-sm text-ink">
             Cancel this booking? {clientName(b)} is told straight away and it comes off their plan.{" "}
-            {b.payment_status === "paid"
+            {signedContract
+              ? `You both signed it, so its cancellation terms still apply${
+                  b.cancellation_window_hours != null
+                    ? ` (cancelling within ${Math.round(b.cancellation_window_hours / 24)} days of the event)`
+                    : ""
+                }. ${receivedCents > 0 ? `You've confirmed receiving ${money(receivedCents)} — settle that with them directly.` : "You haven't confirmed any payment from them."}`
+              : b.payment_status === "paid"
               ? "They'll be refunded in full — you won't be paid for this one."
               : b.payment_method === "manual" && ["marked_paid", "confirmed_paid"].includes(b.payment_status ?? "")
                 ? "They told us they already paid you directly — cancelling won't refund that automatically."
                 : "Nothing has been paid through Jorna, so nothing is refunded."}
           </p>
+          {signedContract ? (
+            <>
+              <p className="mt-2 text-sm text-ink-soft">
+                To end it with both signatures, send a{" "}
+                <Link href={`/contracts/document?kind=cancellation&booking=${b.booking_id}`} className="font-semibold text-gold">
+                  cancellation agreement
+                </Link>{" "}
+                instead.
+              </p>
+              <label className="mt-3 block">
+                <span className="mb-1 block text-xs text-ink-faint">Why you&apos;re cancelling — {clientName(b)} sees this</span>
+                <textarea
+                  value={cancelReason}
+                  maxLength={500}
+                  rows={2}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none focus:border-gold"
+                />
+              </label>
+            </>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
-              disabled={busy}
+              disabled={busy || (signedContract && !cancelReason.trim())}
               onClick={() =>
-                onAct(() => setBookingStatus(b.booking_id, "rejected"), "Cancelled. Your client has been told.")
+                onAct(
+                  () => setBookingStatus(b.booking_id, "rejected", signedContract ? cancelReason.trim() : null),
+                  "Cancelled. Your client has been told.",
+                )
               }
             >
               Yes, cancel it

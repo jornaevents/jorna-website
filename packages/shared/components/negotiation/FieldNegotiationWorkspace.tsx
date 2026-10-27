@@ -122,7 +122,8 @@ function AnswerCard({
   onAnswer: (a: FieldAnswer | null) => void;
 }) {
   const action = answer?.action;
-  // "Keep mine" sends back the contract's value: that's not an ask for it.
+  // Their keep matches the contract only when they hold the contract's own
+  // value; a keep of an earlier ask shows as that ask (backend DECISIONS #37).
   const kept = JSON.stringify(field.proposed ?? null) === JSON.stringify(field.value ?? null);
   const asked = field.your_last_ask;
   const problem = action === "counter" ? valueProblem(field.key, answer?.value) : null;
@@ -195,7 +196,9 @@ export function FieldNegotiationWorkspace({
 }) {
   const side = state.side;
   const otherName = side === "client" ? vendorName : clientName;
-  const myTurn = state.turn === side;
+  const myTurn = state.may_send ?? state.turn === side;
+  // Nothing open on either side: it's agreed and waits for the signature.
+  const agreed = state.fields.every((f) => f.state !== "waiting_client" && f.state !== "waiting_vendor");
   const usableDraft = state.draft && !state.draft.stale ? state.draft : null;
 
   const [answers, setAnswers] = useState<Record<string, FieldAnswer>>(() =>
@@ -280,7 +283,7 @@ export function FieldNegotiationWorkspace({
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-panel px-3 py-1 text-xs font-semibold text-ink-soft">
-            {myTurn ? "Your turn" : `${otherName}'s turn`}
+            {agreed ? (side === "vendor" ? `Agreed — waiting for ${otherName} to sign` : "Agreed") : myTurn ? "Your turn" : `${otherName}'s turn`}
           </span>
           {headerActions}
           {onClose ? (
@@ -332,6 +335,15 @@ export function FieldNegotiationWorkspace({
               <section aria-label={`${otherName}'s note`} className="rounded-xl border border-line-soft bg-card p-3.5 text-sm">
                 <p className="text-xs font-semibold text-ink-faint">{otherName}&apos;s note</p>
                 <p className="mt-1 whitespace-pre-wrap text-ink">“{lastFromThem.message}”</p>
+              </section>
+            ) : null}
+
+            {agreed && side === "vendor" ? (
+              <section className="rounded-xl bg-panel p-4 text-sm text-ink-soft">
+                <p className="font-semibold text-ink">Everything&apos;s agreed</p>
+                <p className="mt-1">
+                  {otherName} can sign now. Change something below only if you need to — it goes to them as a new round.
+                </p>
               </section>
             ) : null}
 

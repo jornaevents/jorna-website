@@ -23,7 +23,7 @@ export function starterSections(kind: AttachedDocumentKind, eventDate: string | 
     return [
       {
         title: "What changes",
-        body: `This addendum changes our signed agreement${on} as follows: `,
+        body: `This addendum changes our signed agreement${on} as follows: ___`,
       },
       {
         title: "Everything else stays the same",
@@ -38,7 +38,7 @@ export function starterSections(kind: AttachedDocumentKind, eventDate: string | 
     },
     {
       title: "Payments and refunds",
-      body: "Payments made so far are handled as follows: ",
+      body: "Payments made so far are handled as follows: ___",
     },
     {
       title: "Release",

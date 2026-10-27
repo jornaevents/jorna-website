@@ -141,8 +141,14 @@ test.describe("vendor bookings (/my-bookings)", () => {
 
     await page.getByRole("button", { name: "Cancel booking" }).click();
     expect(api.requestsTo("PUT", "/bookings/conf/status")).toHaveLength(0);
-    await page.getByRole("button", { name: "Yes, cancel it" }).click();
+    // A signed contract: its terms still apply, and the client is told why.
+    await expect(page.getByText(/You both signed it, so its cancellation terms still apply/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "cancellation agreement" })).toBeVisible();
+    const yes = page.getByRole("button", { name: "Yes, cancel it" });
+    await expect(yes).toBeDisabled();
+    await page.getByLabel(/Why you're cancelling/).fill("Family emergency");
+    await yes.click();
     await expect(page.getByText("Cancelled. Your client has been told.")).toBeVisible();
-    expect(api.requestsTo("PUT", "/bookings/conf/status")[0].body).toMatchObject({ status: "rejected" });
+    expect(api.requestsTo("PUT", "/bookings/conf/status")[0].body).toMatchObject({ status: "rejected", note: "Family emergency" });
   });
 });

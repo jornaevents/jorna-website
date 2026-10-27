@@ -31,10 +31,11 @@ import {
   requestGuestSigningCode,
   withdrawGuestProposal,
 } from "@/lib/jorna";
-import { describeDue } from "@jorna/shared/lib/contractDraft";
+import { describeDue, fromContract } from "@jorna/shared/lib/contractDraft";
 import { termsOf } from "@jorna/shared/lib/contractDiff";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { ContractCompare } from "@jorna/shared/components/negotiation/ContractCompare";
+import { ContractPaper } from "@jorna/shared/components/negotiation/ContractPaper";
 import type { GuestBooking, Installment, PaidVia, ProposalHistory, SigningProof } from "@/lib/types";
 import { DocumentView } from "./DocumentView";
 import { SignatureStep } from "./SignatureStep";
@@ -665,6 +666,38 @@ function BookingLinkInner() {
     );
   }
 
+  // A booking both sides signed, then cancelled by the vendor (backend
+  // DECISIONS #37). It was agreed and may have been paid toward, so it never
+  // reads as "nothing was signed and nothing is owed".
+  if (booking.status === "rejected" && booking.signed_at) {
+    const received = (booking.payment_schedule ?? []).filter((i) => i.confirmed_at);
+    const receivedCents = received.reduce((sum, i) => sum + i.amount_cents, 0);
+    return (
+      <Shell>
+        <p className="eyebrow">Cancelled</p>
+        <h1 className="serif mt-2 text-2xl text-maroon dark:text-gold">
+          {vendorName} cancelled your booking for {prettyDate(booking.date_iso)}
+        </h1>
+        {booking.vendor_decline_note ? (
+          <p className="mt-3 text-ink-soft">They said: “{booking.vendor_decline_note}”</p>
+        ) : null}
+        <p className="mt-3 text-ink-soft">
+          You both signed this agreement, so its cancellation terms still apply.{" "}
+          {receivedCents > 0
+            ? `${vendorName} confirmed receiving ${money(receivedCents)} from you. Talk to them about what happens to it — Jorna doesn't hold the money.`
+            : `${vendorName} hadn't confirmed receiving any payment from you.`}
+        </p>
+        <a
+          href={guestContractPdfUrl(token)}
+          download
+          className="mt-4 inline-block text-sm font-semibold text-gold hover:underline"
+        >
+          Download your signed copy (PDF)
+        </a>
+      </Shell>
+    );
+  }
+
   // Voided by the vendor. The backend still serves the link so this can say
   // so, instead of the generic "not valid" a dead token gets.
   if (booking.status === "rejected") {
@@ -731,31 +764,6 @@ function BookingLinkInner() {
     booking.deposit_percent != null && booking.deposit_amount_cents != null
       ? money(booking.deposit_amount_cents)
       : null;
-  // Built first so the card only shows when there's something in it (#154).
-  // The vendor's own cancellation clause says it better than the generated
-  // line — show one, not both.
-  const clauses = booking.terms_clauses ?? [];
-  const agreeing = [
-    depositDue && !schedule ? (
-      <li key="deposit">✓ {depositDue} deposit ({booking.deposit_percent}%) due to secure your date</li>
-    ) : null,
-    booking.cancellation_window_hours != null && !clauses.some((c) => /cancel/i.test(`${c.key} ${c.title}`)) ? (
-      <li key="cancellation">
-        ✓ Cancelling within {Math.round(booking.cancellation_window_hours / 24)} days of the event may forfeit
-        what&apos;s been paid
-      </li>
-    ) : null,
-    booking.overtime_rate_cents != null ? (
-      <li key="overtime">✓ Overtime billed at {money(booking.overtime_rate_cents)}/hr, agreed in advance</li>
-    ) : null,
-    booking.contract_terms?.equipment_power ? <li key="power">✓ {booking.contract_terms.equipment_power}</li> : null,
-    booking.contract_terms?.travel ? <li key="travel">✓ {booking.contract_terms.travel}</li> : null,
-    ...clauses.map((c) => (
-      <li key={c.key}>
-        ✓ <strong className="text-ink">{c.title}.</strong> {c.body}
-      </li>
-    )),
-  ].filter(Boolean);
 
   if (booking.signed_at) {
     const depositPaid = Boolean(booking.deposit_marked_paid_at);
@@ -885,6 +893,12 @@ function BookingLinkInner() {
       ) : null}
       <div className="text-center">
         <h1 className="serif text-3xl text-maroon dark:text-gold">{vendorName} sent you a contract</h1>
+        {/* What it is before they're asked for anything — the email and
+            details steps showed no title, date or price (2026-10-26 test). */}
+        <p className="mt-2 text-ink">
+          {booking.document_title || `${booking.service_name ?? "Services"} agreement`} ·{" "}
+          {dateRange(booking.date_iso, booking.date_end)} · {money(booking.amount_cents)}
+        </p>
         {holdUntil ? (
           <p className="mt-2 text-sm text-ink-soft">
             {vendorName} is holding this date for you until {holdUntil}.
@@ -1061,57 +1075,38 @@ function BookingLinkInner() {
             />
           ) : null}
 
-          <Card className="mt-8 p-5">
-            <h2 className="serif text-lg text-ink">{booking.service_name ?? "Service"}</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              {dateRange(booking.date_iso, booking.date_end)} · {prettyTime(booking.time_start)}–{prettyTime(booking.time_end)}
-            </p>
-            {isSet(booking.location) ? <p className="text-sm text-ink-faint">{booking.location}</p> : null}
-            {booking.guest_count != null ? <p className="text-sm text-ink-faint">{booking.guest_count} guests</p> : null}
-            <Items booking={booking} />
-            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line-soft pt-3 text-sm sm:grid-cols-3">
-              {booking.overtime_rate_cents != null ? (
-                <div>
-                  <p className="text-ink-faint">Overtime rate</p>
-                  <p className="font-semibold text-ink">{money(booking.overtime_rate_cents)}/hr</p>
-                </div>
-              ) : null}
-              {depositDue && !schedule ? (
-                <div>
-                  <p className="text-ink-faint">Deposit due</p>
-                  <p className="font-semibold text-maroon dark:text-gold">{depositDue}</p>
-                </div>
-              ) : null}
-              <div>
-                <p className="text-ink-faint">Total</p>
-                <p className="font-semibold text-ink">{money(booking.amount_cents)}</p>
-              </div>
-            </div>
-            {schedule ? (
-              <div className="mt-4 border-t border-line-soft pt-3">
-                <p className="mb-2 text-sm font-medium text-ink-soft">How you&apos;ll pay</p>
-                <Schedule schedule={schedule} />
-              </div>
-            ) : null}
-            <p className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
-              <strong className="text-ink">You&apos;ll pay {vendorName} directly</strong> — Jorna
-              doesn&apos;t handle the money. This is your written agreement.
-            </p>
-            <a
-              href={guestContractPdfUrl(token)}
-              download
-              className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
-            >
-              Download as PDF to read later
-            </a>
-          </Card>
-
-          {agreeing.length ? (
+          {/* The contract as the vendor laid it out — the same page their
+              preview and the PDF show — so what's signed is what was agreed:
+              title, section order and the cancellation window included
+              (2026-10-26 test). */}
+          <div className="mt-8">
+            <ContractPaper
+              draft={fromContract(booking)}
+              markOf={() => null}
+              vendorName={vendorName}
+              clientName={booking.guest_name || "Client"}
+              title={booking.document_title || `${booking.service_name ?? "Services"} agreement`}
+            />
+          </div>
+          {/* The contract states the rule ("14 days before the event"); the
+              client also needs the dates, and which are already late. */}
+          {schedule ? (
             <Card className="mt-4 p-5">
-              <p className="text-sm font-medium text-ink-soft">What you&apos;re agreeing to</p>
-              <ul className="mt-3 grid gap-2 text-sm text-ink-soft">{agreeing}</ul>
+              <p className="mb-2 text-sm font-medium text-ink-soft">How you&apos;ll pay</p>
+              <Schedule schedule={schedule} />
             </Card>
           ) : null}
+          <p className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
+            <strong className="text-ink">You&apos;ll pay {vendorName} directly</strong> — Jorna
+            doesn&apos;t handle the money. This is your written agreement.
+          </p>
+          <a
+            href={guestContractPdfUrl(token)}
+            download
+            className="mt-3 inline-block text-sm font-semibold text-gold underline-offset-4 hover:underline"
+          >
+            Download as PDF to read later
+          </a>
 
           <div className="mt-6 grid gap-2">
             <Button type="button" size="lg" variant={openAsks || waitingOnMe ? "ghost" : "primary"} onClick={() => goTo("sign")}>
@@ -1173,10 +1168,10 @@ function BookingLinkInner() {
               className="w-full"
               disabled={busy || preview || !signerName.trim() || (!!booking.esign_consent && !proof)}
             >
-              {busy ? "Confirming…" : "Confirm booking →"}
+              {busy ? "Signing…" : "Sign the contract →"}
             </Button>
             <p className="mt-2 text-center text-xs text-ink-faint">
-              By confirming, you electronically sign this agreement. We&apos;ll email you and {vendorName} a signed copy.
+              Signing is your electronic signature on this agreement. {vendorName} signs next; it&apos;s booked once they do, and we&apos;ll email you both a signed copy then.
             </p>
           </div>
         </form>

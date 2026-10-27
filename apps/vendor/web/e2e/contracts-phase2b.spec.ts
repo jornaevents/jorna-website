@@ -152,17 +152,17 @@ test.describe("contracts — Phase 2b (proposals)", () => {
     await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("How you'll pay")).toBeVisible();
-    await expect(page.getByText("Due when signed")).toBeVisible();
+    await expect(page.getByText("Due when signed", { exact: true })).toBeVisible();
     await expect(page.getByText("The deposit is non-refundable.")).toBeVisible();
-    await expect(page.getByText("Extra hour × 2")).toBeVisible();
+    await expect(page.getByText(/Extra hour · 2 ×/)).toBeVisible();
 
     await toSigning(page);
     await page.getByPlaceholder("Type your full name to sign").fill("Priya Mehta");
-    await page.getByRole("button", { name: /Confirm booking/ }).click();
+    await page.getByRole("button", { name: /Sign the contract/ }).click();
     await expect(page.getByText(/updated this contract after you opened it/)).toBeVisible();
 
     // The page reloaded version 2; signing again sends it.
-    await page.getByRole("button", { name: /Confirm booking/ }).click();
+    await page.getByRole("button", { name: /Sign the contract/ }).click();
     await expect(page.getByRole("heading", { name: /You signed with Arjun Kapoor/ })).toBeVisible();
     const signs = api.requestsTo("POST", "/guest-bookings/tok-1/sign");
     expect(signs.map((s) => (s.body as { revision: number }).revision)).toEqual([1, 2]);

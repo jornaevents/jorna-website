@@ -199,7 +199,36 @@ test.describe("contracts — Phase 0", () => {
     await expect(
       page.getByRole("heading", { name: "Arjun Kapoor withdrew this booking offer" }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Confirm booking/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Sign the contract/ })).toHaveCount(0);
+  });
+
+  test("a signed booking the vendor cancelled says so, with the reason and what was paid", async ({ page, api }) => {
+    // 2026-10-26: this read "withdrew this offer, nothing was signed".
+    api.get("/guest-bookings/tok-cancelled", {
+      booking_id: "c-cancelled",
+      vendor_display_name: "Arjun Kapoor",
+      status: "rejected",
+      rejected_reason: "vendor_withdrew",
+      vendor_decline_note: "Family emergency",
+      date_iso: "2030-06-01",
+      time_start: "18:00",
+      time_end: "22:00",
+      location: "Pines Manor",
+      amount_cents: 100000,
+      signed_at: "2030-01-03T10:00:00Z",
+      client_signed_at: "2030-01-02T10:00:00Z",
+      payment_status: "unpaid",
+      payment_schedule: [
+        { id: "p1", label: "Deposit", amount_cents: 45333, due_type: "on_signing", due_date: null, due_days: null, due_on: "2030-01-03", marked_paid_at: "2030-01-03T11:00:00Z", confirmed_at: "2030-01-04T11:00:00Z" },
+        { id: "p2", label: "Balance", amount_cents: 54667, due_type: "before_event", due_date: null, due_days: 14, due_on: "2030-05-18", marked_paid_at: null, confirmed_at: null },
+      ],
+    });
+
+    await page.goto("booking-link/?t=tok-cancelled");
+    await expect(page.getByRole("heading", { name: /Arjun Kapoor cancelled your booking/ })).toBeVisible();
+    await expect(page.getByText("They said: “Family emergency”")).toBeVisible();
+    await expect(page.getByText(/confirmed receiving \$453\.33 from you/)).toBeVisible();
+    await expect(page.getByText(/Nothing was signed/)).toHaveCount(0);
   });
 
   test("a client's Book this goes to the client app, not a 404 here", async ({ page, api }) => {

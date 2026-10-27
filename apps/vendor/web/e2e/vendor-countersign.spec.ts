@@ -43,7 +43,7 @@ test.describe("vendor countersignature", () => {
     await expect(page.getByRole("button", { name: "Void" })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Sign", exact: true }).click();
-    await page.getByLabel("Your full legal name").fill("Arjun Rao");
+    await expect(page.getByLabel("Your full legal name")).toHaveValue("Priya Shah");
     const sign = page.getByRole("button", { name: "Sign", exact: true });
     await expect(sign).toBeDisabled();
     await page.getByText("I agree to sign electronically.").click();
@@ -51,9 +51,31 @@ test.describe("vendor countersignature", () => {
 
     await expect(page.getByText(/Signed\. It's booked/)).toBeVisible();
     expect(api.requestsTo("POST", "/contracts/c-1/countersign")[0].body).toEqual({
-      signer_name: "Arjun Rao",
+      signer_name: "Priya Shah",
       consent: true,
       consent_version: "2026-10-v1",
+    });
+  });
+
+  test("a name that isn't the account's signs only once the vendor confirms it", async ({ page, api }) => {
+    // 2026-10-26: "Mickey Mouse" countersigned a real contract unasked.
+    await loginAs(page, api);
+    api.get("/contracts/c-1", contract({ vendor_esign_consent: { version: "v", text: "t", given: true } }));
+    api.get("/contracts/c-1/documents", { items: [], total: 0 });
+    api.post("/contracts/c-1/countersign", contract({ contract_status: "signed", signed_at: "2030-01-03T10:00:00Z" }));
+
+    await page.goto("contracts/view/?id=c-1");
+    await page.getByRole("button", { name: "Sign", exact: true }).click();
+    await page.getByLabel("Your full legal name").fill("Arjun Rao");
+    const sign = page.getByRole("button", { name: "Sign", exact: true });
+    await expect(sign).toBeDisabled();
+    await page.getByText(/That isn't the name on your account \(Priya Shah\)/).click();
+    await sign.click();
+
+    await expect(page.getByText(/Signed\. It's booked/)).toBeVisible();
+    expect(api.requestsTo("POST", "/contracts/c-1/countersign")[0].body).toEqual({
+      signer_name: "Arjun Rao",
+      name_confirmed: true,
     });
   });
 
