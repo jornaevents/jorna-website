@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { display, effectiveAnswers, estimateTotal, kindOf, paperIds, previewTerms, sendLabel, valueProblem, waitingOn } from "./fieldNegotiation";
+import { display, effectiveAnswers, estimateTotal, followTotal, kindOf, paperIds, previewTerms, sendLabel, valueProblem, waitingOn } from "./fieldNegotiation";
 import type { NegotiationFieldView, TermsVersion } from "./contractTypes";
 
 const terms: TermsVersion = {
@@ -113,5 +113,21 @@ describe("what a send does (#153, #168)", () => {
     expect(t.line_items?.map((l) => [l.id, l.total_cents])).toEqual([["pkg", 120_000], ["new:x1", 40_000]]);
     expect(t.amount_cents).toBe(160_000);
     expect(paperIds("line:new:x1")).toEqual(["line:new:x1"]);
+  });
+});
+
+describe("followTotal", () => {
+  const pay = (id: string, cents: number) => ({
+    id, label: id, amount_cents: cents, due_type: "on_signing" as const, due_date: null, due_days: null,
+  });
+
+  it("rescales in proportion with the remainder on the last payment", () => {
+    const out = followTotal([pay("a", 40_000), pay("b", 40_000), pay("c", 40_000)], 50_000);
+    expect(out?.map((i) => i.amount_cents)).toEqual([16_667, 16_667, 16_666]);
+  });
+
+  it("leaves a schedule that already adds up alone", () => {
+    const schedule = [pay("a", 10_000)];
+    expect(followTotal(schedule, 10_000)).toBe(schedule);
   });
 });

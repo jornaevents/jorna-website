@@ -146,8 +146,10 @@ function AnswerCard({
       )}
       {field.note ? <p className="mt-1.5 text-xs italic text-ink-soft">“{field.note}”</p> : null}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {/* Each answer names the value it settles on, so "Accept" and "Keep"
+            can't be read the wrong way round (2026-10-26 test). */}
         <button type="button" className={chip(action === "accept")} onClick={() => onAnswer(action === "accept" ? null : { key: field.key, action: "accept" })}>
-          Accept
+          Accept {display(field.key, field.proposed)}
         </button>
         {canCounter ? (
           <button type="button" className={chip(action === "counter")}
@@ -156,7 +158,7 @@ function AnswerCard({
           </button>
         ) : null}
         <button type="button" className={chip(action === "keep")} onClick={() => onAnswer(action === "keep" ? null : { key: field.key, action: "keep" })}>
-          Keep mine
+          {asked != null ? `Ask for ${display(field.key, asked)} again` : `Keep ${display(field.key, field.value)}`}
         </button>
       </div>
       {action === "counter" ? (
@@ -205,6 +207,9 @@ export function FieldNegotiationWorkspace({
     Object.fromEntries((usableDraft?.answers ?? []).map((a) => [a.key, a])),
   );
   const [message, setMessage] = useState(usableDraft?.message ?? "");
+  // Folded until wanted: open, the footer covered the answers on a short
+  // laptop screen (2026-10-26 test).
+  const [noteOpen, setNoteOpen] = useState(Boolean(usableDraft?.message));
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -232,8 +237,26 @@ export function FieldNegotiationWorkspace({
       const next = { ...prev };
       if (a) next[key] = a;
       else delete next[key];
+      // An item left out takes its price and quantity asks with it; the
+      // backend refuses them together (DECISIONS #37 there).
+      const line = /^line:(.+)\.included$/.exec(key);
+      if (line && a?.value === false) {
+        delete next[`line:${line[1]}.price`];
+        delete next[`line:${line[1]}.quantity`];
+      }
       return next;
     });
+
+  // Packages still in if this send were agreed: the last one can't be left
+  // out, nor any while the vendor's prices are fixed (decisions D and E).
+  const packageIds = (state.terms.line_items ?? []).filter((l) => l.kind === "package").map((l) => l.id);
+  const packagesLeft = packageIds.filter((id) => answers[`line:${id}.included`]?.value !== false).length;
+  const cantLeaveOut = (key: string): string | null => {
+    const line = /^line:(.+)\.included$/.exec(key);
+    if (!line || !packageIds.includes(line[1])) return null;
+    if (side === "client" && state.locks.includes("prices")) return `Fixed by ${vendorName}`;
+    return packagesLeft <= 1 ? "Needs one package" : null;
+  };
 
   // Rose: the other side's open asks. Gold: what the reader is changing now.
   const marks = new Map<string, Mark>();
@@ -349,14 +372,27 @@ export function FieldNegotiationWorkspace({
 
             {myTurn && waiting.length ? (
               <section aria-label="Waiting on you" className="grid gap-2.5">
-                <h3 className="text-sm font-semibold text-ink">Waiting on you ({waiting.length})</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-ink">Waiting on you ({waiting.length})</h3>
+                  {waiting.length > 1 ? (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-gold hover:underline"
+                      onClick={() => {
+                        for (const f of waiting) set(f.key, { key: f.key, action: "accept" });
+                      }}
+                    >
+                      Accept all
+                    </button>
+                  ) : null}
+                </div>
                 {waiting.map((f) => (
                   <AnswerCard
                     key={f.key}
                     field={f}
                     answer={answers[f.key]}
                     otherName={otherName}
-                    canCounter={!(side === "client" && f.group === "schedule") && kindOf(f.key) !== "newline"}
+                    canCounter={!(side === "client" && f.group === "schedule") && !["newline", "bool"].includes(kindOf(f.key))}
                     onAnswer={(a) => set(f.key, a)}
                   />
                 ))}
@@ -431,8 +467,11 @@ export function FieldNegotiationWorkspace({
                               <div key={f.key} className="text-sm">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-ink-soft">{f.label}</span>
-                                  {editing === f.key || a ? null : (
+                                  {editing === f.key || a ? null : cantLeaveOut(f.key) ? (
+                                    <span className="text-xs text-ink-faint">{cantLeaveOut(f.key)}</span>
+                                  ) : (
                                     <button type="button" className="text-xs font-semibold text-gold hover:underline"
+                                      aria-label={kindOf(f.key) === "bool" ? `Leave out ${f.label.replace(/^Include /, "")}` : `Change ${f.label}`}
                                       onClick={() => {
                                         setEditing(f.key);
                                         set(f.key, { key: f.key, action: "change", value: kindOf(f.key) === "bool" ? !f.value : f.value });
@@ -541,15 +580,22 @@ export function FieldNegotiationWorkspace({
                 <p className="text-xs text-ink-faint">If it&apos;s agreed, the payments are rescaled to the new total.</p>
               ) : null}
               {footerNote ? <p className="text-xs text-ink-faint">{footerNote}</p> : null}
-              <textarea
-                aria-label={`A note for ${otherName} (optional)`}
-                placeholder={`A note for ${otherName} (optional)`}
-                rows={2}
-                maxLength={2000}
-                className={inputClass}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
+              {noteOpen ? (
+                <textarea
+                  aria-label={`A note for ${otherName} (optional)`}
+                  placeholder={`A note for ${otherName} (optional)`}
+                  rows={2}
+                  maxLength={2000}
+                  className={inputClass}
+                  value={message}
+                  autoFocus
+                  onChange={(e) => setMessage(e.target.value)}
+                />
+              ) : (
+                <button type="button" className="justify-self-start text-xs font-semibold text-gold hover:underline" onClick={() => setNoteOpen(true)}>
+                  Add a note for {otherName}
+                </button>
+              )}
               {error ? <p role="alert" className="text-sm text-maroon dark:text-gold">{error}</p> : null}
               {notice && !error ? <p role="status" className="text-xs text-ink-faint">{notice}</p> : null}
               {problems.length ? <p className="text-xs text-maroon dark:text-gold">{problems[0]}</p> : null}

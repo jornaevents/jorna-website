@@ -239,5 +239,23 @@ export function previewTerms(terms: TermsVersion, fields: NegotiationFieldView[]
   out.line_items = out.line_items!.filter((l) => !dropLines.has(l.id));
   out.terms_clauses = out.terms_clauses!.filter((c) => !dropClauses.has(c.key));
   out.amount_cents = estimateTotal(terms, fields, answers);
+  // The schedule follows the total as the backend's follow_total does, so
+  // the preview never shows $1,200 of payments on a $500 total (2026-10-26).
+  if (!answers.some((x) => x.key === "schedule")) out.payment_schedule = followTotal(out.payment_schedule, out.amount_cents);
   return out;
+}
+
+/** The schedule rescaled to a new total, in proportion, with the remainder
+ *  on the last payment — backend field_negotiation_service.follow_total. */
+export function followTotal(schedule: TermsVersion["payment_schedule"], total: number): TermsVersion["payment_schedule"] {
+  if (!schedule?.length) return schedule;
+  const old = schedule.reduce((sum, i) => sum + i.amount_cents, 0) || 1;
+  if (old === total) return schedule;
+  let running = 0;
+  return schedule.map((i, idx) => {
+    if (idx === schedule.length - 1) return { ...i, amount_cents: total - running };
+    const amount = Math.max(1, Math.round((i.amount_cents * total) / old));
+    running += amount;
+    return { ...i, amount_cents: amount };
+  });
 }

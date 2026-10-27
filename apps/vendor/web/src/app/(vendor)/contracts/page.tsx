@@ -690,7 +690,7 @@ export default function ContractsPage() {
                   <span className="hidden text-xs text-ink-faint md:block">{prettyDate(lastModified(b))}</span>
                   <span className="col-span-3 flex flex-wrap items-center justify-end gap-1 md:col-span-1">
                     {s === "changes_waiting" ? (
-                      <Link href={`/contracts/view?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
+                      <Link href={`/contracts/changes?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
                         Answer
                       </Link>
                     ) : s === "countersign" ? (
