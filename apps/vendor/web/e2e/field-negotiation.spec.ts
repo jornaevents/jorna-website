@@ -213,8 +213,11 @@ test.describe("field-by-field negotiation", () => {
     await expect(page.getByText("(you asked 0 days)")).toBeVisible();
     const price = page.getByRole("region", { name: "Reception set: price" });
     await expect(price.getByText("You asked:")).toBeVisible();
-    await expect(price.getByText("$1,200")).toBeVisible();
+    await expect(price.getByText("$1,200", { exact: true })).toBeVisible();
     await expect(price.getByText("Arjun Kapoor answered:")).toBeVisible();
+    // The answers name what they settle on (2026-10-26 test).
+    await expect(price.getByRole("button", { name: "Accept $1,300" })).toBeVisible();
+    await expect(price.getByRole("button", { name: "Ask for $1,200 again" })).toBeVisible();
 
     // Opening a field isn't a change; a guest count of 0 can't be sent.
     await page.getByText("Change something else").click();
@@ -295,5 +298,71 @@ test.describe("field-by-field negotiation", () => {
     await page.getByRole("button", { name: "Send 1 answer" }).click();
     await expect(page.getByText(/We couldn't email them/)).toBeVisible();
     await expect(page.getByText("We emailed them.")).toHaveCount(0);
+  });
+
+  test("the only package can't be left out, and leaving an item out drops its price ask", async ({ page, api }) => {
+    const clientState = state({
+      side: "client", turn: "client", round: 1, waiting_count: 0, can_sign: true,
+      fields: [
+        field("line:pkg.included", "Include Reception set", true),
+        field("line:lights.included", "Include Uplighting", true),
+        field("line:lights.price", "Uplighting: price", 10000),
+      ],
+    });
+    api.get("/guest-bookings/tok-1", contract);
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", clientState);
+    api.post("/guest-bookings/tok-1/negotiation/send", clientState);
+
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Ask for changes" }).click();
+    await page.getByText("Change something else").click();
+    const panel = page.getByRole("complementary", { name: "Your answers" });
+    await expect(panel.getByText("Needs one package")).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Leave out Reception set" })).toHaveCount(0);
+
+    await panel.getByRole("button", { name: "Change Uplighting: price" }).click();
+    await page.getByLabel("Uplighting: price ($)").fill("50");
+    await panel.getByRole("button", { name: "Leave out Uplighting" }).click();
+    const send = page.getByRole("button", { name: /^Send/ });
+    await expect(send).toHaveText("Send 1 change");
+    await send.click();
+    const [call] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
+    expect((call.body as { answers: unknown[] }).answers).toEqual([{ key: "line:lights.included", action: "change", value: false }]);
+  });
+
+  test("the vendor can accept everything at once, and in/out asks have no counter", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/contracts/c-1", contract);
+    api.get("/contracts/c-1/proposals", history);
+    api.get("/contracts/c-1/negotiation", state({
+      waiting_count: 2,
+      fields: [
+        field("line:lights.quantity", "Uplighting: quantity", 2, { state: "waiting_vendor", proposed: 3, proposed_by: "client" }),
+        field("clause:travel.included", "Include “Travel”", true, { state: "waiting_vendor", proposed: false, proposed_by: "client" }),
+      ],
+    }));
+
+    await page.goto("contracts/changes/?id=c-1");
+    await expect(page.getByRole("region", { name: "Include “Travel”" }).getByRole("button", { name: "Counter" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Accept all" }).click();
+    await expect(page.getByRole("button", { name: "Send 2 answers" })).toBeEnabled();
+  });
+
+  test("after sending, the client sees what they asked for", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-1", contract);
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", state({
+      side: "client", turn: "vendor", round: 2, waiting_count: 0,
+      fields: [field("event.guests", "Guest count", 200, { state: "waiting_vendor", proposed: 180, proposed_by: "client" })],
+    }));
+
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await expect(page.getByText("Waiting on Arjun Kapoor")).toBeVisible();
+    await expect(page.getByText(/Guest count: you asked for/)).toBeVisible();
+    await expect(page.getByText(/^Round 2$/)).toHaveCount(0);
   });
 });

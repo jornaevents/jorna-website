@@ -290,6 +290,9 @@ function ContractViewInner() {
         {canSend ? (
           <>
             <Button
+              // Answering the client is the job while their changes wait;
+              // a resend then is a side action, not a second primary.
+              variant={waiting ? "ghost" : undefined}
               disabled={busy !== null}
               onClick={() =>
                 act("send", async () => {

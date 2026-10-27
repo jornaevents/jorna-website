@@ -51,6 +51,7 @@ import {
 import { ClientNegotiation } from "@/components/negotiation/ClientNegotiation";
 import { FieldNegotiationWorkspace } from "@jorna/shared/components/negotiation/FieldNegotiationWorkspace";
 import type { FieldNegotiationState } from "@jorna/shared/lib/contractTypes";
+import { display } from "@jorna/shared/lib/fieldNegotiation";
 import { guestContractPdfUrl } from "@/lib/download";
 
 function money(cents: number): string {
@@ -201,10 +202,15 @@ function shortDate(iso: string): string {
 function FieldStatus({ state, vendorName, onOpen }: { state: FieldNegotiationState; vendorName: string; onOpen: () => void }) {
   const mine = state.turn === "client";
   const waitingOnMe = state.fields.filter((f) => f.state === "waiting_client").length;
-  const waitingOnThem = state.fields.filter((f) => f.state === "waiting_vendor").length;
+  const asks = state.fields.filter((f) => f.state === "waiting_vendor");
+  const waitingOnThem = asks.length;
   return (
     <Card className="mt-6 p-5">
-      <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Round {state.round}</p>
+      {/* "Round 2" right after their own send read as if the vendor had
+          already answered (2026-10-26 test); say what's happening instead. */}
+      <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">
+        {waitingOnMe ? "Your turn" : waitingOnThem ? `Waiting on ${vendorName}` : "Agreed"}
+      </p>
       <p className="mt-1 text-sm text-ink">
         {waitingOnMe
           ? `${vendorName} answered your changes. ${waitingOnMe === 1 ? "One needs" : `${waitingOnMe} need`} your answer before you sign.`
@@ -214,6 +220,15 @@ function FieldStatus({ state, vendorName, onOpen }: { state: FieldNegotiationSta
               ? "Read the contract below. Sign it, or ask for a change."
               : "Everything in the contract below is agreed. Read it over and sign, or ask for a change."}
       </p>
+      {!waitingOnMe && waitingOnThem ? (
+        <ul className="mt-2 grid gap-1 text-sm text-ink-soft">
+          {asks.map((f) => (
+            <li key={f.key}>
+              {f.label}: you asked for <strong className="text-ink">{display(f.key, f.proposed)}</strong>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {/* Asking for a change sits with Sign under the contract; answering
           the vendor comes first, so it's up here. */}
       {mine && waitingOnMe ? (
