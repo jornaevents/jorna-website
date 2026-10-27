@@ -1273,6 +1273,15 @@ export interface AttachedDocument {
   kind: AttachedDocumentKind;
   title: string;
   sections: Clause[];
+  /** An addendum's priced changes (backend DECISIONS #38). */
+  line_items?: { name: string; unit_price_cents: number; quantity: number }[] | null;
+  removed_line_ids?: string[] | null;
+  changes?: {
+    added: { name: string; quantity: number; unit_price_cents: number; total_cents: number }[];
+    removed: string[];
+    total_before: number | null;
+    total_after: number | null;
+  } | null;
   /** awaiting_vendor: the client signed, the vendor hasn't yet (#34). */
   status: "draft" | "sent" | "viewed" | "awaiting_vendor" | "signed" | "declined" | "voided";
   sent_at: string | null;

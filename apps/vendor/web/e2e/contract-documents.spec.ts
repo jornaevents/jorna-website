@@ -169,6 +169,55 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     expect(api.requestsTo("GET", "/guest-bookings/dtok-1")).toHaveLength(0);
   });
 
+  // ── Batch 6 of the contract fix plan: priced addenda (decision B) ──
+
+  test("an addendum can add a priced item, and says what the total becomes", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail({ f_name: "Sound", l_name: "Studio" });
+    api.get("/vendors/me", vendor);
+    api.get("/contract-templates", { items: [], total: 0 });
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, {
+      items: [
+        mockVendorBooking({
+          booking_id: "signed-1", user_id: null, guest_name: "Meera Iyer", contract_token: "tok-s",
+          signed_at: "2030-01-02T10:00:00", status: "approved", date_iso: "2030-06-01", amount_cents: 136000,
+        }),
+      ],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+    api.post("/contracts/signed-1/documents", {
+      document_id: "d-1", booking_id: "signed-1", kind: "addendum", title: "Extra lighting", sections: [], status: "sent", token: "dtok-1",
+    });
+
+    await page.goto("contracts/document/?kind=addendum&booking=signed-1");
+    await page.getByLabel("Section text").first().fill("Two more uplights.");
+    await page.getByRole("button", { name: "+ Add a priced item" }).click();
+    await page.getByLabel("Added item", { exact: true }).fill("Uplighting");
+    await page.getByLabel("Added item quantity").fill("2");
+    await page.getByLabel("Added item price ($ each)").fill("150");
+    await expect(page.getByText("Total goes from $1,360 to $1,660.")).toBeVisible();
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Sent" })).toBeVisible();
+    const [call] = api.requestsTo("POST", "/contracts/signed-1/documents");
+    expect(call.body).toMatchObject({ line_items: [{ name: "Uplighting", unit_price_cents: 15000, quantity: 2 }] });
+  });
+
+  test("the client sees an addendum's priced changes before signing", async ({ page, api }) => {
+    api.get("/guest-documents/dtok-2", {
+      document_id: "d-2", booking_id: "signed-1", kind: "addendum", title: "Extra lighting",
+      sections: [{ key: "s1", title: "What changes", body: "Two more uplights." }],
+      changes: { added: [{ name: "Uplighting", quantity: 2, unit_price_cents: 15000, total_cents: 30000 }], removed: [], total_before: 136000, total_after: 166000 },
+      status: "viewed", vendor_display_name: "Sound Studio", client_name: "Meera Iyer", date_iso: "2030-06-01",
+      signed_at: null, signer_name: null, signed_snapshot_sha256: null,
+    });
+    await page.goto("booking-link/?d=dtok-2");
+    await expect(page.getByText("Add: Uplighting × 2")).toBeVisible();
+    await expect(page.getByText("Total goes from $1,360 to $1,660")).toBeVisible();
+    await expect(page.getByText(/doesn.t move any money/)).toHaveCount(0);
+  });
+
   test("a signed contract lists its documents and offers new ones", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/contracts/c-1", {

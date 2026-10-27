@@ -64,3 +64,10 @@ describe("negotiation and cancel rows (2026-10-26)", () => {
     expect(describeEvent(ev("cancelled", "vendor", { reason: "Family emergency" }), {})).toBe("You cancelled the booking — “Family emergency”");
   });
 });
+
+describe("addendum rows (backend DECISIONS #38)", () => {
+  it("says the total moved", () => {
+    const e = { at: "2030-01-01T00:00:00Z", kind: "addendum_applied", actor: "system", detail: { title: "Extra lighting", total_before: 136000, total_after: 166000 } };
+    expect(describeEvent(e as unknown as Parameters<typeof describeEvent>[0], {})).toBe("Extra lighting changed the total from $1,360.00 to $1,660.00");
+  });
+});

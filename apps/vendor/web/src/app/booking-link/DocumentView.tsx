@@ -51,7 +51,40 @@ function Sections({ doc }: { doc: AttachedDocument }) {
           <Body text={s.body} />
         </section>
       ))}
+      {doc.changes ? <Changes changes={doc.changes} /> : null}
     </div>
+  );
+}
+
+const dollars = (cents: number) =>
+  (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: cents % 100 ? 2 : 0 });
+
+/** An addendum's priced changes, and what the total becomes — said before
+ *  they sign, since signing changes what they pay (backend DECISIONS #38). */
+function Changes({ changes }: { changes: NonNullable<AttachedDocument["changes"]> }) {
+  return (
+    <section aria-label="Changes to what's included">
+      <h2 className="serif text-lg text-ink">Changes to what&apos;s included</h2>
+      <ul className="mt-1.5 grid gap-1 text-[0.95rem] text-ink-soft">
+        {changes.added.map((l, i) => (
+          <li key={`a${i}`} className="flex justify-between gap-3">
+            <span>
+              Add: {l.name}
+              {l.quantity !== 1 ? ` × ${l.quantity}` : ""}
+            </span>
+            <span className="text-ink">{dollars(l.total_cents)}</span>
+          </li>
+        ))}
+        {changes.removed.map((name, i) => (
+          <li key={`r${i}`}>Remove: {name}</li>
+        ))}
+      </ul>
+      {changes.total_before != null && changes.total_after != null ? (
+        <p className="mt-2 font-semibold text-ink">
+          Total goes from {dollars(changes.total_before)} to {dollars(changes.total_after)}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -216,8 +249,10 @@ export function DocumentView({ token, preview }: { token: string; preview: boole
           <Card className="mt-8 p-6">
             <Sections doc={doc} />
             <p className="mt-6 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
-              This {kindLabel} is part of your written agreement with {vendorName}. Signing it doesn&apos;t move any money
-              or dates by itself — Jorna doesn&apos;t handle payments.
+              This {kindLabel} is part of your written agreement with {vendorName}.{" "}
+              {doc.changes
+                ? "Once you both sign, your total and the payments still to come change as above. You pay them directly — Jorna doesn't handle payments."
+                : "Signing it doesn't move any money or dates by itself — Jorna doesn't handle payments."}
             </p>
             <a
               href={guestDocumentPdfUrl(token)}
