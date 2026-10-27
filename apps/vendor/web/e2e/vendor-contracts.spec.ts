@@ -89,4 +89,42 @@ test.describe("vendor contracts list (/contracts)", () => {
       "/app/contracts/new/",
     );
   });
+
+  // ── Batch 5 of the contract fix plan (2026-10-26 staging test) ──
+
+  test("every page of bookings is listed, with honest statuses and no dead draft links", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    const older = Array.from({ length: 100 }, (_, n) =>
+      mockVendorBooking({ booking_id: `b-${n}`, client_name: `Client ${n}` }),
+    );
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, ({ url }: { url: URL }) =>
+      url.searchParams.get("offset") === "100"
+        ? { items: [contract({ booking_id: "c-old", contract_token: "tok-old", guest_name: "Old Client", status: "rejected", contract_status: "voided" })], total: 101, limit: 100, offset: 100 }
+        : {
+            items: [
+              contract({ booking_id: "c-draft", contract_token: "tok-draft", guest_name: "Draft Client", contract_status: "draft" }),
+              contract({
+                booking_id: "c-agreed", contract_token: "tok-agreed", guest_name: "Asha Rao", contract_status: "viewed",
+                sent_at: "2026-10-26T13:10:00Z", hold_expires_at: "2099-01-01T00:00:00Z",
+                negotiation: { turn: "client", round: 7, waiting_vendor: 0, waiting_client: 0 },
+              }),
+              ...older.slice(0, 98),
+            ],
+            total: 101,
+            limit: 100,
+            offset: 0,
+          },
+    );
+
+    await page.goto("contracts/");
+    // The contract on the second page is there too.
+    const old = page.getByRole("listitem").filter({ hasText: "Old Client" });
+    await expect(old).toContainText("Voided — its link no longer opens");
+    await expect(page.getByRole("listitem").filter({ hasText: "Asha Rao" })).toContainText("Agreed — ready to sign");
+    const draft = page.getByRole("listitem").filter({ hasText: "Draft Client" });
+    await expect(draft.getByRole("button", { name: "Copy link" })).toHaveCount(0);
+    await expect(draft.getByRole("link", { name: "View as client" })).toHaveCount(0);
+  });
 });

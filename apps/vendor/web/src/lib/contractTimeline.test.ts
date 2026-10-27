@@ -40,3 +40,27 @@ describe("describeEvent: payments from Earnings", () => {
   });
 });
 
+
+describe("negotiation and cancel rows (2026-10-26)", () => {
+  const ev = (kind: string, actor: string, detail: Record<string, unknown>) =>
+    ({ at: "2030-01-01T00:00:00Z", kind, actor, detail }) as unknown as Parameters<typeof describeEvent>[0];
+
+  it("names what each answer was", () => {
+    const row = describeEvent(
+      ev("negotiation_sent", "vendor", {
+        keys: ["event.guests", "policy.cancellation"],
+        settled: ["event.guests"],
+        answers: [
+          { key: "event.guests", label: "Guest count", action: "accept", value: 180 },
+          { key: "policy.cancellation", label: "Cancellation window", action: "keep", value: 720 },
+        ],
+      }),
+      {},
+    );
+    expect(row).toBe("You accepted Guest count: 180, held Cancellation window at 30 days");
+  });
+
+  it("says the vendor cancelled, with their reason", () => {
+    expect(describeEvent(ev("cancelled", "vendor", { reason: "Family emergency" }), {})).toBe("You cancelled the booking — “Family emergency”");
+  });
+});

@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { getMyVendor, listMyServices, listVendorBookings, sendContract, voidContract } from "@/lib/jorna";
+import { allVendorBookings, getMyVendor, listMyServices, sendContract, voidContract } from "@/lib/jorna";
 import {
   type SavedContractTemplate,
   type ServiceItem,
@@ -53,6 +53,11 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
     case "countersign":
       return { label: "Your signature", tone: "red" };
     case "awaiting_signature":
+      // Negotiated to agreement: the client only has to sign — "Viewed"
+      // undersold a contract settled over seven rounds (2026-10-26).
+      if (b.negotiation && b.negotiation.round > 1 && !b.negotiation.waiting_client && !b.negotiation.waiting_vendor) {
+        return { label: "Agreed — ready to sign", tone: "amber" };
+      }
       return b.viewed_at ? { label: "Viewed", tone: "amber" } : { label: "Sent", tone: "amber" };
     case "expired":
       return { label: "Expired", tone: "red" };
@@ -112,6 +117,7 @@ function offerLine(b: VendorBooking, s: ContractStatus): string | null {
   if (s === "cancelled" && b.signed_at) {
     return `Cancelled after signing${b.vendor_decline_note ? ` — “${b.vendor_decline_note}”` : ""}`;
   }
+  if (s === "cancelled") return "Voided — its link no longer opens";
   if (b.signed_at && b.signer_name) {
     // Who signed, and whether that's who the contract is for (#167).
     const mismatch = b.guest_name && !signerMatches(b.signer_name, b.guest_name) ? ` — the contract is for ${b.guest_name}` : "";
@@ -132,7 +138,7 @@ const titleOf = (b: VendorBooking) =>
 
 /** The latest thing that happened to it. */
 function lastModified(b: VendorBooking): string | null {
-  const stamps = [b.created_at, b.sent_at, b.viewed_at, b.signed_at, b.declined_at].filter(Boolean) as string[];
+  const stamps = [b.last_activity_at, b.created_at, b.sent_at, b.viewed_at, b.signed_at, b.declined_at].filter(Boolean) as string[];
   return stamps.length ? stamps.sort().at(-1)! : null;
 }
 
@@ -419,7 +425,7 @@ export default function ContractsPage() {
         }
         setVendor(mine);
         const [res, tpl, svc] = await Promise.all([
-          listVendorBookings(mine.vendor_id, { limit: 100 }),
+          allVendorBookings(mine.vendor_id),
           loadTemplates().catch(() => [] as SavedContractTemplate[]),
           listMyServices(mine.vendor_id).catch(() => null),
         ]);
@@ -578,18 +584,6 @@ export default function ContractsPage() {
               note={p.edited ? "Your edited template" : `Package · ${money(Math.round((p.price ?? 0) * 100))}`}
             />
           ))}
-          <GalleryCard
-            href="/contracts/document?kind=addendum"
-            preview={<DocPreview brand={brand} title="Service addendum" foot="Signature" />}
-            name="Service addendum"
-            note="Changes to a signed booking"
-          />
-          <GalleryCard
-            href="/contracts/document?kind=cancellation"
-            preview={<DocPreview brand={brand} title="Cancellation agreement" foot="Signature" />}
-            name="Cancellation agreement"
-            note="Ends a signed booking, in writing"
-          />
         </div>
         {morePackages > 0 || choices.saved.length > 0 ? (
           <p className="mt-2 text-xs text-ink-faint">
@@ -720,12 +714,13 @@ export default function ContractsPage() {
                         {s === "draft" ? "Send" : "Resend & hold date"}
                       </button>
                     ) : null}
-                    {b.contract_token && s !== "cancelled" && s !== "declined" ? (
+                    {/* A draft's link doesn't open until it's sent (2026-10-26). */}
+                    {b.contract_token && s !== "cancelled" && s !== "declined" && s !== "draft" ? (
                       <button type="button" onClick={() => copyLink(b)} className="px-2 py-1 text-xs font-semibold text-ink-soft hover:text-ink">
                         {copiedId === b.booking_id ? "Copied!" : "Copy link"}
                       </button>
                     ) : null}
-                    {b.contract_token ? (
+                    {b.contract_token && s !== "draft" ? (
                       <a
                         href={guestBookingPreviewLink(b.contract_token)}
                         target="_blank"

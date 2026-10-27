@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   confirmInstallment,
+  markPaymentNotReceived,
   countersignContract,
   countersignDocument,
   declineContractSignature,
@@ -27,7 +28,8 @@ import {
 } from "@/lib/jorna";
 import { KIND_LABEL, documentStatus } from "@/lib/attachedDocuments";
 import { downloadContractPdf, downloadDocumentPdf } from "@/lib/download";
-import { describeDue, describeWhen, money } from "@jorna/shared/lib/contractDraft";
+import { describeDue, describeWhen, fromContract, money } from "@jorna/shared/lib/contractDraft";
+import { ContractPaper } from "@jorna/shared/components/negotiation/ContractPaper";
 import {
   emailNotice,
   guestBookingLink,
@@ -377,40 +379,18 @@ function ContractViewInner() {
       ) : null}
 
       <div className="mt-6 grid gap-5">
-        <Card className="p-5">
-          <h2 className="serif text-lg text-ink">What&apos;s included</h2>
-          <table className="mt-3 w-full text-sm">
-            <tbody>
-              {lines.map((l) => (
-                <tr key={l.id} className="border-t border-line-soft">
-                  <td className="py-2 text-ink">
-                    {l.name}
-                    {l.quantity !== 1 ? (
-                      <span className="text-ink-faint">
-                        {" "}
-                        × {l.quantity} at {money(l.unit_price_cents)}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="py-2 text-right text-ink">{money(l.total_cents)}</td>
-                </tr>
-              ))}
-              {c.discount_cents ? (
-                <tr className="border-t border-line-soft">
-                  <td className="py-2 text-ink-soft">Discount</td>
-                  <td className="py-2 text-right text-ink-soft">−{money(c.discount_cents)}</td>
-                </tr>
-              ) : null}
-              <tr className="border-t border-line-soft font-semibold">
-                <td className="py-2 text-ink">Total</td>
-                <td className="py-2 text-right text-ink">{money(c.amount_cents)}</td>
-              </tr>
-            </tbody>
-          </table>
-          {c.guest_email || c.guest_phone ? (
-            <p className="mt-3 text-sm text-ink-soft">{[c.guest_email, c.guest_phone].filter(Boolean).join(" · ")}</p>
-          ) : null}
-        </Card>
+        {/* The contract as the client reads and signs it (2026-10-26: this
+            page drew its own summary, out of the vendor's order). */}
+        <ContractPaper
+          draft={fromContract(c)}
+          markOf={() => null}
+          vendorName={[user?.f_name, user?.l_name].filter(Boolean).join(" ") || "You"}
+          clientName={c.guest_name || c.signer_name || "Client"}
+          title={c.document_title || `${lines[0]?.name ?? "Services"} agreement`}
+        />
+        {c.guest_email || c.guest_phone ? (
+          <p className="-mt-2 text-sm text-ink-soft">{[c.guest_email, c.guest_phone].filter(Boolean).join(" · ")}</p>
+        ) : null}
 
         <Card className="p-5">
           <h2 className="serif text-lg text-ink">Payments</h2>
@@ -427,14 +407,27 @@ function ContractViewInner() {
                       <p className={`text-sm ${state.tone}`}>{state.text}</p>
                     </div>
                     {c.signed_at && !i.confirmed_at ? (
-                      <Button
-                        size="md"
-                        variant={i.marked_paid_at ? "primary" : "ghost"}
-                        disabled={busy !== null}
-                        onClick={() => act(`pay-${i.id}`, () => confirmInstallment(c.booking_id, i.id))}
-                      >
-                        {busy === `pay-${i.id}` ? "Confirming…" : "Confirm received"}
-                      </Button>
+                      <span className="flex flex-wrap gap-2">
+                        {i.marked_paid_at ? (
+                          // The client says it's sent but nothing arrived (2026-10-26).
+                          <Button
+                            size="md"
+                            variant="quiet"
+                            disabled={busy !== null}
+                            onClick={() => act(`nr-${i.id}`, () => markPaymentNotReceived(c.booking_id, i.id))}
+                          >
+                            {busy === `nr-${i.id}` ? "Saving…" : "Not received"}
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="md"
+                          variant={i.marked_paid_at ? "primary" : "ghost"}
+                          disabled={busy !== null}
+                          onClick={() => act(`pay-${i.id}`, () => confirmInstallment(c.booking_id, i.id))}
+                        >
+                          {busy === `pay-${i.id}` ? "Confirming…" : "Confirm received"}
+                        </Button>
+                      </span>
                     ) : null}
                   </li>
                 );
@@ -461,23 +454,6 @@ function ContractViewInner() {
             <p className="mt-3 text-xs text-ink-faint">Payments can be confirmed once it&apos;s signed.</p>
           ) : null}
         </Card>
-
-        {c.terms_clauses?.length || c.cancellation_window_hours != null || c.overtime_rate_cents != null ? (
-          <Card className="p-5">
-            <h2 className="serif text-lg text-ink">Terms</h2>
-            <div className="mt-3 grid gap-2 text-sm text-ink-soft">
-              {c.cancellation_window_hours != null ? (
-                <p>Cancellation window: {Math.round(c.cancellation_window_hours / 24)} days</p>
-              ) : null}
-              {c.overtime_rate_cents != null ? <p>Overtime: {money(c.overtime_rate_cents)}/hr</p> : null}
-              {(c.terms_clauses ?? []).map((t) => (
-                <p key={t.key}>
-                  <strong className="text-ink">{t.title}.</strong> {t.body}
-                </p>
-              ))}
-            </div>
-          </Card>
-        ) : null}
 
         {c.signed_at || docs.length ? (
           <Card className="p-5">
@@ -516,6 +492,7 @@ function ContractViewInner() {
                               ? ` · signed by ${d.signer_name} — your signature next`
                               : ""}
                           {d.decline_reason ? ` · “${d.decline_reason}”` : ""}
+                          {d.vendor_decline_reason ? ` · you didn't sign: “${d.vendor_decline_reason}”` : ""}
                         </p>
                       </div>
                       <span className="flex flex-wrap items-center gap-1">
