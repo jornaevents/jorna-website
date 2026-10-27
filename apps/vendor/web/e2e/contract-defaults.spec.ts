@@ -32,6 +32,7 @@ test.describe("contract defaults (/contracts → Defaults)", () => {
     await drawer.getByRole("button", { name: "Save defaults" }).click();
 
     await expect(drawer).toHaveCount(0);
+    await expect(page.getByText("Defaults saved. New contracts start from them.")).toBeVisible();
     const [call] = api.requestsTo("PATCH", "/vendors/me");
     expect(call.body).toMatchObject({
       default_deposit_percent: 25,

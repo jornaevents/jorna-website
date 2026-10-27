@@ -541,7 +541,10 @@ export default function ContractsPage() {
           open
           onClose={() => setEditingDefaults(false)}
           vendor={vendor}
-          onSaved={setVendor}
+          onSaved={(v) => {
+            setVendor(v);
+            setNotice("Defaults saved. New contracts start from them.");
+          }}
         />
       ) : null}
 

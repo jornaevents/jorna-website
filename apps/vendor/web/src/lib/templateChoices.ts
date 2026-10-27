@@ -24,6 +24,21 @@ export interface TemplateChoice {
    *  package. */
   edited?: boolean;
   price?: number;
+  /** The package's own name, which an edited template may have renamed away from. */
+  packageName?: string;
+}
+
+/** "2 items · 3 payments · 3 sections" — what's in a template, so picking
+ *  one isn't a guess from its name (2026-10-26). */
+export function templateSummary(body: TemplateBody): string {
+  const n = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
+  return [
+    body.lines?.length ? n(body.lines.length, "item") : null,
+    body.schedule?.length ? n(body.schedule.length, "payment") : null,
+    body.clauses?.length ? n(body.clauses.length, "section") : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export const packageChoiceId = (serviceId: string) => `package:${serviceId}`;
@@ -52,6 +67,7 @@ export function templateChoices(
         templateId: own?.template_id,
         edited: Boolean(own),
         price: s.price,
+        packageName: s.name,
       };
     });
   return {

@@ -21,6 +21,7 @@ import { BLOCK_LABEL } from "./shared";
 export function DocBlock({
   block,
   name,
+  locked,
   canMoveUp,
   canMoveDown,
   issues,
@@ -35,6 +36,8 @@ export function DocBlock({
   block: LayoutBlock;
   /** A terms section's own title, so each one's menu is named for it. */
   name?: string;
+  /** What the client can't ask to change here, from the vendor's locks. */
+  locked?: string | null;
   /** Only terms sections move, never below the signatures (lib/contractDraft canMove). */
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -89,7 +92,10 @@ export function DocBlock({
       className={`group relative scroll-mt-24 border-t border-line-soft py-6 first:border-t-0 ${flagged ? "-mx-3 rounded-lg px-3 ring-1 ring-maroon/30 dark:ring-gold/40" : ""}`}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">{label}</p>
+        <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">
+          {label}
+          {locked ? <span className="ml-2 normal-case tracking-normal text-ink-faint">· Fixed: {locked}</span> : null}
+        </p>
         <div
           ref={menuRef}
           className={`relative ${menu ? "" : "sm:invisible sm:group-focus-within:visible sm:group-hover:visible"}`}

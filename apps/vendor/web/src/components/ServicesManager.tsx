@@ -956,7 +956,7 @@ export function ServicesManager({
           <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Services &amp; pricing</p>
           <h2 className="serif mt-1 text-xl text-ink">Your packages</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Show clients what they can book with you. Each one has its own price and terms.
+            Show clients what they can book with you. Each one has its own price; set a cancellation window or overtime on one only if it differs from your Defaults.
           </p>
         </div>
         {editing === null ? (
