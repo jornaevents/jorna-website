@@ -76,7 +76,7 @@ test.describe("staging: contract round trip", () => {
       await page.getByLabel("6-digit code").fill(code!);
       await page.getByRole("checkbox", { name: /I agree to sign this agreement electronically/ }).check();
     }
-    await page.getByRole("button", { name: "Confirm booking →" }).click();
+    await page.getByRole("button", { name: "Sign the contract →" }).click();
     // The client's signature waits on the vendor's (backend DECISIONS #34).
     await expect(page.getByRole("heading", { name: /Waiting for .* to sign/ })).toBeVisible({ timeout: 20_000 });
 
