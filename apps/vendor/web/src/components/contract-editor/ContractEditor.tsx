@@ -21,7 +21,7 @@
 // DECISIONS #17): when and where are the client's, so those blocks only
 // show them. ?template=<id> starts from a saved template.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -41,6 +41,8 @@ import {
 import {
   applyTemplate,
   BLANK,
+  canMove,
+  fitSchedule,
   cancellationClause,
   CANCELLATION_KEY,
   defaultClauses,
@@ -141,7 +143,17 @@ function usualSchedule(draft: Draft, services: ServiceItem[], vendor: VendorDeta
   // otherwise deposit + balance when they take a deposit.
   const plan = vendor?.default_payment_plan;
   const preset = plan?.preset ?? (pct > 0 && pct < 100 ? "deposit_balance" : "full");
-  return presetSchedule(preset, total, pct > 0 && pct < 100 ? pct : 50, plan?.balance_days_before);
+  return fitSchedule(presetSchedule(preset, total, pct > 0 && pct < 100 ? pct : 50, plan?.balance_days_before), draft.dateIso, todayIso());
+}
+
+function readSaved(key: string): { draft: Draft; at: string } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    const saved = raw ? JSON.parse(raw) : null;
+    return saved && saved.draft && typeof saved.at === "string" ? saved : null;
+  } catch {
+    return null;
+  }
 }
 
 function scrollToBlock(id: string) {
@@ -200,6 +212,17 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [busy, setBusy] = useState<"send" | "copy" | "draft" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Contract | null>(null);
+  // Work in progress, kept in this browser per page (2026-10-26: leaving the
+  // editor lost a whole contract without a word). Offered back on return;
+  // forgotten once it's saved or sent.
+  const storageKey = `jorna_contract_editor:${mode}:${params.toString()}`;
+  const [restore, setRestore] = useState<{ draft: Draft; at: string } | null>(() => readSaved(storageKey));
+  const baseline = useRef<string | null>(null);
+  const dirty = useRef(false);
+  // Another unsigned offer holds the date: the backend's words, and a way to
+  // send anyway (decision C).
+  const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
+  const [heldClash, setHeldClash] = useState<{ message: string; mode: "send" | "copy" | "draft" | "save" } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
 
   // Whether the payment plan is still the one drafted for the vendor — see
@@ -211,6 +234,28 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
   const [showAll, setShowAll] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+
+  // The loaded draft is the baseline; anything else is unsaved work.
+  useEffect(() => {
+    if (!loading && baseline.current === null) baseline.current = JSON.stringify(draft);
+  }, [loading, draft]);
+  useEffect(() => {
+    if (loading || created || baseline.current === null) return;
+    dirty.current = JSON.stringify(draft) !== baseline.current;
+    if (!dirty.current) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ draft, at: new Date().toISOString() }));
+    } catch {
+      /* storage blocked — the leave warning still guards it */
+    }
+  }, [draft, loading, created, storageKey]);
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (dirty.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
 
   const set = (patch: Partial<Draft>) =>
     setDraft((d) => {
@@ -318,6 +363,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           // The client's own line for the package they asked for, at the
           // quantity they asked.
           if (asked) applied = keepRequestedLine(applied, start, asked.service_id);
+          applied.schedule = fitSchedule(applied.schedule, applied.dateIso, todayIso());
           if (applied.schedule.length) setAutoPlan(false);
           else applied.schedule = usualSchedule(applied, usable, mine);
           setDraft(applied);
@@ -364,8 +410,20 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
       ),
     [bookings, request, editing, draft.dateIso, draft.dateEnd, draft.multiDay, draft.timeStart, draft.timeEnd],
   );
+  // An unsigned offer only holds the date; sending over it is allowed once
+  // the vendor says so, and whoever signs first books it (decision C).
+  const heldOnly = Boolean(
+    clashing?.contract_token && !clashing.signed_at && (clashing.contract_status === "sent" || clashing.contract_status === "viewed"),
+  );
+  const clashWho = clashing?.client_name || clashing?.guest_name || "another client";
   const clash = clashing
-    ? `You're already booked then: ${clashing.client_name || clashing.guest_name || "another client"}, ${describeWhen(clashing.date_iso, clashing.date_end, clashing.time_start, clashing.time_end)}. Pick another date or time — this one can't be sent.`
+    ? heldOnly
+      ? `${clashWho} has this date held${
+          clashing.hold_expires_at
+            ? ` until ${new Date(clashing.hold_expires_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+            : ""
+        } (${describeWhen(clashing.date_iso, clashing.date_end, clashing.time_start, clashing.time_end)}). You can still send this — whoever signs first books it.`
+      : `You're already booked then: ${clashWho}, ${describeWhen(clashing.date_iso, clashing.date_end, clashing.time_start, clashing.time_end)}. Pick another date or time — this one can't be sent.`
     : null;
   const total = totalCents(draft);
   const layout = layoutOf(draft);
@@ -374,7 +432,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const shownLayout = isTemplate ? layout.filter((b) => b.type !== "parties" && b.type !== "event") : layout;
   const locked = Boolean(editing && (editing.signed_at || editing.status === "rejected"));
   const firstPackage = draft.lines.find((l) => l.kind === "package")?.name;
-  const defaultTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
+  // With the client's name, so two contracts from one package can be told
+  // apart in the list (2026-10-26: two "test agreement"s side by side).
+  const baseTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
+  const client = (request?.client_name || draft.clientName).trim();
+  const defaultTitle = client ? `${client} — ${baseTitle}` : baseTitle;
   const vendorName = [vendor?.f_name, vendor?.l_name].filter(Boolean).join(" ") || "Your business";
 
   /** This block's problems. A terms problem belongs only to the section it's
@@ -412,7 +474,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   }
 
   function applyPreset(preset: SchedulePreset) {
-    setPlan(presetSchedule(preset, total, defaultDepositPercent(), vendor?.default_payment_plan?.balance_days_before));
+    const plan = presetSchedule(preset, total, defaultDepositPercent(), vendor?.default_payment_plan?.balance_days_before);
+    const fitted = fitSchedule(plan, draft.dateIso, todayIso());
+    setPlan(fitted);
+    // Say so, rather than leave a date the vendor didn't pick unexplained.
+    if (fitted !== plan) setTemplateNotice("Moved a payment so it falls before the event — check its date.");
   }
 
   // ── Terms ──
@@ -466,11 +532,15 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     setStartedFrom(t);
     const body = t.body;
     if (body.schedule?.length) setAutoPlan(false);
+    // A template replaces items, sections and payments; keep what was there
+    // so it can come back (2026-10-26: typed lines vanished with no undo).
+    setUndoDraft(draft);
     setDraft((d) => {
       const applied = applyTemplate(d, body, services);
+      applied.schedule = fitSchedule(applied.schedule, applied.dateIso, todayIso());
       return autoPlan && !body.schedule?.length ? { ...applied, schedule: usualSchedule(applied, services, vendor) } : applied;
     });
-    setTemplateNotice(`Loaded “${t.name}”. Check the items and payments before sending.`);
+    setTemplateNotice(`Loaded “${t.name}” over what you had. Check the items and payments before sending.`);
   }
 
   /** Write this document back to the template it started from — the
@@ -544,7 +614,17 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     }
   }
 
-  async function submit(mode: "send" | "copy" | "draft" | "save") {
+  function forgetSaved() {
+    dirty.current = false;
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      /* storage blocked — nothing was kept */
+    }
+  }
+
+  async function submit(mode: "send" | "copy" | "draft" | "save", allowHeld = false) {
+    setHeldClash(null);
     if (mode !== "draft" && issues.length) {
       showProblems();
       return;
@@ -555,9 +635,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     // starts and a lead moves to Negotiation either way (DECISIONS #20).
     const email = mode === "send" && emailClient;
     try {
-      const doc = toDocument(draft);
+      const doc = { ...toDocument(draft), document_title: draft.title.trim() || (isTemplate ? null : defaultTitle) };
+      const held = allowHeld ? { allow_held_clash: true } : {};
       if (mode === "save" && editing) {
-        await updateContract(editing.booking_id, revising ? { ...doc, proposal_id: revising.proposal_id } : doc);
+        await updateContract(editing.booking_id, revising ? { ...doc, ...held, proposal_id: revising.proposal_id } : { ...doc, ...held });
+        forgetSaved();
         router.push(`/contracts/view?id=${editing.booking_id}`);
         return;
       }
@@ -581,12 +663,18 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           draft: mode === "draft",
           hold_days: Number(draft.holdDays) > 0 ? Number(draft.holdDays) : null,
           email_client: email && Boolean(doc.guest_email),
+          ...held,
         };
         result = leadId ? await convertLead(leadId, input) : await createContract(input);
       }
+      forgetSaved();
       setCreated(result);
       if (mode === "copy") await copy(result.contract_token);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && /has this date held/.test(err.message)) {
+        setHeldClash({ message: err.message, mode });
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Couldn't save the contract.");
     } finally {
       setBusy(null);
@@ -708,7 +796,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         return (
           <>
             <ScheduleBlock draft={draft} total={total} setPlan={setPlan} onPreset={applyPreset} />
-            <PoliciesBlock draft={draft} set={set} hasCancellation={Boolean(cancellation)} onAddCancellation={addCancellation} />
+            <PoliciesBlock draft={draft} set={set} />
           </>
         );
       case "terms": {
@@ -780,9 +868,52 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 : "Your client will see the new version. If they had it open, they'll need to review it again before signing."
               : "Write it the way your client will read it. Each section's ⋯ moves it or adds one below."}
         </p>
+        {restore && !loading ? (
+          <div role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gold/10 px-3 py-2 text-sm text-ink-soft">
+            <span>
+              You have unsaved changes from{" "}
+              {new Date(restore.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
+            </span>
+            <span className="flex gap-3">
+              <button
+                type="button"
+                className="font-semibold text-gold hover:underline"
+                onClick={() => {
+                  setDraft(restore.draft);
+                  setRestore(null);
+                }}
+              >
+                Restore them
+              </button>
+              <button
+                type="button"
+                className="text-ink-faint hover:text-ink"
+                onClick={() => {
+                  forgetSaved();
+                  setRestore(null);
+                }}
+              >
+                Discard
+              </button>
+            </span>
+          </div>
+        ) : null}
         {templateNotice ? (
-          <p role="status" className="mt-3 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
-            {templateNotice}
+          <p role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
+            <span>{templateNotice}</span>
+            {undoDraft ? (
+              <button
+                type="button"
+                className="font-semibold text-gold hover:underline"
+                onClick={() => {
+                  setDraft(undoDraft);
+                  setUndoDraft(null);
+                  setTemplateNotice("Back to what you had.");
+                }}
+              >
+                Undo
+              </button>
+            ) : null}
           </p>
         ) : null}
         {staleProposal ? (
@@ -818,8 +949,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
               <DocBlock
                 key={b.id}
                 block={b}
-                index={idx}
-                count={shownLayout.length}
+                name={b.type === "terms" ? draft.clauses.find((c) => c.key === b.id)?.title : undefined}
+                canMoveUp={canMove(draft, b.id, -1)}
+                canMoveDown={canMove(draft, b.id, 1)}
                 issues={issuesFor(b)}
                 notes={notesFor(b)}
                 showIssues={showAll || touched.has(b.id)}
@@ -884,6 +1016,20 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
               <p role="alert" className="mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
                 {error}
               </p>
+            ) : null}
+
+            {heldClash ? (
+              <div role="alert" className="mt-3 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
+                <p>{heldClash.message}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button size="md" disabled={busy !== null} onClick={() => submit(heldClash.mode, true)}>
+                    Send anyway
+                  </Button>
+                  <Button size="md" variant="quiet" onClick={() => setHeldClash(null)}>
+                    Pick another date
+                  </Button>
+                </div>
+              </div>
             ) : null}
 
             {isTemplate ? (

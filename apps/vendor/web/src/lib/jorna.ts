@@ -990,13 +990,14 @@ export function dropGuestDraft(token: string): Promise<void> {
  *  if the date has been taken meanwhile. */
 export function sendContract(
   bookingId: string,
-  opts: { holdDays?: number; emailClient?: boolean } = {},
+  opts: { holdDays?: number; emailClient?: boolean; allowHeldClash?: boolean } = {},
 ): Promise<Contract> {
   return apiFetch<Contract>(`/contracts/${bookingId}/send`, {
     method: "POST",
     body: {
       ...(opts.holdDays ? { hold_days: opts.holdDays } : {}),
       ...(opts.emailClient ? { email_client: true } : {}),
+      ...(opts.allowHeldClash ? { allow_held_clash: true } : {}),
     },
   });
 }

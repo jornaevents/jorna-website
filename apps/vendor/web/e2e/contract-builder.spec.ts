@@ -46,14 +46,15 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
     const schedule = doc.getByRole("region", { name: "Payment schedule" });
 
     await expect(schedule.getByLabel("Overtime rate ($/hr)")).toBeVisible();
-    await schedule.getByRole("button", { name: "+ Add a cancellation window" }).click();
+    // One way in: the Cancellation suggestion (2026-10-26 — the schedule had a second button for it).
+    await expect(schedule.getByRole("button", { name: "+ Add a cancellation window" })).toHaveCount(0);
+    await doc.getByRole("button", { name: "+ Cancellation" }).click();
     const days = doc.getByLabel("Cancellation window (days before the event)");
     await expect(days).toHaveValue("30");
     await days.fill("45");
     await expect(doc.getByText("Cancelling within 45 days of the event may forfeit what's been paid.")).toBeVisible();
-    // One place for it: the suggestion and the schedule's button go away.
+    // One place for it: the suggestion goes away once it's in.
     await expect(doc.getByRole("button", { name: "+ Cancellation" })).toHaveCount(0);
-    await expect(schedule.getByRole("button", { name: "+ Add a cancellation window" })).toHaveCount(0);
     // Hold days is about sending, so it stays with Send.
     await expect(page.getByRole("complementary", { name: "Send" }).getByLabel("Hold the date for (days)")).toBeVisible();
   });

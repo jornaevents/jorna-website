@@ -20,8 +20,9 @@ import { BLOCK_LABEL } from "./shared";
  */
 export function DocBlock({
   block,
-  index,
-  count,
+  name,
+  canMoveUp,
+  canMoveDown,
   issues,
   notes = [],
   showIssues,
@@ -32,8 +33,11 @@ export function DocBlock({
   children,
 }: {
   block: LayoutBlock;
-  index: number;
-  count: number;
+  /** A terms section's own title, so each one's menu is named for it. */
+  name?: string;
+  /** Only terms sections move, never below the signatures (lib/contractDraft canMove). */
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   /** What's stopping this block from being sent. */
   issues: string[];
   /** Worth a second look, but not stopping anything — always shown. */
@@ -46,7 +50,7 @@ export function DocBlock({
   onRemove?: () => void;
   children: ReactNode;
 }) {
-  const label = BLOCK_LABEL[block.type];
+  const label = name?.trim() || BLOCK_LABEL[block.type];
   const lower = label.toLowerCase();
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -106,12 +110,16 @@ export function DocBlock({
               aria-label={`${label} options`}
               className="absolute right-0 z-20 mt-1 w-52 rounded-xl border border-card-edge bg-card p-1 shadow-[0_12px_32px_rgba(42,12,25,0.14)]"
             >
-              <button type="button" role="menuitem" disabled={index === 0} onClick={act(() => onMove(-1))} className={item}>
-                Move {lower} up
-              </button>
-              <button type="button" role="menuitem" disabled={index === count - 1} onClick={act(() => onMove(1))} className={item}>
-                Move {lower} down
-              </button>
+              {block.type === "terms" ? (
+                <>
+                  <button type="button" role="menuitem" disabled={!canMoveUp} onClick={act(() => onMove(-1))} className={item}>
+                    Move {lower} up
+                  </button>
+                  <button type="button" role="menuitem" disabled={!canMoveDown} onClick={act(() => onMove(1))} className={item}>
+                    Move {lower} down
+                  </button>
+                </>
+              ) : null}
               <button type="button" role="menuitem" onClick={act(onAddBelow)} className={item}>
                 Add a section below
               </button>

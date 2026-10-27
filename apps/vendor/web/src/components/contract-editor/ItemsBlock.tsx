@@ -134,6 +134,11 @@ export function ItemsBlock({
         </div>
       ) : null}
 
+      {/* Said before they build a custom-only quote that can't be sent
+          (decision E, 2026-10-26). */}
+      {!draft.lines.some((l) => l.kind === "package") ? (
+        <p className="mt-3 text-xs text-ink-faint">A contract needs at least one of your packages; add custom items alongside it.</p>
+      ) : null}
       <div className="mt-4 grid gap-3">
         {services.length > 0 ? (
           <select

@@ -118,6 +118,8 @@ export interface ContractCreateInput {
   draft?: boolean;
   hold_days?: number | null;
   email_client?: boolean;
+  /** Send over another unsigned offer's hold on the date (backend DECISIONS #37). */
+  allow_held_clash?: boolean;
   deposit_percent?: number | null;
   cancellation_window_hours?: number | null;
   overtime_rate_cents?: number | null;
