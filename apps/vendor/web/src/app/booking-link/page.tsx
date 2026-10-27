@@ -27,6 +27,7 @@ import {
   guestMarkDepositPaid,
   guestMarkFullPaid,
   guestMarkInstallmentPaid,
+  guestUnmarkInstallment,
   signGuestBooking,
   requestGuestSigningCode,
   withdrawGuestProposal,
@@ -126,11 +127,14 @@ function Items({ booking }: { booking: GuestBooking }) {
 function Schedule({
   schedule,
   onMark,
+  onUnmark,
   busyId,
   ways = [],
 }: {
   schedule: Installment[];
   onMark?: (id: string, paidVia: PaidVia) => void;
+  /** Take back a mark made by mistake, until the vendor confirms it. */
+  onUnmark?: (id: string) => void;
   busyId?: string | null;
   /** The vendor's own ways to be paid, offered first (backend DECISIONS #33). */
   ways?: PaidVia[];
@@ -185,6 +189,10 @@ function Schedule({
                 {busyId === i.id ? "Marking…" : "I've sent this"}
               </Button>
             )
+          ) : onUnmark && i.marked_paid_at && !i.confirmed_at ? (
+            <Button size="md" variant="quiet" disabled={busyId === i.id} onClick={() => onUnmark(i.id)}>
+              {busyId === i.id ? "Undoing…" : "Undo"}
+            </Button>
           ) : null}
         </li>
         );
@@ -598,6 +606,19 @@ function BookingLinkInner() {
     }
   }
 
+  async function unmarkInstallment(id: string) {
+    setPaymentBusy(id);
+    setPaymentNotice(null);
+    try {
+      setBooking(await guestUnmarkInstallment(token, id));
+      setPaymentNotice("Taken back — it's no longer marked as sent.");
+    } catch (err) {
+      setPaymentNotice(err instanceof ApiError ? err.message : "Couldn't take that back.");
+    } finally {
+      setPaymentBusy(null);
+    }
+  }
+
   async function reportPaid(kind: "deposit" | "full") {
     setPaymentBusy(kind);
     setPaymentNotice(null);
@@ -634,6 +655,10 @@ function BookingLinkInner() {
       <Shell>
         <h1 className="serif text-2xl text-maroon dark:text-gold">We couldn&apos;t open this</h1>
         <p className="mt-3 text-ink-soft">{loadError}</p>
+        {/* A dropped connection read as a dead end (2026-10-26). */}
+        <Button type="button" variant="ghost" className="mt-4" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
       </Shell>
     );
   }
@@ -845,6 +870,7 @@ function BookingLinkInner() {
             <Schedule
               schedule={schedule}
               onMark={preview ? undefined : markInstallment}
+              onUnmark={preview ? undefined : unmarkInstallment}
               busyId={paymentBusy}
               ways={[
                 ...(booking.vendor_venmo_handle ? (["venmo"] as const) : []),

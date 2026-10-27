@@ -2,6 +2,7 @@
 // drawer, so the two can't describe the same event differently.
 
 import { money } from "@jorna/shared/lib/contractDraft";
+import { display } from "@jorna/shared/lib/fieldNegotiation";
 import type { ContractEvent } from "@/lib/types";
 
 export function prettyDate(iso?: string | null): string {
@@ -156,6 +157,26 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
     }
     // Field-by-field negotiation (backend DECISIONS #26): one side's turn.
     case "negotiation_sent": {
+      // Newer events name each answer (backend DECISIONS #37): say what
+      // moved, not "accepted 2 changes" (2026-10-26).
+      if (Array.isArray(d.answers) && d.answers.length) {
+        const who = e.actor === "vendor" ? "You" : "Your client";
+        const said = (d.answers as { key: string; label: string; action: string; value: unknown }[]).map((a) => {
+          const v = display(a.key, a.value);
+          const what = a.label.replace(/^Include /, "");
+          if (a.key.endsWith(".included") || a.key.startsWith("clause:")) {
+            const out = a.value === false;
+            return a.action === "accept" ? `accepted ${out ? "leaving out" : "keeping"} ${what}` : `asked to ${out ? "leave out" : "keep"} ${what}`;
+          }
+          if (a.action === "accept") return `accepted ${what}: ${v}`;
+          if (a.action === "counter") return `countered ${what} at ${v}`;
+          if (a.action === "keep") return `held ${what} at ${v}`;
+          if (a.action === "reopen") return `reopened ${what} at ${v}`;
+          return `asked for ${what}: ${v}`;
+        });
+        const shown = said.slice(0, 3).join(", ");
+        return `${who} ${shown}${said.length > 3 ? `, and ${said.length - 3} more` : ""}`;
+      }
       const keys = Array.isArray(d.keys) ? d.keys.length : 0;
       const settled = Array.isArray(d.settled) ? d.settled.length : 0;
       const rest = Math.max(0, keys - settled);
@@ -169,6 +190,8 @@ export function describeEvent(e: ContractEvent, c: { signer_name?: string | null
         : `Your client accepted ${count(settled, "change")}`;
     }
     case "cancelled":
+      // A vendor cancelling a booking both signed (backend DECISIONS #37).
+      if (e.actor === "vendor") return `You cancelled the booking${typeof d.reason === "string" && d.reason ? ` — “${d.reason}”` : ""}`;
       return "Your client cancelled their request";
     case "copy_sent":
       return d.to === "vendor" ? "A signed copy was emailed to you" : "A signed copy was emailed to your client";

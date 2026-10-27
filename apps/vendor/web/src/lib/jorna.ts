@@ -829,6 +829,21 @@ export function listVendorBookings(
   );
 }
 
+/** Every one of the vendor's bookings, page by page — the Contracts list
+ *  stopped at the latest 100, so a busy vendor's older contracts went
+ *  missing and the tab counts were wrong (2026-10-26). */
+export async function allVendorBookings(vendorId: string): Promise<Paginated<VendorBooking>> {
+  const pageSize = 100;
+  const first = await listVendorBookings(vendorId, { limit: pageSize });
+  const items = [...first.items];
+  while (items.length < first.total) {
+    const next = await listVendorBookings(vendorId, { limit: pageSize, offset: items.length });
+    if (!next.items.length) break;
+    items.push(...next.items);
+  }
+  return { ...first, items, limit: items.length, offset: 0 };
+}
+
 /** Signed bookings the vendor hasn't opened yet — the Bookings tab's badge
  *  (backend DECISIONS #30). */
 export function getNewBookingsCount(): Promise<{ count: number }> {
@@ -1283,6 +1298,12 @@ export function guestMarkInstallmentPaid(
     method: "POST",
     body: paidVia ? { paid_via: paidVia } : undefined,
   });
+}
+
+/** Take back the client's own "I've sent this", until the vendor confirms
+ *  it (backend DECISIONS #37). */
+export function guestUnmarkInstallment(token: string, installmentId: string): Promise<GuestBooking> {
+  return apiFetch<GuestBooking>(`/guest-bookings/${token}/payments/${installmentId}/unmark`, { method: "POST" });
 }
 
 export function guestMarkFullPaid(

@@ -1082,6 +1082,8 @@ export interface VendorBooking {
   /** Field-by-field negotiation (backend DECISIONS #26, #28): whose turn,
    *  and how many changes wait on each side. Null on the proposal flow. */
   negotiation?: NegotiationSummary | null;
+  /** The contract timeline's latest event (backend; null with no contract). */
+  last_activity_at?: string | null;
   /** The vendor's note when they declined this request (backend #28). */
   vendor_decline_note?: string | null;
   status: string;
@@ -1285,6 +1287,8 @@ export interface AttachedDocument {
 
   declined_at: string | null;
   decline_reason: string | null;
+  /** Why the vendor wouldn't countersign (backend DECISIONS #37). */
+  vendor_decline_reason?: string | null;
   voided_at: string | null;
   signed_snapshot_sha256: string | null;
   created_at: string | null;

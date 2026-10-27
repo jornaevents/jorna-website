@@ -12,13 +12,13 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { money as exactMoney } from "@/lib/ledger";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   confirmBookingEvent,
   confirmDepositReceived,
-  confirmInstallment,
   confirmPaymentReceived,
   getMyVendor,
   listVendorBookings,
@@ -86,7 +86,9 @@ function timeRange(start?: string | null, end?: string | null): string | null {
   return a && b ? `${a}–${b}` : a;
 }
 
-const money = (cents: number | null | undefined) => (cents == null ? "—" : centsToMoney(cents));
+// To the cent when there are cents: a $453.33 deposit read as $453 (2026-10-26).
+const money = (cents: number | null | undefined) =>
+  cents == null ? "—" : cents % 100 ? exactMoney(cents) : centsToMoney(cents);
 
 /** The server lets a vendor pull out of an agreed booking unless money is
  *  mid-flight or already settled — the same guard as before the redesign. */
@@ -260,22 +262,25 @@ function Expanded({
                 <p className="text-sm text-ink">
                   {clientName(b)} says they&apos;ve sent {paymentLabel(p)}.
                 </p>
+                {/* A contract's payments are answered on the contract (with Not
+                    received beside Confirm); Bookings points there (2026-10-26). */}
+                {p.kind === "installment" ? (
+                  <Link href={`/contracts/view?id=${b.booking_id}`} className="text-sm font-semibold text-gold hover:underline">
+                    Confirm on the contract →
+                  </Link>
+                ) : (
                 <Button
                   disabled={busy}
                   onClick={() =>
                     onAct(
-                      () =>
-                        p.kind === "installment"
-                          ? confirmInstallment(b.booking_id, p.installmentId)
-                          : p.kind === "deposit"
-                            ? confirmDepositReceived(b.booking_id)
-                            : confirmPaymentReceived(b.booking_id),
+                      () => (p.kind === "deposit" ? confirmDepositReceived(b.booking_id) : confirmPaymentReceived(b.booking_id)),
                       "Confirmed — they can see you've got it.",
                     )
                   }
                 >
                   I received it
                 </Button>
+                )}
               </div>
             ))}
             {release === "check-in" ? (

@@ -192,4 +192,47 @@ test.describe("contracts — Phase 2b (proposals)", () => {
     expect(marked.body).toEqual({ paid_via: "venmo" });
     await expect(page.getByRole("button", { name: "I've paid in full" })).toHaveCount(0);
   });
+
+  // ── Batch 5 of the contract fix plan (2026-10-26 staging test) ──
+
+  test("the vendor can say a payment the client marked never arrived", async ({ page, api }) => {
+    await loginAs(page, api);
+    const signed = contract({
+      signed_at: "2030-05-03T12:00:00",
+      signer_name: "Priya Mehta",
+      contract_status: "signed",
+      payment_schedule: schedule([{ marked_paid_at: "2030-05-04T12:00:00" }]),
+    });
+    api.get("/contracts/c-1", signed);
+    api.post("/contracts/c-1/payments/i1/not-received", { installment_id: "i1" });
+
+    await page.goto("contracts/view/?id=c-1");
+    // The contract reads as the client's copy does, sections numbered.
+    await expect(page.getByText(/^\d\. What's included$/)).toBeVisible();
+    await page.getByRole("button", { name: "Not received" }).click();
+    expect(api.requestsTo("POST", "/contracts/c-1/payments/i1/not-received")).toHaveLength(1);
+  });
+
+  test("the client can take back a payment marked by mistake", async ({ page, api }) => {
+    const signed = {
+      ...contract({ signed_at: "2030-05-03T12:00:00", signer_name: "Priya Mehta", contract_status: "signed" }),
+      vendor_venmo_handle: "@arjun",
+      vendor_zelle_contact: null,
+      payment_schedule: schedule([{ marked_paid_at: "2030-05-04T12:00:00" }]),
+    };
+    api.get("/guest-bookings/tok-1", signed);
+    api.post("/guest-bookings/tok-1/payments/i1/unmark", { ...signed, payment_schedule: schedule() });
+
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByText("Taken back — it's no longer marked as sent.")).toBeVisible();
+    expect(api.requestsTo("POST", "/guest-bookings/tok-1/payments/i1/unmark")).toHaveLength(1);
+  });
+
+  test("a link that fails to load offers to try again", async ({ page, api }) => {
+    api.error("GET", "/guest-bookings/tok-down", 500, "Server error");
+    await page.goto("booking-link/?t=tok-down");
+    await expect(page.getByRole("heading", { name: "We couldn't open this" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
 });

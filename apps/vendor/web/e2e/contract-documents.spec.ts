@@ -202,7 +202,7 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     api.post("/contract-documents/d-1/void", { document_id: "d-1", status: "voided" });
 
     await page.goto("contracts/view/?id=c-1");
-    await expect(page.getByText("Wedding reception DJ agreement")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Wedding reception DJ agreement" })).toBeVisible();
     await expect(page.getByText("You sent “Later finish”")).toBeVisible();
     await expect(page.getByRole("link", { name: "Add an addendum" })).toHaveAttribute(
       "href",
