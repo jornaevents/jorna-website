@@ -42,6 +42,7 @@ import {
   applyTemplate,
   BLANK,
   canMove,
+  templatePriceChanges,
   fitSchedule,
   cancellationClause,
   CANCELLATION_KEY,
@@ -146,6 +147,16 @@ function usualSchedule(draft: Draft, services: ServiceItem[], vendor: VendorDeta
   return fitSchedule(presetSchedule(preset, total, pct > 0 && pct < 100 ? pct : 50, plan?.balance_days_before), draft.dateIso, todayIso());
 }
 
+// What the vendor's not-negotiable groups (Contracts → Defaults) keep the
+// client from asking to change, by block — so the vendor knows before
+// sending, not from the client's side (2026-10-26).
+const LOCK_LABEL: Partial<Record<string, { group: "prices" | "event" | "policies" | "clauses"; text: string }>> = {
+  items: { group: "prices", text: "prices" },
+  event: { group: "event", text: "date, times, venue and guests" },
+  schedule: { group: "policies", text: "cancellation and overtime" },
+  terms: { group: "clauses", text: "this section stays in" },
+};
+
 function readSaved(key: string): { draft: Draft; at: string } | null {
   try {
     const raw = localStorage.getItem(key);
@@ -222,6 +233,8 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // Another unsigned offer holds the date: the backend's words, and a way to
   // send anyway (decision C).
   const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
+  // A template's package prices that aren't the package's now (Batch 4).
+  const [priceChanges, setPriceChanges] = useState<{ name: string; was: string; now: string }[]>([]);
   const [heldClash, setHeldClash] = useState<{ message: string; mode: "send" | "copy" | "draft" | "save" } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -256,6 +269,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
+
+  const lockedIn = (type: string): string | null => {
+    const l = LOCK_LABEL[type];
+    return l && vendor?.negotiation_locks?.includes(l.group) ? l.text : null;
+  };
 
   const set = (patch: Partial<Draft>) =>
     setDraft((d) => {
@@ -367,6 +385,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           if (applied.schedule.length) setAutoPlan(false);
           else applied.schedule = usualSchedule(applied, usable, mine);
           setDraft(applied);
+          setPriceChanges(templatePriceChanges(picked.body, usable));
           if (!isTemplate) setTemplateNotice(`Started from “${picked.name}”. Check the items and payments before sending.`);
         } else {
           // A request arrives with its package already in.
@@ -535,6 +554,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     // A template replaces items, sections and payments; keep what was there
     // so it can come back (2026-10-26: typed lines vanished with no undo).
     setUndoDraft(draft);
+    setPriceChanges(templatePriceChanges(body, services));
     setDraft((d) => {
       const applied = applyTemplate(d, body, services);
       applied.schedule = fitSchedule(applied.schedule, applied.dateIso, todayIso());
@@ -554,7 +574,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
       const saved = await saveEditedTemplate(
         { templateId: startedFrom.templateId, serviceId: startedFrom.serviceId },
         name.trim() || startedFrom.name,
-        toTemplate(draft),
+        toTemplate(draft, services),
       );
       setTemplates((prev) => [...prev.filter((t) => t.template_id !== saved.template_id), saved]);
       setStartedFrom({ ...startedFrom, name: saved.name, templateId: saved.template_id, edited: Boolean(startedFrom.serviceId) });
@@ -592,7 +612,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   async function saveAsTemplate(name: string): Promise<boolean> {
     try {
-      const t = await saveTemplate(name, toTemplate(draft));
+      const t = await saveTemplate(name, toTemplate(draft, services));
       setTemplates((prev) => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)));
       setTemplateNotice(`Saved “${t.name}” to your templates.`);
       return true;
@@ -868,6 +888,32 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 : "Your client will see the new version. If they had it open, they'll need to review it again before signing."
               : "Write it the way your client will read it. Each section's ⋯ moves it or adds one below."}
         </p>
+        {priceChanges.length ? (
+          <div role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gold/10 px-3 py-2 text-sm text-ink-soft">
+            <span>
+              {priceChanges.map((c) => `${c.name} is now $${Number(c.now).toLocaleString()} — this template has $${Number(c.was).toLocaleString()}`).join("; ")}.
+            </span>
+            <span className="flex gap-3">
+              <button
+                type="button"
+                className="font-semibold text-gold hover:underline"
+                onClick={() => {
+                  const now = new Map(priceChanges.map((c) => [c.name, c.now]));
+                  setDraft((d) => ({
+                    ...d,
+                    lines: d.lines.map((l) => (l.kind === "package" && now.has(l.name) ? { ...l, price: now.get(l.name)! } : l)),
+                  }));
+                  setPriceChanges([]);
+                }}
+              >
+                Use today&apos;s price
+              </button>
+              <button type="button" className="text-ink-faint hover:text-ink" onClick={() => setPriceChanges([])}>
+                Keep the template&apos;s
+              </button>
+            </span>
+          </div>
+        ) : null}
         {restore && !loading ? (
           <div role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gold/10 px-3 py-2 text-sm text-ink-soft">
             <span>
@@ -950,6 +996,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 key={b.id}
                 block={b}
                 name={b.type === "terms" ? draft.clauses.find((c) => c.key === b.id)?.title : undefined}
+                locked={isTemplate ? null : lockedIn(b.type)}
                 canMoveUp={canMove(draft, b.id, -1)}
                 canMoveDown={canMove(draft, b.id, 1)}
                 issues={issuesFor(b)}

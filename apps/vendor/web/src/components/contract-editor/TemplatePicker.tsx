@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { money } from "@jorna/shared/lib/contractDraft";
-import type { TemplateChoice } from "@/lib/templateChoices";
+import { templateSummary, type TemplateChoice } from "@/lib/templateChoices";
 
 export type Pick = { package: string } | { template: string } | { scratch: true };
 
@@ -92,7 +92,13 @@ export function TemplatePicker({
               title={p.name}
               note={
                 p.edited
-                  ? "Your edited template"
+                  ? [
+                      `${p.packageName ?? "Package"} · ${p.price != null ? money(Math.round(p.price * 100)) : ""}`,
+                      "your edited template",
+                      templateSummary(p.body),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
                   : `${p.price != null ? money(Math.round(p.price * 100)) : "Package"} · fills in from the package`
               }
               tag={requested?.serviceId === p.serviceId ? "Requested" : p.edited ? "Edited" : null}
@@ -108,7 +114,12 @@ export function TemplatePicker({
           <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Your templates</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {saved.map((t) => (
-              <Card key={t.id} title={t.name} note="Saved template" onClick={() => onPick({ template: t.templateId! })} />
+              <Card
+                key={t.id}
+                title={t.name}
+                note={["Saved template", templateSummary(t.body)].filter(Boolean).join(" · ")}
+                onClick={() => onPick({ template: t.templateId! })}
+              />
             ))}
           </div>
         </section>

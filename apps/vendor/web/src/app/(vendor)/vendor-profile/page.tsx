@@ -235,11 +235,11 @@ export default function VendorProfilePage() {
           </div>
 
           <p className="mt-3 text-xs text-ink-faint">
-            Your deposit, cancellation window, overtime rate and default clauses are on{" "}
+            Your usual deposit, cancellation window, overtime rate and clauses are on{" "}
             <Link href="/contracts" className="font-semibold text-gold hover:underline">
               Contracts → Defaults
             </Link>
-            . Whether a request needs a guest count is set on each package.
+            ; a package can set its own where it differs. Whether a request needs a guest count is set on each package.
           </p>
 
           {/* Availability saves through its own endpoint (setMyAvailability), so

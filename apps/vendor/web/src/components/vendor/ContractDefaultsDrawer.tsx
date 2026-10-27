@@ -142,7 +142,9 @@ export function ContractDefaultsDrawer({
       open={open}
       onClose={onClose}
       title="Contract defaults"
-      subtitle="Every new contract starts from these. You can still change them on each one."
+      // Which wins, said where it's set: a vendor whose template ignored a
+      // new default couldn't tell why (2026-10-26).
+      subtitle="A contract starts from its template, then the package's own terms, then these for anything left. You can still change them on each one."
       footer={
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>

@@ -817,7 +817,9 @@ export interface TemplateBody {
   title?: string;
   /** Block order by type; each "terms" takes the next clause in order. */
   layout?: BlockType[];
-  lines?: Omit<LineDraft, "key">[];
+  /** packagePrice: what the package cost when the template was saved, so a
+   *  line still at that price follows the package (applyTemplate). */
+  lines?: (Omit<LineDraft, "key"> & { packagePrice?: string })[];
   discount?: string;
   schedule?: { label: string; percent: number; dueType: DueType; dueDays: string }[];
   clauses?: Omit<ClauseDraft, "key">[];
@@ -832,17 +834,27 @@ function withoutKey<T extends { key: string }>(row: T): Omit<T, "key"> {
   return copy as Omit<T, "key">;
 }
 
-export function toTemplate(draft: Draft): TemplateBody {
+/** A value worth keeping in a template: blank means "not set", so the
+ *  vendor's Defaults fill it when the template is used (2026-10-26: a
+ *  template saved with no overtime wiped the default overtime rate). */
+const kept = (v: string | undefined) => (v != null && v.trim() !== "" ? v : undefined);
+
+export function toTemplate(draft: Draft, services: PriceSource[] = []): TemplateBody {
   const total = totalCents(draft);
+  const priceOf = new Map(services.filter((x) => x.price != null).map((x) => [x.service_id, String(x.price)]));
   const layout = layoutOf(draft);
   const byKey = new Map(draft.clauses.map((c) => [c.key, c]));
   const ordered = layout.filter((b) => b.type === "terms" && byKey.has(b.id)).map((b) => byKey.get(b.id)!);
   return {
     version: 1,
-    title: draft.title,
+    title: kept(draft.title),
     layout: layout.map((b) => b.type),
-    lines: draft.lines.map(withoutKey),
-    discount: draft.discount,
+    lines: draft.lines.map((l) => {
+      const line = withoutKey(l);
+      const now = l.kind === "package" && l.serviceId ? priceOf.get(l.serviceId) : undefined;
+      return now != null ? { ...line, packagePrice: now } : line;
+    }),
+    discount: kept(draft.discount),
     schedule:
       total > 0
         ? draft.schedule.map((i) => ({
@@ -854,10 +866,32 @@ export function toTemplate(draft: Draft): TemplateBody {
           }))
         : [],
     clauses: ordered.map(withoutKey),
-    cancellationDays: draft.cancellationDays,
-    overtimeRate: draft.overtimeRate,
-    holdDays: draft.holdDays,
+    cancellationDays: kept(draft.cancellationDays),
+    overtimeRate: kept(draft.overtimeRate),
+    holdDays: kept(draft.holdDays),
   };
+}
+
+/** What a template needs to know about a package: that it's live, and its price now. */
+export interface PriceSource {
+  service_id: string;
+  price?: number | null;
+}
+
+/**
+ * Package lines in a template whose price isn't the package's price now —
+ * ones the vendor typed on purpose, or saved before templates recorded the
+ * package's price. The editor offers the current price instead of quietly
+ * using an old one (2026-10-26: $1,000 next to a $1,200 package).
+ */
+export function templatePriceChanges(body: TemplateBody, services: PriceSource[]): { name: string; was: string; now: string }[] {
+  const priceOf = new Map(services.filter((x) => x.price != null).map((x) => [x.service_id, String(x.price)]));
+  return (body.lines ?? []).flatMap((l) => {
+    const now = l.kind === "package" && l.serviceId ? priceOf.get(l.serviceId) : undefined;
+    if (now == null || Number(now) === Number(l.price)) return [];
+    if (l.packagePrice != null && Number(l.price) === Number(l.packagePrice)) return [];
+    return [{ name: l.name, was: l.price, now }];
+  });
 }
 
 /** Lay a template over the draft: it replaces what it has, and leaves the
@@ -908,15 +942,22 @@ export function keepRequestedLine(applied: Draft, requested: Draft, serviceId: s
   return { ...applied, lines };
 }
 
-export function applyTemplate(draft: Draft, body: TemplateBody, services: { service_id: string }[]): Draft {
+export function applyTemplate(draft: Draft, body: TemplateBody, services: PriceSource[]): Draft {
   const live = new Set(services.map((s) => s.service_id));
+  const priceOf = new Map(services.filter((x) => x.price != null).map((x) => [x.service_id, String(x.price)]));
   const next: Draft = { ...draft };
   if (body.lines?.length) {
     next.lines = body.lines
       .filter((l) => l.kind === "custom" || (l.serviceId && live.has(l.serviceId)))
-      .map((l) => ({ ...l, key: newKey() }));
+      .map(({ packagePrice, ...l }) => {
+        // Still at the price the package had when saved: follow the package.
+        const now = l.kind === "package" && l.serviceId ? priceOf.get(l.serviceId) : undefined;
+        const follows = now != null && packagePrice != null && Number(l.price) === Number(packagePrice);
+        return { ...l, price: follows ? now : l.price, key: newKey() };
+      });
   }
-  if (body.discount != null) next.discount = body.discount;
+  const set = (v: string | undefined): v is string => v != null && v.trim() !== "";
+  if (set(body.discount)) next.discount = body.discount;
   if (body.title) next.title = body.title;
   if (body.clauses?.length) next.clauses = body.clauses.map((c) => ({ ...c, key: newKey() }));
   if (body.layout?.length) {
@@ -933,9 +974,9 @@ export function applyTemplate(draft: Draft, body: TemplateBody, services: { serv
   } else {
     next.layout = reconcileLayout(next.layout, next.clauses);
   }
-  if (body.cancellationDays != null) next.cancellationDays = body.cancellationDays;
-  if (body.overtimeRate != null) next.overtimeRate = body.overtimeRate;
-  if (body.holdDays != null) next.holdDays = body.holdDays;
+  if (set(body.cancellationDays)) next.cancellationDays = body.cancellationDays;
+  if (set(body.overtimeRate)) next.overtimeRate = body.overtimeRate;
+  if (set(body.holdDays)) next.holdDays = body.holdDays;
   if (body.schedule?.length) {
     const total = totalCents(next);
     const rows = body.schedule.map((s) => ({

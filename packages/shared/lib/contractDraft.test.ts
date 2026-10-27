@@ -30,6 +30,7 @@ import {
   totalCents,
   fitSchedule,
   canMove,
+  templatePriceChanges,
   reconcileLayout,
   type ContractTermsSource,
   type Draft,
@@ -438,5 +439,39 @@ describe("the document's order", () => {
     expect(canMove(draft, "items", 1)).toBe(false);
     expect(canMove(draft, "meals", 1)).toBe(false);
     expect(moveBlock(draft, "meals", -1).map((b) => b.id).slice(-3)).toEqual(["meals", "travel", "signature"]);
+  });
+});
+
+describe("templates and the package's price", () => {
+  const svc = (price: number) => [{ service_id: "svc-1", price }];
+  const draftWith = (price: string) => ({
+    ...emptyDraft(),
+    lines: [pkg({ price })],
+    cancellationDays: "",
+    overtimeRate: "",
+  });
+
+  it("a saved template follows the package's price until the vendor typed another", () => {
+    const body = toTemplate(draftWith("1000"), svc(1000));
+    expect(body.lines?.[0].packagePrice).toBe("1000");
+    expect(applyTemplate(emptyDraft(), body, svc(1200)).lines[0].price).toBe("1200");
+    expect(templatePriceChanges(body, svc(1200))).toEqual([]);
+
+    const typed = toTemplate(draftWith("900"), svc(1000));
+    expect(applyTemplate(emptyDraft(), typed, svc(1200)).lines[0].price).toBe("900");
+    expect(templatePriceChanges(typed, svc(1200))).toEqual([{ name: typed.lines![0].name, was: "900", now: "1200" }]);
+  });
+
+  it("an older template without the package's price says the price changed", () => {
+    const old = { version: 1 as const, lines: [{ ...toTemplate(draftWith("1000")).lines![0] }] };
+    expect(templatePriceChanges(old, svc(1200))).toHaveLength(1);
+  });
+
+  it("blank values don't override the vendor's defaults", () => {
+    const body = toTemplate(draftWith("1000"), svc(1000));
+    expect(body.overtimeRate).toBeUndefined();
+    const start = { ...emptyDraft(), overtimeRate: "175", cancellationDays: "45" };
+    const applied = applyTemplate(start, { ...body, overtimeRate: "", cancellationDays: "" }, svc(1000));
+    expect([applied.overtimeRate, applied.cancellationDays]).toEqual(["175", "45"]);
   });
 });
