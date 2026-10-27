@@ -895,3 +895,24 @@ Backend #127, DECISIONS #34 there. A contract (or addendum/cancellation) the cli
 - **Leads drawer → contract page after signing or declining**, with what happened as the `notice`: the lead leaves Leads as soon as it's signed, which would close the drawer.
 - **Contracts list:** `vendorPlan.contractStatus` has `countersign` ("Your signature", needs you).
 - **Client side:** the booking link and an attached document say "Waiting for <vendor> to sign" with nothing to pay; the client app's `bookingStage`/`contractStep` have `awaiting_vendor` (no sign task, no payment buttons), and `/contract` shows both signatures.
+
+## Decision: the client signs the contract as the vendor laid it out (2026-10-26)
+
+A staging run found the client's review step drew its own summary: the
+package name instead of the title, no section order, overtime twice, and no
+cancellation window when the vendor wrote their own cancellation wording.
+
+- The review step renders `ContractPaper` from the booking
+  (`fromContract(booking)`), the same page as the vendor's preview, the
+  negotiation and the PDF. The payment dates stay below it as "How you'll
+  pay", since the contract only states the rule.
+- The heading line names the contract, date and total from the first step.
+- The button is "Sign the contract →": with countersigning (backend
+  DECISIONS #34) the client's signature doesn't book it.
+- A booking both sides signed and the vendor then cancelled shows a
+  Cancelled screen with the reason and what was confirmed paid (backend
+  DECISIONS #37), not "withdrawn, nothing was signed". Bookings' Cancel asks
+  for that reason and points to a cancellation agreement.
+- Countersigning with a name that isn't the account's needs a tick
+  ("I'm signing as …"); sent contracts change terms through the negotiation
+  ("Change terms"), and the editor keeps the wording ("Edit wording").

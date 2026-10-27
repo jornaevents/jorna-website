@@ -1088,6 +1088,14 @@ function BookingLinkInner() {
               title={booking.document_title || `${booking.service_name ?? "Services"} agreement`}
             />
           </div>
+          {/* The contract states the rule ("14 days before the event"); the
+              client also needs the dates, and which are already late. */}
+          {schedule ? (
+            <Card className="mt-4 p-5">
+              <p className="mb-2 text-sm font-medium text-ink-soft">How you&apos;ll pay</p>
+              <Schedule schedule={schedule} />
+            </Card>
+          ) : null}
           <p className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5 text-sm text-ink-soft">
             <strong className="text-ink">You&apos;ll pay {vendorName} directly</strong> — Jorna
             doesn&apos;t handle the money. This is your written agreement.
