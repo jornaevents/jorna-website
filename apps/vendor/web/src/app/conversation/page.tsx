@@ -16,8 +16,8 @@ import { ConversationThread, type OfferLink } from "@/components/ConversationThr
 import { clientAppUrl } from "@/lib/clientApp";
 
 /** A client answers an offer on their booking, in the client app. */
-const clientOfferLink: OfferLink = (c) => ({
-  href: c?.bundle_id && c.booking_id ? clientAppUrl(`/bundle?id=${c.bundle_id}#booking-${c.booking_id}`) : clientAppUrl("/bundles"),
+const clientOfferLink: OfferLink = ({ bookingId, bundleId }) => ({
+  href: bundleId && bookingId ? clientAppUrl(`/bundle?id=${bundleId}#booking-${bookingId}`) : clientAppUrl("/bundles"),
   label: "Answer on the booking",
 });
 

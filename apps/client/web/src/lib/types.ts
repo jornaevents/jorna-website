@@ -961,6 +961,10 @@ export interface OfferMeta {
   /** offer | counter | accept | reject */
   action?: string;
   amount_cents?: number | null;
+  /** The booking the offer is about, and its plan. Missing on offers sent
+   *  before a booking's offers could land in another thread. */
+  booking_id?: string;
+  bundle_id?: string | null;
 }
 
 /** The listing an enquiry was asked from, carried on its first message. */
