@@ -17,6 +17,7 @@
 // terms that override the vendor's defaults. Years in business moved to the
 // vendor's own profile — it was asked again on every package.
 
+import { isCompleteLocation } from "@jorna/shared/lib/address";
 import { useEffect, useImperativeHandle, useMemo, useState, type Ref } from "react";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
@@ -323,6 +324,10 @@ export function ServicesManager({
     const deposit = form.deposit_percent ? Number(form.deposit_percent) : null;
     if (deposit != null && !(deposit >= 0 && deposit <= 100)) {
       setError("A deposit is between 0% and 100%.");
+      return;
+    }
+    if (isVenue && !isCompleteLocation(form.location)) {
+      setError("A venue needs its full address — street, city, state and ZIP.");
       return;
     }
     if (isVenue && (form.venue_latitude == null || form.venue_longitude == null)) {

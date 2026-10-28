@@ -37,8 +37,8 @@ function todayIso(): string {
 }
 
 /** Same checks the editor makes before it sends, in the vendor's words. */
-function check(d: Draft) {
-  const issues = problems(d, todayIso());
+function check(d: Draft, venueBefore?: string | null) {
+  const issues = problems(d, todayIso(), venueBefore);
   if (issues.length) throw new Error(issues[0]);
 }
 
@@ -182,7 +182,7 @@ export function VendorNegotiation({
           onDone(`You accepted ${client}'s changes and sent the contract back to sign.`);
           return;
         }
-        check(yours);
+        check(yours, contract?.location);
         const doc = toDocument(yours);
         await updateContract(
           bookingId,

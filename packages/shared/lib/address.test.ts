@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAddress } from "./address";
+import { locationProblem, parseAddress } from "./address";
 
 describe("parseAddress", () => {
   it("keeps a venue name with its street (web #164)", () => {
@@ -26,5 +26,14 @@ describe("parseAddress", () => {
     expect(parseAddress("12 Maple Ave, Chicago, IL 60601")).toMatchObject({ line1: "12 Maple Ave", line2: "", city: "Chicago" });
     expect(parseAddress("Chicago")).toMatchObject({ line1: "", city: "Chicago" });
     expect(parseAddress("12 Maple Ave")).toMatchObject({ line1: "12 Maple Ave", city: "" });
+  });
+});
+
+describe("locationProblem", () => {
+  it("allows blank and TBD, refuses a city alone, takes a full address", () => {
+    expect(locationProblem("")).toBeNull();
+    expect(locationProblem("TBD")).toBeNull();
+    expect(locationProblem("Chicago, IL")).toMatch(/street, city, state and ZIP/);
+    expect(locationProblem("12 Maple Ave, Suite 4, Evanston, IL 60201")).toBeNull();
   });
 });

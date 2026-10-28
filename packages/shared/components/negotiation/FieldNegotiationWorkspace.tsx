@@ -11,6 +11,7 @@
 // changes they want — and hands them to the host, which knows which side's
 // endpoint to call.
 
+import { AddressStringFields } from "../AddressFields";
 import { useState, type ReactNode } from "react";
 import { ApiError } from "../../lib/api";
 import type { FieldAnswer, NegotiationFieldView, FieldNegotiationState } from "../../lib/contractTypes";
@@ -53,6 +54,9 @@ const GROUP_NAMES: Record<string, string> = {
 /** An input for one field's value, in the units a person thinks in. */
 function ValueInput({ field, value, onChange }: { field: NegotiationFieldView; value: unknown; onChange: (v: unknown) => void }) {
   const k = kindOf(field.key);
+  if (field.key === "event.location") {
+    return <AddressStringFields value={value == null ? "" : String(value)} onChange={onChange} />;
+  }
   if (k === "date") {
     const v = (value ?? {}) as { date_iso?: string; date_end?: string | null };
     return (

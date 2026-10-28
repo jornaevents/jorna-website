@@ -4,6 +4,7 @@
 // if this send's answers settle. The rules themselves (turns, who may change
 // what) are the server's; this file only draws them.
 
+import { locationProblem } from "./address";
 import { fromContract, type Draft } from "./contractDraft";
 import type { FieldAnswer, NegotiationFieldView, TermsVersion } from "./contractTypes";
 
@@ -160,7 +161,9 @@ export function effectiveAnswers(fields: NegotiationFieldView[], answers: FieldA
  *  null. The server refuses the same (backend DECISIONS #28). */
 export function valueProblem(key: string, value: unknown): string | null {
   const k = kindOf(key);
-  if (key === "event.guests") {
+  if (key === "event.location") {
+    return locationProblem(value == null ? "" : String(value));
+  } else if (key === "event.guests") {
     const n = Number(value);
     if (value != null && !(Number.isInteger(n) && n >= 1 && n <= 100_000)) return "A guest count is a whole number from 1 to 100,000.";
   } else if (k === "count") {
