@@ -22,15 +22,24 @@ import {
   markConversationUnread,
   openBookingThread,
 } from "@/lib/jorna";
-import { bookingTab, centsToMoney } from "@/lib/vendorPlan";
-import type { ConversationSummary, Pipeline, PipelineItem, VendorBooking } from "@/lib/types";
+import { centsToMoney } from "@/lib/vendorPlan";
+import { LABEL_TEXT, relationFor, showInInbox, tabFor, type MessageLabel, type Relation } from "@/lib/messageLabels";
+import type { ConversationSummary, Pipeline, VendorBooking } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
-import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill } from "@/components/vendor/ui";
+import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill, type Tone } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 
-type Filter = "all" | "unread";
+type Filter = "all" | "enquiries" | "bookings" | "unread";
+
+// Inquiry and Booked match the Leads and Bookings pages' own pills.
+const LABEL_TONE: Record<MessageLabel, Tone> = {
+  inquiry: "amber",
+  negotiation: "maroon",
+  booked: "green",
+  closed: "grey",
+};
 
 function initials(name?: string | null): string {
   const parts = (name ?? "").replace(/&/g, " ").split(/\s+/).filter(Boolean);
@@ -60,57 +69,6 @@ function prettyDate(s?: string | null): string {
 }
 
 const title = (c: ConversationSummary) => c.name || "Conversation";
-
-/** What this thread is to the vendor, so the side panel can say so. */
-interface Relation {
-  kind: "booking" | "lead" | "none";
-  href: string | null;
-  label: string | null;
-  status: string | null;
-  date: string | null;
-  venue: string | null;
-  pkg: string | null;
-  valueCents: number | null;
-  contractId: string | null;
-}
-
-function relationFor(c: ConversationSummary, bookings: VendorBooking[], pipeline: Pipeline | null): Relation {
-  const none: Relation = {
-    kind: "none", href: null, label: null, status: null, date: null, venue: null, pkg: null, valueCents: null, contractId: null,
-  };
-  const booking = c.booking_id ? bookings.find((b) => b.booking_id === c.booking_id) : undefined;
-  if (booking && bookingTab(booking)) {
-    return {
-      kind: "booking",
-      href: `/my-bookings?id=${booking.booking_id}`,
-      label: "View booking",
-      status: "Booked",
-      date: booking.date_iso ?? null,
-      venue: booking.location ?? null,
-      pkg: booking.service_name ?? null,
-      valueCents: booking.amount_cents ?? Math.round((booking.price ?? 0) * 100),
-      contractId: booking.contract_token ? booking.booking_id : null,
-    };
-  }
-  const items = pipeline?.items ?? [];
-  const item: PipelineItem | undefined =
-    (c.booking_id ? items.find((i) => i.booking_id === c.booking_id) : undefined) ??
-    items.find((i) => i.conversation_id === c.conversation_id);
-  if (item) {
-    return {
-      kind: "lead",
-      href: `/leads?open=${encodeURIComponent(item.id)}`,
-      label: "View lead",
-      status: item.stage === "negotiation" ? "Negotiation" : "Inquiry",
-      date: item.event_date,
-      venue: item.location,
-      pkg: item.service_name,
-      valueCents: item.estimated_value_cents,
-      contractId: item.source === "contract" ? item.booking_id : null,
-    };
-  }
-  return none;
-}
 
 function DetailRow({ icon, label, value }: { icon: Parameters<typeof Icon>[0]["name"]; label: string; value: string }) {
   return (
@@ -217,19 +175,21 @@ export function MessagesHub() {
     }
   }, []);
 
-  /** Bookings and the leads pipeline: what each thread is to the vendor. */
+  /** Bookings and the leads pipeline: what each thread is to the vendor.
+   *  Null for whichever couldn't be loaded, so a failed refresh keeps the
+   *  last good copy instead of wiping every label. */
   const fetchContext = useCallback(async () => {
     const mine = await getMyVendor().catch(() => null);
     const [b, p] = await Promise.all([
-      mine ? listVendorBookings(mine.vendor_id, { limit: 100 }).then((r) => r.items).catch(() => []) : Promise.resolve([]),
+      mine ? listVendorBookings(mine.vendor_id, { limit: 100 }).then((r) => r.items).catch(() => null) : Promise.resolve(null),
       getPipeline().catch(() => null),
     ]);
     return { bookings: b, pipeline: p };
   }, []);
 
-  const applyContext = useCallback((ctx: { bookings: VendorBooking[]; pipeline: Pipeline | null }) => {
-    setBookings(ctx.bookings);
-    setPipeline(ctx.pipeline);
+  const applyContext = useCallback((ctx: { bookings: VendorBooking[] | null; pipeline: Pipeline | null }) => {
+    if (ctx.bookings) setBookings(ctx.bookings);
+    if (ctx.pipeline) setPipeline(ctx.pipeline);
   }, []);
 
   // The list has no socket of its own; a slow poll moves a thread up and bumps
@@ -241,9 +201,15 @@ export function MessagesHub() {
       listConversations()
         .then((c) => !cancelled && setConversations(c))
         .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your messages."));
+    // Labels come from the pipeline and bookings, so they refresh with the
+    // list: a request or a signature elsewhere shows here without a reload.
+    const refreshContext = () => fetchContext().then((ctx) => !cancelled && applyContext(ctx));
     refresh();
-    fetchContext().then((ctx) => !cancelled && applyContext(ctx));
-    const poll = setInterval(refresh, 25000);
+    refreshContext();
+    const poll = setInterval(() => {
+      refresh();
+      refreshContext();
+    }, 25000);
     return () => {
       cancelled = true;
       clearInterval(poll);
@@ -271,15 +237,30 @@ export function MessagesHub() {
       ),
     [conversations, selectedId],
   );
+  // Worked out once per thread: the list, its tabs and the open thread all
+  // read the same answer.
+  const relations = useMemo(() => {
+    const out = new Map<string, Relation>();
+    for (const c of sorted) out.set(c.conversation_id, relationFor(c, bookings, pipeline, user?.user_id));
+    return out;
+  }, [sorted, bookings, pipeline, user?.user_id]);
+  const inbox = sorted.filter(showInInbox);
+  const inTab = (c: ConversationSummary, f: Filter) => {
+    if (f === "all") return true;
+    if (f === "unread") return (c.unread_count ?? 0) > 0;
+    const r = relations.get(c.conversation_id);
+    return r != null && tabFor(r) === f;
+  };
   const q = query.trim().toLowerCase();
-  const shown = sorted.filter(
+  const shown = inbox.filter(
     (c) =>
-      (filter === "all" || (c.unread_count ?? 0) > 0) &&
+      inTab(c, filter) &&
       (!q || title(c).toLowerCase().includes(q) || (c.last_message?.content ?? "").toLowerCase().includes(q)),
   );
-  const unreadThreads = sorted.filter((c) => (c.unread_count ?? 0) > 0).length;
+  const unreadThreads = inbox.filter((c) => inTab(c, "unread")).length;
+  // A plan chat isn't listed, but a link to one (an older email) still opens it.
   const selected = sorted.find((c) => c.conversation_id === selectedId) ?? null;
-  const relation = selected ? relationFor(selected, bookings, pipeline) : null;
+  const relation = selected ? (relations.get(selected.conversation_id) ?? null) : null;
   const otherMember =
     selected?.members && selected.members.length === 2
       ? selected.members.find((m) => m.user_id !== user?.user_id)
@@ -338,7 +319,7 @@ export function MessagesHub() {
           href={relation.href}
           className="inline-flex items-center justify-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04]"
         >
-          {relation.label}
+          {relation.linkLabel}
         </Link>
       ) : null}
       {canAddLead ? (
@@ -401,6 +382,8 @@ export function MessagesHub() {
               onChange={setFilter}
               options={[
                 { value: "all", label: "All" },
+                { value: "enquiries", label: "Enquiries", count: inbox.filter((c) => inTab(c, "enquiries")).length },
+                { value: "bookings", label: "Bookings", count: inbox.filter((c) => inTab(c, "bookings")).length },
                 { value: "unread", label: "Unread", count: unreadThreads },
               ]}
             />
@@ -409,6 +392,7 @@ export function MessagesHub() {
             {shown.map((c) => {
               const unread = c.unread_count ?? 0;
               const active = c.conversation_id === selectedId;
+              const r = relations.get(c.conversation_id);
               return (
                 <li key={c.conversation_id}>
                   <button
@@ -429,6 +413,14 @@ export function MessagesHub() {
                           {timeAgo(c.last_message?.created_at ?? c.created_at)}
                         </small>
                       </span>
+                      {r?.label ? (
+                        <span className="mt-1 flex min-w-0 items-center gap-1.5">
+                          <StatusPill tone={LABEL_TONE[r.label]} dot>
+                            {LABEL_TEXT[r.label]}
+                          </StatusPill>
+                          {r.pkg ? <span className="truncate text-[0.68rem] text-ink-faint">{r.pkg}</span> : null}
+                        </span>
+                      ) : null}
                       <span className="truncate text-xs text-ink-faint">{c.last_message?.content || "No messages yet"}</span>
                     </span>
                     {unread > 0 ? (
@@ -443,7 +435,7 @@ export function MessagesHub() {
           </ul>
           {shown.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-ink-faint">
-              {conversations.length === 0 ? "No conversations yet." : "No conversations found."}
+              {inbox.length === 0 ? "No conversations yet." : "No conversations found."}
             </p>
           ) : null}
         </aside>
@@ -467,7 +459,11 @@ export function MessagesHub() {
                 <span className="grid min-w-0 flex-1">
                   <strong className="truncate text-sm text-ink">{title(selected)}</strong>
                   <small className="text-xs text-ink-faint">
-                    {relation?.status ?? (selected.subject_type === "enquiry" ? "A question" : "Conversation")}
+                    {relation?.label
+                      ? LABEL_TEXT[relation.label]
+                      : selected.subject_type === "enquiry"
+                        ? "A question"
+                        : "Conversation"}
                     {" · "}
                     <span className={live ? "text-green" : ""}>{live ? "Live" : "Connecting…"}</span>
                   </small>
@@ -528,9 +524,9 @@ export function MessagesHub() {
                   {initials(title(selected))}
                 </span>
                 <strong className="mt-2 text-sm text-ink">{title(selected)}</strong>
-                {relation.status ? (
+                {relation.label ? (
                   <span className="mt-1.5">
-                    <StatusPill tone={relation.kind === "booking" ? "green" : "amber"}>{relation.status}</StatusPill>
+                    <StatusPill tone={LABEL_TONE[relation.label]}>{LABEL_TEXT[relation.label]}</StatusPill>
                   </span>
                 ) : null}
               </div>

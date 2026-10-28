@@ -916,3 +916,33 @@ cancellation window when the vendor wrote their own cancellation wording.
 - Countersigning with a name that isn't the account's needs a tick
   ("I'm signing as …"); sent contracts change terms through the negotiation
   ("Change terms"), and the editor keeps the wording ("Edit wording").
+
+## Decision: Messages labels each thread the way Leads and Bookings do (2026-10-28)
+
+V1 of Messages is client–vendor chat with a label on every thread, so a
+vendor can see where each client stands without opening it. No new backend:
+the labels are the ones already on Leads and Bookings, read from the same
+`GET /leads/pipeline` and vendor bookings the side panel used.
+
+- **The rule lives in `web/src/lib/messageLabels.ts`** (`relationFor`,
+  `tabFor`, `showInInbox`), moved out of `MessagesHub`, so the row, the
+  header and the side panel can't disagree. Unit-tested next to it.
+- **Labels:** Inquiry and Negotiation are the pipeline's stage; Booked is
+  `vendorPlan.bookingTab` (signed, or approved before contracts); Closed is
+  a pipeline item archived with an outcome, or a booking that was cancelled
+  or refunded. Pills: gold, maroon (new tone), green, grey.
+- **One label per thread, in this order:** the thread's own agreed booking;
+  another agreed booking with the client that hasn't happened yet; an open
+  lead or request; a past booking; then Closed. So a client who books again
+  after a past event shows the new request, not the old booking.
+- **Threads find the client's bookings by the client,** not only by the
+  thread's own `booking_id` or the pipeline's `conversation_id`: a question
+  thread shows the request or signed booking it led to, even when the
+  pipeline filed that request under the booking's own thread.
+- **Tabs:** All, Enquiries (no label), Bookings (any label), Unread.
+- **Plan group chats aren't listed** (`subject_type` "bundle"); a link to one
+  still opens it. The sidebar's unread badge comes from the backend and
+  still counts them.
+- **Labels refresh with the list's 25s poll;** a failed fetch keeps the last
+  good bookings or pipeline rather than wiping every label.
+- Clients see no labels in V1: they have no Leads page to borrow from.

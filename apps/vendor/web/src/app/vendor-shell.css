@@ -63,6 +63,8 @@
   --pill-grey-bg: #eae7e2;
   --pill-red-ink: #9b3b3b;
   --pill-red-bg: #f5dcd8;
+  --pill-maroon-ink: #7a263a;
+  --pill-maroon-bg: #f3dfe3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -96,6 +98,8 @@
   --pill-grey-bg: rgba(243, 230, 214, 0.08);
   --pill-red-ink: #f2a7a0;
   --pill-red-bg: rgba(242, 167, 160, 0.13);
+  --pill-maroon-ink: #f4b3c2;
+  --pill-maroon-bg: rgba(244, 179, 194, 0.13);
 }
 
 /* The rule above sets the dark pills for an unset theme too; put the light
@@ -110,6 +114,8 @@
     --pill-grey-bg: #eae7e2;
     --pill-red-ink: #9b3b3b;
     --pill-red-bg: #f5dcd8;
+    --pill-maroon-ink: #7a263a;
+    --pill-maroon-bg: #f3dfe3;
   }
 }
 
