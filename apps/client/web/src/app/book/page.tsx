@@ -17,6 +17,14 @@ import {
   type ServiceItem,
 } from "@/lib/types";
 import { Button, Card, Field, roundTimeLabel, TimeField } from "@jorna/shared/components/ui";
+import { AddressFields } from "@jorna/shared/components/AddressFields";
+import {
+  EMPTY_ADDRESS,
+  formatAddress,
+  isCompleteAddress,
+  parseAddress,
+  type Address,
+} from "@jorna/shared/lib/address";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -74,7 +82,8 @@ function BookInner() {
   const [ackedTimes, setAckedTimes] = useState<string | null>(null);
   const overnightAck = ackedTimes === `${timeStart}-${timeEnd}`;
   const setOvernightAck = (ack: boolean) => setAckedTimes(ack ? `${timeStart}-${timeEnd}` : null);
-  const [location, setLocation] = useState("");
+  const [addr, setAddr] = useState<Address>({ ...EMPTY_ADDRESS });
+  const [showAddrGaps, setShowAddrGaps] = useState(false);
   const [guests, setGuests] = useState("");
   const [performers, setPerformers] = useState("");
   const [note, setNote] = useState("");
@@ -129,7 +138,7 @@ function BookInner() {
         setBundles(b);
         // A venue carries its own address + map pin; prefill so the event is
         // anchored there (the venue is what check-in is measured against).
-        if (s.location) setLocation(s.location);
+        if (s.location) setAddr(parseAddress(s.location));
       })
       .catch((err) =>
         !cancelled &&
@@ -224,7 +233,7 @@ function BookInner() {
       filled.push(`through ${sample.date_end}`);
     }
     if (b.event?.location) {
-      setLocation(b.event.location);
+      setAddr(parseAddress(b.event.location));
       filled.push(b.event.location);
     }
     if (b.event?.guest_count) {
@@ -264,7 +273,7 @@ function BookInner() {
         date_end: multiDay && dateEnd ? dateEnd : null,
         time_start: timeStart,
         time_end: timeEnd,
-        location: location.trim(),
+        location: formatAddress(addr),
         guest_count: guests ? Number(guests) : null,
         performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
@@ -310,6 +319,12 @@ function BookInner() {
       setError("Add a start and end time before sending this request.");
       return;
     }
+    // A sent plan goes straight to the vendor, who has to know where to go.
+    if (planAlreadySent && !isCompleteAddress(addr)) {
+      setShowAddrGaps(true);
+      setError("Add the full address — street, city, state and ZIP — before sending this request.");
+      return;
+    }
     if (crossesMidnight(timeStart, timeEnd) && !overnightAck) {
       setError("Confirm the overnight time window above before sending.");
       return;
@@ -328,7 +343,7 @@ function BookInner() {
         date_end: multiDay && dateEnd ? dateEnd : null,
         time_start: timeStart,
         time_end: timeEnd,
-        location: location.trim(),
+        location: formatAddress(addr),
         guest_count: guests ? Number(guests) : null,
         performer_count: performers ? Number(performers) : null,
         venue_latitude: service.venue_latitude ?? null,
@@ -501,13 +516,12 @@ function BookInner() {
             </label>
           ) : null}
 
-          <Field
-            label="Location"
-            placeholder="Venue or address"
-            required={planAlreadySent}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink-soft">
+              Where it&apos;s happening{planAlreadySent ? "" : " (optional for now)"}
+            </p>
+            <AddressFields value={addr} onChange={setAddr} showGaps={showAddrGaps} />
+          </div>
 
           {/* Required only where it really is. A per-person service can't be
               totalled without it, but on a draft nothing is being totalled yet

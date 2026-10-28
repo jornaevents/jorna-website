@@ -42,14 +42,17 @@ test.describe("client link steps", () => {
     await expect(page.getByLabel("Your full name")).toHaveValue("Asha Mehta");
     expect(api.requestsTo("PATCH", "/guest-bookings/tok-1")[0].body).toEqual({ guest_email: "asha.m@example.com" });
     await page.getByLabel("Phone (optional)").fill("732 555 0100");
-    await page.getByLabel("Venue address").fill("The Grand Hall");
+    await page.getByLabel("Street address").fill("12 Maple Ave");
+    await page.getByLabel("City", { exact: true }).fill("Evanston");
+    await page.getByLabel("State", { exact: true }).selectOption("IL");
+    await page.getByLabel("ZIP code").fill("60201");
     await page.getByRole("button", { name: "Continue to the contract" }).click();
 
     await expect(page.getByRole("button", { name: "Looks good — sign it" })).toBeVisible();
     expect(api.requestsTo("PATCH", "/guest-bookings/tok-1")[1].body).toEqual({
       guest_name: "Asha Mehta",
       guest_phone: "732 555 0100",
-      location: "The Grand Hall",
+      location: "12 Maple Ave, Evanston, IL 60201",
       guest_count: null,
     });
 

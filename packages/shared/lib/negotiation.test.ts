@@ -136,6 +136,13 @@ describe("sending", () => {
     expect(proposalProblems(qty.set(d, "3"))[0]).toMatch(/add up to \$1,600.00 but the total is \$1,700.00/);
   });
 
+  it("wants a full address for a venue the client changed, not for one they left", () => {
+    const d = { ...base(), location: "Chicago, IL" };
+    expect(proposalProblems(d, { location: "Chicago, IL" })).toEqual([]);
+    expect(proposalProblems(d, { location: "TBD" })[0]).toMatch(/street, city, state and ZIP/);
+    expect(proposalProblems({ ...d, location: "12 Maple Ave, Evanston, IL 60201" }, { location: "TBD" })).toEqual([]);
+  });
+
   it("sends only what changed", () => {
     const d = base();
     const overtime = valuesOf(d).find((v) => v.id === "policy.overtime")!;

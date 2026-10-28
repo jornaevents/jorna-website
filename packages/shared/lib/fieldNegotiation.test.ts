@@ -89,6 +89,8 @@ describe("what a send does (#153, #168)", () => {
     expect(valueProblem("event.guests", 150)).toBeNull();
     expect(valueProblem("line:pkg.price", 0)).toMatch(/above \$0/);
     expect(valueProblem("discount", 0)).toBeNull();
+    expect(valueProblem("event.location", "Chicago, IL")).toMatch(/street, city, state and ZIP/);
+    expect(valueProblem("event.location", "12 Maple Ave, Evanston, IL 60201")).toBeNull();
   });
 
   it("says what's being sent", () => {

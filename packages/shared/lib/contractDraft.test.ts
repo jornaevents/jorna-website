@@ -118,6 +118,12 @@ describe("problems", () => {
     const d = ready({ lines: [{ ...customLine(), name: "Travel", price: "50", quantity: "1" }], discount: "" });
     expect(problems(d, "2030-01-01")).toContain("Add at least one of your packages.");
   });
+
+  it("takes a blank venue or a full address, never a partial one", () => {
+    expect(problems(ready({ location: "" }), "2030-01-01")).toEqual([]);
+    expect(problems(ready({ location: "12 Maple Ave, Evanston, IL 60201" }), "2030-01-01")).toEqual([]);
+    expect(problems(ready({ location: "Chicago, IL" }), "2030-01-01").join(" ")).toMatch(/street, city, state and ZIP/);
+  });
 });
 
 describe("toDocument", () => {

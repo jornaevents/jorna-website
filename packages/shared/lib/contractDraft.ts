@@ -7,6 +7,7 @@
 // click-through. The backend re-checks all of it; this is so the vendor sees
 // the problem while typing instead of after pressing Send.
 
+import { locationProblem } from "./address";
 import type {
   BlockType,
   Clause,
@@ -500,6 +501,8 @@ export function problemsByStep(draft: Draft, today: string): { step: Step; messa
   else if (draft.dateIso < today) add("event", "The event date is in the past.");
   if (draft.multiDay && draft.dateEnd && draft.dateEnd < draft.dateIso) add("event", "The end date is before the start date.");
   if (!draft.timeStart || !draft.timeEnd) add("event", "Add a start and end time.");
+  const venue = locationProblem(draft.location);
+  if (venue) add("event", `${venue} Or leave it blank for your client to add.`);
   if (!hasPackage(draft)) add("items", "Add at least one of your packages.");
   for (const l of draft.lines) {
     if (isBlankLine(l)) continue;

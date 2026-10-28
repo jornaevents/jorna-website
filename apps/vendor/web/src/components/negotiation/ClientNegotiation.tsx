@@ -152,7 +152,7 @@ export function ClientNegotiation({
         });
       }}
       onSend={async ({ yours, note }) => {
-        const issues = proposalProblems(yours);
+        const issues = proposalProblems(yours, base);
         if (issues.length) throw new Error(issues[0]);
         if (!booking.guest_email) {
           if (!email.trim()) throw new Error("Add your email so we can tell you when they reply.");

@@ -178,3 +178,16 @@ export function addressFromVenue(
   }
   return null;
 }
+
+/**
+ * Why a venue string can't go into a contract or booking yet, or null when it
+ * can. Blank is allowed — "to be confirmed" is a real answer — but a partial
+ * address isn't: a vendor can't drive to "Chicago".
+ */
+export function locationProblem(raw?: string | null): string | null {
+  const text = (raw ?? "").trim();
+  if (!text || text === "TBD") return null;
+  return isCompleteLocation(text)
+    ? null
+    : "The venue needs a full address — street, city, state and ZIP.";
+}
