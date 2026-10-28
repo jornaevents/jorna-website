@@ -123,6 +123,8 @@ describe("problems", () => {
     expect(problems(ready({ location: "" }), "2030-01-01")).toEqual([]);
     expect(problems(ready({ location: "12 Maple Ave, Evanston, IL 60201" }), "2030-01-01")).toEqual([]);
     expect(problems(ready({ location: "Chicago, IL" }), "2030-01-01").join(" ")).toMatch(/street, city, state and ZIP/);
+    // One already on the contract isn't the vendor's new mistake.
+    expect(problems(ready({ location: "Pines Manor" }), "2030-01-01", "Pines Manor")).toEqual([]);
   });
 });
 

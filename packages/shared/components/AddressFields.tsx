@@ -112,6 +112,7 @@ export function AddressFields({
           <select
             value={value.state}
             onChange={(e) => onChange({ ...value, state: e.target.value })}
+            aria-label="State"
             autoComplete="address-level1"
             aria-invalid={bad("state") || undefined}
             className={`w-full rounded-xl border bg-ground-2 px-3 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30 ${

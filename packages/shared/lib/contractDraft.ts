@@ -492,7 +492,14 @@ export type Step = "client" | "event" | "items" | "payments" | "terms" | "review
 
 /** Everything wrong with the draft that would stop it being sent, tagged
  *  with the step that fixes it, in the order the steps come in. */
-export function problemsByStep(draft: Draft, today: string): { step: Step; message: string }[] {
+/** `venueBefore`: the venue already on the contract or request. Only a venue
+ *  the vendor changes has to be a full address, so an older "Pines Manor"
+ *  doesn't stop every other edit. */
+export function problemsByStep(
+  draft: Draft,
+  today: string,
+  venueBefore?: string | null,
+): { step: Step; message: string }[] {
   const out: { step: Step; message: string }[] = [];
   const add = (step: Step, message: string) => {
     if (!out.some((p) => p.message === message)) out.push({ step, message });
@@ -501,7 +508,8 @@ export function problemsByStep(draft: Draft, today: string): { step: Step; messa
   else if (draft.dateIso < today) add("event", "The event date is in the past.");
   if (draft.multiDay && draft.dateEnd && draft.dateEnd < draft.dateIso) add("event", "The end date is before the start date.");
   if (!draft.timeStart || !draft.timeEnd) add("event", "Add a start and end time.");
-  const venue = locationProblem(draft.location);
+  const before = venueBefore === "TBD" ? "" : (venueBefore ?? "");
+  const venue = before.trim() === draft.location.trim() ? null : locationProblem(draft.location);
   if (venue) add("event", `${venue} Or leave it blank for your client to add.`);
   if (!hasPackage(draft)) add("items", "Add at least one of your packages.");
   for (const l of draft.lines) {
@@ -586,8 +594,8 @@ export function warningsByStep(draft: Draft): { step: Step; message: string }[] 
   return out;
 }
 
-export function problems(draft: Draft, today: string): string[] {
-  return problemsByStep(draft, today).map((p) => p.message);
+export function problems(draft: Draft, today: string, venueBefore?: string | null): string[] {
+  return problemsByStep(draft, today, venueBefore).map((p) => p.message);
 }
 
 /** "Sat, Oct 12, 2030 · 7:00 PM – 11:00 PM" — an event's when, as people
