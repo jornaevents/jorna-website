@@ -51,7 +51,8 @@ function title(c: ConversationSummary): string {
 
 /** The one-word label that says what kind of chat this is. */
 function kindLabel(c: ConversationSummary): string | null {
-  if (c.subject_type === "enquiry") return "Question";
+  // Not "Question": once they book, the booking continues this thread.
+  if (c.subject_type === "enquiry") return "Direct";
   if (c.subject_type === "booking") return "One booking";
   if (c.type === "vendors_only") return "Vendors only";
   if (c.subject_type === "bundle") return "Whole plan";
