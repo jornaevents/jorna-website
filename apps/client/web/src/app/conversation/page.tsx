@@ -224,7 +224,7 @@ function ConversationInner() {
           </h1>
           <p className="text-xs text-ink-faint">
             {meta?.subject_type === "enquiry"
-              ? "A question — nothing booked yet"
+              ? "Just the two of you"
               : meta?.subject_type === "booking"
                 ? "About one booking"
                 : meta?.type === "vendors_only"
