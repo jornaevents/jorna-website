@@ -637,8 +637,14 @@ export async function getBundleConversation(
   return mine.find((c) => c.type === "all_parties") ?? mine[0] ?? null;
 }
 
-export function getUnreadCount(): Promise<{ unread_count: number }> {
-  return apiFetch<{ unread_count: number }>("/conversations/unread-count");
+/** `includePlanChats: false` for a vendor, whose Messages doesn't list plan
+ *  group chats — the badge mustn't count what Messages can't open. */
+export function getUnreadCount(
+  { includePlanChats = true }: { includePlanChats?: boolean } = {},
+): Promise<{ unread_count: number }> {
+  return apiFetch<{ unread_count: number }>(
+    includePlanChats ? "/conversations/unread-count" : "/conversations/unread-count?include_plan_chats=false",
+  );
 }
 
 /** One conversation and its members, named from the caller's side of it. */

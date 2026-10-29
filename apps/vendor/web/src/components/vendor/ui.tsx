@@ -71,7 +71,7 @@ export function PageHeader({
 
 // ── Status pill ──────────────────────────────────────────────────────
 
-export type Tone = "green" | "amber" | "grey" | "red";
+export type Tone = "green" | "amber" | "grey" | "red" | "maroon";
 
 const toneStyle = (tone: Tone) => ({
   color: `var(--pill-${tone}-ink)`,
