@@ -298,7 +298,9 @@ export function useAppNav(): {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getUnreadCount()
+    // A vendor's Messages doesn't list plan chats, so their badge leaves them out.
+    loadIsVendor()
+      .then((vendor) => getUnreadCount({ includePlanChats: !vendor }))
       .then((r) => !cancelled && setMessagesUnread({ userId: user.user_id, value: r.unread_count }))
       .catch(() => {});
     return () => {

@@ -161,7 +161,8 @@ export function relationFor(
   return NONE;
 }
 
-/** Enquiries until the client has a lead or booking with the vendor. */
+/** Questions until the client has a lead or booking with the vendor; then
+ *  Leads & bookings, whatever its label. */
 export function tabFor(relation: Relation): MessageTab {
   return relation.label ? "bookings" : "enquiries";
 }

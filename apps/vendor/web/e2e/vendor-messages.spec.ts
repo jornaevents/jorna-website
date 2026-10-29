@@ -236,21 +236,21 @@ test.describe("vendor messages labels and tabs", () => {
     await expect(row(page, "Sharma Wedding")).toHaveCount(0);
   });
 
-  test("Enquiries holds threads with no lead or booking; Bookings holds the rest", async ({ page, api }) => {
+  test("Questions holds threads with no lead or booking; Leads & bookings holds the rest", async ({ page, api }) => {
     await loginAs(page, api);
     mockLabelled(api);
     await page.goto("messages/");
 
-    await expect(page.getByRole("tab", { name: /Enquiries/ })).toContainText("1");
-    await expect(page.getByRole("tab", { name: /Bookings/ })).toContainText("5");
+    await expect(page.getByRole("tab", { name: /Questions/ })).toContainText("1");
+    await expect(page.getByRole("tab", { name: /Leads & bookings/ })).toContainText("5");
 
-    await page.getByRole("tab", { name: /Enquiries/ }).click();
+    await page.getByRole("tab", { name: /Questions/ }).click();
     await expect(row(page, "Sana Omar")).toBeVisible();
     for (const name of ["Meera Shah", "Riya Kapoor", "Kiran Rao", "Dev Mehta", "Anika Bose"]) {
       await expect(row(page, name)).toHaveCount(0);
     }
 
-    await page.getByRole("tab", { name: /Bookings/ }).click();
+    await page.getByRole("tab", { name: /Leads & bookings/ }).click();
     await expect(row(page, "Sana Omar")).toHaveCount(0);
     for (const name of ["Meera Shah", "Riya Kapoor", "Kiran Rao", "Dev Mehta", "Anika Bose"]) {
       await expect(row(page, name)).toBeVisible();

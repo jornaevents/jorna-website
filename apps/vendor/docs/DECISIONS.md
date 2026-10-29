@@ -939,7 +939,9 @@ the labels are the ones already on Leads and Bookings, read from the same
   thread's own `booking_id` or the pipeline's `conversation_id`: a question
   thread shows the request or signed booking it led to, even when the
   pipeline filed that request under the booking's own thread.
-- **Tabs:** All, Enquiries (no label), Bookings (any label), Unread.
+- **Tabs:** All, Questions (no label), Leads & bookings (any label), Unread.
+  Plan chats aren't listed, so the vendor's unread badges leave them out
+  too (`GET /conversations/unread-count?include_plan_chats=false`, backend #136).
 - **Plan group chats aren't listed** (`subject_type` "bundle"); a link to one
   still opens it. The sidebar's unread badge comes from the backend and
   still counts them.

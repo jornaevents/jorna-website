@@ -8,7 +8,7 @@
 // Messages is conversation only. Price offers that arrive in a thread link
 // to the lead's drawer; nothing here accepts, counters or sends a contract.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -175,13 +175,16 @@ export function MessagesHub() {
     }
   }, []);
 
+  // The vendor id doesn't change between polls; only a failed lookup is retried.
+  const vendorId = useRef<string | null>(null);
   /** Bookings and the leads pipeline: what each thread is to the vendor.
    *  Null for whichever couldn't be loaded, so a failed refresh keeps the
    *  last good copy instead of wiping every label. */
   const fetchContext = useCallback(async () => {
-    const mine = await getMyVendor().catch(() => null);
+    if (!vendorId.current) vendorId.current = (await getMyVendor().catch(() => null))?.vendor_id ?? null;
+    const id = vendorId.current;
     const [b, p] = await Promise.all([
-      mine ? listVendorBookings(mine.vendor_id, { limit: 100 }).then((r) => r.items).catch(() => null) : Promise.resolve(null),
+      id ? listVendorBookings(id, { limit: 100 }).then((r) => r.items).catch(() => null) : Promise.resolve(null),
       getPipeline().catch(() => null),
     ]);
     return { bookings: b, pipeline: p };
@@ -382,8 +385,8 @@ export function MessagesHub() {
               onChange={setFilter}
               options={[
                 { value: "all", label: "All" },
-                { value: "enquiries", label: "Enquiries", count: inbox.filter((c) => inTab(c, "enquiries")).length },
-                { value: "bookings", label: "Bookings", count: inbox.filter((c) => inTab(c, "bookings")).length },
+                { value: "enquiries", label: "Questions", count: inbox.filter((c) => inTab(c, "enquiries")).length },
+                { value: "bookings", label: "Leads & bookings", count: inbox.filter((c) => inTab(c, "bookings")).length },
                 { value: "unread", label: "Unread", count: unreadThreads },
               ]}
             />

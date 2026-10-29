@@ -186,7 +186,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
           .then((items) => !cancelled && setLeadsBadge(items.length))
           .catch(() => {}),
       );
-    getUnreadCount()
+    getUnreadCount({ includePlanChats: false })
       .then((r) => !cancelled && setMessagesBadge(r.unread_count))
       .catch(() => {});
     // Bookings a client signed that the vendor hasn't opened (backend
