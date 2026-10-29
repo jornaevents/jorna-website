@@ -56,10 +56,10 @@ test.describe("inquiry form (vendor side)", () => {
 
     const drawer = page.getByRole("dialog");
     const link = drawer.getByLabel("Link");
-    await expect(link).toHaveValue(/\/app\/inquire\/\?vendor=vendor-1$/);
+    await expect(link).toHaveValue(/\/client\/inquire\/\?vendor=vendor-1$/);
     await drawer.getByRole("button", { name: "Copy" }).click();
     await expect(drawer.getByRole("button", { name: "Copied" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/app\/inquire\/\?vendor=vendor-1$/);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/client\/inquire\/\?vendor=vendor-1$/);
 
     await expect(drawer.getByRole("img", { name: "QR code for your inquiry form" })).toHaveAttribute("src", /^data:image\/png/);
     await expect(drawer.getByRole("link", { name: "Download QR code" })).toHaveAttribute("download", "jorna-inquiry-form-qr.png");
