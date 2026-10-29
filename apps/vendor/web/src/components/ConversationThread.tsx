@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ApiError } from "@jorna/shared/lib/api";
+import { offerTarget, type OfferTarget } from "@jorna/shared/lib/offerTarget";
 import { getConversationMessages, sendConversationMessage } from "@/lib/jorna";
 import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
@@ -26,7 +27,7 @@ function money(cents?: number | null): string | null {
 /** Where "answer this offer" goes: the client's booking on their app, or the
  *  vendor's Leads drawer — never a button in the chat, because accepting a
  *  price changes what's owed and the chat is the wrong place to hold money. */
-export type OfferLink = (conversation: ConversationSummary | null) => { href: string; label: string };
+export type OfferLink = (target: OfferTarget) => { href: string; label: string };
 
 /**
  * A price offer, in the thread it belongs to. The card is drawn from the
@@ -53,7 +54,7 @@ function OfferCard({
       : meta.action === "reject"
         ? "border-card-edge bg-panel"
         : "border-gold/50 bg-gold/[0.08]";
-  const link = offerLink(conversation);
+  const link = offerLink(offerTarget(meta, conversation));
 
   return (
     <div className={`max-w-[80%] rounded-2xl border px-3.5 py-2.5 ${tone}`}>

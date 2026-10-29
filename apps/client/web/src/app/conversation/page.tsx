@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
+import { offerTarget } from "@jorna/shared/lib/offerTarget";
 import {
   getConversation,
   getConversationMessages,
@@ -43,11 +44,10 @@ function OfferCard({
 }: {
   message: GroupMessage;
   mine: boolean;
-  /** This is always the booking thread the offer lives in — its bundle_id
-   *  and booking_id are what "Answer on the booking" needs to land on the
-   *  specific card rather than the general dashboard. bundle_id is null on
-   *  an older thread that hasn't been opened since the backend started
-   *  tracking it, in which case the link falls back to the dashboard. */
+  /** The thread, for an offer that doesn't say which booking it's about
+   *  (see offerTarget). A plan id is what "Answer on the booking" needs to
+   *  land on the specific card; without one the link falls back to the
+   *  dashboard. */
   conversation: ConversationSummary | null;
 }) {
   const meta = message.meta ?? {};
@@ -59,6 +59,7 @@ function OfferCard({
       : meta.action === "reject"
         ? "border-card-edge bg-panel"
         : "border-gold/50 bg-gold/[0.08]";
+  const { bookingId, bundleId } = offerTarget(meta, conversation);
 
   return (
     <div className={`max-w-[80%] rounded-2xl border px-3.5 py-2.5 ${tone}`}>
@@ -84,9 +85,7 @@ function OfferCard({
       {!settled ? (
         <Link
           href={
-            conversation?.bundle_id && conversation.booking_id
-              ? `/bundle?id=${conversation.bundle_id}#booking-${conversation.booking_id}`
-              : "/bundles"
+            bundleId && bookingId ? `/bundle?id=${bundleId}#booking-${bookingId}` : "/bundles"
           }
           className="mt-2 inline-block text-xs font-medium text-maroon hover:underline dark:text-gold"
         >
