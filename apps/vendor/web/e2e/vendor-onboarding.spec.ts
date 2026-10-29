@@ -92,10 +92,14 @@ test.describe("vendor onboarding", () => {
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "Where you work" })).toBeVisible();
-    // A city is required: it's what places the vendor against an event.
+    // Pre-filled from the account's city; required, because it's what places
+    // the vendor against an event.
+    const basedIn = page.getByPlaceholder("Start typing a city…");
+    await expect(basedIn).toHaveValue("Chicago, IL");
+    await basedIn.fill("");
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByText("Add the city you're based in.")).toBeVisible();
-    await page.getByPlaceholder("Start typing a city…").fill("Edison, NJ");
+    await basedIn.fill("Edison, NJ");
     await page.getByLabel("How far you travel").fill("80");
     await page.getByLabel("Instagram").fill("@studio_raj");
     await page.getByRole("button", { name: "Continue" }).click();
