@@ -18,7 +18,9 @@
 import { useRef, useState } from "react";
 import {
   addressGaps,
+  formatAddress,
   isValidZip,
+  parseAddress,
   US_STATES,
   type Address,
 } from "../lib/address";
@@ -110,6 +112,7 @@ export function AddressFields({
           <select
             value={value.state}
             onChange={(e) => onChange({ ...value, state: e.target.value })}
+            aria-label="State"
             autoComplete="address-level1"
             aria-invalid={bad("state") || undefined}
             className={`w-full rounded-xl border bg-ground-2 px-3 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30 ${
@@ -189,5 +192,46 @@ export function AddressFields({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The same fields over a `location` string, for the places that store one —
+ * contracts, booking links, venue listings, negotiated values. The fields are
+ * held here and only their composed string goes out, so typing isn't fought by
+ * a parse on every keystroke (a trailing space, a street with no number yet).
+ * A value that changes from outside — a template applied, a draft reloaded —
+ * is parsed afresh.
+ */
+export function AddressStringFields({
+  value,
+  onChange,
+  zipHint,
+  showGaps = false,
+}: {
+  value: string | null | undefined;
+  onChange: (next: string) => void;
+  zipHint?: string | null;
+  showGaps?: boolean;
+}) {
+  const incoming = value ?? "";
+  const [addr, setAddr] = useState<Address>(() => parseAddress(incoming));
+  const [sent, setSent] = useState(incoming);
+  if (incoming !== sent) {
+    setSent(incoming);
+    setAddr(parseAddress(incoming));
+  }
+  return (
+    <AddressFields
+      value={addr}
+      showGaps={showGaps}
+      zipHint={zipHint}
+      onChange={(next) => {
+        const composed = formatAddress(next);
+        setAddr(next);
+        setSent(composed);
+        onChange(composed);
+      }}
+    />
   );
 }

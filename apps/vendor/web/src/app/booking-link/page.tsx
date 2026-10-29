@@ -13,6 +13,8 @@
 // touches the money — see the callout below and docs/DECISIONS.md #13 in
 // the backend for why that's the whole trust model here.
 
+import { AddressStringFields } from "@jorna/shared/components/AddressFields";
+import { locationProblem } from "@jorna/shared/lib/address";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -395,6 +397,7 @@ function BookingLinkInner() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [location, setLocation] = useState("");
+  const [showVenueGaps, setShowVenueGaps] = useState(false);
   const [guestCount, setGuestCount] = useState("");
   const [signerName, setSignerName] = useState("");
 
@@ -506,6 +509,12 @@ function BookingLinkInner() {
     if (preview) return enter();
     if (!guestName.trim()) {
       setError("Add your full name.");
+      return;
+    }
+    const venueProblem = isSet(booking?.location) ? null : locationProblem(location);
+    if (venueProblem) {
+      setShowVenueGaps(true);
+      setError(`${venueProblem} Or leave it blank for now.`);
       return;
     }
     setBusy(true);
@@ -1054,12 +1063,12 @@ function BookingLinkInner() {
               {venueSet ? (
                 <SetTerm label="Venue" value={booking.location} />
               ) : (
-                <Field
-                  label="Venue address"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Where the event will be"
-                />
+                <div>
+                  <p className="mb-2 text-sm font-medium text-ink-soft">
+                    Venue address <span className="font-normal text-ink-faint">(optional)</span>
+                  </p>
+                  <AddressStringFields value={location} onChange={setLocation} showGaps={showVenueGaps} />
+                </div>
               )}
               {guestsSet ? (
                 <SetTerm label="Guest count" value={String(booking.guest_count)} />

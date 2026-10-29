@@ -1,6 +1,7 @@
 "use client";
 
 import { Field } from "@jorna/shared/components/ui";
+import { AddressStringFields } from "@jorna/shared/components/AddressFields";
 import { describeWhen, type Draft } from "@jorna/shared/lib/contractDraft";
 import type { VendorBooking } from "@/lib/types";
 import { todayIso, type SetDraft } from "./shared";
@@ -70,12 +71,13 @@ export function EventBlock({
           {clash}
         </p>
       ) : null}
-      <Field
-        label="Venue (optional)"
-        placeholder="Leave blank if your client will add it"
-        value={draft.location}
-        onChange={(e) => set({ location: e.target.value })}
-      />
+      <div className="sm:col-span-2">
+        <p className="mb-1 text-sm font-medium text-ink-soft">
+          Venue address <span className="font-normal text-ink-faint">(optional)</span>
+        </p>
+        <p className="mb-2 text-xs text-ink-faint">Leave it blank if your client will add it.</p>
+        <AddressStringFields value={draft.location} onChange={(location) => set({ location })} />
+      </div>
       <Field
         label="Guest count (optional)"
         type="number"
