@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "For vendors — Jorna",
   description:
-    "List your packages, get matched to hosts planning the events you serve, and get paid directly by Venmo or Zelle.",
+    "A home for your South Asian event business. Showcase your services and products, connect with clients, and manage your bookings and contracts.",
 };
 
 export default function ForVendorsLayout({ children }: { children: React.ReactNode }) {

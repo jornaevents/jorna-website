@@ -943,8 +943,43 @@ the labels are the ones already on Leads and Bookings, read from the same
   Plan chats aren't listed, so the vendor's unread badges leave them out
   too (`GET /conversations/unread-count?include_plan_chats=false`, backend #136).
 - **Plan group chats aren't listed** (`subject_type` "bundle"); a link to one
-  still opens it. The sidebar's unread badge comes from the backend and
-  still counts them.
+  still opens it.
 - **Labels refresh with the list's 25s poll;** a failed fetch keeps the last
   good bookings or pipeline rather than wiping every label.
 - Clients see no labels in V1: they have no Leads page to borrow from.
+
+## Decision: the site root is a Welcome screen, with a page for each side (2026-10-29)
+
+Home, For clients and For vendors were rebuilt from the Figma file "Jorna —
+Welcome and choose your path". The root (`/`, `home/page.tsx`) no longer
+explains Jorna itself: it asks whether you're planning a celebration or make
+them happen, and sends each to `/for-clients` or `/for-vendors`, which carry
+the explaining. Signed-in vendors still skip it for their dashboard
+(`VendorHomeRedirect`).
+
+- **Their own look, scoped:** Cormorant Garamond and Inter
+  (`lib/landingFonts.ts`, self-hosted) and the design's palette as `--l-*`
+  tokens in `app/landing.css` under `.landing`, the way `vendor-shell.css`
+  scopes the dashboard. Light only in every theme: the design has no dark
+  version and these pages are the front door. Shared pieces are
+  `components/landing/ui.tsx`.
+- **Their own header and footer.** Each page's differs, so `ChromeGate`
+  hides `SiteHeader`/`SiteFooter` on `/`, `/home`, `/for-clients` and
+  `/for-vendors` (`isLandingPath`). `/how-it-works` keeps the shared chrome.
+- **Where actions go:** a client's go to the client app (`clientAppUrl`):
+  sign-up, or `/plan` when already signed in here; browsing goes to the
+  marketplace, with category chips pre-filtering it. A vendor's stay here:
+  `/login?mode=register&role=vendor`, or `/vendor-onboarding` when signed
+  in. The Welcome screen's single "Sign in" is this app's (vendor) sign-in,
+  which links clients on to theirs.
+- **Illustrations, labelled.** The vendors, offerings, prices and workspace
+  panels are the design's examples, each captioned as illustrative — not
+  live listings. The old Home's live vendor showcase went with the old
+  Home.
+- **The Welcome intro animation** (wordmark large in the middle, settling
+  into the header, the rest fading in) is CSS, played once rather than on
+  the prototype's loop, and skipped under `prefers-reduced-motion`.
+- **Left out until the pages exist:** "About us" and "Help & FAQs" point at
+  `/help/`; the design's Contact, Privacy and Terms links and "Get in touch"
+  are omitted rather than linking to 404s (see `SiteFooter`).
+

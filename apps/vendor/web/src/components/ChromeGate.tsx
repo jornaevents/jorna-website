@@ -30,6 +30,15 @@ const VENDOR_SHELL_PREFIXES = [
 
 const SHARED_SHELL_PREFIXES = ["/messages", "/conversation"];
 
+// The landing pages draw their own header and footer from the Figma design
+// (components/landing/ui.tsx), so the shared ones step aside there too.
+const LANDING_PATHS = ["/", "/home", "/for-clients", "/for-vendors"];
+
+export function isLandingPath(pathname: string | null): boolean {
+  const path = pathname && pathname !== "/" ? pathname.replace(/\/$/, "") : pathname;
+  return LANDING_PATHS.includes(path ?? "");
+}
+
 const under = (prefixes: string[], pathname: string | null) =>
   prefixes.some((p) => pathname === p || pathname?.startsWith(`${p}/`));
 
@@ -72,6 +81,8 @@ export function useVendorShell(): boolean | null {
 }
 
 export function ChromeGate({ children }: { children: ReactNode }) {
-  if (useVendorShell() !== false) return null;
+  const pathname = usePathname();
+  const shell = useVendorShell();
+  if (shell !== false || isLandingPath(pathname)) return null;
   return <>{children}</>;
 }

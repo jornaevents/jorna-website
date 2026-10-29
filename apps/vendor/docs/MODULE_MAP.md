@@ -25,10 +25,12 @@ always "none, verify manually" until a test runner is added.
   nav chrome, and the root-route special case that makes `/` serve the app's
   Home page.
 - **Code:** `web/src/app/layout.tsx`, `web/src/app/page.tsx`,
-  `web/src/app/home/`, `public/_redirects`. Home's three "learn more" pages
-  — `how-it-works/`, `for-clients/`, `for-vendors/` (split out of Home's own
-  scroll 2026-09, see `docs/DECISIONS.md`) — share `components/marketing/`
-  (`Eyebrow.tsx`, `icons.tsx`).
+  `web/src/app/home/`, `public/_redirects`. Home is the Welcome screen;
+  it and `for-clients/`, `for-vendors/` are the Figma landing pages
+  (2026-10, see `docs/DECISIONS.md`), sharing `components/landing/ui.tsx`,
+  `app/landing.css` and `lib/landingFonts.ts`, and drawing their own header
+  and footer (`ChromeGate`'s `isLandingPath`). `how-it-works/` still uses
+  `components/marketing/` (`Eyebrow.tsx`, `icons.tsx`) and the shared chrome.
 - **Entry points:** `RootLayout` wraps every page with `AuthProvider`,
   `SiteHeader`, `SiteFooter`, `PushRuntime`. Mobile nav is
   `MobileNavMenu.tsx` (a slide-out sheet, not a bottom tab bar — it replaced
