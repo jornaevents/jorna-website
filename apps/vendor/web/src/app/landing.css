@@ -1,0 +1,125 @@
+/*
+  The landing pages' look — Welcome (/), For clients and For vendors — from the
+  Figma "Jorna — Welcome and choose your path" file (2026-10): cream ground,
+  maroon display serif (Cormorant Garamond), Inter body, gold small caps.
+
+  Scoped to .landing (LandingShell's root) like vendor-shell.css, so the app's
+  own pages keep their tokens. The design ships light only and these pages are
+  the brand's front door, so they stay light in every theme rather than
+  inventing a dark palette nobody designed.
+*/
+
+.landing {
+  --l-ground: #f6f0e5;
+  --l-paper: #fffcf6;
+  --l-blush: #ebddd1;
+  --l-sand: #ede4d6;
+  --l-line: #ddcfbc;
+  --l-maroon: #681d2c;
+  --l-maroon-line: #97606a;
+  --l-gold: #aa7b32;
+  --l-gold-pale: #e9d8b8;
+  --l-ink: #3d2322;
+  --l-ink-soft: #806e60;
+  --l-sage-bg: #e6ebe1;
+  --l-sage: #47634d;
+  --l-shadow: 0 16px 40px 0 rgba(61, 35, 34, 0.08);
+
+  /* Side padding, read by the welcome intro to find the screen's center. */
+  --l-pad: 20px;
+
+  color-scheme: light;
+  background: var(--l-ground);
+  color: var(--l-ink);
+  font-family: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .landing {
+    --l-pad: 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing {
+    --l-pad: 80px;
+  }
+}
+
+.landing .l-serif {
+  font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+}
+
+/* Display sizes: the design's desktop size, scaled down to fit a phone. */
+.landing .l-display-xl {
+  font-size: clamp(44px, 6.2vw, 88px);
+  line-height: 1.03;
+}
+.landing .l-display-lg {
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1.03;
+}
+.landing .l-display {
+  font-size: clamp(36px, 4.1vw, 58px);
+  line-height: 1.03;
+}
+
+/* ── Welcome intro (Figma motion, played once) ──────────────────────────
+   The wordmark arrives large in the middle of the screen, then settles into
+   the header; the rest of the page fades in after it. The prototype loops;
+   a page shouldn't, so this runs once. */
+@media (prefers-reduced-motion: no-preference) {
+  .landing .l-intro-mark {
+    animation: l-intro-mark 2.65s both;
+  }
+  .landing .l-intro-fade {
+    animation: l-intro-fade 2.65s both;
+  }
+  .landing .l-intro-rule {
+    animation: l-intro-rule 2.65s both;
+  }
+}
+
+@keyframes l-intro-mark {
+  0% {
+    opacity: 0;
+    transform: translate(calc(50vw - var(--l-pad) - 50%), calc(50vh - 50px)) scale(2);
+    animation-timing-function: ease-out;
+  }
+  25% {
+    opacity: 1;
+    transform: translate(calc(50vw - var(--l-pad) - 50%), calc(50vh - 50px)) scale(2);
+  }
+  41.5% {
+    opacity: 1;
+    transform: translate(calc(50vw - var(--l-pad) - 50%), calc(50vh - 50px)) scale(2);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  77.4%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes l-intro-fade {
+  0%,
+  77.4% {
+    opacity: 0;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes l-intro-rule {
+  0%,
+  77.4% {
+    border-color: transparent;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    border-color: var(--l-line);
+  }
+}

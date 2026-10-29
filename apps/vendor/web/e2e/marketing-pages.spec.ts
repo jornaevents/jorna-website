@@ -1,40 +1,56 @@
 import { test, expect } from "./support/fixtures";
 
-// The three pages Home's long scroll was trimmed into (2026-09) — see
-// docs/DECISIONS.md. Thin smoke coverage: each renders its headline and the
-// nav actually reaches it, which is the one thing that changed behavior
-// (they used to be #how/#vendors anchors on Home, not real routes).
-test.describe("marketing pages (How it works / For clients / For vendors)", () => {
-  test("SiteHeader's signed-out nav reaches all three real pages", async ({ page }) => {
-    await page.goto("");
+// For clients and For vendors (Figma, 2026-10): each draws its own header and
+// footer, and every action has to land somewhere real — the client app for a
+// client, this app's sign-up for a vendor. Pure layout is left to a manual
+// pass; these pin the routing.
+test.describe("landing pages (For clients / For vendors)", () => {
+  test("For clients sends every action to the client app", async ({ page }) => {
+    await page.goto("for-clients/");
 
-    // exact: true — "How it works" is also a substring of the "learn more"
-    // card link's accessible name (title + body + "Learn more →" all in one
-    // link), which would otherwise match too.
-    await page.getByRole("link", { name: "How it works", exact: true }).click();
-    await expect(page).toHaveURL(/\/how-it-works\/?$/);
-    await expect(
-      page.getByRole("heading", { name: "Plan your entire celebration in three steps." }),
-    ).toBeVisible();
+    const header = page.locator("header").first();
+    await expect(header.getByRole("link", { name: "Plan your celebration" })).toHaveAttribute(
+      "href",
+      /^https:\/\/[^/]+\/app\/login\?mode=register$/,
+    );
+    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /^https:\/\/[^/]+\/app\/login$/);
+    await expect(header.getByRole("link", { name: "Find vendors" })).toHaveAttribute(
+      "href",
+      /^https:\/\/[^/]+\/app\/marketplace$/,
+    );
+    // A category chip opens the marketplace already filtered.
+    await expect(page.getByRole("link", { name: "Catering", exact: true })).toHaveAttribute(
+      "href",
+      /\/app\/marketplace\?category=catering$/,
+    );
 
-    await page.goto("");
-    await page.getByRole("link", { name: "For clients", exact: true }).click();
-    await expect(page).toHaveURL(/\/for-clients\/?$/);
-    await expect(
-      page.getByRole("heading", { name: "Clear terms before you pay." }),
-    ).toBeVisible();
-
-    await page.goto("");
-    await page.getByRole("link", { name: "For vendors", exact: true }).click();
+    await header.getByRole("link", { name: "For vendors" }).click();
     await expect(page).toHaveURL(/\/for-vendors\/?$/);
-    await expect(
-      page.getByRole("heading", { name: "List your packages. Get booked. Get paid." }),
-    ).toBeVisible();
   });
 
-  test("Home's \"learn more\" cards link to the same three pages", async ({ page }) => {
-    await page.goto("");
-    await page.getByRole("link", { name: /Learn more/ }).first().click();
-    await expect(page).toHaveURL(/\/how-it-works\/?$/);
+  test("For vendors signs a new vendor up in this app", async ({ page }) => {
+    await page.goto("for-vendors/");
+
+    const header = page.locator("header").first();
+    await expect(header.getByRole("link", { name: "Join as a vendor" })).toHaveAttribute(
+      "href",
+      /\/login\/?\?mode=register&role=vendor$/,
+    );
+    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/login\/?$/);
+    await expect(page.getByRole("link", { name: "Create your vendor storefront" })).toHaveAttribute(
+      "href",
+      /\/login\/?\?mode=register&role=vendor$/,
+    );
+
+    await header.getByRole("link", { name: "For clients" }).click();
+    await expect(page).toHaveURL(/\/for-clients\/?$/);
+  });
+
+  test("the shared site header stays on the app's other pages", async ({ page }) => {
+    await page.goto("for-vendors/");
+    await expect(page.getByRole("navigation", { name: "About Jorna" })).toHaveCount(0);
+
+    await page.goto("how-it-works/");
+    await expect(page.getByRole("navigation", { name: "About Jorna" })).toBeVisible();
   });
 });

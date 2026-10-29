@@ -155,6 +155,13 @@ this app's marketing and signing pages share that file. The shell's own
 pieces (page header, stat tile, status pill, filter tabs, list table, drawer)
 are `web/src/components/vendor/ui.tsx`.
 
+**Landing pages palette (2026-10):** Home (the Welcome screen), For clients
+and For vendors take the Figma landing design from `web/src/app/landing.css`:
+`--l-*` tokens and Cormorant Garamond / Inter (`web/src/lib/landingFonts.ts`)
+scoped under `.landing`, light in every theme. Those pages draw their own
+header and footer (`web/src/components/landing/ui.tsx`), so `ChromeGate`
+hides the shared ones there.
+
 **Light/dark mechanism:** a `data-theme="light"|"dark"` attribute on the root
 element is the primary switch, re-applied from localStorage before first
 paint by the inline script in `web/src/lib/themeBoot.ts` (root layout); the
