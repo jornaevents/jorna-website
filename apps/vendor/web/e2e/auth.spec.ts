@@ -83,9 +83,9 @@ test.describe("authentication", () => {
     await expect(page.getByRole("heading", { name: "List your business on Jorna" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Create account & continue" })).toBeEnabled();
     await expect(page.getByRole("button", { name: /^Host/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Go to book.jornaevents.com" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Sign up as a client" })).toHaveAttribute(
       "href",
-      /\/app\/login\/?\?mode=register$/,
+      /\/client\/login\/?\?mode=register$/,
     );
   });
 

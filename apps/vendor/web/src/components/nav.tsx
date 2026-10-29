@@ -105,7 +105,7 @@ export const NO_VENDOR_TABS: NavItem[] = [
   // sees "How it works"/"For clients" on Home instead (SiteHeader's
   // signed-out nav). The marketplace is for someone already planning a
   // celebration, not a general storefront advertised to a stranger.
-  // It lives in the client app (book.jornaevents.com); /browse here only
+  // It lives in the client app (/client); /browse here only
   // redirects to Home.
   {
     href: clientAppUrl("/marketplace"),

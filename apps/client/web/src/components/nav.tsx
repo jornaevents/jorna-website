@@ -9,7 +9,7 @@
 //
 // Clients only: vendors work on jornaevents.com, and a vendor account signed
 // in here sees VendorAccountGate instead of the app. Shown only to a
-// signed-in user; the whole app lives under basePath "/app", which next/link
+// signed-in user; the whole app lives under basePath "/client", which next/link
 // applies to these hrefs.
 //
 // Two independent badges: Needs You counts exactly what /activity lists (both

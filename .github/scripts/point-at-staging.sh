@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # For staging and PR-preview builds, run from apps/<app> after `npm run build`:
 #   1. Points public/_redirects at the staging apps instead of production. The
-#      client app sends old vendor URLs (/app/my-dashboard, …) to the vendor
-#      app on jornaevents.com; on staging that sent people to production. The
-#      rewritten rules use 302, so a browser doesn't cache a staging redirect
-#      the way it caches a 301.
+#      client app's project (book.jornaevents.com) is all redirects to
+#      jornaevents.com since 2026-10-29; on staging those must reach staging.
+#      The rewritten rules use 302, so a browser doesn't cache a staging
+#      redirect the way it caches a 301.
 #   2. Fails if a production web or API address is still anywhere in the
 #      built site, except canonical/og:url tags (metadata for search engines,
 #      never followed by the browser) and _headers (the committed CSP; staging

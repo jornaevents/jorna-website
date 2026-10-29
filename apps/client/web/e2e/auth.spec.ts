@@ -14,7 +14,7 @@ test.describe("authentication", () => {
     await page.getByLabel("Password").fill("correct-horse-battery-staple");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveURL(/\/app\/plan\/?$/);
+    await expect(page).toHaveURL(/\/client\/plan\/?$/);
 
     const loginCalls = api.requestsTo("POST", "/auth/login");
     expect(loginCalls).toHaveLength(1);
@@ -35,7 +35,7 @@ test.describe("authentication", () => {
     await page.getByLabel("Password").fill("correct-horse-battery-staple");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveURL(/\/app\/bundles\/?$/);
+    await expect(page).toHaveURL(/\/client\/bundles\/?$/);
   });
 
   test("a sign-in sent from a page goes back to that page, plan or not", async ({ page, api }) => {
@@ -50,7 +50,7 @@ test.describe("authentication", () => {
     await page.getByLabel("Password").fill("correct-horse-battery-staple");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveURL(/\/app\/marketplace\/?$/);
+    await expect(page).toHaveURL(/\/client\/marketplace\/?$/);
   });
 
   test("shows the backend's error message on invalid credentials", async ({ page, api }) => {
@@ -62,7 +62,7 @@ test.describe("authentication", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page.getByText("Invalid email/username or password.")).toBeVisible();
-    await expect(page).toHaveURL(/\/app\/login\/?$/);
+    await expect(page).toHaveURL(/\/client\/login\/?$/);
   });
 
   test("sign-up here is for hosts, and points vendors to jornaevents.com", async ({ page }) => {
@@ -104,6 +104,6 @@ test.describe("authentication", () => {
   }) => {
     await page.goto("bundles/");
 
-    await expect(page).toHaveURL(/\/app\/login\/?\?next=\/bundles/);
+    await expect(page).toHaveURL(/\/client\/login\/?\?next=\/bundles/);
   });
 });

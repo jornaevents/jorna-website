@@ -14,7 +14,7 @@ export default defineConfig({
     // Trailing slash matters: relative goto()s like "login/" are resolved
     // against this with plain URL semantics, and a bare "/" would replace
     // the whole /app path instead of extending it.
-    baseURL: `http://localhost:${PORT}/app/`,
+    baseURL: `http://localhost:${PORT}/client/`,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -31,7 +31,7 @@ export default defineConfig({
     // Next 16's dev server only trusts the origin it was started against
     // (see allowedDevOrigins) — 127.0.0.1 gets a 403 on every asset even
     // though it's the same machine, so this must be "localhost" too.
-    url: `http://localhost:${PORT}/app/`,
+    url: `http://localhost:${PORT}/client/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {

@@ -1,5 +1,15 @@
 # Deploying book.jornaevents.com
 
+> **Since 2026-10-29 the app itself is served at jornaevents.com/client**,
+> built and deployed with the vendor app (`apps/vendor`: its build runs this
+> app's `next build` and copies `web/out` to its `public/client`). See
+> `apps/vendor/DEPLOY.md`. This project, `jorna-events`, now publishes only
+> `public/_redirects`, so every old book.jornaevents.com address 301s to the
+> same page at its new one; `scripts/deploy.mjs` verifies those redirects.
+> **Release order:** approve the vendor deploy (which adds `/client`) before
+> this one (which starts redirecting to it). The rest of this file describes
+> the setup as it was before the move.
+
 The site (the web app, serving both `/` and `/app`, plus a small static
 `/help` page) is a static export in `public/`, hosted on **Cloudflare Pages**
 (project `jorna-events`). `book.jornaevents.com` is a custom domain on that

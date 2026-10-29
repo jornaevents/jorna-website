@@ -126,11 +126,11 @@ jobs:
         env:
           NEXT_PUBLIC_ESCROW_ENABLED: "false"
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
-          # Links between the two apps go to the other app's staging site,
-          # never production (they default to jornaevents.com /
-          # book.jornaevents.com).
-          NEXT_PUBLIC_CLIENT_APP_URL: https://staging.jorna-events.pages.dev
-          NEXT_PUBLIC_VENDOR_APP_URL: https://staging.jorna-vendor.pages.dev
+          # Both apps ship in the vendor project's deploy (the client app at
+          # /client, 2026-10-29), so links between them stay on this preview,
+          # never production (they default to jornaevents.com).
+          NEXT_PUBLIC_CLIENT_APP_URL: https://pr-${{ github.event.pull_request.number }}.jorna-vendor.pages.dev
+          NEXT_PUBLIC_VENDOR_APP_URL: https://pr-${{ github.event.pull_request.number }}.jorna-vendor.pages.dev
 
       - name: Allow the staging API in the CSP
         if: vars.STAGING_API_BASE_URL != ''
@@ -221,10 +221,9 @@ jobs:
         env:
           NEXT_PUBLIC_ESCROW_ENABLED: "false"
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
-          # Links between the two apps go to the other app's staging site,
-          # never production (they default to jornaevents.com /
-          # book.jornaevents.com).
-          NEXT_PUBLIC_CLIENT_APP_URL: https://staging.jorna-events.pages.dev
+          # Both apps ship in the vendor project's deploy (the client app at
+          # /client, 2026-10-29), so links between them stay on staging.
+          NEXT_PUBLIC_CLIENT_APP_URL: https://staging.jorna-vendor.pages.dev
           NEXT_PUBLIC_VENDOR_APP_URL: https://staging.jorna-vendor.pages.dev
 
       - run: ../../.github/scripts/csp-allow-api.sh public/_headers "$STAGING_API"

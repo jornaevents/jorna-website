@@ -136,9 +136,9 @@ function BundleCard({
           // A new tab on purpose — the three options are unsaved state on
           // /plan, and navigating in place loses them.
           const href = item.service_id
-            ? `/app/service?id=${item.service_id}`
+            ? `/client/service?id=${item.service_id}`
             : item.vendor_id
-              ? `/app/vendor?id=${item.vendor_id}`
+              ? `/client/vendor?id=${item.vendor_id}`
               : null;
           const heading = item.service_name || categoryLabel(item.category);
           return (

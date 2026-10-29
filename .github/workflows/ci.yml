@@ -2,7 +2,10 @@ name: CI
 
 # Two apps and the package they share, one repo. Each app is checked,
 # previewed and deployed by app.yml — but only when a change touches it, so a
-# vendor-only change doesn't rebuild and redeploy the client site. Anything
+# vendor-only change doesn't rebuild the client app's checks. Since
+# 2026-10-29 the vendor app's deploy (jornaevents.com) carries the client app
+# at /client, so a client change runs the vendor job too; the client job's
+# own deploy is book.jornaevents.com, which only redirects. Anything
 # outside apps/ (packages/shared, this workflow, the root tooling) counts as
 # touching both, and also runs the shared package's own checks.
 
@@ -38,6 +41,9 @@ jobs:
           if [ "$shared" -gt 0 ]; then echo "shared=true"; else echo "shared=false"; fi >> "$GITHUB_OUTPUT"
           for app in client vendor; do
             own=$(echo "$files" | grep -c "^apps/$app/" || true)
+            # The vendor app's deploy also ships the client app at /client
+            # (2026-10-29), so a client change has to rebuild and redeploy it.
+            if [ "$app" = vendor ]; then own=$((own + $(echo "$files" | grep -c "^apps/client/" || true))); fi
             if [ "$own" -gt 0 ] || [ "$shared" -gt 0 ]; then echo "$app=true"; else echo "$app=false"; fi >> "$GITHUB_OUTPUT"
           done
 

@@ -367,7 +367,7 @@ function LoginInner() {
             href={clientAppUrl(mode === "register" ? "/login?mode=register" : "/login")}
             className="font-semibold text-gold underline-offset-2 hover:underline"
           >
-            Go to book.jornaevents.com
+            {mode === "register" ? "Sign up as a client" : "Sign in as a client"}
           </a>
         </p>
       ) : null}

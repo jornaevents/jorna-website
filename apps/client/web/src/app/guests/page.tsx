@@ -50,7 +50,7 @@ function prettyDate(iso?: string | null): string | null {
 /** The public URL for a token. Absolute, because it gets pasted into messages. */
 function inviteUrl(token: string): string {
   if (typeof window === "undefined") return "";
-  return `${window.location.origin}/app/rsvp/?t=${encodeURIComponent(token)}`;
+  return `${window.location.origin}/client/rsvp/?t=${encodeURIComponent(token)}`;
 }
 
 /** Copy, and say so — a copy button that gives no sign it worked gets pressed twice. */

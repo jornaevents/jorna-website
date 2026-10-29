@@ -283,3 +283,12 @@ celebration they'd already planned. Now `lib/landing.ts` (`clientLanding`)
 checks their plans and events: any at all, and they land on the dashboard
 (`/bundles`); none, the Plan wizard as before. Email and Google sign-in both
 use it (`app/login`, `app/auth/callback`). A `?next=` still wins.
+
+## Decision: the app moves to jornaevents.com/client (2026-10-29)
+
+Served beside the vendor app on one site, so one sign-in covers both: basePath
+`/client` (was `/app`), built into the vendor app's deploy (see
+`apps/vendor/DEPLOY.md`). This app's own Pages project now publishes only
+redirects from book.jornaevents.com (`public/_redirects`), and its old help
+and 404 pages are gone — jornaevents.com's serve both sides. Links into the
+vendor app (`vendorSiteUrl`, contract links) are now same-origin.

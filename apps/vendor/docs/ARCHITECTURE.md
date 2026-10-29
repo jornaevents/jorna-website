@@ -63,6 +63,11 @@ site root, a settled decision as of 2026-08-22, not an interim state. See
 `web/src/app/page.tsx` as the actual behavior** if this doc and the code
 ever disagree after a future change.
 
+**The client app is served here too** (2026-10-29): `apps/client` exports with
+basePath `/client` and this app's build copies it to `public/client`, so the
+site is `/` (Welcome), `/app/…` (vendor app) and `/client/…` (client app) on
+one origin — see `DEPLOY.md`.
+
 Signed-in **vendors** don't see Home at all: `components/VendorHomeRedirect.tsx`
 (wrapped around Home in `home/page.tsx`, so it covers `/`, `/app/` and
 `/app/home/` alike) sends them to `/overview`. It deliberately never

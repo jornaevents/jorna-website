@@ -11,17 +11,17 @@ test.describe("landing pages (For clients / For vendors)", () => {
     const header = page.locator("header").first();
     await expect(header.getByRole("link", { name: "Plan your celebration" })).toHaveAttribute(
       "href",
-      /^https:\/\/[^/]+\/app\/login\?mode=register$/,
+      /^https:\/\/[^/]+\/client\/login\?mode=register$/,
     );
-    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /^https:\/\/[^/]+\/app\/login$/);
+    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /^https:\/\/[^/]+\/client\/login$/);
     await expect(header.getByRole("link", { name: "Find vendors" })).toHaveAttribute(
       "href",
-      /^https:\/\/[^/]+\/app\/marketplace$/,
+      /^https:\/\/[^/]+\/client\/marketplace$/,
     );
     // A category chip opens the marketplace already filtered.
     await expect(page.getByRole("link", { name: "Catering", exact: true })).toHaveAttribute(
       "href",
-      /\/app\/marketplace\?category=catering$/,
+      /\/client\/marketplace\?category=catering$/,
     );
 
     await header.getByRole("link", { name: "For vendors" }).click();

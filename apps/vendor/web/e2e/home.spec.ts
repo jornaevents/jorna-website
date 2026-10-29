@@ -16,7 +16,7 @@ test.describe("welcome (site root)", () => {
     // One sign-in per side: a client's is in the client app, a vendor's here.
     await expect(page.getByRole("link", { name: "Client", exact: true })).toHaveAttribute(
       "href",
-      /^https:\/\/[^/]+\/app\/login$/,
+      /^https:\/\/[^/]+\/client\/login$/,
     );
     await expect(page.getByRole("link", { name: "Vendor", exact: true })).toHaveAttribute("href", /\/login\/?$/);
 

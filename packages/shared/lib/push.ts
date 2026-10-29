@@ -12,9 +12,22 @@ import { firebaseConfig, VAPID_PUBLIC_KEY, firebasePushConfigured } from "./fire
 import { apiFetch } from "./api";
 import { PUSH_ENABLED } from "./flags";
 
-const SW_URL = "/app/firebase-messaging-sw.js";
-const SW_SCOPE = "/app/";
-const LOCAL_TOKEN_KEY = "jorna_push_token";
+/**
+ * The app this page belongs to: "/app/" (vendor) or "/client/" (client) —
+ * both served from jornaevents.com since 2026-10-29, each with its own
+ * service worker under its own path. Read from the page rather than passed
+ * in, so the shared code needs no per-app wiring.
+ */
+function appBase(): string {
+  const first = typeof window === "undefined" ? "" : window.location.pathname.split("/")[1];
+  return first === "client" ? "/client/" : "/app/";
+}
+
+const swUrl = () => `${appBase()}firebase-messaging-sw.js`;
+
+/** One token per app on a shared origin. The vendor app keeps the original
+ *  key, so a browser registered before the move can still unregister. */
+const localTokenKey = () => (appBase() === "/app/" ? "jorna_push_token" : `jorna_push_token:${appBase()}`);
 
 export type PermissionState = NotificationPermission | "unsupported";
 
@@ -95,8 +108,8 @@ export async function enableWebPush(): Promise<string | null> {
   if (permission !== "granted") return null;
 
   // Register our SW explicitly. FCM would otherwise look for it at the origin
-  // root (/firebase-messaging-sw.js), which 404s under our /app basePath.
-  const registration = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
+  // root (/firebase-messaging-sw.js), which 404s under the apps' base paths.
+  const registration = await navigator.serviceWorker.register(swUrl(), { scope: appBase() });
 
   const { getToken } = await import("firebase/messaging");
   const token = await getToken(await messagingInstance(), {
@@ -110,7 +123,7 @@ export async function enableWebPush(): Promise<string | null> {
     body: { fcm_token: token, platform: "web" },
   });
   try {
-    localStorage.setItem(LOCAL_TOKEN_KEY, token);
+    localStorage.setItem(localTokenKey(), token);
   } catch {
     /* private mode — non-fatal; sign-out just can't target this exact token */
   }
@@ -126,11 +139,11 @@ export async function listenForeground(): Promise<() => void> {
   if (!(await pushSupported()) || permissionState() !== "granted") return () => {};
   const { onMessage } = await import("firebase/messaging");
   const messaging = await messagingInstance();
-  const registration = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+  const registration = await navigator.serviceWorker.getRegistration(appBase());
   return onMessage(messaging, (payload) => {
     const title = payload.notification?.title ?? "Jorna";
     const body = payload.notification?.body ?? "";
-    registration?.showNotification(title, { body, icon: "/app/favicon.ico", data: payload.data });
+    registration?.showNotification(title, { body, icon: `${appBase()}favicon.ico`, data: payload.data });
   });
 }
 
@@ -142,7 +155,7 @@ export async function listenForeground(): Promise<() => void> {
 export async function disableWebPushForThisDevice(userId: string): Promise<void> {
   let token: string | null = null;
   try {
-    token = localStorage.getItem(LOCAL_TOKEN_KEY);
+    token = localStorage.getItem(localTokenKey());
   } catch {
     /* ignore */
   }
@@ -155,7 +168,7 @@ export async function disableWebPushForThisDevice(userId: string): Promise<void>
       /* best-effort; the backend also prunes tokens FCM reports as dead */
     }
     try {
-      localStorage.removeItem(LOCAL_TOKEN_KEY);
+      localStorage.removeItem(localTokenKey());
     } catch {
       /* ignore */
     }
