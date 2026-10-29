@@ -158,6 +158,52 @@ test.describe("vendor messages hub (/messages)", () => {
     await expect(page.getByText("Their offer")).toBeVisible();
     await expect(page.getByRole("link", { name: /Answer in Leads/ })).toHaveAttribute("href", /leads\/?\?open=booking%3Abk1/);
   });
+
+  test("a client reading in this app is sent to the booking the offer carries", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    const thread = conv("c-q", "Lens and Light Studio");
+    api.get("/conversations/c-q", thread);
+    api.get("/conversations", [thread]);
+    api.get("/conversations/unread-count", { unread_count: 0 });
+    api.get("/conversations/c-q/messages", {
+      items: [
+        {
+          message_id: "o3", conversation_id: "c-q", sender_id: "client-c-q", sender_name: "Lens and Light Studio",
+          content: "Lens and Light offered $2,200.", created_at: now, kind: "offer",
+          meta: { amount_cents: 220000, action: "offer", booking_id: "b2", bundle_id: "plan2" },
+        },
+      ],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("conversation/?id=c-q");
+
+    await expect(page.getByRole("link", { name: /Answer on the booking/ })).toHaveAttribute(
+      "href",
+      /bundle\/?\?id=plan2#booking-b2/,
+    );
+  });
+
+  test("a price offer in a question thread points to the booking it carries", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockHub(api);
+    api.get("/conversations/c-new/messages", {
+      items: [
+        {
+          message_id: "o2", conversation_id: "c-new", sender_id: "client-c-new", sender_name: "Sana Omar",
+          content: "Sana offered $1,800.", created_at: now, kind: "offer",
+          meta: { amount_cents: 180000, action: "counter", booking_id: "bk-sana", bundle_id: null },
+        },
+      ],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("messages/?id=c-new");
+
+    await expect(page.getByText("Their offer")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Answer in Leads/ })).toHaveAttribute("href", /leads\/?\?open=booking%3Abk-sana/);
+  });
 });
 
 // Each thread's label (proposal: Messages V1). The words are the ones Leads

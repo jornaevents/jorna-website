@@ -58,7 +58,7 @@ test.describe("client signing page", () => {
 
     await page.goto("booking-link/?t=tok-2");
     await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByLabel("Venue address")).toHaveCount(0);
+    await expect(page.getByLabel("Street address")).toHaveCount(0);
     await expect(page.getByLabel("Guest count")).toHaveCount(0);
     await expect(page.getByText(/These are part of the contract\./)).toBeVisible();
 
@@ -74,12 +74,15 @@ test.describe("client signing page", () => {
 
     await page.goto("booking-link/?t=tok-3");
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByLabel("Venue address").fill("The Grand Hall");
+    await page.getByLabel("Street address").fill("12 Maple Ave");
+    await page.getByLabel("City", { exact: true }).fill("Evanston");
+    await page.getByLabel("State", { exact: true }).selectOption("IL");
+    await page.getByLabel("ZIP code").fill("60201");
     await page.getByLabel("Guest count").fill("120");
     await page.getByRole("button", { name: "Continue to the contract" }).click();
     await expect.poll(() => api.requestsTo("PATCH", "/guest-bookings/tok-3").length).toBe(1);
     expect(api.requestsTo("PATCH", "/guest-bookings/tok-3")[0].body).toMatchObject({
-      location: "The Grand Hall",
+      location: "12 Maple Ave, Evanston, IL 60201",
       guest_count: 120,
     });
   });

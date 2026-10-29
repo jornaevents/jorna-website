@@ -14,6 +14,7 @@
 // The host page decides what "send" means for its side; this component only
 // keeps the working version and calls back with it.
 
+import { AddressStringFields } from "../AddressFields";
 import { useMemo, useState, type ReactNode } from "react";
 import { wordDiff } from "../../lib/contractDiff";
 import type { Draft } from "../../lib/contractDraft";
@@ -86,6 +87,7 @@ function ValueInput({
   onChange: (raw: string) => void;
 }) {
   const common = { "aria-label": `Your ${v.label.toLowerCase()}`, value, className: input };
+  if (v.id === "event.venue") return <AddressStringFields value={value} onChange={onChange} />;
   switch (v.kind) {
     case "longtext":
       return <textarea {...common} rows={4} onChange={(e) => onChange(e.target.value)} />;

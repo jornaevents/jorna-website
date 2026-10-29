@@ -9,6 +9,7 @@
 // proposal form. Lines and payments are matched across versions by their
 // saved id (contractDraft keeps ids across edits), clauses by key.
 
+import { locationProblem } from "./address";
 import {
   balanceLastPayment,
   customLine,
@@ -312,8 +313,15 @@ export function draftToSave(d: Draft): Partial<TermsVersion> {
 
 /** What stops the couple's proposal being sent, in their words. The server
  *  checks the same things; this says so before they press Send. */
-export function proposalProblems(d: Draft): string[] {
+export function proposalProblems(d: Draft, base?: { location?: string | null }): string[] {
   const out: string[] = [];
+  // Only a venue they changed: an older contract's "Chicago, IL" shouldn't
+  // block every other edit to it.
+  const before = base?.location === "TBD" ? "" : (base?.location ?? "");
+  if (base && before.trim() !== d.location.trim()) {
+    const venue = locationProblem(d.location);
+    if (venue) out.push(venue);
+  }
   if (!d.lines.some((l) => l.kind === "package")) out.push("Keep at least one of the vendor's packages.");
   for (const l of d.lines) {
     if (!l.name.trim()) out.push("Give the item you're asking for a name.");

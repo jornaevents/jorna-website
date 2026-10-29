@@ -270,8 +270,8 @@ export function MessagesHub() {
       : undefined;
   const canAddLead = Boolean(selected && relation?.kind === "none" && otherMember);
 
-  const vendorOfferLink: OfferLink = (c) => ({
-    href: c?.booking_id ? `/leads?open=${encodeURIComponent(`booking:${c.booking_id}`)}` : "/leads",
+  const vendorOfferLink: OfferLink = ({ bookingId }) => ({
+    href: bookingId ? `/leads?open=${encodeURIComponent(`booking:${bookingId}`)}` : "/leads",
     label: "Answer in Leads",
   });
 

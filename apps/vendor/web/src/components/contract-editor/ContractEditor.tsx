@@ -405,8 +405,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   // A template has no client or event yet; those are each contract's.
   const issues = useMemo(
-    () => problemsByStep(draft, todayIso()).filter((i) => !isTemplate || !TEMPLATE_SKIPS.includes(i.step)),
-    [draft, isTemplate],
+    () =>
+      problemsByStep(draft, todayIso(), editing?.location ?? request?.location).filter(
+        (i) => !isTemplate || !TEMPLATE_SKIPS.includes(i.step),
+      ),
+    [draft, isTemplate, editing, request],
   );
   const notes = useMemo(
     () => warningsByStep(draft).filter((n) => !isTemplate || !TEMPLATE_SKIPS.includes(n.step)),

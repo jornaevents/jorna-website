@@ -1,5 +1,6 @@
 "use client";
 
+import { AddressStringFields } from "@jorna/shared/components/AddressFields";
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Field } from "@jorna/shared/components/ui";
 import type { FormState } from "./packageForm";
@@ -30,11 +31,9 @@ export function VenueLocationFields({
         check-in is measured against, so it&apos;s required.
       </p>
       <div className="mt-3 grid gap-3">
-        <Field
-          label="Address"
-          required
-          value={form.location ?? ""}
-          onChange={(e) => setForm({ ...form, location: e.target.value })}
+        <AddressStringFields
+          value={form.location}
+          onChange={(location) => setForm((f) => ({ ...f, location }))}
         />
         {/* The pin comes from the address lookup below; the raw
             numbers are only for fixing a pin that landed on the

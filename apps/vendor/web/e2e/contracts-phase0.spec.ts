@@ -40,7 +40,10 @@ test.describe("contracts — Phase 0", () => {
     await page.getByLabel("Date", { exact: true }).fill("2030-06-01");
     await page.getByLabel("Start time").fill("18:00");
     await page.getByLabel("End time").fill("22:00");
-    await page.getByLabel("Venue (optional)").fill("Pines Manor");
+    await page.getByLabel("Street address").fill("12 Maple Ave");
+    await page.getByLabel("City", { exact: true }).fill("Evanston");
+    await page.getByLabel("State", { exact: true }).selectOption("IL");
+    await page.getByLabel("ZIP code").fill("60201");
 
     // A per-person package is its rate times the head count, not the rate.
     await page.getByLabel("Add a package").selectOption("svc-pp");
@@ -60,7 +63,7 @@ test.describe("contracts — Phase 0", () => {
       payment_schedule: [{ amount_cents: 900000, due_type: "on_signing" }],
       guest_name: "Meera Iyer",
       guest_email: "meera@example.com",
-      location: "Pines Manor",
+      location: "12 Maple Ave, Evanston, IL 60201",
       date_end: null,
       draft: false,
       email_client: false,
