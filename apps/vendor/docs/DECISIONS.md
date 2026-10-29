@@ -984,3 +984,31 @@ the explaining. Signed-in vendors still skip it for their dashboard
   `/help/`; the design's Contact, Privacy and Terms links and "Get in touch"
   are omitted rather than linking to 404s (see `SiteFooter`).
 
+
+## Decision: Get started, vendor sign-up and onboarding follow the entry-flow design (2026-10-29)
+
+From the Figma Make file "Jorna-Vendor" (`EntryFlow.tsx`):
+
+- **Get started** (`/get-started`) asks "How will you use Jorna?". Every
+  landing header links to it, preselected for that page's side
+  (`?as=client|vendor`); the pages' own side-specific buttons still go
+  straight to their side. A client continues to the client app's sign-up, a
+  vendor to this app's.
+- **Vendor sign-up** (`/login?mode=register`) asks first and last name,
+  email, phone and password. Username, age and city are no longer asked:
+  backend #154 derives the username and leaves the rest blank, and where the
+  vendor is based moves to onboarding (saved with its map point through
+  `PATCH /auth/profile`, `saveHomeBase`).
+- **Onboarding** is four steps — what you offer (real taxonomy: popular
+  chips plus a searchable directory sheet), where you work (city, travel
+  slider, "open to farther", Instagram), how clients pay you, the first
+  package (the real `ServicesManager`) — then "You're set up" with the
+  dashboard and the inquiry link. Resumable from the vendor's own record, as
+  before; "Save and finish later" keeps what's valid and signs out, and
+  coming back says "Welcome back".
+- Their look is `app/entry.css` (`.entry`) and `components/entry/ui.tsx`,
+  at real sizes rather than the prototype's preview scale. They draw their
+  own top bar, so `ChromeGate` hides the shared chrome on these routes.
+- Not built from the design: a business name (the backend has none yet —
+  vendors still show by name), and the terms checkbox (no published terms to
+  agree to; add it with them).

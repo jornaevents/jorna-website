@@ -91,19 +91,21 @@ export function hasStoredSession(): boolean {
 interface RegisterInput {
   email: string;
   password: string;
-  username: string;
+  /** Optional since backend #154: derived from the email when left out, as the
+   *  vendor sign-up does. Age, location, gender and language likewise. */
+  username?: string;
   f_name: string;
   l_name: string;
-  age: number;
-  location: string;
+  age?: number;
+  location?: string;
   // Where that location is, when the city picker recognised it. A vendor with
   // no coordinates can't be placed relative to an event, and an unplaceable
   // vendor is left out of search results and of generated bundles — so this is
   // the difference between being findable and not.
   latitude?: number | null;
   longitude?: number | null;
-  gender: string;
-  language: string;
+  gender?: string;
+  language?: string;
   phone?: string;
   // Set when completing a Google sign-up: links the new account to the Supabase
   // identity. The backend proves ownership from the token (matching sub + email).

@@ -104,6 +104,7 @@ export default function ForVendorsPage() {
           { label: "For clients", href: "/for-clients" },
         ]}
         signIn="/login"
+        getStarted="/get-started?as=vendor"
         action={{ label: "Join as a vendor", href: join }}
       />
 

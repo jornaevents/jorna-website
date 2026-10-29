@@ -110,6 +110,7 @@ export default function ForClientsPage() {
           { label: "For vendors", href: "/for-vendors" },
         ]}
         signIn={clientAppUrl("/login")}
+        getStarted="/get-started?as=client"
         action={{ label: "Plan your celebration", href: start }}
       />
 
