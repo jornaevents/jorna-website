@@ -10,6 +10,10 @@ web/next-env.d.ts
 # by the Worker at /app. Built by `npm run build`, so it isn't committed.
 public/app/
 
+# Generated too: the client app's export (apps/client), copied in by the same
+# build so jornaevents.com serves it at /client (2026-10-29).
+public/client/
+
 # Also generated: the app's icon, mirrored to the site root so /favicon.ico
 # resolves. The real one lives in web/src/app — change it there.
 public/favicon.ico

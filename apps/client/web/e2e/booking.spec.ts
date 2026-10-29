@@ -37,7 +37,7 @@ test.describe("bundle builder (/plan)", () => {
     await page.getByRole("button", { name: "Choose this bundle" }).click();
     await page.getByRole("button", { name: "Yes, choose this" }).click();
 
-    await expect(page).toHaveURL(/\/app\/bundle\/?\?id=bundle-1/);
+    await expect(page).toHaveURL(/\/client\/bundle\/?\?id=bundle-1/);
     await expect(page.getByText("Priya's Wedding")).toBeVisible();
   });
 });

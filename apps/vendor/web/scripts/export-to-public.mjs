@@ -22,6 +22,21 @@ rmSync(to, { recursive: true, force: true });
 cpSync(from, to, { recursive: true });
 console.log(`✓ Exported app → ${to}`);
 
+// The client app (apps/client, basePath "/client") ships in this same deploy,
+// so jornaevents.com serves both and one sign-in covers both (2026-10-29).
+// package.json's build runs its `next build` first; here its export is copied
+// to public/client. Missing is loud but not fatal, so this app can still be
+// built alone — scripts/deploy.mjs refuses to call a deploy good without it.
+const clientFrom = resolve(here, "..", "..", "..", "client", "web", "out");
+const clientTo = resolve(publicDir, "client");
+rmSync(clientTo, { recursive: true, force: true });
+if (existsSync(clientFrom)) {
+  cpSync(clientFrom, clientTo, { recursive: true });
+  console.log(`✓ Exported client app → ${clientTo}`);
+} else {
+  console.warn(`⚠ No client app export at ${clientFrom} — /client won't be in this build`);
+}
+
 // Mirror the app's icon to the site root.
 //
 // Everything the app owns lives under /app, so that's the only place its icon

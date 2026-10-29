@@ -1,4 +1,8 @@
-# book.jornaevents.com
+# jornaevents.com/client
+
+> Served at **jornaevents.com/client** since 2026-10-29, beside the vendor app
+> at /app, in the vendor app's deploy; book.jornaevents.com only redirects
+> here (see DEPLOY.md).
 
 The client side of **Jorna** — where hosts plan a South Asian wedding or
 celebration, put together a team of vendors, and book them. A Next.js app

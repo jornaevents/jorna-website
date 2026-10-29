@@ -984,6 +984,17 @@ the explaining. Signed-in vendors still skip it for their dashboard
   `/help/`; the design's Contact, Privacy and Terms links and "Get in touch"
   are omitted rather than linking to 404s (see `SiteFooter`).
 
+## Decision: the client app moves to jornaevents.com/client (2026-10-29)
+
+One site and one sign-in for both sides. The client app (`apps/client`)
+changes basePath from `/app` to `/client` and is built into this app's
+deploy, copied to `public/client` (one combined deploy, not a Worker router
+or a merge into one app). The two apps already share auth localStorage keys,
+so on one origin a session covers both. book.jornaevents.com keeps its Pages
+project but serves only 301s to the same page here. `clientAppUrl` points at
+`<origin>/client`; push notifications take their service worker path from the
+page (`/app/` or `/client/`, `packages/shared/lib/push.ts`). A single sign-in
+page for both sides follows separately.
 
 ## Decision: Get started, vendor sign-up and onboarding follow the entry-flow design (2026-10-29)
 

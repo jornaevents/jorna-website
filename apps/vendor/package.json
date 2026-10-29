@@ -5,7 +5,7 @@
   "description": "The vendor-dashboard app (pipeline, contracts, guest e-signature), served by Cloudflare Pages as jorna-vendor.",
   "scripts": {
     "install:app": "npm ci --prefix ../..",
-    "build": "npm --prefix web run build",
+    "build": "npm --prefix ../client/web run build && npm --prefix web run build",
     "test:e2e": "npm --prefix web run test:e2e",
     "test:e2e:staging": "npm --prefix web run test:e2e:staging",
     "deploy": "node scripts/deploy.mjs",

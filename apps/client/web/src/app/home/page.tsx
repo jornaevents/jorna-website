@@ -263,7 +263,7 @@ export default function HomePage() {
             <div className="col-span-2 overflow-hidden rounded-2xl bg-panel">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/app/img/mandap.jpg"
+                src="/client/img/mandap.jpg"
                 alt="A decorated wedding mandap with a floral aisle"
                 className="size-full object-cover"
               />
@@ -272,7 +272,7 @@ export default function HomePage() {
               <div className="flex-1 overflow-hidden rounded-2xl bg-panel">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/app/img/mehndi.jpg"
+                  src="/client/img/mehndi.jpg"
                   alt="Mehndi being applied to a bride's hands"
                   className="size-full object-cover"
                 />
@@ -280,7 +280,7 @@ export default function HomePage() {
               <div className="flex-1 overflow-hidden rounded-2xl bg-panel">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/app/img/jewellery.jpg"
+                  src="/client/img/jewellery.jpg"
                   alt="Gold bridal jewellery"
                   className="size-full object-cover"
                 />
@@ -507,7 +507,7 @@ export default function HomePage() {
             <div className="h-56 bg-maroon-deep md:h-auto md:min-h-[320px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/app/img/ceremony.jpg"
+                src="/client/img/ceremony.jpg"
                 alt="A wedding ceremony set up and ready for guests"
                 className="size-full object-cover opacity-70"
               />
@@ -649,7 +649,7 @@ export default function HomePage() {
           </div>
           <p className="mt-8 text-center text-sm text-ink-faint">
             More detail in{" "}
-            {/* Outside the app, so a plain anchor — next/link would prefix "/app". */}
+            {/* Outside the app, so a plain anchor — next/link would prefix "/client". */}
             <a href="/help/" className="text-gold hover:underline">
               how Jorna works
             </a>

@@ -1,3 +1,7 @@
+// Self-verifying deploy of book.jornaevents.com — redirects only since the
+// client app moved to jornaevents.com/client (2026-10-29). What's verified is
+// that each old address answers 301 with the new one, not that pages load.
+//
 // Self-verifying deploy.
 //
 // `wrangler deploy` uploads assets incrementally, and that upload has
@@ -10,8 +14,8 @@
 // rather than leave production half-broken.
 
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,37 +41,28 @@ const VERIFY_TIMEOUT_MS = 120000; // per deploy attempt
 const log = (m) => console.log(`\x1b[36m[deploy]\x1b[0m ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Every route in the built export, as verifiable URLs (dynamic — no drift). */
-function routeUrls() {
-  // "/" redirects into the app; "/help/" is the marketing page it used to be,
-  // still linked from the App Store listing and the app's own footer. Add
-  // "/privacy/", "/terms/" and "/support/" here when those move out of drafts/.
-  const urls = new Set(["/", "/help/", "/app/"]);
-  const walk = (dir) => {
-    for (const name of readdirSync(dir)) {
-      if (name === "_next") continue; // hashed assets, not routes
-      const p = join(dir, name);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (name === "index.html") {
-        const rel = relative(appDir, dir).split(sep).join("/");
-        urls.add(rel ? `/app/${rel}/` : "/app/");
-      }
-    }
-  };
-  if (existsSync(appDir)) walk(appDir);
-  return [...urls].sort();
-}
+// Where old addresses must go: what someone with an old link or bookmark
+// gets. A few of each kind of rule in public/_redirects, not every route.
+const REDIRECTS = [
+  ["/", "https://jornaevents.com/client/"],
+  ["/app/", "https://jornaevents.com/client/"],
+  ["/app/plan/", "https://jornaevents.com/client/plan/"],
+  ["/app/bundle/?id=abc", "https://jornaevents.com/client/bundle/?id=abc"],
+  ["/app/my-dashboard/", "https://jornaevents.com/app/overview/"],
+  ["/help/", "https://jornaevents.com/help/"],
+];
 
-/** Fetch each route (cache-busted so a stale edge 404 can't fool us). */
-async function findFailures(urls) {
+/** Each old address, cache-busted, must answer 301 to its new one. */
+async function findFailures() {
   const failures = [];
-  for (const u of urls) {
-    const bust = `${u}${u.includes("?") ? "&" : "?"}_deploycheck=${Date.now()}`;
+  for (const [from, to] of REDIRECTS) {
+    const bust = `${from}${from.includes("?") ? "&" : "?"}_deploycheck=${Date.now()}`;
     try {
-      const res = await fetch(DOMAIN + bust, { redirect: "follow" });
-      if (res.status !== 200) failures.push(`${u} -> ${res.status}`);
+      const res = await fetch(DOMAIN + bust, { redirect: "manual" });
+      const location = (res.headers.get("location") ?? "").replace(/[?&]_deploycheck=\d+/, "");
+      if (res.status !== 301 || location !== to) failures.push(`${from} -> ${res.status} ${location}`);
     } catch (e) {
-      failures.push(`${u} -> ${e.code ?? "network error"}`);
+      failures.push(`${from} -> ${e.code ?? "network error"}`);
     }
   }
   return failures;
@@ -86,7 +81,6 @@ function assertNoPlaceholders() {
   const offenders = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
-      if (name === "app" && dir === join(root, "public")) continue; // generated
       const p = join(dir, name);
       if (statSync(p).isDirectory()) walk(p);
       else if (name.endsWith(".html") && readFileSync(p, "utf8").includes("FILL:")) {
@@ -116,11 +110,10 @@ assertNoPlaceholders();
 log("installing dependencies from the workspace lockfile…");
 execSync("npm ci", { cwd: join(root, "..", ".."), stdio: "inherit" });
 
-log("building…");
-execSync("npm run build", { cwd: root, stdio: "inherit" });
-
-const urls = routeUrls();
-log(`will verify ${urls.length} routes after deploy`);
+// No build: this project publishes public/ (redirects) as committed. The app
+// itself is built into the vendor app's deploy.
+const urls = REDIRECTS;
+log(`will verify ${urls.length} redirects after deploy`);
 
 // A deploy step that exits non-zero `continue`s without ever verifying. Tracking
 // that separately keeps the final message honest: "routes aren't serving" and
@@ -149,12 +142,12 @@ for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
     everVerified = true;
-    lastFailures = await findFailures(urls);
+    lastFailures = await findFailures();
     if (lastFailures.length === 0) {
       streak += 1;
       log(`clean sweep ${streak}/${CONFIRM_PASSES}`);
       if (streak >= CONFIRM_PASSES) {
-        log(`\x1b[32m✓ all ${urls.length} routes stably serving 200 at ${DOMAIN} — verified\x1b[0m`);
+        log(`\x1b[32m✓ all ${urls.length} redirects stably answering 301 at ${DOMAIN} — verified\x1b[0m`);
         process.exit(0);
       }
     } else {

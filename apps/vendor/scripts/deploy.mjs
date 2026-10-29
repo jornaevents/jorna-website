@@ -15,7 +15,6 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const appDir = join(root, "public", "app");
 const PAGES_PROJECT = "jorna-vendor";
 // jornaevents.com is the apex now attached to this project (moved here from
 // jorna-website's jorna-events project), so it's what we verify by default.
@@ -34,24 +33,28 @@ const VERIFY_TIMEOUT_MS = 120000; // per deploy attempt
 const log = (m) => console.log(`\x1b[36m[deploy]\x1b[0m ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Every route in the built export, as verifiable URLs (dynamic — no drift). */
+/** Every route in the built export, as verifiable URLs (dynamic — no drift).
+ *  Both apps: this one under /app, and the client app copied in under /client
+ *  (2026-10-29) — a deploy missing either isn't a good deploy. */
 function routeUrls() {
-  // "/" redirects into the app; "/help/" is the marketing page it used to be,
-  // still linked from the App Store listing and the app's own footer. Add
-  // "/privacy/", "/terms/" and "/support/" here when those move out of drafts/.
-  const urls = new Set(["/", "/help/", "/app/"]);
-  const walk = (dir) => {
-    for (const name of readdirSync(dir)) {
-      if (name === "_next") continue; // hashed assets, not routes
-      const p = join(dir, name);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (name === "index.html") {
-        const rel = relative(appDir, dir).split(sep).join("/");
-        urls.add(rel ? `/app/${rel}/` : "/app/");
+  // "/help/" is still linked from the App Store listing and the apps' footers.
+  // Add "/privacy/", "/terms/" and "/support/" when those move out of drafts/.
+  const urls = new Set(["/", "/help/", "/app/", "/client/"]);
+  for (const base of ["app", "client"]) {
+    const dir0 = join(root, "public", base);
+    const walk = (dir) => {
+      for (const name of readdirSync(dir)) {
+        if (name === "_next") continue; // hashed assets, not routes
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (name === "index.html") {
+          const rel = relative(dir0, dir).split(sep).join("/");
+          urls.add(rel ? `/${base}/${rel}/` : `/${base}/`);
+        }
       }
-    }
-  };
-  if (existsSync(appDir)) walk(appDir);
+    };
+    if (existsSync(dir0)) walk(dir0);
+  }
   return [...urls].sort();
 }
 
@@ -83,7 +86,7 @@ function assertNoPlaceholders() {
   const offenders = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
-      if (name === "app" && dir === join(root, "public")) continue; // generated
+      if ((name === "app" || name === "client") && dir === join(root, "public")) continue; // generated
       const p = join(dir, name);
       if (statSync(p).isDirectory()) walk(p);
       else if (name.endsWith(".html") && readFileSync(p, "utf8").includes("FILL:")) {

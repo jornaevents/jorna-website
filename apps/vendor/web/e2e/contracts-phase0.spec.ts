@@ -244,7 +244,7 @@ test.describe("contracts — Phase 0", () => {
     const book = page.getByRole("link", { name: "Book this" }).first();
     await expect(book).toHaveAttribute(
       "href",
-      "https://book.jornaevents.com/app/book?service=svc-flat",
+      "https://jornaevents.com/client/book?service=svc-flat",
     );
   });
 });

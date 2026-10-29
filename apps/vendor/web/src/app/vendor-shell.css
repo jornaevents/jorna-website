@@ -4,7 +4,7 @@
   burgundy primary, gold accents, DM Sans body and Manrope headings.
 
   Scoped to .vendor-shell (VendorSidebar's root) rather than written into
-  @jorna/shared's globals.css, which the client app at book.jornaevents.com
+  @jorna/shared's globals.css, which the client app (served at /client)
   also uses — and so the marketing pages and the couple's signing page in this
   app keep their own look. It works by redefining the same --color-* tokens
   Tailwind's utilities already read (bg-card, text-ink, border-card-edge, …),

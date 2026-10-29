@@ -21,6 +21,22 @@ domain. `jorna-vendor.pages.dev` does **not** get that injection — see
 jorna-website's `DEPLOY.md` for the full story and a byte-diff recipe that
 strips it before comparing.
 
+## The client app ships here too (2026-10-29)
+
+`npm run build` builds `apps/client` first, and `web/scripts/export-to-public.mjs`
+copies its export (`apps/client/web/out`) to `public/client`, so this project
+serves both apps: the vendor app at `/app`, the client app at `/client`. One
+origin means one sign-in session for both (they share auth localStorage keys).
+`scripts/deploy.mjs` verifies both apps' routes. CI runs this app's job for a
+client-only change too (`ci.yml`). book.jornaevents.com (`apps/client`'s own
+project) only redirects here — **approve this deploy before that one**, or its
+redirects briefly point at a `/client` that isn't there yet.
+
+Google sign-in in the client app returns to `<origin>/client/auth/callback/`,
+which must be in Supabase's allowed redirect URLs (Authentication → URL
+Configuration) for production, staging and the `pr-*.jorna-vendor.pages.dev`
+previews.
+
 ## Deploy
 
 **Automatic:** merging a PR into `main` deploys in two steps, both in the

@@ -1,6 +1,6 @@
 /* ────────────────────────────────────────────────────────────────────────────
  *  FIREBASE MESSAGING SERVICE WORKER
- *  Served at /app/firebase-messaging-sw.js (scope /app/). Handles push while the
+ *  Served at /client/firebase-messaging-sw.js (scope /client/). Handles push while the
  *  tab is closed/backgrounded and shows the notification.
  *
  *  ┌──────────────────────────────────────────────────────────────────────────┐
@@ -32,7 +32,7 @@ messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
   self.registration.showNotification(title, {
     body,
-    icon: "/app/favicon.ico",
+    icon: "/client/favicon.ico",
     data,
   });
 });
@@ -45,12 +45,12 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const conversationId = event.notification.data && event.notification.data.conversation_id;
   const url = conversationId
-    ? `/app/conversation/?id=${encodeURIComponent(conversationId)}`
-    : "/app/activity/";
+    ? `/client/conversation/?id=${encodeURIComponent(conversationId)}`
+    : "/client/activity/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const c of clients) {
-        if (c.url.includes("/app/") && "focus" in c) {
+        if (c.url.includes("/client/") && "focus" in c) {
           return "navigate" in c ? c.navigate(url).then((nc) => nc.focus()) : c.focus();
         }
       }

@@ -88,7 +88,7 @@ test.describe("authentication", () => {
     await expect(page.getByLabel("Age")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Sign up as a client" })).toHaveAttribute(
       "href",
-      /\/app\/login\/?\?mode=register$/,
+      /\/client\/login\/?\?mode=register$/,
     );
   });
 

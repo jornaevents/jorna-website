@@ -36,7 +36,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
  *  Redirect URLs, or Supabase rejects the redirect. Trailing slash matches the
  *  static export (trailingSlash: true) so Cloudflare serves it without a bounce. */
 export function googleRedirectTo(): string {
-  return `${window.location.origin}/app/auth/callback/`;
+  return `${window.location.origin}/client/auth/callback/`;
 }
 
 // Where to land after a successful Google sign-in — stashed before the redirect

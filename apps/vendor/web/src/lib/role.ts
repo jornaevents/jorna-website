@@ -2,7 +2,7 @@
 
 // Which set of tabs you get: vendors see a seller's app, everyone else is
 // steered into becoming one (this is the vendor app — clients have
-// book.jornaevents.com).
+// jornaevents.com/client).
 //
 // "Has a vendor profile" (getMyVendor != null) is the same signal iOS uses
 // (vendorID != nil). Cached because several components ask at once.
