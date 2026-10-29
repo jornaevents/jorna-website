@@ -354,6 +354,24 @@ export function updateMe(updates: MeUpdate): Promise<User> {
 }
 
 /**
+ * Where a vendor is based: city and state, with the map point when the city
+ * picker recognised it. PATCH /auth/profile rather than /me because it's the
+ * one that takes coordinates, and a vendor without them can't be placed
+ * against an event's location (left out of search and bundles).
+ */
+export function saveHomeBase(input: { location: string; latitude: number | null; longitude: number | null }) {
+  return apiFetch<{ message: string; profile_complete: boolean }>("/auth/profile", {
+    method: "PATCH",
+    body: {
+      location: input.location,
+      ...(input.latitude != null && input.longitude != null
+        ? { latitude: input.latitude, longitude: input.longitude }
+        : {}),
+    },
+  });
+}
+
+/**
  * Delete the signed-in account, permanently.
  *
  * The backend removes the user, their vendor profile if they have one, its

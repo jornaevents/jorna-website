@@ -1,0 +1,131 @@
+/*
+  The entry flow's look — Get started, vendor sign-in/sign-up, vendor
+  onboarding — from the Figma Make "Jorna-Vendor" file (EntryFlow.css,
+  2026-10): ivory ground, burgundy and gold, Georgia display headings over
+  DM Sans / Manrope (the vendor dashboard's faces, lib/vendorFonts.ts).
+
+  Scoped to .entry (EntryShell's root), like vendor-shell.css and
+  landing.css. The prototype's type is drawn at preview scale (8–11px); these
+  are the sizes it reads at in a real browser. Light in every theme: the
+  design has no dark version, and these are the first screens anyone sees.
+*/
+
+.entry {
+  --e-burgundy: #641f34;
+  --e-burgundy-dark: #491526;
+  --e-gold: #c8a34f;
+  --e-gold-dark: #9b762c;
+  --e-ivory: #f7f0e4;
+  --e-paper: #fffdf9;
+  --e-text: #321c21;
+  --e-muted: #817a73;
+  --e-line: #e2d9cc;
+  --e-field: #dcd3c8;
+  --e-rose: #f1e0e4;
+  --e-wheat: #f4e9bd;
+  --e-sand: #f0dfb5;
+
+  color-scheme: light;
+  min-height: 100dvh;
+  color: var(--e-text);
+  background: radial-gradient(circle at 50% -10%, #fffdf8, var(--e-ivory) 52%);
+  font-family: var(--font-dm-sans), "DM Sans", system-ui, -apple-system, sans-serif;
+}
+
+.entry .e-display {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.entry .e-ui {
+  font-family: var(--font-manrope), "Manrope", var(--font-dm-sans), sans-serif;
+}
+
+.entry .e-eyebrow {
+  color: var(--e-gold-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* Inputs share one look, so a plain <input> inside an EntryField matches. */
+.entry .e-input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--e-field);
+  border-radius: 10px;
+  padding: 10px 13px;
+  color: var(--e-text);
+  background: #fff;
+  font-size: 15px;
+  outline: 0;
+}
+.entry .e-input:focus,
+.entry .e-input:focus-within {
+  border-color: var(--e-gold-dark);
+  box-shadow: 0 0 0 3px rgba(200, 163, 79, 0.16);
+}
+.entry textarea.e-input {
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.entry .e-range {
+  width: 100%;
+  accent-color: var(--e-burgundy);
+}
+
+/* The switch: a checkbox drawn as a track and knob. */
+.entry .e-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex: none;
+  border-radius: 20px;
+  background: #cfc7bd;
+  transition: background 0.2s ease;
+}
+.entry .e-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(50, 44, 38, 0.2);
+  transition: transform 0.2s ease;
+}
+.entry input:checked + .e-switch {
+  background: var(--e-burgundy);
+}
+.entry input:checked + .e-switch::after {
+  transform: translateX(16px);
+}
+.entry input:focus-visible + .e-switch {
+  outline: 2px solid var(--e-gold-dark);
+  outline-offset: 2px;
+}
+
+@keyframes e-sheet-in {
+  from {
+    transform: translateX(30px);
+    opacity: 0.7;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.entry .e-sheet {
+  animation: e-sheet-in 0.22s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry .e-sheet {
+    animation: none;
+  }
+}
