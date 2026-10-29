@@ -73,6 +73,13 @@ function Welcome() {
             <Link href="/login" className="font-medium text-(--l-maroon) underline underline-offset-4">
               Vendor
             </Link>
+            {/* "Get started" opens the chooser (Figma Make entry flow, 2026-10). */}
+            <Link
+              href="/get-started"
+              className="ml-2 rounded-full bg-(--l-maroon) px-4 py-2 font-medium text-(--l-ground) transition hover:bg-[#561623] sm:ml-4"
+            >
+              Get started
+            </Link>
           </p>
         </div>
       </header>

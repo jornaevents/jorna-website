@@ -77,16 +77,46 @@ test.describe("authentication", () => {
     await expect(page).toHaveURL(/\/app\/login\/?$/);
   });
 
-  test("sign-up is a vendor sign-up, and points couples at the client app", async ({ page }) => {
+  test("sign-up is a vendor sign-up, and points clients at the client app", async ({ page }) => {
     await page.goto("login/?mode=register");
 
-    await expect(page.getByRole("heading", { name: "List your business on Jorna" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create account & continue" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: /^Host/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Create your vendor account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account" })).toBeEnabled();
+    // The design's fields: no username, age or city here (backend #154);
+    // where the vendor is based is asked in onboarding.
+    await expect(page.getByLabel("Username")).toHaveCount(0);
+    await expect(page.getByLabel("Age")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Sign up as a client" })).toHaveAttribute(
       "href",
       /\/client\/login\/?\?mode=register$/,
     );
+  });
+
+  test("signing up sends only name, email, phone and password, then opens onboarding", async ({ page, api }) => {
+    api.post("/auth/register", { user_id: "user-1", email: "raj@example.com" });
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", mockUser());
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    api.get("/vendors/categories", { categories: [] });
+    api.get("/bundles", []);
+
+    await page.goto("login/?mode=register");
+    await page.getByLabel("First name").fill("Raj");
+    await page.getByLabel("Last name").fill("Mehta");
+    await page.getByLabel("Email").fill("raj@example.com");
+    await page.getByLabel("Phone").fill("(732) 555-0184");
+    await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByRole("button", { name: "Create account" }).click();
+
+    await expect(page).toHaveURL(/\/app\/vendor-onboarding\/?$/);
+    const [call] = api.requestsTo("POST", "/auth/register");
+    expect(call.body).toEqual({
+      email: "raj@example.com",
+      password: "Celebrate2025",
+      f_name: "Raj",
+      l_name: "Mehta",
+      phone: "(732) 555-0184",
+    });
   });
 
   test("signing out lands on a plain /login, not back on the page you left", async ({ page, api }) => {

@@ -2,7 +2,7 @@
 
 // For clients — from the Figma "Jorna — For clients" frame (2026-10), the
 // page the Welcome screen's "Continue as a client" leads to. Every action
-// goes to the client app (book.jornaevents.com), where planning happens.
+// goes to the client app (jornaevents.com/client), where planning happens.
 //
 // The vendors, offerings and contract shown are the design's illustrations,
 // labelled as such on the page — not live listings and not live prices.
@@ -110,6 +110,7 @@ export default function ForClientsPage() {
           { label: "For vendors", href: "/for-vendors" },
         ]}
         signIn={clientAppUrl("/login")}
+        getStarted="/get-started?as=client"
         action={{ label: "Plan your celebration", href: start }}
       />
 

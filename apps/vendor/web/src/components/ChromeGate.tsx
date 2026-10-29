@@ -31,8 +31,10 @@ const VENDOR_SHELL_PREFIXES = [
 const SHARED_SHELL_PREFIXES = ["/messages", "/conversation"];
 
 // The landing pages draw their own header and footer from the Figma design
-// (components/landing/ui.tsx), so the shared ones step aside there too.
-const LANDING_PATHS = ["/", "/home", "/for-clients", "/for-vendors"];
+// (components/landing/ui.tsx), and so do the entry flow's screens — Get
+// started, sign-in/sign-up, vendor onboarding (components/entry/ui.tsx) — so
+// the shared ones step aside there too.
+const LANDING_PATHS = ["/", "/home", "/for-clients", "/for-vendors", "/get-started", "/login", "/vendor-onboarding"];
 
 export function isLandingPath(pathname: string | null): boolean {
   const path = pathname && pathname !== "/" ? pathname.replace(/\/$/, "") : pathname;

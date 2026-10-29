@@ -7,9 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { defaultLanding } from "@/lib/role";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
-import { Button, Card, Field } from "@jorna/shared/components/ui";
-import { CityCombobox, type Coords } from "@jorna/shared/components/CityCombobox";
 import { clientAppUrl } from "@/lib/clientApp";
+import { EntryField, EntryShell, ErrorNote, FlowIcon, primaryButton, textButton } from "@/components/entry/ui";
 
 function GoogleMark() {
   // Google "G", inline so nothing is fetched over the network (the site's ethos).
@@ -70,13 +69,13 @@ function LoginInner() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   // Register-only
+  // The design's sign-up (Figma Make "Jorna-Vendor", 2026-10): name, email,
+  // phone, password. Username comes from the email (backend #154); where the
+  // vendor is based is asked in onboarding, beside how far they travel.
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [fName, setFName] = useState("");
   const [lName, setLName] = useState("");
-  const [ageStr, setAgeStr] = useState("");
-  const [location, setLocation] = useState("");
-  const [cityCoords, setCityCoords] = useState<Coords | null>(null);
+  const [phone, setPhone] = useState("");
   // Google-signup linkage (recovered from the persisted Supabase session)
   const [googleReady, setGoogleReady] = useState(!isGoogleSignup);
   const [googleUserId, setGoogleUserId] = useState<string | null>(null);
@@ -131,15 +130,9 @@ function LoginInner() {
         await register({
           email,
           password,
-          username,
           f_name: fName,
           l_name: lName,
-          age: Number(ageStr) || 25,
-          location,
-          latitude: cityCoords?.lat ?? null,
-          longitude: cityCoords?.lng ?? null,
-          gender: "unspecified",
-          language: "English",
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(isGoogleSignup && googleUserId && googleToken
             ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
             : {}),
@@ -175,14 +168,14 @@ function LoginInner() {
     ? "Finish signing up"
     : mode === "login"
       ? "Welcome back"
-      : "List your business on Jorna";
+      : "Create your vendor account";
 
   const subheading =
     mode === "login"
-      ? "Sign in to manage your bookings and listing."
+      ? "Sign in to manage your business, bookings and listing."
       : isGoogleSignup
-        ? "A few details and your Google account is all set."
-        : "Create your vendor account — setup takes a few minutes.";
+        ? "A couple of details and your Google account is all set."
+        : "Start building your Jorna listing today.";
 
   const submitLabel = busy
     ? "One moment…"
@@ -190,194 +183,155 @@ function LoginInner() {
       ? "Complete sign-up"
       : mode === "login"
         ? "Sign in"
-        : "Create account & continue";
+        : "Create account";
+
+  const googleButton = !isGoogleSignup ? (
+    <button
+      type="button"
+      disabled={googleBusy}
+      onClick={google}
+      className="flex min-h-[46px] items-center justify-center gap-2.5 rounded-[10px] border border-(--e-field) bg-white text-[14px] font-bold text-[#4b4641] transition hover:border-[#baa985] disabled:opacity-60"
+    >
+      <GoogleMark />
+      {googleBusy ? "Connecting…" : "Continue with Google"}
+    </button>
+  ) : null;
 
   return (
-    <div className="mx-auto w-[min(460px,100%-2rem)] py-14">
-      <h1 className="serif text-center text-4xl text-maroon dark:text-gold">{heading}</h1>
-      <p className="mt-2 text-center text-ink-soft">{subheading}</p>
-
-      <Card className="mt-8 p-6">
-        {/* Google — offered on the normal login/register screens, not mid-completion. */}
-        {!isGoogleSignup ? (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              disabled={googleBusy}
-              onClick={google}
-              className="w-full"
-            >
-              <GoogleMark />
-              {googleBusy ? "Connecting…" : "Continue with Google"}
-            </Button>
-            {mode === "register" ? (
-              <p className="mt-2 text-center text-xs text-ink-faint">
-                That&apos;s the whole sign-up — no form to fill in.
-              </p>
-            ) : null}
-            <div className="my-5 flex items-center gap-3 text-xs text-ink-faint">
-              <span className="h-px flex-1 bg-card-edge" />
-              or
-              <span className="h-px flex-1 bg-card-edge" />
-            </div>
-          </>
-        ) : null}
-
-        <form onSubmit={submit} className="grid gap-4">
+    <EntryShell>
+      <main className="grid flex-1 place-items-center px-3 pb-16 pt-6 sm:pt-10">
+        <section className="w-full max-w-[500px] rounded-[20px] border border-(--e-line) bg-(--e-paper)/95 px-5 py-8 text-center shadow-[0_22px_60px_rgba(74,21,38,.1)] sm:px-9">
           {mode === "login" ? (
-            <Field
-              label="Email or username"
-              autoComplete="username"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-            />
-          ) : (
-            <>
-              <Field
-                label="Email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                // Locked to the Google account: the backend rejects a mismatch.
-                readOnly={isGoogleSignup}
-                hint={isGoogleSignup ? "From your Google account." : undefined}
-                required
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label="First name"
-                  value={fName}
-                  onChange={(e) => setFName(e.target.value)}
-                  required
-                />
-                <Field
-                  label="Last name"
-                  value={lName}
-                  onChange={(e) => setLName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label="Username"
-                  // Mirrors the backend's rule (3–30 of [A-Za-z0-9_]) so a space
-                  // or a dot is caught here instead of coming back as a 422.
-                  minLength={3}
-                  maxLength={30}
-                  pattern="[A-Za-z0-9_]{3,30}"
-                  title="3–30 characters: letters, digits, and underscores only."
-                  hint="Letters, digits, and underscores."
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-                <Field
-                  label="Age"
-                  type="number"
-                  min={13}
-                  max={120}
-                  value={ageStr}
-                  onChange={(e) => setAgeStr(e.target.value)}
-                  required
-                />
-              </div>
-              <CityCombobox
-                label="City & state"
-                placeholder="Start typing a city…"
-                value={location}
-                // The picker has always reported coordinates for a chosen city
-                // and this dropped them. They're what places a vendor on the
-                // map; without them a vendor is findable by nobody searching a
-                // location. Null for free text, which is honest — we don't know
-                // where "chicagoo" is.
-                onChange={(v, c) => {
-                  setLocation(v);
-                  setCityCoords(c);
-                }}
-                required
-              />
-            </>
-          )}
-
-          <Field
-            label="Password"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            hint={
-              mode === "register"
-                ? "At least 8 characters, with an uppercase letter, a lowercase letter, and a number."
-                : undefined
-            }
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          {mode === "login" ? (
-            <div className="-mt-2 text-right">
-              <Link
-                href="/forgot-password"
-                className="text-sm font-semibold text-gold underline-offset-2 hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <span className="mx-auto mb-4 grid size-11 place-items-center rounded-[14px] bg-[#eddcae] text-(--e-burgundy)">
+              <FlowIcon name="sparkles" />
+            </span>
           ) : null}
+          <h1 className="e-display text-[32px] sm:text-[36px]">{heading}</h1>
+          <p className="mt-2 text-[14px] leading-normal text-(--e-muted)">{subheading}</p>
 
-          {error ? (
-            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-              {error}
+          <form onSubmit={submit} className="mt-7 grid gap-4 text-left">
+            {mode === "login" ? (
+              <>
+                <EntryField label="Email or username" htmlFor="login-identifier">
+                  <input
+                    id="login-identifier"
+                    className="e-input"
+                    autoComplete="username"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required
+                  />
+                </EntryField>
+                <EntryField label="Password" htmlFor="login-password">
+                  <input
+                    id="login-password"
+                    className="e-input"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </EntryField>
+                <Link href="/forgot-password" className="-mt-1 justify-self-end text-[13px] font-bold text-(--e-gold-dark) hover:underline">
+                  Forgot password?
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <EntryField label="First name" htmlFor="reg-first">
+                    <input id="reg-first" className="e-input" autoComplete="given-name" value={fName} onChange={(e) => setFName(e.target.value)} required />
+                  </EntryField>
+                  <EntryField label="Last name" htmlFor="reg-last">
+                    <input id="reg-last" className="e-input" autoComplete="family-name" value={lName} onChange={(e) => setLName(e.target.value)} required />
+                  </EntryField>
+                </div>
+                <EntryField label="Email" htmlFor="reg-email" hint={isGoogleSignup ? "From your Google account." : undefined}>
+                  <input
+                    id="reg-email"
+                    className="e-input"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    // Locked to the Google account: the backend rejects a mismatch.
+                    readOnly={isGoogleSignup}
+                    required
+                  />
+                </EntryField>
+                <EntryField label="Phone" optional htmlFor="reg-phone">
+                  <input id="reg-phone" className="e-input" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </EntryField>
+                {/* Asked when finishing a Google sign-up too: the backend
+                    requires one on every account it creates this way. */}
+                <EntryField label="Password" htmlFor="reg-password" hint="At least 8 characters, with an uppercase letter, a lowercase letter, and a number.">
+                  <input
+                    id="reg-password"
+                    className="e-input"
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </EntryField>
+                {googleButton}
+              </>
+            )}
+
+            {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+            <button type="submit" disabled={busy || (isGoogleSignup && !googleReady)} className={`${primaryButton} mt-1 w-full`}>
+              {submitLabel}
+            </button>
+
+            {mode === "login" ? (
+              <>
+                <div className="flex items-center gap-3 text-[12px] text-[#9b948c]">
+                  <span className="h-px flex-1 bg-(--e-line)" />
+                  or
+                  <span className="h-px flex-1 bg-(--e-line)" />
+                </div>
+                {googleButton}
+              </>
+            ) : null}
+          </form>
+
+          {!isGoogleSignup ? (
+            <p className="mt-6 text-[14px] text-(--e-muted)">
+              {mode === "login" ? "New to Jorna? " : "Already have an account? "}
+              {mode === "login" ? (
+                <Link href="/get-started" className={textButton}>
+                  Get started
+                </Link>
+              ) : (
+                <button type="button" className={textButton} onClick={switchMode}>
+                  Sign in
+                </button>
+              )}
             </p>
           ) : null}
 
-          <Button
-            type="submit"
-            size="lg"
-            disabled={busy || (isGoogleSignup && !googleReady)}
-            className="mt-1"
-          >
-            {submitLabel}
-          </Button>
-        </form>
-      </Card>
-
-      {!isGoogleSignup ? (
-        <p className="mt-5 text-center text-sm text-ink-soft">
-          {mode === "login" ? "New to Jorna? " : "Already have an account? "}
-          <button
-            type="button"
-            className="font-semibold text-gold underline-offset-2 hover:underline"
-            onClick={switchMode}
-          >
-            {mode === "login" ? "Create an account" : "Sign in"}
-          </button>
-        </p>
-      ) : null}
-
-      {/* Couples plan and book on the client app; an account made here is set
-          up as a vendor. */}
-      {!isGoogleSignup ? (
-        <p className="mt-2 text-center text-sm text-ink-faint">
-          Planning a celebration?{" "}
-          <a
-            href={clientAppUrl(mode === "register" ? "/login?mode=register" : "/login")}
-            className="font-semibold text-gold underline-offset-2 hover:underline"
-          >
-            {mode === "register" ? "Sign up as a client" : "Sign in as a client"}
-          </a>
-        </p>
-      ) : null}
-    </div>
+          {/* Clients plan and book on the client app; an account made here is
+              set up as a vendor. */}
+          {!isGoogleSignup ? (
+            <p className="mt-5 border-t border-(--e-line) pt-4 text-[13px] text-(--e-muted)">
+              {mode === "register" ? "Planning an event instead? " : "Planning a celebration? "}
+              <a href={clientAppUrl(mode === "register" ? "/login?mode=register" : "/login")} className={textButton}>
+                {mode === "register" ? "Sign up as a client" : "Sign in as a client"}
+              </a>
+            </p>
+          ) : null}
+        </section>
+      </main>
+    </EntryShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={null}>
       <LoginInner />
     </Suspense>
   );

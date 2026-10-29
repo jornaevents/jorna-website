@@ -245,11 +245,14 @@ export function LandingNav({
   audience,
   links,
   signIn,
+  getStarted,
   action,
 }: {
   audience: string;
   links: NavLink[];
   signIn: string;
+  /** The chooser, preselected for this page's side (Figma Make entry flow). */
+  getStarted: string;
   action: NavLink;
 }) {
   return (
@@ -271,6 +274,9 @@ export function LandingNav({
         <div className="flex items-center gap-4 lg:gap-6">
           <SmartLink href={signIn} className="text-[13px] text-(--l-ink) transition hover:text-(--l-maroon)">
             Sign in
+          </SmartLink>
+          <SmartLink href={getStarted} className="text-[13px] font-medium text-(--l-maroon) underline underline-offset-4">
+            Get started
           </SmartLink>
           <span className="hidden sm:block">
             <PillLink href={action.href}>{action.label}</PillLink>
