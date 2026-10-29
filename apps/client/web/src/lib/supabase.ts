@@ -55,13 +55,14 @@ export function rememberOAuthNext(next: string) {
   }
 }
 
-export function takeOAuthNext(): string {
+/** The page the sign-in was started for, or null for none (see clientLanding). */
+export function takeOAuthNext(): string | null {
   try {
     const v = localStorage.getItem(OAUTH_NEXT_KEY);
     localStorage.removeItem(OAUTH_NEXT_KEY);
-    return v || "/plan";
+    return v || null;
   } catch {
-    return "/plan";
+    return null;
   }
 }
 

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { clientLanding } from "@/lib/landing";
 import { ApiError } from "@jorna/shared/lib/api";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
@@ -35,11 +36,14 @@ function GoogleMark() {
  * the one moment a phishing page most wants to borrow credibility from.
  * Anything but a single leading slash (a bare path, no scheme, no host) is
  * rejected in favour of the same default an absent `next` already gets.
+ *
+ * Null means nothing asked for a page: the sign-in then picks one by whether
+ * the client has started planning (clientLanding).
  */
-function safeNext(raw: string | null): string {
-  if (!raw) return "/plan";
+function safeNext(raw: string | null): string | null {
+  if (!raw) return null;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) {
-    return "/plan";
+    return null;
   }
   return raw;
 }
@@ -155,7 +159,7 @@ function LoginInner() {
         // The Jorna JWT is the session now; drop the Supabase one.
         if (isGoogleSignup) await supabase.auth.signOut();
       }
-      router.push(next);
+      router.push(next ?? (await clientLanding()));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -167,7 +171,7 @@ function LoginInner() {
     setError(null);
     setGoogleBusy(true);
     try {
-      await startGoogleSignIn(next, null);
+      await startGoogleSignIn(next ?? "", null);
     } catch {
       setGoogleBusy(false);
       setError("Couldn't start Google sign-in. Please try again.");

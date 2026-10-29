@@ -970,8 +970,9 @@ the explaining. Signed-in vendors still skip it for their dashboard
   sign-up, or `/plan` when already signed in here; browsing goes to the
   marketplace, with category chips pre-filtering it. A vendor's stay here:
   `/login?mode=register&role=vendor`, or `/vendor-onboarding` when signed
-  in. The Welcome screen's single "Sign in" is this app's (vendor) sign-in,
-  which links clients on to theirs.
+  in. The Welcome screen says "Sign in: Client · Vendor" — the client app's
+  sign-in and this app's — so neither side takes a detour (2026-10-29;
+  one link again once the client app moves onto this site).
 - **Illustrations, labelled.** The vendors, offerings, prices and workspace
   panels are the design's examples, each captioned as illustrative — not
   live listings. The old Home's live vendor showcase went with the old

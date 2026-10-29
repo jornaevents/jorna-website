@@ -1,11 +1,13 @@
 import { test, expect, loginAs } from "./support/fixtures";
-import { mockTokenPair, mockUser } from "./support/mock-data";
+import { mockBundleDetail, mockTokenPair, mockUser } from "./support/mock-data";
 
 test.describe("authentication", () => {
-  test("signs in with a valid identifier/password and lands on /plan", async ({ page, api }) => {
+  test("a client who hasn't started planning signs in and lands on /plan", async ({ page, api }) => {
     const user = mockUser();
     api.post("/auth/login", mockTokenPair());
     api.get("/me", user);
+    api.get("/bundles", []);
+    api.get("/events", []);
 
     await page.goto("login/");
     await page.getByLabel("Email or username").fill(user.username);
@@ -17,6 +19,38 @@ test.describe("authentication", () => {
     const loginCalls = api.requestsTo("POST", "/auth/login");
     expect(loginCalls).toHaveLength(1);
     expect(loginCalls[0].body).toMatchObject({ identifier: user.username });
+  });
+
+  // Back at step one of a celebration they'd already planned was the old
+  // behavior; a returning client goes to the dashboard (lib/landing.ts).
+  test("a client with a plan signs in and lands on the dashboard", async ({ page, api }) => {
+    const user = mockUser();
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", user);
+    api.get("/bundles", [mockBundleDetail()]);
+    api.get("/events", []);
+
+    await page.goto("login/");
+    await page.getByLabel("Email or username").fill(user.username);
+    await page.getByLabel("Password").fill("correct-horse-battery-staple");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL(/\/app\/bundles\/?$/);
+  });
+
+  test("a sign-in sent from a page goes back to that page, plan or not", async ({ page, api }) => {
+    const user = mockUser();
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", user);
+    api.get("/bundles", [mockBundleDetail()]);
+    api.get("/events", []);
+
+    await page.goto("login/?next=/marketplace");
+    await page.getByLabel("Email or username").fill(user.username);
+    await page.getByLabel("Password").fill("correct-horse-battery-staple");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL(/\/app\/marketplace\/?$/);
   });
 
   test("shows the backend's error message on invalid credentials", async ({ page, api }) => {

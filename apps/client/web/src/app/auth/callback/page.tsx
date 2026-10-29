@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
+import { clientLanding } from "@/lib/landing";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -64,12 +65,12 @@ export default function AuthCallbackPage() {
           });
           // Jorna's JWT is the session now — the Supabase one isn't needed.
           await supabase.auth.signOut();
-          router.replace(next);
+          router.replace(next ?? (await clientLanding()));
           return;
         }
 
         // No session came back, which shouldn't happen — fall back to the form.
-        router.replace(`/login?google=1&next=${encodeURIComponent(next)}`);
+        router.replace(next ? `/login?google=1&next=${encodeURIComponent(next)}` : "/login?google=1");
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "Google sign-in failed. Please try again.");
       }
