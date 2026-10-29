@@ -14,7 +14,7 @@
     "@jorna/shared": "*",
     "@sentry/browser": "^11.8.0",
     "@supabase/supabase-js": "^2.118.0",
-    "firebase": "^12.19.0",
+    "firebase": "^13.1.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
