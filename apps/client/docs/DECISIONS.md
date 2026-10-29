@@ -274,3 +274,12 @@ Backend #66, DECISIONS #32 there. Decided 2026-10-17: the form lives on the vend
 - **Errors stay with their field.** The server's messages don't name the field, so the form maps them by what they mention (email, phone, date, guest, name); anything else is said above the button. Nothing typed is lost.
 - **The honeypot** is an off-screen `website` input, sent empty by people.
 - **A 429 with its own message is shown as written** (a vendor's daily cap: "try again tomorrow"); `parseError` used to replace every 429 with the generic rate-limit line.
+
+## Decision: a returning client signs in to their dashboard (2026-10-29)
+
+A sign-in with nowhere particular to go (no `?next=`) used to land on
+`/plan` for everyone, which put a returning client back at step one of a
+celebration they'd already planned. Now `lib/landing.ts` (`clientLanding`)
+checks their plans and events: any at all, and they land on the dashboard
+(`/bundles`); none, the Plan wizard as before. Email and Google sign-in both
+use it (`app/login`, `app/auth/callback`). A `?next=` still wins.

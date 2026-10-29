@@ -13,7 +13,12 @@ test.describe("welcome (site root)", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Continue as a client" })).toHaveAttribute("href", /\/for-clients\/?$/);
     await expect(page.getByRole("link", { name: "Continue as a vendor" })).toHaveAttribute("href", /\/for-vendors\/?$/);
-    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/login\/?$/);
+    // One sign-in per side: a client's is in the client app, a vendor's here.
+    await expect(page.getByRole("link", { name: "Client", exact: true })).toHaveAttribute(
+      "href",
+      /^https:\/\/[^/]+\/app\/login$/,
+    );
+    await expect(page.getByRole("link", { name: "Vendor", exact: true })).toHaveAttribute("href", /\/login\/?$/);
 
     // The page draws its own header from the design; the app's shared one
     // (SiteHeader, "About Jorna" nav) steps aside — see ChromeGate.
