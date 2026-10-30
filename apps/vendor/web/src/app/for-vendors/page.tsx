@@ -181,7 +181,7 @@ export default function ForVendorsPage() {
           </Feature>
         </div>
         <div className="flex-1">
-          <Illustration caption="Illustrative workspace and offerings · Not live vendor pricing">
+          <Illustration caption="Illustrative workspace and offerings">
             <WorkspaceHeader active="Storefront" />
             <div className="flex items-center justify-between gap-3">
               <span className="l-serif text-[26px] text-(--l-maroon) sm:text-[32px]">Your storefront</span>
@@ -204,17 +204,16 @@ export default function ForVendorsPage() {
             </div>
             <div className="flex flex-col gap-4">
               {[
-                ["Service", "Wedding catering", "Regional menus · Per guest", "From $62.50"],
-                ["Service", "Chai & dessert station", "An evening addition · Per event", "From $550"],
-                ["Product", "Celebration sweet boxes", "A thoughtful take-home gift · Per box", "$45"],
-              ].map(([kind, name, detail, price]) => (
+                ["Service", "Wedding catering", "Regional menus · Per guest"],
+                ["Service", "Chai & dessert station", "An evening addition · Per event"],
+                ["Product", "Celebration sweet boxes", "A thoughtful take-home gift · Per box"],
+              ].map(([kind, name, detail]) => (
                 <div key={name} className="flex items-center gap-4">
                   <div className="flex flex-1 flex-col gap-[5px]">
                     <span className="text-[8px] uppercase text-(--l-gold)">{kind}</span>
                     <span className="text-[12px] font-medium text-(--l-ink)">{name}</span>
                     <span className="text-[10px] text-(--l-ink-soft)">{detail}</span>
                   </div>
-                  <span className="text-[12px] text-(--l-maroon)">{price}</span>
                 </div>
               ))}
             </div>
@@ -315,8 +314,6 @@ export default function ForVendorsPage() {
               </p>
               <dl className="flex flex-col gap-3.5 border-t border-(--l-line) pt-[18px] text-[11px]">
                 {[
-                  ["Agreed price", "$12,500"],
-                  ["Agreed deposit", "$2,500"],
                   ["Contract", "Signed by both parties"],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
@@ -335,7 +332,7 @@ export default function ForVendorsPage() {
       <section className="bg-(--l-paper)">
         <div className={`${wrap} flex flex-col gap-14 py-20 lg:flex-row lg:items-center lg:gap-[90px] lg:py-[104px]`}>
           <div className="lg:w-[700px] lg:shrink-0">
-            <Illustration tone="blush" caption="Illustrative contract editor · Sample services, prices and deposit terms">
+            <Illustration tone="blush" caption="Illustrative contract editor · Sample services and terms">
               <WorkspaceHeader active="Contracts" />
               <div className="flex items-center justify-between gap-4">
                 <span className="l-serif text-[28px] text-(--l-maroon) sm:text-[32px]">Wedding catering agreement</span>
@@ -355,29 +352,15 @@ export default function ForVendorsPage() {
               </div>
               <div className="flex flex-col gap-3">
                 <span className="text-[8px] uppercase text-(--l-gold)">Services &amp; products</span>
-                <div className="flex justify-between gap-4 border-y border-(--l-line) py-3">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-medium text-(--l-ink)">Regional wedding catering</span>
-                    <span className="text-[10px] text-(--l-ink-soft)">200 guests × $62.50 · Menu &amp; service as agreed</span>
-                  </div>
-                  <span className="text-[12px] text-(--l-maroon)">$12,500</span>
+                <div className="flex flex-col gap-1.5 border-y border-(--l-line) py-3">
+                  <span className="text-[12px] font-medium text-(--l-ink)">Regional wedding catering</span>
+                  <span className="text-[10px] text-(--l-ink-soft)">200 guests · Menu &amp; service as agreed</span>
                 </div>
-              </div>
-              <div className="flex gap-4">
-                {[
-                  ["Agreed price", "$12,500"],
-                  ["Deposit", "$2,500"],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex flex-1 flex-col gap-2.5 rounded-[5px] bg-(--l-ground) p-4">
-                    <span className="text-[8px] uppercase text-(--l-ink-soft)">{label}</span>
-                    <span className="l-serif text-[31px] leading-none text-(--l-maroon)">{value}</span>
-                  </div>
-                ))}
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-[8px] uppercase text-(--l-gold)">Deposit terms</span>
                 <span className="text-[11px] leading-[1.7] text-(--l-ink-soft)">
-                  $2,500 after both parties sign. Remaining $10,000 due May 31, 2027, as agreed in this contract.
+                  Deposit after both parties sign. The rest due May 31, 2027, as agreed in this contract.
                 </span>
               </div>
               <div className="flex items-center justify-between">
