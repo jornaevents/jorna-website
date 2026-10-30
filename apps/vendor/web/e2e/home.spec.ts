@@ -13,12 +13,8 @@ test.describe("welcome (site root)", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Continue as a client" })).toHaveAttribute("href", /\/for-clients\/?$/);
     await expect(page.getByRole("link", { name: "Continue as a vendor" })).toHaveAttribute("href", /\/for-vendors\/?$/);
-    // One sign-in per side: a client's is in the client app, a vendor's here.
-    await expect(page.getByRole("link", { name: "Client", exact: true })).toHaveAttribute(
-      "href",
-      /^https:\/\/[^/]+\/client\/login$/,
-    );
-    await expect(page.getByRole("link", { name: "Vendor", exact: true })).toHaveAttribute("href", /\/login\/?$/);
+    // One sign-in for both sides (it sends each account to its own dashboard).
+    await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", /\/app\/login\/?$/);
 
     // The page draws its own header from the design; the app's shared one
     // (SiteHeader, "About Jorna" nav) steps aside — see ChromeGate.
@@ -55,13 +51,17 @@ test.describe("welcome (site root)", () => {
     await expect(page.getByText("Every celebration starts with a connection.")).not.toBeVisible();
   });
 
-  test("a signed-in client still gets the welcome screen at the site root", async ({ page, api }) => {
+  test("a signed-in client goes to their dashboard, as a vendor goes to theirs", async ({ page, api }) => {
+    await page.route("https://jornaevents.com/client/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),
+    );
     await loginAs(page, api);
     api.error("GET", "/vendors/me", 404, "Not a vendor");
+    api.get("/bundles", [{ bundle_id: "b1" }]);
+    api.get("/events", []);
 
     await page.goto("");
 
-    await expect(page.getByText("Every celebration starts with a connection.")).toBeVisible();
-    await expect(page).not.toHaveURL(/overview/);
+    await expect(page).toHaveURL("https://jornaevents.com/client/bundles/");
   });
 });

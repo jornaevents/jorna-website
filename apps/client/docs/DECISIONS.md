@@ -292,3 +292,19 @@ Served beside the vendor app on one site, so one sign-in covers both: basePath
 redirects from book.jornaevents.com (`public/_redirects`), and its old help
 and 404 pages are gone — jornaevents.com's serve both sides. Links into the
 vendor app (`vendorSiteUrl`, contract links) are now same-origin.
+
+## Decision: sign-in hands off to the shared one; sign-up is name, email, password; no second home page (2026-10-29)
+
+- **Signing in** happens on the site's one sign-in page (jornaevents.com/app/login),
+  which sends each account to its own dashboard. This app's `/login` keeps
+  sign-up and finishing a Google sign-up, and hands a sign-in over there with
+  its page as `?next=/client/…`.
+- **Sign-up** asks first and last name, email and password — no username,
+  age or city (backend #154 derives the username and leaves the rest blank).
+- **The client root** (`/client/`, `/client/home/`) was a second landing page
+  beside the site's real one. It now sends a signed-out visitor to For clients
+  and a signed-in client to their dashboard; the "Home" tab is gone (it would
+  be a second Dashboard), and the wordmark goes to the dashboard (signed in)
+  or For clients.
+- **Links to the vendor app carry their trailing slash** (`vendorSiteUrl`,
+  `contractSignUrl`), so they don't cost a 308 on the way.

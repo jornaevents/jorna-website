@@ -20,21 +20,70 @@ test.describe("authentication", () => {
     expect(loginCalls[0].body).toMatchObject({ identifier: user.username });
   });
 
-  test("an account without a vendor profile lands in vendor onboarding", async ({
-    page,
-    api,
-  }) => {
-    const user = mockUser();
-    api.post("/auth/login", mockTokenPair());
-    api.get("/me", user);
-    api.error("GET", "/vendors/me", 404, "Vendor profile not found for this user");
-
-    await page.goto("login/");
-    await page.getByLabel("Email or username").fill(user.username);
+  // One sign-in for both sides (2026-10-29): an account with no vendor
+  // profile is a client, and lands on the client side of the site.
+  async function signIn(page: import("@playwright/test").Page, url: string) {
+    await page.goto(url);
+    await page.getByLabel("Email or username").fill("priya");
     await page.getByLabel("Password").fill("correct-horse-battery-staple");
     await page.getByRole("button", { name: "Sign in" }).click();
+  }
+
+  test("a client who hasn't started planning lands on the Plan wizard", async ({ page, api }) => {
+    await page.route("https://jornaevents.com/client/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),
+    );
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", mockUser());
+    api.error("GET", "/vendors/me", 404, "Vendor profile not found for this user");
+    api.get("/bundles", []);
+    api.get("/events", []);
+
+    await signIn(page, "login/");
+
+    await expect(page).toHaveURL("https://jornaevents.com/client/plan/");
+  });
+
+  test("a client with a plan lands on their dashboard", async ({ page, api }) => {
+    await page.route("https://jornaevents.com/client/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),
+    );
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", mockUser());
+    api.error("GET", "/vendors/me", 404, "Vendor profile not found for this user");
+    api.get("/bundles", [{ bundle_id: "b1" }]);
+    api.get("/events", []);
+
+    await signIn(page, "login/");
+
+    await expect(page).toHaveURL("https://jornaevents.com/client/bundles/");
+  });
+
+  test("a vendor-side sign-in with no vendor profile yet finishes setup", async ({ page, api }) => {
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", mockUser());
+    api.error("GET", "/vendors/me", 404, "Vendor profile not found for this user");
+    api.get("/vendors/categories", { categories: [] });
+    api.get("/bundles", []);
+
+    await signIn(page, "login/?role=vendor");
 
     await expect(page).toHaveURL(/\/app\/vendor-onboarding\/?$/);
+  });
+
+  test("a sign-in handed over from the client app goes back to its page", async ({ page, api }) => {
+    await page.route("https://jornaevents.com/client/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),
+    );
+    await page.route("http://localhost:*/client/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),
+    );
+    api.post("/auth/login", mockTokenPair());
+    api.get("/me", mockUser());
+
+    await signIn(page, "login/?next=%2Fclient%2Fbundle%2F%3Fid%3Db1");
+
+    await expect(page).toHaveURL(/\/client\/bundle\/\?id=b1$/);
   });
 
   test("a failed vendor check isn't read as 'not a vendor'", async ({ page, api }) => {

@@ -16,7 +16,6 @@
 import Link from "next/link";
 import { VendorHomeRedirect } from "@/components/VendorHomeRedirect";
 import { JornaMark } from "@/components/JornaMark";
-import { clientAppUrl } from "@/lib/clientApp";
 import { Arrow, LandingShell, Photo, wrap } from "@/components/landing/ui";
 
 const PATHS = [
@@ -60,20 +59,12 @@ function Welcome() {
             <JornaMark className="h-9 lg:h-11" />
             Jorna
           </Link>
-          {/* Two sign-ins, one per side: clients sign in to the client app,
-              vendors here. One link to either made the other side take a
-              detour (2026-10-29). One link again once both sides share a site. */}
+          {/* One sign-in for both sides: it sends each account to its own
+              dashboard (lib/role defaultLanding). */}
           <p className="l-intro-fade flex items-center gap-2 text-[13px]">
             <span className="hidden text-(--l-ink-soft) sm:inline">Already part of Jorna?</span>
-            <span className="text-(--l-ink-soft)">Sign in:</span>
-            <a href={clientAppUrl("/login")} className="font-medium text-(--l-maroon) underline underline-offset-4">
-              Client
-            </a>
-            <span aria-hidden="true" className="text-(--l-ink-soft)">
-              ·
-            </span>
             <Link href="/login" className="font-medium text-(--l-maroon) underline underline-offset-4">
-              Vendor
+              Sign in
             </Link>
             {/* "Get started" opens the chooser (Figma Make entry flow, 2026-10). */}
             <Link

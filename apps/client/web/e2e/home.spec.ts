@@ -1,38 +1,41 @@
-import { test, expect } from "./support/fixtures";
-import { mockVendorSearchResponse } from "./support/mock-data";
+import { test, expect, loginAs } from "./support/fixtures";
+import { mockBundleDetail } from "./support/mock-data";
 
-test.describe("home (marketing) page", () => {
-  test("renders for a signed-out visitor and shows the live vendor showcase", async ({
-    page,
-    api,
-  }) => {
-    api.get("/vendors/search", mockVendorSearchResponse());
-
+// The client root used to be a second landing page; since the client app moved
+// onto jornaevents.com (2026-10-29) it only sends people where they belong.
+test.describe("client root", () => {
+  test("a signed-out visitor goes to For clients on the main site", async ({ page }) => {
+    await page.route("https://jornaevents.com/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "for clients" }),
+    );
     await page.goto("");
 
-    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
-
-    // Vendor showcase is real data from /vendors/search, not placeholder copy
-    // (see the header comment in app/home/page.tsx) — assert the mocked row
-    // actually rendered.
-    await expect(page.getByText("Anjali Kapoor")).toBeVisible();
-    await expect(page.getByText("Full Day Wedding Photography")).toBeVisible();
-
-    // Escrow is off: clients pay vendors directly, and Home mustn't promise
-    // otherwise.
-    await expect(page.getByText("How paying works")).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(/escrow/i);
+    await expect(page).toHaveURL("https://jornaevents.com/app/for-clients/");
   });
 
-  test("still renders the marketing content if the vendor showcase fails to load", async ({
-    page,
-    api,
-  }) => {
-    api.error("GET", "/vendors/search", 500, "Internal server error");
+  test("a signed-in client with a plan goes to their dashboard", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    api.get("/bundles", [mockBundleDetail()]);
+    api.get("/events", []);
+    api.get("/conversations/unread-count", { unread_count: 0 });
 
-    await page.goto("");
+    await page.goto("home/");
 
-    await expect(page.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/client\/bundles\/?$/);
+  });
+
+  test("the client tabs have no Home beside the Dashboard", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    api.get("/bundles", []);
+    api.get("/events", []);
+    api.get("/conversations/unread-count", { unread_count: 0 });
+
+    await page.goto("marketplace/");
+
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Home", exact: true })).toHaveCount(0);
   });
 });

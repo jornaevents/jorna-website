@@ -2,20 +2,21 @@ import { test, expect } from "./support/fixtures";
 
 // "Get started" → "How will you use Jorna?" (Figma Make entry flow, 2026-10).
 test.describe("get started", () => {
-  test("every landing header offers it", async ({ page }) => {
+  test("every landing header offers it; the side pages skip the picker", async ({ page }) => {
     await page.goto("");
     await expect(page.getByRole("link", { name: "Get started" })).toHaveAttribute("href", /\/get-started\/?$/);
 
+    // For clients / For vendors already know the side: straight to its sign-up.
     await page.goto("for-clients/");
     await expect(page.locator("header").first().getByRole("link", { name: "Get started" })).toHaveAttribute(
       "href",
-      /\/get-started\/?\?as=client$/,
+      /^https:\/\/[^/]+\/client\/login\/\?mode=register$/,
     );
 
     await page.goto("for-vendors/");
     await expect(page.locator("header").first().getByRole("link", { name: "Get started" })).toHaveAttribute(
       "href",
-      /\/get-started\/?\?as=vendor$/,
+      /\/login\/?\?mode=register&role=vendor$/,
     );
   });
 
@@ -46,6 +47,6 @@ test.describe("get started", () => {
     await expect(page.getByRole("radio", { name: /planning an event/ })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page).toHaveURL(/\/login\?mode=register$/);
+    await expect(page).toHaveURL(/\/login\/?\?mode=register$/);
   });
 });

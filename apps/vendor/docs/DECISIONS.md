@@ -1034,3 +1034,27 @@ sparkle placeholder). `components/JornaMark.tsx`, images
 with its white ground turned to transparency. In the maroon landing footer it
 sits on a cream tile, since its purple and red strokes are drawn for a light
 ground.
+
+## Decision: one sign-in, fewer stops between the landing page and using Jorna (2026-10-29)
+
+A walk through the journey from the landing page to a usable dashboard found
+a bug and several extra stops; this removes them.
+
+- **One sign-in for both sides** (`/app/login`). After signing in, `lib/role`
+  `defaultLanding` goes by the account: a vendor to their dashboard; no vendor
+  profile and signing in from the vendor side (`?role=vendor` — For vendors,
+  a vendor sign-up's "Sign in") to onboarding; anyone else to the client
+  dashboard, or the Plan wizard before they've planned anything
+  (`clientLanding`, in the client app — `goTo` does the full page load).
+  Before, every account without a vendor profile went to vendor onboarding,
+  so a client signing in here was offered "What do you offer?". The client
+  app's own sign-in now hands off here, carrying its page as `?next=/client/…`;
+  Google sign-in routes the same way. Welcome says "Sign in" once again.
+- **Signed-in clients skip Welcome** for their dashboard, as vendors already
+  did (`VendorHomeRedirect`).
+- **No redirect hop into the other app.** Both apps export with
+  `trailingSlash`, so every link written without one cost a 308.
+  `clientAppUrl`, the client app's `vendorSiteUrl` and contract links now add
+  it (`@jorna/shared/lib/paths` `withTrailingSlash`).
+- **"Get started" on For clients / For vendors goes straight to that side's
+  sign-up**; the picker stays on Welcome, which doesn't know the side yet.

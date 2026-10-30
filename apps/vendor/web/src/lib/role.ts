@@ -7,7 +7,8 @@
 // "Has a vendor profile" (getMyVendor != null) is the same signal iOS uses
 // (vendorID != nil). Cached because several components ask at once.
 
-import { getMyVendor } from "./jorna";
+import { getMyVendor, listBundles, listEvents } from "./jorna";
+import { clientAppUrl } from "./clientApp";
 
 const TTL_MS = 60_000;
 let cache: { at: number; isVendor: boolean } | null = null;
@@ -40,18 +41,52 @@ export async function loadIsVendor(): Promise<boolean> {
 
 /**
  * Where someone lands after signing in when nothing asked for a particular
- * page: a vendor's dashboard, or vendor onboarding for an account with no
- * vendor profile yet. It used to be the client home, from when this app
- * served both sides — which, on the vendor app, read as "signing in took me
- * to the client view".
+ * page. One sign-in serves both sides since the client app moved onto this
+ * site (2026-10-29), so it goes by the account:
  *
- * When the check itself fails, the dashboard: it does its own check and
- * offers setup when there's no profile, so a vendor on a bad connection
- * isn't sent through onboarding.
+ *  - a vendor: their dashboard;
+ *  - no vendor profile, signing in from the vendor side (`role` "vendor" —
+ *    For vendors, a vendor sign-up's "Sign in"): onboarding, to finish setup;
+ *  - anyone else is a client: their dashboard once they've started planning
+ *    (any plan or event), the Plan wizard before that — in the client app,
+ *    so the answer is an absolute URL (see goTo).
+ *
+ * When the vendor check itself fails, the dashboard: it does its own check
+ * and offers setup when there's no profile, so a vendor on a bad connection
+ * isn't sent elsewhere.
  */
-export async function defaultLanding(): Promise<string> {
+export async function defaultLanding(role?: string | null): Promise<string> {
   const isVendor = await vendorStatus();
-  return isVendor === false ? "/vendor-onboarding" : "/overview";
+  if (isVendor !== false) return "/overview";
+  if (role === "vendor") return "/vendor-onboarding";
+  return clientLanding();
+}
+
+/** A client's home: their dashboard once they've started planning, else the
+ *  Plan wizard. If the lookup fails, the wizard — one tab from the dashboard. */
+export async function clientLanding(): Promise<string> {
+  try {
+    const [bundles, events] = await Promise.all([listBundles(), listEvents()]);
+    return clientAppUrl(bundles.length > 0 || events.length > 0 ? "/bundles" : "/plan");
+  } catch {
+    return clientAppUrl("/plan");
+  }
+}
+
+/**
+ * Go to a landing: a page in this app by the router, anywhere else — the
+ * client app's /client pages, an absolute URL — by a full page load, since
+ * this app's router would put its own /app base path in front of them.
+ */
+export function goTo(router: { push: (href: string) => void; replace: (href: string) => void }, dest: string, replace = false) {
+  if (dest.startsWith("http") || dest.startsWith("/client/")) {
+    if (replace) window.location.replace(dest);
+    else window.location.assign(dest);
+  } else if (replace) {
+    router.replace(dest);
+  } else {
+    router.push(dest);
+  }
 }
 
 /** Called when a session ends, so the next sign-in doesn't inherit this role. */

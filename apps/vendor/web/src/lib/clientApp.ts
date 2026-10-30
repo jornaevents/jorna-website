@@ -7,10 +7,12 @@
 // front of a bare path. NEXT_PUBLIC_CLIENT_APP_URL overrides the origin for
 // staging and previews, where the site isn't jornaevents.com — same
 // env-with-fallback pattern as lib/flags.ts.
+import { withTrailingSlash } from "@jorna/shared/lib/paths";
+
 const CLIENT_APP_ORIGIN = process.env.NEXT_PUBLIC_CLIENT_APP_URL ?? "https://jornaevents.com";
 
 /** An absolute URL to a page in the client app, e.g. clientAppUrl("/plan").
  *  Same origin as this app, so a session carries over. */
 export function clientAppUrl(path: string): string {
-  return `${CLIENT_APP_ORIGIN}/client${path.startsWith("/") ? path : `/${path}`}`;
+  return `${CLIENT_APP_ORIGIN}/client${withTrailingSlash(path.startsWith("/") ? path : `/${path}`)}`;
 }
