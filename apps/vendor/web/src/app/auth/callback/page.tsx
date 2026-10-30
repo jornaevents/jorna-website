@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
-import { defaultLanding } from "@/lib/role";
+import { defaultLanding, goTo } from "@/lib/role";
 import { ApiError } from "@jorna/shared/lib/api";
 
 // Every step below is a network call, and none has a timeout of its own: one
@@ -83,11 +83,11 @@ export default function AuthCallbackPage() {
           void supabase.auth.signOut({ scope: "local" }).catch(() => {});
           // A sign-up goes straight into guided setup — the wizard resumes,
           // and sends an already-set-up vendor on to the dashboard. A sign-in
-          // lands where it was headed, else by role (defaultLanding: the
-          // dashboard, or onboarding for an account with no vendor profile).
+          // lands where it was headed, else by account (defaultLanding: a
+          // vendor's dashboard, or a client's in the client app — goTo).
           const landing =
             role === "vendor" ? "/vendor-onboarding" : (next ?? (await within(defaultLanding())));
-          router.replace(landing);
+          goTo(router, landing, true);
           return;
         }
 

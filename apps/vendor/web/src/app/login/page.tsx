@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { defaultLanding } from "@/lib/role";
+import { defaultLanding, goTo } from "@/lib/role";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
 import { clientAppUrl } from "@/lib/clientApp";
 import { EntryField, EntryShell, ErrorNote, FlowIcon, primaryButton, textButton } from "@/components/entry/ui";
@@ -46,6 +46,10 @@ function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
+  // "vendor" when signing in from the vendor side (For vendors, a vendor
+  // sign-up's "Sign in"): an account with no vendor profile yet then finishes
+  // setup rather than landing as a client (defaultLanding).
+  const role = params.get("role");
   // Set when we've come back from Google as a brand-new identity that needs to
   // finish creating a Jorna account (the callback routes here with ?google=1).
   const isGoogleSignup = params.get("google") === "1";
@@ -143,7 +147,8 @@ function LoginInner() {
       // Sign-up on the vendor app is always a vendor sign-up: straight into
       // guided setup, as iOS routes "I am a Vendor" into VendorInfoView. A
       // sign-in goes where it was headed, else by role (defaultLanding).
-      router.push(mode === "register" ? "/vendor-onboarding" : (next ?? (await defaultLanding())));
+      // One sign-in for both sides: a client lands in the client app (goTo).
+      goTo(router, mode === "register" ? "/vendor-onboarding" : (next ?? (await defaultLanding(role))));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -157,7 +162,7 @@ function LoginInner() {
     try {
       // A sign-up is a vendor sign-up (the callback then opens setup); a
       // returning account already knows what it is.
-      await startGoogleSignIn(next, mode === "register" ? "vendor" : null);
+      await startGoogleSignIn(next, mode === "register" || role === "vendor" ? "vendor" : null);
     } catch {
       setGoogleBusy(false);
       setError("Couldn't start Google sign-in. Please try again.");
@@ -172,7 +177,7 @@ function LoginInner() {
 
   const subheading =
     mode === "login"
-      ? "Sign in to manage your business, bookings and listing."
+      ? "Sign in to plan your celebration or run your business."
       : isGoogleSignup
         ? "A couple of details and your Google account is all set."
         : "Start building your Jorna listing today.";
@@ -313,13 +318,13 @@ function LoginInner() {
             </p>
           ) : null}
 
-          {/* Clients plan and book on the client app; an account made here is
-              set up as a vendor. */}
-          {!isGoogleSignup ? (
+          {/* Signing in here serves both sides; signing up here makes a vendor,
+              so a client is pointed at their own sign-up. */}
+          {!isGoogleSignup && mode === "register" ? (
             <p className="mt-5 border-t border-(--e-line) pt-4 text-[13px] text-(--e-muted)">
-              {mode === "register" ? "Planning an event instead? " : "Planning a celebration? "}
-              <a href={clientAppUrl(mode === "register" ? "/login?mode=register" : "/login")} className={textButton}>
-                {mode === "register" ? "Sign up as a client" : "Sign in as a client"}
+              Planning an event instead?{" "}
+              <a href={clientAppUrl("/login?mode=register")} className={textButton}>
+                Sign up as a client
               </a>
             </p>
           ) : null}

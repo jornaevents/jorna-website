@@ -103,7 +103,7 @@ describe("utcToday", () => {
 
 describe("contractSignUrl", () => {
   it("points at the vendor site's signing page", () => {
-    expect(contractSignUrl("a b")).toBe("https://jornaevents.com/app/booking-link?t=a%20b");
+    expect(contractSignUrl("a b")).toBe("https://jornaevents.com/app/booking-link/?t=a%20b");
   });
 });
 

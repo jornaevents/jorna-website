@@ -252,7 +252,8 @@ export function LandingNav({
   audience: string;
   links: NavLink[];
   signIn: string;
-  /** The chooser, preselected for this page's side (Figma Make entry flow). */
+  /** This page's side's sign-up: the side is already chosen here, so no
+   *  picker in between (the Welcome screen's "Get started" has one). */
   getStarted: string;
   action: NavLink;
 }) {

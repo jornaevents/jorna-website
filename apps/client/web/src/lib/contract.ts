@@ -12,7 +12,7 @@ import { eventIsOver, type BundleBooking, type Installment } from "./types";
 const VENDOR_APP_ORIGIN = process.env.NEXT_PUBLIC_VENDOR_APP_URL ?? "https://jornaevents.com";
 
 export function contractSignUrl(token: string): string {
-  return `${VENDOR_APP_ORIGIN}/app/booking-link?t=${encodeURIComponent(token)}`;
+  return `${VENDOR_APP_ORIGIN}/app/booking-link/?t=${encodeURIComponent(token)}`;
 }
 
 /** The same page, opened straight into "Propose changes" (backend

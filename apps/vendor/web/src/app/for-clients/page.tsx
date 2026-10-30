@@ -109,8 +109,8 @@ export default function ForClientsPage() {
           { label: "Find vendors", href: marketplace() },
           { label: "For vendors", href: "/for-vendors" },
         ]}
-        signIn={clientAppUrl("/login")}
-        getStarted="/get-started?as=client"
+        signIn="/login"
+        getStarted={clientAppUrl("/login?mode=register")}
         action={{ label: "Plan your celebration", href: start }}
       />
 

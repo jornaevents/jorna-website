@@ -1,12 +1,10 @@
 "use client";
 
-// Home is a pitch, and a signed-in vendor has already bought it. Everything it
-// offers them — what Jorna is, why list here, a way to sign up — is either
-// done or lives in the dashboard, so typing jornaevents.com sends them
-// straight there rather than to marketing copy. (The in-app logo already
-// points vendors at the dashboard — nav.tsx — this covers the address bar,
-// bookmarks and external links.) Clients and signed-out visitors get Home
-// as before.
+// Home is a pitch, and anyone signed in has already bought it. Typing
+// jornaevents.com sends them straight to their own dashboard rather than to
+// marketing copy: a vendor's here, a client's in the client app (since the
+// client app moved onto this site, 2026-10-29 — clientLanding). Signed-out
+// visitors get Home.
 //
 // Unlike ClientOnlyRoute, this never blanks the page for a signed-out
 // visitor, including in the static export: Home's pre-rendered HTML carries
@@ -19,7 +17,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { hasStoredSession, useAuth } from "@/lib/auth";
-import { loadIsVendor } from "@/lib/role";
+import { clientLanding, loadIsVendor } from "@/lib/role";
 
 const noSubscribe = () => () => {};
 
@@ -40,9 +38,11 @@ export function VendorHomeRedirect({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (isVendor === true) router.replace("/overview");
+    if (isVendor === false) clientLanding().then((url) => window.location.replace(url));
   }, [isVendor, router]);
 
-  const deciding = user ? isVendor !== false : loading && storedSession;
+  // Signed in either way means leaving, so the page is held until then.
+  const deciding = user ? true : loading && storedSession;
   if (deciding) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   return <>{children}</>;
 }

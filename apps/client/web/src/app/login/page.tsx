@@ -9,7 +9,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { vendorSiteUrl } from "@/lib/vendorSite";
-import { CityCombobox, type Coords } from "@jorna/shared/components/CityCombobox";
+import { withTrailingSlash } from "@jorna/shared/lib/paths";
 
 function GoogleMark() {
   // Google "G", inline so nothing is fetched over the network (the site's ethos).
@@ -71,9 +71,20 @@ function LoginInner() {
   // Old "Become a vendor" links still carry ?role=vendor. They mean the
   // vendor site's sign-up, so that's where they go.
   const forVendor = params.get("role") === "vendor";
+  // Signing in is one page for both sides now (jornaevents.com/app/login,
+  // 2026-10-29): it sends each account to its own dashboard. Only sign-up and
+  // finishing a Google sign-up stay here. A page this app wanted to come back
+  // to rides along as a full site path, /client/… .
+  const handOff = !forVendor && mode === "login";
   useEffect(() => {
-    if (forVendor) window.location.replace(vendorSiteUrl(`/login?${params.toString()}`));
-  }, [forVendor, params]);
+    if (forVendor) {
+      window.location.replace(vendorSiteUrl(`/login?${params.toString()}`));
+    } else if (handOff) {
+      const q = new URLSearchParams();
+      if (next) q.set("next", `/client${withTrailingSlash(next)}`);
+      window.location.replace(vendorSiteUrl(q.size ? `/login?${q.toString()}` : "/login"));
+    }
+  }, [forVendor, handOff, next, params]);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,13 +93,11 @@ function LoginInner() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   // Register-only
+  // Name, email and password: the backend derives a username and leaves age
+  // and city for later (backend #154), as the vendor sign-up does.
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [fName, setFName] = useState("");
   const [lName, setLName] = useState("");
-  const [ageStr, setAgeStr] = useState("");
-  const [location, setLocation] = useState("");
-  const [cityCoords, setCityCoords] = useState<Coords | null>(null);
   // Google-signup linkage (recovered from the persisted Supabase session)
   const [googleReady, setGoogleReady] = useState(!isGoogleSignup);
   const [googleUserId, setGoogleUserId] = useState<string | null>(null);
@@ -143,15 +152,8 @@ function LoginInner() {
         await register({
           email,
           password,
-          username,
           f_name: fName,
           l_name: lName,
-          age: Number(ageStr) || 25,
-          location,
-          latitude: cityCoords?.lat ?? null,
-          longitude: cityCoords?.lng ?? null,
-          gender: "unspecified",
-          language: "English",
           ...(isGoogleSignup && googleUserId && googleToken
             ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
             : {}),
@@ -198,6 +200,10 @@ function LoginInner() {
       : mode === "login"
         ? "Sign in"
         : "Create account";
+
+  if (forVendor || handOff) {
+    return <p className="py-20 text-center text-ink-soft">Taking you to sign in…</p>;
+  }
 
   return (
     <div className="mx-auto w-[min(460px,100%-2rem)] py-14">
@@ -268,45 +274,6 @@ function LoginInner() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label="Username"
-                  // Mirrors the backend's rule (3–30 of [A-Za-z0-9_]) so a space
-                  // or a dot is caught here instead of coming back as a 422.
-                  minLength={3}
-                  maxLength={30}
-                  pattern="[A-Za-z0-9_]{3,30}"
-                  title="3–30 characters: letters, digits, and underscores only."
-                  hint="Letters, digits, and underscores."
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-                <Field
-                  label="Age"
-                  type="number"
-                  min={13}
-                  max={120}
-                  value={ageStr}
-                  onChange={(e) => setAgeStr(e.target.value)}
-                  required
-                />
-              </div>
-              <CityCombobox
-                label="City & state"
-                placeholder="Start typing a city…"
-                value={location}
-                // The picker has always reported coordinates for a chosen city
-                // and this dropped them. They're what places a vendor on the
-                // map; without them a vendor is findable by nobody searching a
-                // location. Null for free text, which is honest — we don't know
-                // where "chicagoo" is.
-                onChange={(v, c) => {
-                  setLocation(v);
-                  setCityCoords(c);
-                }}
-                required
-              />
             </>
           )}
 

@@ -11,17 +11,19 @@ test.describe("landing pages (For clients / For vendors)", () => {
     const header = page.locator("header").first();
     await expect(header.getByRole("link", { name: "Plan your celebration" })).toHaveAttribute(
       "href",
-      /^https:\/\/[^/]+\/client\/login\?mode=register$/,
+      /^https:\/\/[^/]+\/client\/login\/\?mode=register$/,
     );
-    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /^https:\/\/[^/]+\/client\/login$/);
+    // The one sign-in, on this app (it sends a client on to their dashboard).
+    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/app\/login\/?$/);
+    // Trailing slashes, so no 308 on the way there.
     await expect(header.getByRole("link", { name: "Find vendors" })).toHaveAttribute(
       "href",
-      /^https:\/\/[^/]+\/client\/marketplace$/,
+      /^https:\/\/[^/]+\/client\/marketplace\/$/,
     );
     // A category chip opens the marketplace already filtered.
     await expect(page.getByRole("link", { name: "Catering", exact: true })).toHaveAttribute(
       "href",
-      /\/client\/marketplace\?category=catering$/,
+      /\/client\/marketplace\/\?category=catering$/,
     );
 
     await header.getByRole("link", { name: "For vendors" }).click();
@@ -36,7 +38,8 @@ test.describe("landing pages (For clients / For vendors)", () => {
       "href",
       /\/login\/?\?mode=register&role=vendor$/,
     );
-    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/login\/?$/);
+    // Vendor-side sign-in: an account with no vendor profile yet finishes setup.
+    await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/login\/?\?role=vendor$/);
     await expect(page.getByRole("link", { name: "Create your vendor storefront" })).toHaveAttribute(
       "href",
       /\/login\/?\?mode=register&role=vendor$/,

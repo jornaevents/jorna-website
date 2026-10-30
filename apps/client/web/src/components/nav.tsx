@@ -18,6 +18,7 @@
 // /conversations/unread-count — a new message isn't a task the way the
 // Needs-You items are, so it gets its own number rather than folding in.
 
+import { vendorSiteUrl } from "@/lib/vendorSite";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -77,7 +78,8 @@ export const MESSAGES: NavItem = {
 };
 
 export const CLIENT_TABS: NavItem[] = [
-  { href: "/home", label: "Home", icon: icon(I.home), match: ["/home", "/browse"] },
+  // No "Home" tab: the client root sends a signed-in client to the
+  // Dashboard below (app/home, 2026-10-29), so it would be a second Dashboard.
   { href: "/plan", label: "Builder", icon: icon(I.build), match: ["/plan"] },
   {
     href: "/marketplace",
@@ -152,7 +154,9 @@ export function useAppNav(): {
     items: signedOut ? null : CLIENT_TABS,
     attention: mine(attention, 0),
     messagesUnread: mine(messagesUnread, 0),
-    home: "/home",
+    // The wordmark: a signed-in client's dashboard, else the client landing
+    // page on the main site (the old client Home is gone — app/home).
+    home: signedOut ? vendorSiteUrl("/for-clients") : "/bundles",
     isActive: (item) =>
       item.match.some((m) => pathname === m || pathname.startsWith(`${m}/`)),
   };
