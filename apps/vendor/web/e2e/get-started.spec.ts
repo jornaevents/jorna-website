@@ -47,6 +47,6 @@ test.describe("get started", () => {
     await expect(page.getByRole("radio", { name: /planning an event/ })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page).toHaveURL(/\/login\?mode=register$/);
+    await expect(page).toHaveURL(/\/login\/?\?mode=register$/);
   });
 });
