@@ -30,7 +30,7 @@ import {
 const FAQ = [
   {
     q: "What can I showcase on my storefront?",
-    a: "Present your portfolio alongside your services and products. Describe what you offer, the celebrations you work on and the locations you serve.",
+    a: "Your packages, each with its own photos or video, alongside a description of your business, the celebrations you work on and how far you travel.",
   },
   {
     q: "How can relevant clients discover my business?",
@@ -42,7 +42,7 @@ const FAQ = [
   },
   {
     q: "Can I create my own booking contracts?",
-    a: "Yes. Create and manage contracts for your bookings, including the agreed services or products, price and deposit terms. Review the details with your client before signing.",
+    a: "Yes. Create and manage contracts for your bookings, including the agreed packages, price and deposit terms. Review the details with your client before signing.",
   },
   {
     q: "When should clients pay a deposit?",
@@ -51,9 +51,9 @@ const FAQ = [
 ];
 
 const BOOKINGS = [
-  { day: "14", who: "Ananya & Rohan", what: "Wedding reception", where: "200 guests · New Jersey", status: "Signed", tone: "bg-(--l-sage-bg) text-(--l-sage)", selected: true },
-  { day: "21", who: "Meera & Arjun", what: "Sangeet", where: "180 guests · New York", status: "Awaiting signature", tone: "bg-(--l-gold-pale) text-(--l-maroon)" },
-  { day: "28", who: "Sana & Zain", what: "Mehndi", where: "80 guests · New Jersey", status: "Draft", tone: "bg-(--l-ground) text-(--l-maroon)" },
+  { day: "14", who: "Ananya & Rohan", what: "Wedding reception", where: "200 guests · New Jersey", status: "Upcoming", tone: "bg-(--l-sage-bg) text-(--l-sage)", selected: true },
+  { day: "21", who: "Meera & Arjun", what: "Sangeet", where: "180 guests · New York", status: "Deposit due", tone: "bg-(--l-gold-pale) text-(--l-maroon)" },
+  { day: "28", who: "Sana & Zain", what: "Mehndi", where: "80 guests · New Jersey", status: "Upcoming", tone: "bg-(--l-sage-bg) text-(--l-sage)" },
 ];
 
 /** The illustrated workspace's top bar, with one tab picked out. */
@@ -67,8 +67,8 @@ function WorkspaceHeader({ active }: { active: string }) {
           <span className="grid size-7 place-items-center rounded-full bg-(--l-blush) text-[9px] text-(--l-maroon)">SS</span>
         </span>
       </div>
-      <div className="flex gap-[26px] border-b border-(--l-line) pb-3.5 text-[11px]">
-        {["Overview", "Storefront", "Bookings", "Contracts"].map((tab) => (
+      <div className="flex flex-wrap gap-x-[26px] gap-y-2 border-b border-(--l-line) pb-3.5 text-[11px]">
+        {["Overview", "Bookings", "Leads", "Contracts", "Vendor Profile"].map((tab) => (
           <span key={tab} className={tab === active ? "font-semibold text-(--l-maroon)" : "text-(--l-ink-soft)"}>
             {tab}
           </span>
@@ -114,7 +114,7 @@ export default function ForVendorsPage() {
           <Eyebrow>For the people who make it happen</Eyebrow>
           <Display as="h1" size="xl" lines={["Your craft,", "in the spotlight.", "Your business,", "in one place."]} />
           <Lede>
-            A home for your South Asian event business. Showcase your services and products, connect with relevant
+            A home for your South Asian event business. Showcase your packages, connect with relevant
             clients, and manage your bookings and contracts with Jorna.
           </Lede>
           <div className="flex flex-wrap items-center gap-[22px]">
@@ -141,7 +141,7 @@ export default function ForVendorsPage() {
             </div>
             <p className="flex justify-between border-t border-(--l-line) pt-3">
               <span className="text-[9px] text-(--l-ink-soft)">Illustrative vendor storefront</span>
-              <span className="text-[11px] text-(--l-maroon)">View portfolio ↗</span>
+              <span className="text-[11px] text-(--l-maroon)">View profile ↗</span>
             </p>
           </div>
         </div>
@@ -167,14 +167,14 @@ export default function ForVendorsPage() {
           <Eyebrow>A first impression that feels like you</Eyebrow>
           <Display lines={["Let your work", "tell your story."]} />
           <Lede>
-            Give clients more than a name in a directory. Bring your portfolio, services and products together in a
+            Give clients more than a name in a directory. Bring your packages, photos and story together in a
             storefront that shows what you do best.
           </Lede>
-          <Feature title="A portfolio with personality">
-            Show the details, atmosphere and celebrations that define your work.
+          <Feature title="Your work, in photos and video">
+            Show each package with the details, atmosphere and celebrations that define your work.
           </Feature>
-          <Feature title="Services and products, clearly presented">
-            Explain your packages, individual offerings and event-ready products.
+          <Feature title="Packages, clearly presented">
+            Explain what each package includes and how it’s priced — per event, per guest or per hour.
           </Feature>
           <Feature title="The right context for an inquiry">
             Share your category, location and the celebrations you work on.
@@ -182,7 +182,7 @@ export default function ForVendorsPage() {
         </div>
         <div className="flex-1">
           <Illustration caption="Illustrative workspace and offerings">
-            <WorkspaceHeader active="Storefront" />
+            <WorkspaceHeader active="Vendor Profile" />
             <div className="flex items-center justify-between gap-3">
               <span className="l-serif text-[26px] text-(--l-maroon) sm:text-[32px]">Your storefront</span>
               <span className="shrink-0 whitespace-nowrap rounded-full border border-(--l-line) px-3.5 py-2 text-[10px] text-(--l-maroon)">
@@ -195,22 +195,20 @@ export default function ForVendorsPage() {
                 <span className="l-serif text-[30px] leading-none text-(--l-maroon)">Saffron &amp; Silk</span>
                 <span className="text-[11px] text-(--l-ink-soft)">Catering · New York &amp; New Jersey</span>
               </div>
-              <span className="text-[10px] uppercase text-(--l-gold)">Portfolio ↗</span>
+              <span className="text-[10px] uppercase text-(--l-gold)">Travels 50 mi</span>
             </div>
-            <div className="flex gap-6 border-b border-(--l-line) pb-3 text-[11px]">
-              <span className="font-semibold text-(--l-maroon)">Services &amp; products</span>
-              <span className="text-(--l-ink-soft)">Portfolio</span>
-              <span className="text-(--l-ink-soft)">About</span>
-            </div>
+            <p className="text-[11px] leading-[1.6] text-(--l-ink-soft)">
+              Regional menus from family recipes, served with thoughtful hospitality.
+            </p>
+            <span className="border-b border-(--l-line) pb-3 text-[11px] font-semibold text-(--l-maroon)">Packages</span>
             <div className="flex flex-col gap-4">
               {[
-                ["Service", "Wedding catering", "Regional menus · Per guest"],
-                ["Service", "Chai & dessert station", "An evening addition · Per event"],
-                ["Product", "Celebration sweet boxes", "A thoughtful take-home gift · Per box"],
-              ].map(([kind, name, detail]) => (
+                ["Wedding catering", "Regional menus · Per guest"],
+                ["Chai & dessert station", "An evening addition · Per event"],
+                ["Live dosa counter", "Cooked to order · Per hour"],
+              ].map(([name, detail]) => (
                 <div key={name} className="flex items-center gap-4">
                   <div className="flex flex-1 flex-col gap-[5px]">
-                    <span className="text-[8px] uppercase text-(--l-gold)">{kind}</span>
                     <span className="text-[12px] font-medium text-(--l-ink)">{name}</span>
                     <span className="text-[10px] text-(--l-ink-soft)">{detail}</span>
                   </div>
@@ -231,16 +229,16 @@ export default function ForVendorsPage() {
               className="h-[320px] w-full rounded-lg lg:h-[420px] lg:w-[500px]"
             />
             <div className="relative -mt-20 ml-6 flex flex-col gap-[18px] rounded-lg bg-(--l-paper) p-[26px] shadow-(--l-shadow) sm:ml-24 lg:absolute lg:left-[180px] lg:top-[248px] lg:m-0 lg:w-[410px]">
-              <p className="text-[9px] uppercase text-(--l-gold)">An illustrative client brief</p>
+              <p className="text-[9px] uppercase text-(--l-gold)">An illustrative inquiry</p>
               <p className="l-serif text-[30px] leading-[1.1] text-(--l-maroon)">A wedding that feels like home.</p>
               <p className="text-[12px] leading-[1.7] text-(--l-ink-soft)">
-                New Jersey · 200 guests
+                June 14, 2027 · New Jersey · 200 guests
                 <br />
                 Regional catering · Family traditions
                 <br />
                 Garden ceremony &amp; evening reception
               </p>
-              <p className="text-[11px] text-(--l-maroon)">Your offering, with the right context.</p>
+              <p className="text-[11px] text-(--l-maroon)">Sent to you with the date, guests and budget.</p>
             </div>
           </div>
           <div className="flex flex-1 flex-col gap-[26px]">
@@ -274,13 +272,13 @@ export default function ForVendorsPage() {
               <span className="l-serif text-[30px] text-(--l-maroon) sm:text-[36px]">Your upcoming celebrations</span>
               <span className="text-[11px] text-(--l-ink-soft)">June 2027 · Bookings overview</span>
             </div>
-            <span className="rounded-full bg-(--l-maroon) px-[18px] py-3 text-[11px] text-(--l-ground)">+ New booking</span>
+            <span className="rounded-full bg-(--l-maroon) px-[18px] py-3 text-[11px] text-(--l-ground)">Send a contract</span>
           </div>
           <div className="flex flex-col gap-[30px] lg:flex-row">
             <div className="flex flex-1 flex-col gap-3">
               <div className="flex justify-between px-[18px] py-2.5 text-[9px] uppercase text-(--l-ink-soft)">
                 <span>Celebration</span>
-                <span>Contract status</span>
+                <span>Status</span>
               </div>
               {BOOKINGS.map((b) => (
                 <div
@@ -351,7 +349,7 @@ export default function ForVendorsPage() {
                 ))}
               </div>
               <div className="flex flex-col gap-3">
-                <span className="text-[8px] uppercase text-(--l-gold)">Services &amp; products</span>
+                <span className="text-[8px] uppercase text-(--l-gold)">Packages</span>
                 <div className="flex flex-col gap-1.5 border-y border-(--l-line) py-3">
                   <span className="text-[12px] font-medium text-(--l-ink)">Regional wedding catering</span>
                   <span className="text-[10px] text-(--l-ink-soft)">200 guests · Menu &amp; service as agreed</span>
@@ -377,7 +375,7 @@ export default function ForVendorsPage() {
               client know exactly what’s agreed.
             </Lede>
             <Feature title="Create the agreement">
-              Set out the celebration details, services and products included in the booking.
+              Set out the celebration details and the packages included in the booking.
             </Feature>
             <Feature title="Make prices and deposits explicit">
               Agree on the amount and deposit terms with your client before payment.
@@ -401,7 +399,7 @@ export default function ForVendorsPage() {
           steps={[
             {
               title: "Make it yours",
-              body: "Create your storefront. Add a portfolio, your services and products, and the details that help clients understand your business.",
+              body: "Create your storefront. Add your packages with photos and video, and the details that help clients understand your business.",
             },
             {
               title: "Find your fit",
