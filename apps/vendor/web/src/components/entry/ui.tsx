@@ -6,6 +6,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { dmSans, manrope } from "@/lib/vendorFonts";
+import { JornaMark } from "@/components/JornaMark";
 import "@/app/entry.css";
 
 export type FlowIconName =
@@ -88,13 +89,11 @@ export function FlowIcon({ name, size = 20 }: { name: FlowIconName; size?: numbe
   );
 }
 
-/** The design's mark: a gold tile with the sparkle, then the wordmark. Links home. */
+/** The app icon's mark, then the wordmark. Links home. */
 export function JornaLogo() {
   return (
     <Link href="/" aria-label="Jorna home" className="flex items-center gap-2.5 text-(--e-burgundy)">
-      <span className="grid size-9 place-items-center rounded-[11px] bg-(--e-gold)">
-        <FlowIcon name="sparkles" size={19} />
-      </span>
+      <JornaMark className="h-9" />
       <strong className="e-ui text-[21px] tracking-[-0.04em]">Jorna</strong>
     </Link>
   );

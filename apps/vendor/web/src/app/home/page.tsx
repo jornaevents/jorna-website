@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 import { VendorHomeRedirect } from "@/components/VendorHomeRedirect";
+import { JornaMark } from "@/components/JornaMark";
 import { clientAppUrl } from "@/lib/clientApp";
 import { Arrow, LandingShell, Photo, wrap } from "@/components/landing/ui";
 
@@ -55,7 +56,8 @@ function Welcome() {
     <LandingShell>
       <header className="l-intro-rule border-b border-(--l-line)">
         <div className={`${wrap} flex h-[76px] items-center justify-between lg:h-[100px]`}>
-          <Link href="/" className="l-intro-mark l-serif inline-block text-[34px] font-semibold text-(--l-maroon) lg:text-[42px]">
+          <Link href="/" className="l-intro-mark l-serif inline-flex items-center gap-2.5 text-[34px] font-semibold text-(--l-maroon) lg:gap-3 lg:text-[42px]">
+            <JornaMark className="h-9 lg:h-11" />
             Jorna
           </Link>
           {/* Two sign-ins, one per side: clients sign in to the client app,
