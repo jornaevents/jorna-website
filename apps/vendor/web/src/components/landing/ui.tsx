@@ -9,6 +9,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cormorant, inter } from "@/lib/landingFonts";
+import { JornaMark } from "@/components/JornaMark";
 import "@/app/landing.css";
 
 export function LandingShell({ children }: { children: ReactNode }) {
@@ -259,7 +260,8 @@ export function LandingNav({
     <header className="border-b border-(--l-line)">
       <div className={`${wrap} flex min-h-[76px] items-center justify-between gap-6 py-3 lg:h-[100px]`}>
         <div className="flex items-center gap-5">
-          <Link href="/" className="l-serif text-[34px] font-semibold text-(--l-maroon) lg:text-[42px]">
+          <Link href="/" className="l-serif inline-flex items-center gap-2.5 text-[34px] font-semibold text-(--l-maroon) lg:text-[42px]">
+            <JornaMark className="h-8 lg:h-10" />
             Jorna
           </Link>
           <span className="hidden text-[10px] uppercase text-(--l-gold) sm:inline">{audience}</span>
@@ -301,7 +303,13 @@ export function LandingFooter({
       <div className={`${wrap} flex flex-col gap-12 pb-[30px] pt-[60px]`}>
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between">
           <div className="flex flex-col gap-4 lg:w-[440px]">
-            <p className="l-serif text-[48px] text-(--l-ground)">Jorna</p>
+            <p className="l-serif flex items-center gap-3 text-[48px] text-(--l-ground)">
+              {/* On a cream tile: the mark's purple and red strokes are drawn for a light ground. */}
+              <span className="grid size-14 place-items-center rounded-2xl bg-(--l-ground)">
+                <JornaMark className="h-9" />
+              </span>
+              Jorna
+            </p>
             <p className="max-w-[330px] text-[13px] leading-[1.8] text-(--l-blush)">
               Rooted in tradition. Connected by joy.
               <br />

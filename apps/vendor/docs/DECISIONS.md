@@ -1023,3 +1023,14 @@ From the Figma Make file "Jorna-Vendor" (`EntryFlow.tsx`):
 - Not built from the design: a business name (the backend has none yet —
   vendors still show by name), and the terms checkbox (no published terms to
   agree to; add it with them).
+
+## Decision: the app icon's mark sits beside "Jorna" on the landing and entry pages (2026-10-29)
+
+The diya-over-joined-hands mark from the app icon, without the icon's own
+wordmark, now leads the "Jorna" text in the Welcome / For clients / For
+vendors headers and the entry flow's top bar (replacing the design's gold
+sparkle placeholder). `components/JornaMark.tsx`, images
+`public/img/jorna-mark-96.png` and `-192.png`: cropped from the 1024px icon
+with its white ground turned to transparency. In the maroon landing footer it
+sits on a cream tile, since its purple and red strokes are drawn for a light
+ground.
