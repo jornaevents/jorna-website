@@ -21,6 +21,7 @@ import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
 import { dmSans, manrope } from "@/lib/vendorFonts";
 import { Avatar } from "@jorna/shared/components/ui";
+import { JornaMark } from "@/components/JornaMark";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { Icon, type IconName } from "@/components/vendor/Icon";
 import "@/app/vendor-shell.css";
@@ -109,11 +110,10 @@ function NavLink({
 function Brand() {
   return (
     <Link href="/overview" className="flex items-center gap-3 text-white">
-      <span
-        style={{ background: "var(--rail-gold)", color: "var(--rail-bg)" }}
-        className="grid size-[35px] place-items-center rounded-[11px]"
-      >
-        <Icon name="sparkles" size={20} />
+      {/* The app icon's mark on its own white tile, as on a phone: straight on
+          the maroon rail its purple half disappears. */}
+      <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-white">
+        <JornaMark className="h-[24px]" />
       </span>
       <span className="serif text-[1.05rem] font-bold tracking-[-0.02em]">Jorna</span>
     </Link>
