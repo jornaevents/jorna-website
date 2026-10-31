@@ -9,6 +9,7 @@
 // is designed to ship in clients). Overridable via env for a different project.
 
 import { createClient } from "@supabase/supabase-js";
+import { OAUTH_ROLE_KEY } from "@jorna/shared/lib/sessionKeys";
 
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://ddfjhfqrrgvzphwiinch.supabase.co";
@@ -42,10 +43,10 @@ export function googleRedirectTo(): string {
 // Where to land after a successful Google sign-in — stashed before the redirect
 // (the callback page can't receive our own query params alongside Supabase's).
 const OAUTH_NEXT_KEY = "jorna_oauth_next";
-// Host or Vendor, when the redirect began from the sign-up form. A one-tap Google
-// sign-up has no form to carry it, so it rides across the round trip here and
-// decides where the new account lands. Absent for a plain sign-in.
-const OAUTH_ROLE_KEY = "jorna_oauth_role";
+// OAUTH_ROLE_KEY (sessionKeys): "vendor" when the redirect began from the
+// vendor side. A one-tap Google sign-up has no form to carry it, so it rides
+// across the round trip there and decides where the new account lands; the
+// callback's loading screen reads it too (vendorishBoot). Absent otherwise.
 
 /** null: nothing asked for a page — the callback picks by role (defaultLanding). */
 export function rememberOAuthNext(next: string | null) {

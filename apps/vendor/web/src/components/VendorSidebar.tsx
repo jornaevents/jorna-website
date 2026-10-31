@@ -22,6 +22,7 @@ import { categoryLabel, type VendorDetail } from "@/lib/types";
 import { dmSans, manrope } from "@/lib/vendorFonts";
 import { Avatar } from "@jorna/shared/components/ui";
 import { JornaMark } from "@/components/JornaMark";
+import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { Icon, type IconName } from "@/components/vendor/Icon";
 import "@/app/vendor-shell.css";
@@ -107,16 +108,74 @@ function NavLink({
   );
 }
 
-function Brand() {
+/** `link` false for the loading shell, where there's nowhere to go yet. */
+function Brand({ link = true }: { link?: boolean }) {
+  const Root = link ? Link : "span";
   return (
-    <Link href="/overview" className="flex items-center gap-3 text-white">
+    <Root href="/overview" className="flex items-center gap-3 text-white">
       {/* The app icon's mark on its own white tile, as on a phone: straight on
           the maroon rail its purple half disappears. */}
       <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-white">
         <JornaMark className="h-[24px]" />
       </span>
       <span className="serif text-[1.05rem] font-bold tracking-[-0.02em]">Jorna</span>
-    </Link>
+    </Root>
+  );
+}
+
+/**
+ * The dashboard before it has anything to show — the rail with its real tabs
+ * (Overview picked out), and OverviewSkeleton beside it. For the moments
+ * before VendorSidebar can be drawn, such as the sign-in callback, where it
+ * fetches nothing: VendorSidebar's badge and profile requests would go out
+ * before there's a session to send. Nothing in it can be clicked.
+ */
+export function VendorShellSkeleton() {
+  return (
+    <div
+      inert
+      className={`vendor-shell ${dmSans.variable} ${manrope.variable} lg:grid lg:grid-cols-[236px_minmax(0,1fr)]`}
+    >
+      <aside
+        style={{ background: "var(--rail-bg)" }}
+        className="sticky top-0 hidden h-screen flex-col justify-between overflow-hidden px-[18px] pb-5 pt-[31px] lg:flex"
+      >
+        <div>
+          <div className="px-2.5 pb-9">
+            <Brand link={false} />
+          </div>
+          <p style={{ color: "var(--rail-ink-soft)" }} className="px-3 pb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.14em]">
+            Workspace
+          </p>
+          <div className="grid gap-1">
+            {ITEMS.map((item) => (
+              <NavLink key={item.href} item={item} active={item.href === "/overview"} badge={0} />
+            ))}
+          </div>
+        </div>
+        <div className="mt-8 grid gap-2">
+          <NavLink item={SETTINGS} active={false} badge={0} />
+          <div
+            style={{ background: "var(--rail-hover)", borderColor: "var(--rail-edge)" }}
+            className="flex items-center gap-2.5 rounded-xl border p-2.5"
+          >
+            <span style={{ background: "var(--rail-edge)" }} className="size-9 shrink-0 rounded-full" />
+            <span style={{ background: "var(--rail-edge)" }} className="h-3 w-24 rounded-full" />
+          </div>
+        </div>
+      </aside>
+      <div style={{ background: "var(--rail-bg)" }} className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 lg:hidden">
+        <Brand link={false} />
+        <span style={{ color: "var(--rail-ink)" }} className="grid size-11 place-items-center">
+          <Icon name="menu" size={22} />
+        </span>
+      </div>
+      <div className="min-w-0">
+        <div className="mx-auto w-full max-w-[var(--container-wide)] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
+          <OverviewSkeleton />
+        </div>
+      </div>
+    </div>
   );
 }
 

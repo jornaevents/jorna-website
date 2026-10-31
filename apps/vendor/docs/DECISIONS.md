@@ -1069,3 +1069,15 @@ known vendor on Welcome's addresses to `/app/overview/` before anything is
 drawn. Any other signed-in visitor has the page hidden until
 `VendorHomeRedirect` decides; it reappears for a dead token, and after a few
 seconds regardless (`html[data-leaving]` in the shared globals.css).
+
+## Decision: signing in shows the dashboard loading, not "Finishing sign-in…" (2026-10-31)
+
+Between Google and the dashboard, a vendor now sees the dashboard's own
+skeleton (`VendorShellSkeleton`: the rail with its real tabs, and
+`OverviewSkeleton`, which Overview also shows while it loads), so the
+handover looks like one page arriving. Whether to show it is decided in
+`<head>` by `lib/vendorishBoot` — the device's last signed-in role
+(`LAST_ROLE_KEY`, kept after sign-out because it only picks a loading
+screen) or a Google sign-in begun from the vendor side — and applied by CSS,
+so the pre-rendered page and React agree. Anyone else still sees "Finishing
+sign-in…". The skeleton fetches nothing: no session exists yet.

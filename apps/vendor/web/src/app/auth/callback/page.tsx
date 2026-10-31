@@ -13,6 +13,7 @@ import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
 import { defaultLanding, goTo } from "@/lib/role";
+import { VendorShellSkeleton } from "@/components/VendorSidebar";
 import { ApiError } from "@jorna/shared/lib/api";
 
 // Every step below is a network call, and none has a timeout of its own: one
@@ -119,7 +120,14 @@ export default function AuthCallbackPage() {
           </Link>
         </>
       ) : (
-        <p className="text-ink-soft">Finishing sign-in…</p>
+        <>
+          {/* A vendor (vendorishBoot) watches their dashboard load instead —
+              over the site's header, which the dashboard doesn't have. */}
+          <div className="fixed inset-0 z-[60] hidden overflow-hidden [html[data-vendorish]_&]:block">
+            <VendorShellSkeleton />
+          </div>
+          <p className="text-ink-soft">Finishing sign-in…</p>
+        </>
       )}
     </div>
   );
