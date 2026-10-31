@@ -9,6 +9,7 @@
 // too, so Overview can't disagree with them.
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -616,7 +617,7 @@ function OverviewInner() {
   }
 
   if (authLoading || !user || !snap) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <OverviewSkeleton />;
   }
 
   const now = new Date();
@@ -655,7 +656,7 @@ function OverviewInner() {
 
 export default function OverviewPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<OverviewSkeleton />}>
       <OverviewInner />
     </Suspense>
   );
