@@ -14,6 +14,8 @@ test.describe("authentication", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/app\/overview\/?$/);
+    // Remembered, so opening the site later skips Welcome (welcomeBoot).
+    expect(await page.evaluate(() => localStorage.getItem("jorna_role_hint"))).toBe("vendor");
 
     const loginCalls = api.requestsTo("POST", "/auth/login");
     expect(loginCalls).toHaveLength(1);

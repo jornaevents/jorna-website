@@ -211,3 +211,16 @@ input[type="date"]::-webkit-datetime-edit-year-field {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* The vendor app's welcomeBoot: a signed-in visitor on Welcome is about to be
+   sent on, so the page isn't drawn meanwhile — revealed after a few seconds
+   should the app never load to send them. */
+html[data-leaving] body {
+  visibility: hidden;
+  animation: jorna-reveal 0s 6s forwards;
+}
+@keyframes jorna-reveal {
+  to {
+    visibility: visible;
+  }
+}

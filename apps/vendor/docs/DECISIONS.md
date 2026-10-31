@@ -1058,3 +1058,14 @@ a bug and several extra stops; this removes them.
   it (`@jorna/shared/lib/paths` `withTrailingSlash`).
 - **"Get started" on For clients / For vendors goes straight to that side's
   sign-up**; the picker stays on Welcome, which doesn't know the side yet.
+
+## Decision: a signed-in vendor never sees Welcome (2026-10-31)
+
+Opening the site signed in used to paint the pre-rendered Welcome page,
+then "Loading…", then the dashboard. Now the role check leaves a hint in
+localStorage (`ROLE_HINT_KEY`, cleared with the session and on every new
+sign-in), and `lib/welcomeBoot`, in the root layout's `<head>`, sends a
+known vendor on Welcome's addresses to `/app/overview/` before anything is
+drawn. Any other signed-in visitor has the page hidden until
+`VendorHomeRedirect` decides; it reappears for a dead token, and after a few
+seconds regardless (`html[data-leaving]` in the shared globals.css).

@@ -51,6 +51,35 @@ test.describe("welcome (site root)", () => {
     await expect(page.getByText("Every celebration starts with a connection.")).not.toBeVisible();
   });
 
+  // Known to be a vendor (the role check's hint): sent on before anything is
+  // drawn, so Welcome never shows, not even for a moment.
+  test("a vendor this browser knows goes to the dashboard without Welcome showing first", async ({ page, api }) => {
+    await loginAs(page, api);
+    await page.addInitScript(() => localStorage.setItem("jorna_role_hint", "vendor"));
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get("/vendors/search", mockVendorSearchResponse());
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, { items: [], total: 0, limit: 100, offset: 0 });
+    api.get("/leads", { items: [], total: 0 });
+    let welcomeRendered = false;
+    page.on("response", (r) => {
+      if (/\/app\/(home\/)?$/.test(new URL(r.url()).pathname) && r.request().resourceType() === "document") welcomeRendered = true;
+    });
+    await page.addInitScript(() => {
+      new MutationObserver(() => {
+        if (document.body?.innerText.includes("Every celebration starts with a connection.") && getComputedStyle(document.body).visibility !== "hidden") {
+          (window as unknown as { welcomeSeen: boolean }).welcomeSeen = true;
+        }
+      }).observe(document, { childList: true, subtree: true });
+    });
+
+    await page.goto("");
+
+    await expect(page).toHaveURL(/\/app\/overview\/?$/);
+    expect(welcomeRendered).toBe(true); // the root was requested…
+    expect(await page.evaluate(() => (window as unknown as { welcomeSeen?: boolean }).welcomeSeen ?? false)).toBe(false); // …and never shown
+  });
+
   test("a signed-in client goes to their dashboard, as a vendor goes to theirs", async ({ page, api }) => {
     await page.route("https://jornaevents.com/client/**", (route) =>
       route.fulfill({ status: 200, contentType: "text/html", body: "client app" }),

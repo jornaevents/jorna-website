@@ -9,6 +9,7 @@
 
 import { getMyVendor, listBundles, listEvents } from "./jorna";
 import { clientAppUrl } from "./clientApp";
+import { ROLE_HINT_KEY } from "@jorna/shared/lib/sessionKeys";
 
 const TTL_MS = 60_000;
 let cache: { at: number; isVendor: boolean } | null = null;
@@ -24,6 +25,11 @@ function vendorStatus(): Promise<boolean | null> {
     .then(
       (v) => {
         cache = { at: Date.now(), isVendor: v != null };
+        try {
+          localStorage.setItem(ROLE_HINT_KEY, v != null ? "vendor" : "client");
+        } catch {
+          /* storage disabled — Welcome just takes the slower way round */
+        }
         return v != null;
       },
       () => null,

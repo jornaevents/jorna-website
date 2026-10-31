@@ -7,6 +7,7 @@ import { PushRuntime } from "@/components/PushRuntime";
 import { SentryRuntime } from "@jorna/shared/components/SentryRuntime";
 import { ChromeGate } from "@/components/ChromeGate";
 import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
+import { WELCOME_BOOT_SCRIPT } from "@/lib/welcomeBoot";
 
 export const metadata: Metadata = {
   title: "Jorna — Plan your celebration",
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: WELCOME_BOOT_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">
         <SentryRuntime />

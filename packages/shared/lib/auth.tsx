@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 import { apiFetch, configureTokens, type TokenPair } from "./api";
+import { ACCESS_KEY, REFRESH_KEY, ROLE_HINT_KEY } from "./sessionKeys";
 
 export interface User {
   user_id: string;
@@ -27,9 +28,6 @@ export interface User {
   location?: string | null;
   pfp_url?: string | null;
 }
-
-const ACCESS_KEY = "jorna_access";
-const REFRESH_KEY = "jorna_refresh";
 
 /** A token as every tab currently sees it. Storage is the one copy all tabs
  *  share; the fallback is only for when there's no storage to read (server
@@ -57,6 +55,7 @@ function persistTokens(pair: TokenPair | null) {
   } else {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(ROLE_HINT_KEY);
   }
 }
 
@@ -183,6 +182,12 @@ export function AuthProvider({
   }, [clear]);
 
   const afterTokens = useCallback(async (pair: TokenPair) => {
+    // A new session may be someone else's: what the last one was doesn't carry over.
+    try {
+      localStorage.removeItem(ROLE_HINT_KEY);
+    } catch {
+      /* storage disabled — nothing was stored either */
+    }
     persist(pair);
     const me = await apiFetch<User>("/me");
     setUser(me);
