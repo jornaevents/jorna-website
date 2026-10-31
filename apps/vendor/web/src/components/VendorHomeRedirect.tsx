@@ -43,6 +43,12 @@ export function VendorHomeRedirect({ children }: { children: React.ReactNode }) 
 
   // Signed in either way means leaving, so the page is held until then.
   const deciding = user ? true : loading && storedSession;
+
+  // welcomeBoot hid the page for a stored token; a dead one means staying.
+  useEffect(() => {
+    if (!deciding) delete document.documentElement.dataset.leaving;
+  }, [deciding]);
+
   if (deciding) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   return <>{children}</>;
 }
