@@ -9,6 +9,7 @@ import { changePassword, updateMe, uploadAvatar } from "@/lib/jorna";
 import { checkImageFiles, describeRejections } from "@jorna/shared/lib/uploads";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
+import { signInUrl } from "@/lib/vendorSite";
 
 export default function AccountPage() {
   const { user, loading: authLoading, setUser, logout } = useAuth();
@@ -33,7 +34,7 @@ export default function AccountPage() {
   const [pwErr, setPwErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/account");
+    if (!authLoading && !user) window.location.replace(signInUrl("/account"));
   }, [authLoading, user, router]);
 
   // Refill the form whenever the signed-in user changes (sign-in, or the
@@ -105,7 +106,7 @@ export default function AccountPage() {
       // The backend invalidates the current session on a password change, so
       // sign out cleanly and send them to sign in with the new password.
       logout();
-      router.replace("/login?next=/account");
+      window.location.replace(signInUrl("/account"));
     } catch (err) {
       setPwErr(err instanceof ApiError ? err.message : "Couldn't change your password.");
       setChangingPw(false);

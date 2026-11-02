@@ -45,6 +45,7 @@ import {
 import { Button, Card, Chip, Field, LinkButton } from "@jorna/shared/components/ui";
 import { PlanProgress } from "@/components/PlanProgress";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
+import { signInUrl } from "@/lib/vendorSite";
 
 function money(n?: number | null) {
   return n == null ? null : `$${Math.round(n).toLocaleString()}`;
@@ -430,7 +431,7 @@ function DashboardInner() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/bundles");
+    if (!authLoading && !user) window.location.replace(signInUrl("/bundles"));
   }, [authLoading, user, router]);
 
   // A promise chain, not async/await: state is only set once the requests

@@ -79,9 +79,22 @@ test.describe("authentication", () => {
     await page.route("https://jornaevents.com/**", (route) =>
       route.fulfill({ status: 200, contentType: "text/html", body: "shared sign-in" }),
     );
+    const viaOwnLogin: string[] = [];
+    page.on("request", (r) => {
+      if (r.isNavigationRequest() && new URL(r.url()).pathname.startsWith("/client/login")) viaOwnLogin.push(r.url());
+    });
     await page.goto("bundles/");
 
-    // Via this app's sign-in, which hands off to the shared one.
+    // Straight to the shared sign-in, not by way of this app's /login.
     await expect(page).toHaveURL("https://jornaevents.com/app/login/?next=%2Fclient%2Fbundles%2F");
+    expect(viaOwnLogin).toEqual([]);
+  });
+
+  test("Sign in links go straight to the shared sign-in page", async ({ page }) => {
+    await page.goto("forgot-password/");
+
+    const shared = /^https:\/\/jornaevents\.com\/app\/login\/$/;
+    await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toHaveAttribute("href", shared);
+    await expect(page.getByRole("main").getByRole("link", { name: /sign in/i }).first()).toHaveAttribute("href", shared);
   });
 });
