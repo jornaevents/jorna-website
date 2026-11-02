@@ -39,11 +39,16 @@ test.describe("authentication", () => {
     });
   });
 
-  test("sign-up here is for hosts, and points vendors to jornaevents.com", async ({ page }) => {
+  // Drawn as the shared sign-in page is (the entry design): its own top bar
+  // with the logo instead of the site header.
+  test("sign-up here is for hosts, looks like the shared sign-in, and points vendors to theirs", async ({ page }) => {
     await page.goto("login/?mode=register");
 
+    await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Jorna home" })).toHaveAttribute("href", "https://jornaevents.com/app/");
+    await expect(page.getByRole("navigation", { name: "About Jorna" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Vendor/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Sign up on jornaevents.com" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Sign up as a vendor" })).toHaveAttribute(
       "href",
       "https://jornaevents.com/app/login/?mode=register&role=vendor",
     );
