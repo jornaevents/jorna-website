@@ -97,6 +97,7 @@ import {
 import { PaymentSchedule } from "@/components/PaymentSchedule";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import { Avatar, Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -1496,7 +1497,7 @@ function BundleInner() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`/login?next=/bundle${bundleId ? `?id=${bundleId}` : ""}`);
+      window.location.replace(signInUrl(`/bundle${bundleId ? `?id=${bundleId}` : ""}`));
     }
   }, [authLoading, user, router, bundleId]);
 

@@ -25,6 +25,7 @@ import {
   parseAddress,
   type Address,
 } from "@jorna/shared/lib/address";
+import { signInUrl } from "@/lib/vendorSite";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -98,7 +99,7 @@ function BookInner() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`/login?next=/book${serviceId ? `?service=${serviceId}` : ""}`);
+      window.location.replace(signInUrl(`/book${serviceId ? `?service=${serviceId}` : ""}`));
     }
   }, [authLoading, user, router, serviceId]);
 

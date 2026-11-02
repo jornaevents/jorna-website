@@ -7,13 +7,13 @@
 // everyone else lands where they were headed.
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
 import { clientLanding } from "@/lib/landing";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
 import { ApiError } from "@jorna/shared/lib/api";
+import { signInUrl } from "@/lib/vendorSite";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -83,12 +83,12 @@ export default function AuthCallbackPage() {
         <>
           <h1 className="serif text-2xl text-maroon dark:text-gold">Couldn&apos;t sign in</h1>
           <p className="mt-3 text-ink-soft">{error}</p>
-          <Link
-            href="/login"
+          <a
+            href={signInUrl()}
             className="mt-5 inline-block text-sm font-semibold text-gold hover:underline"
           >
             Back to sign in
-          </Link>
+          </a>
         </>
       ) : (
         <p className="text-ink-soft">Finishing sign-in…</p>

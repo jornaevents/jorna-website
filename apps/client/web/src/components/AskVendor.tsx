@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { askVendor } from "@/lib/jorna";
 import { Button } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 export function AskVendor({
   vendorId,
@@ -60,7 +61,7 @@ export function AskVendor({
       <Button
         variant="ghost"
         className={className}
-        onClick={() => router.push("/login?next=/marketplace")}
+        onClick={() => window.location.assign(signInUrl("/marketplace"))}
       >
         Ask a question
       </Button>

@@ -8,6 +8,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { listBlockedUsers, unblockUser } from "@/lib/jorna";
 import type { BlockedUser } from "@/lib/types";
 import { Button, Card } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 export default function BlockedPage() {
   const { user, loading: authLoading } = useAuth();
@@ -18,7 +19,7 @@ export default function BlockedPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/blocked");
+    if (!authLoading && !user) window.location.replace(signInUrl("/blocked"));
   }, [authLoading, user, router]);
 
   useEffect(() => {

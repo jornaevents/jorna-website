@@ -39,6 +39,7 @@ import {
   type Guest,
   type GuestList,
 } from "@/lib/types";
+import { signInUrl } from "@/lib/vendorSite";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso || iso === "TBD") return null;
@@ -821,9 +822,9 @@ function GuestsInner() {
       <div className="mx-auto w-[min(520px,100%-2rem)] py-20 text-center">
         <h1 className="serif text-2xl text-maroon dark:text-gold">Sign in first</h1>
         <p className="mt-3 text-ink-soft">Your guest list lives with your plan.</p>
-        <Link href="/login" className="mt-5 inline-block font-semibold text-gold hover:underline">
+        <a href={signInUrl()} className="mt-5 inline-block font-semibold text-gold hover:underline">
           Sign in
-        </Link>
+        </a>
       </div>
     );
   }
