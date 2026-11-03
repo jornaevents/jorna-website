@@ -154,7 +154,7 @@ tokens.
 the Figma "Wedding Vendor Dashboard" look from `web/src/app/vendor-shell.css`,
 which redefines the same `--color-*` tokens under `.vendor-shell` (so existing
 pages restyle without edits) and maps `--font-sans`/`--font-serif` to DM Sans
-and Manrope (`web/src/lib/vendorFonts.ts`, self-hosted by `next/font`). Scoped
+and Manrope (`@jorna/shared/lib/fonts`, committed font files via `next/font/local`). Scoped
 there, not in `@jorna/shared/styles/globals.css`, because the client app and
 this app's marketing and signing pages share that file. The shell's own
 pieces (page header, stat tile, status pill, filter tabs, list table, drawer)
@@ -162,7 +162,7 @@ are `web/src/components/vendor/ui.tsx`.
 
 **Landing pages palette (2026-10):** Home (the Welcome screen), For clients
 and For vendors take the Figma landing design from `web/src/app/landing.css`:
-`--l-*` tokens and Cormorant Garamond / Inter (`web/src/lib/landingFonts.ts`)
+`--l-*` tokens and Cormorant Garamond / Inter (`@jorna/shared/lib/landingFonts`)
 scoped under `.landing`, light in every theme. Those pages draw their own
 header and footer (`web/src/components/landing/ui.tsx`), so `ChromeGate`
 hides the shared ones there.

@@ -28,7 +28,7 @@ always "none, verify manually" until a test runner is added.
   `web/src/app/home/`, `public/_redirects`. Home is the Welcome screen;
   it and `for-clients/`, `for-vendors/` are the Figma landing pages
   (2026-10, see `docs/DECISIONS.md`), sharing `components/landing/ui.tsx`,
-  `app/landing.css` and `lib/landingFonts.ts`, and drawing their own header
+  `app/landing.css` and `@jorna/shared/lib/landingFonts`, and drawing their own header
   and footer (`ChromeGate`'s `isLandingPath`). `how-it-works/` still uses
   `components/marketing/` (`Eyebrow.tsx`, `icons.tsx`) and the shared chrome.
 - **Entry points:** `RootLayout` wraps every page with `AuthProvider`,

@@ -2,7 +2,7 @@
   The entry flow's look — Get started, vendor sign-in/sign-up, vendor
   onboarding — from the Figma Make "Jorna-Vendor" file (EntryFlow.css,
   2026-10): ivory ground, burgundy and gold, Georgia display headings over
-  DM Sans / Manrope (the vendor dashboard's faces, lib/vendorFonts.ts).
+  DM Sans / Manrope (the vendor dashboard's faces, @jorna/shared/lib/fonts).
 
   Scoped to .entry (EntryShell's root), like vendor-shell.css and
   landing.css. The prototype's type is drawn at preview scale (8–11px); these

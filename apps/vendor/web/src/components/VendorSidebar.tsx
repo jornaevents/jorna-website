@@ -19,7 +19,7 @@ import { getMyVendor, getNewBookingsCount, getPipeline, getUnreadCount, listMySe
 import { BOOKINGS_SEEN_EVENT } from "@/lib/newBookings";
 import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
-import { dmSans, manrope } from "@/lib/vendorFonts";
+import { dmSans, manrope } from "@jorna/shared/lib/fonts";
 import { Avatar } from "@jorna/shared/components/ui";
 import { JornaMark } from "@/components/JornaMark";
 import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
