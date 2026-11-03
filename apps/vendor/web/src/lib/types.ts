@@ -138,7 +138,7 @@ export interface BundleRequest {
   preferences?: string[];
 }
 
-// The 10 chatbot bundle categories (slot keys) with display labels.
+// The chatbot bundle slots (backend CHATBOT_SLOTS) with display labels.
 export const CATEGORY_LABELS: Record<string, string> = {
   venue: "Venue",
   catering: "Catering",
@@ -149,7 +149,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
   floral_decor: "Floral & Decor",
   makeup: "Makeup & Hair",
   mehndi: "Mehndi",
-  cultural_services: "Cultural Services",
+  // The old Cultural Services slot searches the Entertainment group (backend
+  // DECISIONS #35); Bar & bartending is the slot added with the taxonomy.
+  cultural_services: "Entertainment",
+  bar_beverage: "Bar & bartending",
 };
 
 // DB-level vendor categories (what /vendors/search rows carry) → display labels.

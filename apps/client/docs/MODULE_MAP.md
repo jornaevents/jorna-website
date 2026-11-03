@@ -150,7 +150,7 @@ always "none, verify manually" until a test runner is added.
 ## Marketplace / browse / search
 
 - **Code:** `web/src/app/browse/`, `marketplace/`, `service/`,
-  `vendor-profile/`, `web/src/lib/categoryTiles.tsx`, `celebrations.ts`.
+  `vendor-profile/`, `celebrations.ts`.
 - **Depends on:** `lib/jorna.ts` (`searchVendors` and related).
 
 ## Account & profile
