@@ -116,6 +116,52 @@ export function mockBundleBooking(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** GET /taxonomy (backend DECISIONS #35), trimmed to what the specs pick. */
+export function mockServiceTaxonomy() {
+  const svc = (key: string, label: string, synonyms: string[], popular: number | null = null) => ({
+    key,
+    label,
+    synonyms,
+    popular,
+    bundle: false,
+    attributes: [],
+  });
+  return {
+    version: "e2e",
+    attributes: {
+      cuisine: {
+        key: "cuisine",
+        label: "Cuisine",
+        type: "multi",
+        options: [
+          { key: "punjabi", label: "Punjabi" },
+          { key: "gujarati", label: "Gujarati" },
+          { key: "south_indian", label: "South Indian" },
+        ],
+      },
+    },
+    groups: [
+      { key: "photo_video", label: "Photo & Video", bundle: false, services: [svc("photography", "Photographer", ["photos", "candid"], 4)] },
+      {
+        key: "food_drink",
+        label: "Food & Drink",
+        bundle: false,
+        services: [{ ...svc("catering", "Caterer", ["catering", "food"], 2), attributes: ["cuisine"] }],
+      },
+      { key: "entertainment", label: "Entertainment", bundle: true, services: [svc("dj", "DJ", ["disc jockey"], 5)] },
+      {
+        key: "beauty",
+        label: "Beauty",
+        bundle: false,
+        services: [
+          svc("bridal_makeup", "Makeup artist", ["makeup", "MUA"], 10),
+          svc("mehndi_artist", "Mehndi artist", ["mehndi", "mehendi", "henna"], 6),
+        ],
+      },
+    ],
+  };
+}
+
 export function mockTaxonomyCategories() {
   return [
     {
@@ -135,6 +181,8 @@ export function mockVendorDetail(overrides: Record<string, unknown> = {}) {
     category: "photography",
     subcategory: null,
     specializations: [{ category: "photography", subcategory: null }],
+    specialties: ["photography"],
+    service_picks_needed: [],
     rating: 4.8,
     num_events: 40,
     travel_radius_miles: 50,

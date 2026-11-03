@@ -8,6 +8,7 @@
 // be one long form whose single Save at the bottom covered some sections but
 // not others, so it was easy to edit the bio and leave.
 
+import { taxonomyLabel, useTaxonomy, type Taxonomy } from "@jorna/shared/lib/taxonomy";
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -23,7 +24,6 @@ import {
 import {
   categoryLabel,
   priceUnitLabel,
-  vendorSpecializations,
   type Review,
   type ServiceItem,
   type TaxonomyCategory,
@@ -69,6 +69,7 @@ export default function VendorProfilePage() {
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [categories, setCategories] = useState<TaxonomyCategory[]>([]);
+  const taxonomy = useTaxonomy();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [hasHours, setHasHours] = useState<boolean | null>(null);
@@ -150,7 +151,7 @@ export default function VendorProfilePage() {
           <div className="min-w-0">
             <strong className="serif block truncate text-xl text-ink">{displayName || "Your business"}</strong>
             <p className="mt-0.5 text-sm text-ink-faint">
-              {vendor.category ? categoryLabel(vendor.subcategory || vendor.category) : "Add your specialty"}
+              {primaryServiceLabel(vendor, taxonomy) ?? "Add your specialty"}
             </p>
             {meta.length ? (
               <p aria-label="Profile details" className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-ink-faint">
@@ -295,7 +296,7 @@ export default function VendorProfilePage() {
 
         {previewing ? (
           <aside aria-label="Client preview" className="hidden xl:sticky xl:top-6 xl:block">
-            <ClientPreview vendor={vendor} categories={categories} services={services} />
+            <ClientPreview vendor={vendor} taxonomy={taxonomy} services={services} />
           </aside>
         ) : null}
       </div>
@@ -303,7 +304,6 @@ export default function VendorProfilePage() {
       {editing ? (
         <ProfileEditModal
           vendor={vendor}
-          categories={categories}
           onClose={() => setEditing(false)}
           onSaved={(updated) => {
             setVendor(updated);
@@ -336,23 +336,26 @@ function profileMeta(v: VendorDetail): Meta[] {
   return items.filter((m): m is Meta => m !== null);
 }
 
+/** The first service the vendor sells, by name — or, for a vendor saved
+ *  before backend 0080, the old category. */
+function primaryServiceLabel(vendor: VendorDetail, taxonomy: Taxonomy | null): string | null {
+  if (vendor.specialties?.length) return taxonomyLabel(taxonomy, vendor.specialties[0]);
+  return vendor.category ? categoryLabel(vendor.subcategory || vendor.category) : null;
+}
+
 /** The listing as a client sees it. The Edit profile popup has its own
  *  preview of the details as they're typed; this one adds the packages. */
 function ClientPreview({
   vendor,
-  categories,
+  taxonomy,
   services,
 }: {
   vendor: VendorDetail;
-  categories: TaxonomyCategory[];
+  taxonomy: Taxonomy | null;
   services: ServiceItem[];
 }) {
   const name = vendorName(vendor, "Your business");
-  const primary = vendorSpecializations(vendor)[0];
-  const category = primary
-    ? (categories.find((c) => c.value === primary.category)?.subcategories?.find((s) => s.value === primary.subcategory)
-        ?.label ?? categoryLabel(primary.subcategory || primary.category))
-    : null;
+  const category = primaryServiceLabel(vendor, taxonomy);
   const listed = services
     .filter((s) => s.status !== "hidden" && s.status !== "archived")
     .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9));

@@ -18,20 +18,16 @@ import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { Avatar } from "@jorna/shared/components/ui";
 import { updateMe, updateMyVendor, uploadAvatar } from "@/lib/jorna";
-import {
-  categoryLabel,
-  vendorSpecializations,
-  type TaxonomyCategory,
-  type VendorDetail,
-  type VendorSpecialization,
-} from "@/lib/types";
-import { VendorSpecializationFields } from "@/components/VendorProfileFields";
+import type { VendorDetail } from "@/lib/types";
+import { taxonomyLabel, useTaxonomy } from "@jorna/shared/lib/taxonomy";
+import { VendorServicesFields } from "@/components/VendorProfileFields";
 import { Icon } from "@/components/vendor/Icon";
 import { primaryClass } from "@/components/vendor/ui";
 
 interface Draft {
   businessName: string;
-  specializations: VendorSpecialization[];
+  /** Service keys (backend DECISIONS #35). */
+  specialties: string[];
   location: string;
   outOfState: boolean;
   years: string;
@@ -42,7 +38,7 @@ interface Draft {
 function draftOf(v: VendorDetail): Draft {
   return {
     businessName: v.business_name ?? "",
-    specializations: vendorSpecializations(v),
+    specialties: v.specialties ?? [],
     location: v.location ?? "",
     outOfState: Boolean(v.open_to_long_distance),
     years: v.years_experience?.toString() ?? "",
@@ -60,12 +56,10 @@ const labelClass = "mb-1.5 block text-sm font-medium text-ink-soft";
 
 export function ProfileEditModal({
   vendor,
-  categories,
   onClose,
   onSaved,
 }: {
   vendor: VendorDetail;
-  categories: TaxonomyCategory[];
   onClose: () => void;
   onSaved: (vendor: VendorDetail) => void;
 }) {
@@ -84,11 +78,8 @@ export function ProfileEditModal({
   // The preview follows what's typed, falling back to their own name.
   const name = vendorName({ ...vendor, business_name: draft.businessName }, "Your business");
   const photoSrc = photo?.url ?? vendor.pfp_url;
-  const primary = draft.specializations[0];
-  const specialty = primary
-    ? (categories.find((c) => c.value === primary.category)?.subcategories?.find((s) => s.value === primary.subcategory)
-        ?.label ?? categoryLabel(primary.subcategory || primary.category))
-    : null;
+  const taxonomy = useTaxonomy();
+  const specialty = draft.specialties.length ? taxonomyLabel(taxonomy, draft.specialties[0]) : null;
 
   function pickPhoto(files: FileList | null) {
     const file = files?.[0];
@@ -105,8 +96,8 @@ export function ProfileEditModal({
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (yearsError) return;
-    if (draft.specializations.length === 0) {
-      setError("Pick at least one specialty first.");
+    if (draft.specialties.length === 0) {
+      setError("Pick at least one service first.");
       return;
     }
     setBusy(true);
@@ -121,13 +112,11 @@ export function ProfileEditModal({
       if (draft.location.trim() !== (vendor.location ?? "")) {
         setUser(await updateMe({ location: draft.location.trim() }));
       }
-      const [first] = draft.specializations;
       const years = draft.years.trim();
+      // The backend derives category/subcategory and the old pairs from these.
       const updated = await updateMyVendor({
         bio: draft.bio,
-        category: first.category,
-        subcategory: first.subcategory ?? null,
-        specializations: draft.specializations,
+        specialties: draft.specialties,
         open_to_long_distance: draft.outOfState,
         years_experience: years ? Number(years) : null,
         instagram_username: draft.instagram.trim().replace(/^@/, "") || null,
@@ -217,12 +206,13 @@ export function ProfileEditModal({
               </label>
 
               <div className="grid gap-4 sm:col-span-2">
-                <VendorSpecializationFields
-                  categories={categories}
-                  specializations={draft.specializations}
-                  onChange={(specializations) => {
-                    patch({ specializations });
-                    if (specializations.length) setError(null);
+                <VendorServicesFields
+                  taxonomy={taxonomy}
+                  specialties={draft.specialties}
+                  picksNeeded={vendor.service_picks_needed}
+                  onChange={(specialties) => {
+                    patch({ specialties });
+                    if (specialties.length) setError(null);
                   }}
                 />
               </div>
