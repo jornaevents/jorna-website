@@ -20,10 +20,10 @@ test.describe("landing pages (For clients / For vendors)", () => {
       "href",
       /^https:\/\/[^/]+\/client\/marketplace\/$/,
     );
-    // A category chip opens the marketplace already filtered.
+    // A service chip opens the marketplace already filtered, by taxonomy key.
     await expect(page.getByRole("link", { name: "Catering", exact: true })).toHaveAttribute(
       "href",
-      /\/client\/marketplace\/\?category=catering$/,
+      /\/client\/marketplace\/\?service=catering$/,
     );
 
     await header.getByRole("link", { name: "For vendors" }).click();

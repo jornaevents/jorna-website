@@ -32,9 +32,9 @@ const CATEGORIES = [
   { label: "Venues", category: "venue" },
   { label: "Catering", category: "catering" },
   { label: "Photography", category: "photography" },
-  { label: "Décor & florals", category: "floral_decor" },
-  { label: "Music & entertainment", category: "dj" },
-  { label: "Beauty", category: "makeup" },
+  { label: "Décor & florals", category: "decor_florals" },
+  { label: "Music & entertainment", category: "music,entertainment" },
+  { label: "Beauty", category: "beauty" },
 ];
 
 const VENDORS = [
@@ -90,8 +90,10 @@ const FAQ = [
   },
 ];
 
-const marketplace = (category?: string | null) =>
-  clientAppUrl(category ? `/marketplace?category=${category}` : "/marketplace");
+// Service or group keys from the taxonomy (backend DECISIONS #35), which the
+// marketplace hands to search as-is.
+const marketplace = (service?: string | null) =>
+  clientAppUrl(service ? `/marketplace?service=${service}` : "/marketplace");
 
 export default function ForClientsPage() {
   const { user } = useAuth();

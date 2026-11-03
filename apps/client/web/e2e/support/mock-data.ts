@@ -214,3 +214,24 @@ export function mockBundleDetail(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+/** GET /taxonomy (backend DECISIONS #35), trimmed to what the specs pick. */
+export function mockServiceTaxonomy() {
+  const svc = (key: string, label: string, popular: number | null = null) => ({
+    key,
+    label,
+    synonyms: [],
+    popular,
+    bundle: false,
+    attributes: [],
+  });
+  return {
+    version: "e2e",
+    attributes: {},
+    groups: [
+      { key: "photo_video", label: "Photo & Video", bundle: false, services: [svc("photography", "Photographer", 4), svc("videography", "Videographer")] },
+      { key: "music", label: "Music", bundle: false, services: [svc("dhol", "Dhol player", 7), svc("tabla", "Tabla player")] },
+      { key: "beauty", label: "Beauty", bundle: false, services: [svc("bridal_makeup", "Makeup artist", 10), svc("mehndi_artist", "Mehndi artist", 6)] },
+    ],
+  };
+}

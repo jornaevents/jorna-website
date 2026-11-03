@@ -1,5 +1,6 @@
 import { test, expect } from "./support/fixtures";
-import { mockVendorSearchItem, mockVendorSearchResponse } from "./support/mock-data";
+import { mockServiceTaxonomy, mockVendorSearchItem, mockVendorSearchResponse } from "./support/mock-data";
+import type { HandlerArgs } from "./support/api-mock";
 
 test.describe("marketplace search", () => {
   test("shows results returned by /vendors/search", async ({ page, api }) => {
@@ -64,5 +65,45 @@ test.describe("marketplace search", () => {
     await expect(page.getByText("Live Dhol")).toBeVisible();
     await expect(page.getByText("Direct", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Protected", { exact: true })).toHaveCount(0);
+  });
+
+  test("chips are the taxonomy's groups, then the group's services, and search by service", async ({ page, api }) => {
+    api.get("/taxonomy", mockServiceTaxonomy());
+    const asked: (string | null)[] = [];
+    api.get("/vendors/search", ({ url }: HandlerArgs) => {
+      asked.push(url.searchParams.get("service"));
+      return mockVendorSearchResponse();
+    });
+
+    await page.goto("marketplace/");
+    await page.getByRole("button", { name: "Beauty", exact: true }).click();
+    const services = page.getByRole("group", { name: "Beauty services" });
+    await expect(services.getByRole("button", { name: "All beauty" })).toHaveAttribute("aria-pressed", "true");
+    await services.getByRole("button", { name: "Mehndi artist" }).click();
+
+    // Debounced: quick picks coalesce into one search, for the last one.
+    await expect.poll(() => asked.at(-1)).toBe("mehndi_artist");
+    // Still the group's chip: the service is one of its own.
+    await expect(page.getByRole("button", { name: "Beauty", exact: true })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("?service= presets the filter; an old ?category= link still filters", async ({ page, api }) => {
+    api.get("/taxonomy", mockServiceTaxonomy());
+    const asked: string[] = [];
+    api.get("/vendors/search", ({ url }: HandlerArgs) => {
+      asked.push(url.search);
+      return mockVendorSearchResponse();
+    });
+
+    await page.goto("marketplace/?service=dhol");
+    await expect(page.getByRole("group", { name: "Music services" }).getByRole("button", { name: "Dhol player" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect.poll(() => asked.at(-1)).toContain("service=dhol");
+
+    await page.goto("marketplace/?category=music_entertainment&subcategory=dhol");
+    await expect.poll(() => asked.at(-1)).toContain("subcategory=dhol");
+    expect(asked.at(-1)).not.toContain("service=");
   });
 });

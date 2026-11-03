@@ -100,26 +100,4 @@ test.describe("plan and marketplace", () => {
     await page.goto("browse/");
     await expect(page).toHaveURL(/\/marketplace\/?$/);
   });
-
-  test("the marketplace's chips are the vendor categories, with their types beneath", async ({ page, api }) => {
-    api.get("/vendors/categories", {
-      categories: [
-        { value: "photography", label: "Photography", subcategories: [] },
-        { value: "beauty", label: "Beauty", subcategories: [
-          { value: "bridal_makeup", label: "Bridal Makeup" },
-          { value: "mehndi_artist", label: "Mehndi Artist" },
-        ] },
-      ],
-    });
-    api.get("/vendors/search", { items: [], total: 0, limit: 24, offset: 0 });
-
-    await page.goto("marketplace/");
-    await expect(page.getByRole("button", { name: "Photography" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Photographer" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Beauty" }).click();
-    const types = page.getByRole("group", { name: "Beauty types" });
-    const searched = page.waitForRequest((r) => /\/vendors\/search\?.*subcategory=mehndi_artist/.test(r.url()));
-    await types.getByRole("button", { name: "Mehndi Artist" }).click();
-    expect((await searched).url()).toMatch(/category=beauty/);
-  });
 });
