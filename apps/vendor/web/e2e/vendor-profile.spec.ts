@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
+import { mockServiceTaxonomy, mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
 import type { Page } from "@playwright/test";
 import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
@@ -33,6 +33,7 @@ async function openProfile(
   const v = mockVendorDetail({ bio: "", instagram_username: null, ...vendor });
   api.get("/vendors/me", v);
   api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+  api.get("/taxonomy", mockServiceTaxonomy());
   api.get("/reviews/vendor/vendor-1", { items: [], total: 0 });
   api.get("/vendors/me/availability", hours);
   let items = services;
@@ -204,15 +205,19 @@ test("a vague old category asks which service, and the answer saves as specialti
     ...route.request().postDataJSON(),
     service_picks_needed: [],
   }));
-  const about = page.getByRole("region", { name: "About your business" });
-  const prompt = about.getByText("Which of these do you offer?");
+  await page.getByRole("button", { name: "Edit profile" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit profile" });
+  const prompt = dialog.getByText("Which of these do you offer?");
   await expect(prompt).toBeVisible();
-  await about.getByRole("button", { name: "Mehndi artist", exact: true }).first().click();
+  await dialog.getByRole("button", { name: "Mehndi artist", exact: true }).first().click();
   await expect(prompt).toHaveCount(0);
-  await about.getByRole("button", { name: "Save about" }).click();
-  await expect(about.getByText("Saved", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Save profile" }).click();
+
+  await expect(dialog).toHaveCount(0);
   const [call] = api.requestsTo("PATCH", "/vendors/me");
   expect(call.body).toMatchObject({ specialties: ["photography", "mehndi_artist"] });
+  // The backend derives the old category fields from the service keys.
+  expect(call.body).not.toHaveProperty("category");
 });
 
 test("a package names its service from the vendor's own and fills that service's details", async ({ page, api }) => {

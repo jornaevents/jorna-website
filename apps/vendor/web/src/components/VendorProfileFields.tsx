@@ -3,7 +3,6 @@
 // The vendor-profile form fields, shared between /vendor-onboarding, the Edit
 // profile popup and Settings. One copy so wording and validation can't drift.
 
-import { useState } from "react";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import { taxonomyLabel, type Taxonomy } from "@jorna/shared/lib/taxonomy";
 import { ServicePicker } from "@jorna/shared/components/ServicePicker";
