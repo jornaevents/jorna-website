@@ -6,7 +6,7 @@
 // SiteFooter on their routes.
 
 import type { ReactNode } from "react";
-import { dmSans, manrope } from "@/lib/entryFonts";
+import { dmSans, manrope } from "@jorna/shared/lib/fonts";
 import { vendorSiteUrl } from "@/lib/vendorSite";
 import "@/app/entry.css";
 

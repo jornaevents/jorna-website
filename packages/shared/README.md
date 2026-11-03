@@ -13,6 +13,12 @@ import "@jorna/shared/styles/globals.css";
 — and Next compiles it with the app (Turbopack builds workspace packages
 automatically), so there's no build step here.
 
+`fonts/` holds the typefaces as committed `.woff2` files (latin subset,
+variable weight, SIL Open Font License), loaded through `next/font/local` by
+`lib/fonts` (DM Sans, Manrope) and `lib/landingFonts` (Cormorant Garamond,
+Inter) — so a build never downloads fonts. To add a face or weight,
+download its file from Google Fonts into `fonts/` and declare it there.
+
 It also holds the contract and negotiation code the client app will need
 for signing in its own app (plan phase 4): the contract's types
 (`lib/contractTypes`), the draft model (`lib/contractDraft`), the comparison
