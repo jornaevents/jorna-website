@@ -8,6 +8,7 @@
 // be one long form whose single Save at the bottom covered some sections but
 // not others, so it was easy to edit the bio and leave.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -126,7 +127,7 @@ export default function VendorProfilePage() {
     );
   }
 
-  const displayName = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ");
+  const displayName = vendorName(vendor);
   const todo = checklist(vendor, services, hasHours).filter((i) => !i.done);
   const meta = profileMeta(vendor);
 
@@ -346,7 +347,7 @@ function ClientPreview({
   categories: TaxonomyCategory[];
   services: ServiceItem[];
 }) {
-  const name = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
+  const name = vendorName(vendor, "Your business");
   const primary = vendorSpecializations(vendor)[0];
   const category = primary
     ? (categories.find((c) => c.value === primary.category)?.subcategories?.find((s) => s.value === primary.subcategory)

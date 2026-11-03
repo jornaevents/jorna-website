@@ -157,6 +157,7 @@ test.describe("authentication", () => {
     await page.getByLabel("Email").fill("raj@example.com");
     await page.getByLabel("Phone").fill("(732) 555-0184");
     await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByLabel(/I agree to the Terms of Service/).check();
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page).toHaveURL(/\/app\/vendor-onboarding\/?$/);
@@ -166,8 +167,32 @@ test.describe("authentication", () => {
       password: "Celebrate2025",
       f_name: "Raj",
       l_name: "Mehta",
+      accept_terms: true,
       phone: "(732) 555-0184",
     });
+  });
+
+  test("signing up, either way, needs the Terms and Privacy Policy agreed", async ({ page, api }) => {
+    api.post("/auth/register", { user_id: "user-1", email: "raj@example.com" });
+
+    await page.goto("login/?mode=register");
+    await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms/");
+    await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy/");
+    await page.getByLabel("First name").fill("Raj");
+    await page.getByLabel("Last name").fill("Mehta");
+    await page.getByLabel("Email").fill("raj@example.com");
+    await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+
+    await expect(page.getByText("Please agree to the Terms of Service and Privacy Policy")).toBeVisible();
+    expect(api.requestsTo("POST", "/auth/register")).toHaveLength(0);
+    await expect(page).toHaveURL(/\/app\/login\/\?mode=register$/);
+  });
+
+  test("the sign-in page says continuing with Google agrees to the terms", async ({ page }) => {
+    await page.goto("login/");
+    await expect(page.getByText(/Continuing with Google creates an account, and means you agree to/)).toBeVisible();
   });
 
   test("signing out lands on a plain /login, not back on the page you left", async ({ page, api }) => {

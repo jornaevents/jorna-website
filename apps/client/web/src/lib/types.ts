@@ -160,6 +160,8 @@ export interface Paginated<T> {
 export interface VendorSearchItem {
   vendor_id: string;
   user_id: string;
+  /** What clients see the vendor called; null → their own name (lib vendorName). */
+  business_name?: string | null;
   first_name: string;
   last_name: string;
   category: string;
@@ -224,6 +226,8 @@ export interface VendorDetail {
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;
+  /** What clients see the vendor called; null → f_name/l_name (lib vendorName). */
+  business_name?: string | null;
   f_name?: string | null;
   l_name?: string | null;
   location?: string | null;

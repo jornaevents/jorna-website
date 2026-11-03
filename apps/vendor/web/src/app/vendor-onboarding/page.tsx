@@ -109,6 +109,7 @@ export default function VendorOnboardingPage() {
   const [retryTick, setRetryTick] = useState(0);
 
   // Step 1
+  const [businessName, setBusinessName] = useState("");
   const [specializations, setSpecializations] = useState<VendorSpecialization[]>([]);
   const [bio, setBio] = useState("");
   const [yearsExperience, setYearsExperience] = useState("");
@@ -155,6 +156,7 @@ export default function VendorOnboardingPage() {
         }
         setVendor(mine);
         setSpecializations(vendorSpecializations(mine));
+        setBusinessName(mine.business_name ?? "");
         setBio(mine.bio ?? "");
         setYearsExperience(mine.years_experience?.toString() ?? "");
         if (mine.travel_radius_miles) setRadius(mine.travel_radius_miles);
@@ -222,6 +224,7 @@ export default function VendorOnboardingPage() {
         subcategory: primary.subcategory ?? undefined,
         specializations,
         years_experience: yearsExperience ? Number(yearsExperience) : null,
+        business_name: businessName.trim() || null,
       };
       if (vendor) {
         setVendor(await updateMyVendor(payload));
@@ -449,6 +452,22 @@ export default function VendorOnboardingPage() {
 
           {step === "offer" ? (
             <div className="mt-8 grid gap-5">
+              <EntryField
+                label="Business name"
+                optional
+                htmlFor="ob-business"
+                hint="What clients see you called. Leave it blank to go by your own name."
+              >
+                <input
+                  id="ob-business"
+                  className="e-input"
+                  maxLength={120}
+                  autoComplete="organization"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="e.g. Saffron & Silk Catering"
+                />
+              </EntryField>
               <EntryField label="Services you offer">
                 <div className="flex flex-wrap gap-1.5">
                   {popular.map((p) => (

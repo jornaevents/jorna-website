@@ -15,6 +15,7 @@
 // cancellation editor (/contracts/document), which first asks which signed
 // booking the document is for.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -515,7 +516,7 @@ export default function ContractsPage() {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
 
-  const brand = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
+  const brand = vendorName(vendor, "Your business");
   const choices = templateChoices(services, templates);
   // The first few packages here; every one is in Send a contract's list.
   const shownPackages = choices.packages.slice(0, 2);

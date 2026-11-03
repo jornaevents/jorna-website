@@ -11,6 +11,7 @@
 // without it the page asks which), ?id=<document_id> to reopen one that isn't
 // signed yet, ?template=<id> to start from a saved one.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -266,7 +267,7 @@ function DocumentEditorInner() {
     return <p role="alert" className="py-20 text-center text-ink-soft">{loadError ?? "Couldn't load your bookings."}</p>;
   }
 
-  const vendorName = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
+  const businessName = vendorName(vendor, "Your business");
 
   // ── Which booking ──
   if (!booking) {
@@ -412,7 +413,7 @@ function DocumentEditorInner() {
           aria-label="Document"
           className="min-w-0 rounded-2xl border border-card-edge bg-card px-5 py-6 shadow-[var(--shadow-card)] sm:px-10 sm:py-10"
         >
-          <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold">{vendorName}</p>
+          <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold">{businessName}</p>
           <input
             aria-label="Document title"
             value={title}
@@ -422,7 +423,7 @@ function DocumentEditorInner() {
             className="serif mt-2 w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl sm:text-3xl text-ink outline-none placeholder:text-ink focus:border-gold"
           />
           <p className="mt-2 text-sm text-ink-faint">
-            Attached to “{agreementOf(booking)}” between {vendorName} and {clientOf(booking)},{" "}
+            Attached to “{agreementOf(booking)}” between {businessName} and {clientOf(booking)},{" "}
             {describeWhen(booking.date_iso, booking.date_end, booking.time_start, booking.time_end)}.
           </p>
 
@@ -525,8 +526,8 @@ function DocumentEditorInner() {
               <p className="text-xs text-ink-faint">Types their name on the link to sign</p>
             </div>
             <div>
-              <div className="serif flex h-10 items-end border-b border-ink/30 text-lg italic text-ink-soft">{vendorName}</div>
-              <p className="mt-1 text-sm text-ink">{vendorName}</p>
+              <div className="serif flex h-10 items-end border-b border-ink/30 text-lg italic text-ink-soft">{businessName}</div>
+              <p className="mt-1 text-sm text-ink">{businessName}</p>
             </div>
           </div>
         </article>

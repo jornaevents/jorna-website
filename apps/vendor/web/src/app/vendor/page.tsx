@@ -1,5 +1,6 @@
 "use client";
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -245,7 +246,7 @@ function VendorInner() {
     );
   }
 
-  const name = `${vendor.f_name ?? ""} ${vendor.l_name ?? ""}`.trim();
+  const name = vendorName(vendor);
   // A vendor previewing "what clients see" on their own page shouldn't be
   // offered the client-side CTAs, or a way to report/block themselves.
   const isOwnVendor = user?.user_id === vendor.user_id;
