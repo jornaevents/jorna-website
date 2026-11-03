@@ -20,11 +20,18 @@
 # button, auth check, or data fetch on the page ever runs. Caught 2026-08-25
 # after script-src briefly shipped without it.
 #
+# script-src also allows geocoding.geo.census.gov: lib/geocode (shared) turns
+# a venue or event address into coordinates by JSONP — a <script> tag, since
+# the Census geocoder sends no CORS header. Without it every lookup failed and
+# no address got a pin, so GPS check-in had nothing to measure against.
+# connect-src includes fcmregistrations.googleapis.com because Firebase's web
+# getToken registers the browser there; without it turning on push failed.
+#
 # If NEXT_PUBLIC_API_BASE_URL is ever pointed at a different backend host than
 # the Railway default, this file needs the same update (same hand-sync
 # tradeoff already accepted for design tokens — see docs/DECISIONS.md).
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self'; connect-src 'self' https://desiconnect-production.up.railway.app wss://desiconnect-production.up.railway.app https://ddfjhfqrrgvzphwiinch.supabase.co https://fcm.googleapis.com https://firebaseinstallations.googleapis.com; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://geocoding.geo.census.gov; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self'; connect-src 'self' https://desiconnect-production.up.railway.app wss://desiconnect-production.up.railway.app https://ddfjhfqrrgvzphwiinch.supabase.co https://fcm.googleapis.com https://fcmregistrations.googleapis.com https://firebaseinstallations.googleapis.com; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
