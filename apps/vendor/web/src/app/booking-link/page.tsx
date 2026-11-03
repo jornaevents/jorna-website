@@ -43,6 +43,7 @@ import type { GuestBooking, Installment, PaidVia, ProposalHistory, SigningProof 
 import { DocumentView } from "./DocumentView";
 import { SignatureStep } from "./SignatureStep";
 import { Stepper } from "./Stepper";
+import { LinkMessages } from "./LinkMessages";
 import {
   CONTRACT_STEPS,
   looksLikeEmail,
@@ -776,6 +777,7 @@ function BookingLinkInner() {
           {holdUntil ? ` until ${holdUntil}` : ""}. If you&apos;d still like to book, ask them to
           resend it — they&apos;ll check the date is still free.
         </p>
+        <LinkMessages token={token} vendorName={vendorName} preview={preview} />
       </Shell>
     );
   }
@@ -804,6 +806,7 @@ function BookingLinkInner() {
           <p className="mt-3 text-sm text-ink-soft">Total: {money(booking.amount_cents)}</p>
         </Card>
         <p className="mt-4 text-center text-sm text-ink-faint">Nothing is due until {vendorName} has signed.</p>
+        <LinkMessages token={token} vendorName={vendorName} preview={preview} />
       </div>
     );
   }
@@ -917,6 +920,7 @@ function BookingLinkInner() {
             Your signed copy&apos;s fingerprint (SHA-256): {booking.signed_snapshot_sha256}
           </p>
         ) : null}
+        <LinkMessages token={token} vendorName={vendorName} preview={preview} />
       </div>
     );
   }
@@ -1226,6 +1230,8 @@ function BookingLinkInner() {
           </div>
         </form>
       ) : null}
+
+      <LinkMessages token={token} vendorName={vendorName} preview={preview} />
 
       <div className="mt-8 border-t border-line-soft pt-6 text-center">
         {declining ? (

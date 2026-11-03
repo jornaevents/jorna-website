@@ -1381,6 +1381,21 @@ export interface SigningCodeSent {
  *  /guest-bookings/{token}, POST .../sign. Includes the vendor's payment
  *  handle (how the client actually pays) instead of contract_token (the
  *  token is already the credential the client used to get here). */
+/** The contract link's message thread (backend DECISIONS #41). */
+export interface LinkMessage {
+  message_id: string;
+  from: "you" | "vendor";
+  sender_name: string;
+  content: string;
+  kind: string;
+  created_at: string;
+}
+
+export interface LinkThread {
+  vendor_name: string;
+  items: LinkMessage[];
+}
+
 export interface GuestBooking {
   booking_id: string;
   /** Older backends send neither (backend DECISIONS #27). */
