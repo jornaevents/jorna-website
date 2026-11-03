@@ -90,6 +90,8 @@ export function hasStoredSession(): boolean {
 interface RegisterInput {
   email: string;
   password: string;
+  /** The sign-up form's terms box; the backend records when it was ticked. */
+  accept_terms?: boolean;
   /** Optional since backend #154: derived from the email when left out, as the
    *  vendor sign-up does. Age, location, gender and language likewise. */
   username?: string;

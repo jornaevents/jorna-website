@@ -196,6 +196,8 @@ export interface Paginated<T> {
 export interface VendorSearchItem {
   vendor_id: string;
   user_id: string;
+  /** What clients see the vendor called; null → their own name (lib vendorName). */
+  business_name?: string | null;
   first_name: string;
   last_name: string;
   category: string;
@@ -260,6 +262,8 @@ export interface VendorDetail {
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;
+  /** What clients see the vendor called; null → f_name/l_name (lib vendorName). */
+  business_name?: string | null;
   f_name?: string | null;
   l_name?: string | null;
   location?: string | null;
@@ -782,6 +786,8 @@ export interface VendorCreateInput {
    *  `VendorDetail.specializations`), so they stay in sync rather than one
    *  being derived from the other. */
   specializations?: VendorSpecialization[];
+  /** Optional; blank or null clears it (backend 0082). */
+  business_name?: string | null;
   years_experience?: number | null;
 }
 
@@ -805,6 +811,8 @@ export interface VendorUpdateInput {
   default_contract_terms?: ContractTerms | null;
   default_guest_count_mode?: "required" | "optional" | "not_applicable" | null;
   /** Years in business — on the vendor, not per package (backend 0063). */
+  /** Optional; blank or null clears it (backend 0082). */
+  business_name?: string | null;
   years_experience?: number | null;
   /** Days a sent contract holds its date (1–60); null for the backend's 7. */
   contract_hold_days?: number | null;

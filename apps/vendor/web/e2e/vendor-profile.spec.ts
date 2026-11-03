@@ -91,6 +91,29 @@ test.describe("vendor profile (/vendor-profile)", () => {
     await expect(details).toContainText("12 years in business");
   });
 
+  test("a business name is what the profile is called, and blank goes back to the person's name", async ({ page, api }) => {
+    const { vendor } = await openProfile(page, api, { vendor: { f_name: "Priya", l_name: "Shah", business_name: null } });
+    api.patch("/vendors/me", ({ route }: HandlerArgs) => ({ ...vendor, ...route.request().postDataJSON() }));
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit profile" });
+    const preview = dialog.getByLabel("Profile preview");
+    await expect(preview).toContainText("Priya Shah");
+    await dialog.getByLabel("Business name (optional)").fill("Saffron & Silk");
+    await expect(preview).toContainText("Saffron & Silk");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
+
+    await expect(dialog).toHaveCount(0);
+    expect(api.requestsTo("PATCH", "/vendors/me")[0].body).toMatchObject({ business_name: "Saffron & Silk" });
+    await expect(page.getByText("Saffron & Silk").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    await dialog.getByLabel("Business name (optional)").fill("   ");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(api.requestsTo("PATCH", "/vendors/me")[1].body).toMatchObject({ business_name: null });
+  });
+
   test("years in business takes whole numbers only", async ({ page, api }) => {
     await openProfile(page, api);
     await page.getByRole("button", { name: "Edit profile" }).click();

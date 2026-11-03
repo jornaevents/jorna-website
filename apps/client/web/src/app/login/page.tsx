@@ -1,5 +1,6 @@
 "use client";
 
+import { TermsAgreement } from "@jorna/shared/components/TermsAgreement";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -46,6 +47,8 @@ function safeNext(raw: string | null): string | null {
   }
   return raw;
 }
+
+const TERMS_NEEDED = "Please agree to the Terms of Service and Privacy Policy to create an account.";
 
 function LoginInner() {
   const { register } = useAuth();
@@ -95,6 +98,8 @@ function LoginInner() {
   const [email, setEmail] = useState("");
   const [fName, setFName] = useState("");
   const [lName, setLName] = useState("");
+  // The Terms and Privacy Policy box — needed for either way of signing up.
+  const [agreed, setAgreed] = useState(false);
   // Google-signup linkage (recovered from the persisted Supabase session)
   const [googleReady, setGoogleReady] = useState(!isGoogleSignup);
   const [googleUserId, setGoogleUserId] = useState<string | null>(null);
@@ -140,6 +145,10 @@ function LoginInner() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!agreed) {
+      setError(TERMS_NEEDED);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -148,6 +157,7 @@ function LoginInner() {
         password,
         f_name: fName,
         l_name: lName,
+        accept_terms: true,
         ...(isGoogleSignup && googleUserId && googleToken
           ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
           : {}),
@@ -163,10 +173,14 @@ function LoginInner() {
   }
 
   async function google() {
+    if (!agreed) {
+      setError(TERMS_NEEDED);
+      return;
+    }
     setError(null);
     setGoogleBusy(true);
     try {
-      await startGoogleSignIn(next ?? "", null);
+      await startGoogleSignIn(next ?? "", null, true);
     } catch {
       setGoogleBusy(false);
       setError("Couldn't start Google sign-in. Please try again.");
@@ -225,6 +239,7 @@ function LoginInner() {
                 required
               />
             </EntryField>
+            <TermsAgreement checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} />
             {/* Google — offered when starting out, not mid-completion. */}
             {!isGoogleSignup ? (
               <button

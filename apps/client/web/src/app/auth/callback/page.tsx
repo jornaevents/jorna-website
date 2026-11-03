@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
+import { supabase, takeOAuthNext, takeOAuthRole, takeOAuthTerms } from "@/lib/supabase";
 import { clientLanding } from "@/lib/landing";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
@@ -55,7 +55,7 @@ export default function AuthCallbackPage() {
         // started before that may have left a role behind.
         takeOAuthRole();
 
-        const session_ = await googleRegister(session.access_token);
+        const session_ = await googleRegister(session.access_token, takeOAuthTerms());
 
         if (session_.access_token && session_.refresh_token) {
           await adoptSession({

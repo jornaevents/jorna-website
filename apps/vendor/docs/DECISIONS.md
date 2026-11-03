@@ -1081,3 +1081,27 @@ handover looks like one page arriving. Whether to show it is decided in
 screen) or a Google sign-in begun from the vendor side — and applied by CSS,
 so the pre-rendered page and React agree. Anyone else still sees "Finishing
 sign-in…". The skeleton fetches nothing: no session exists yet.
+
+## Decision: business name, terms on sign-up, an honest help page (2026-11-03)
+
+Before onboarding vendors:
+
+- **Business name** — optional, asked in onboarding step 1 and Edit profile
+  (backend 0082, `vendors.business_name`). Everywhere the web names a vendor
+  it goes through `@jorna/shared/lib/vendorName`: the business name when
+  set, else the person's name — the same rule as the backend's
+  `services/names.py`, which names vendors in emails, PDFs and the signing
+  page. Greetings to the vendor ("Good morning, Priya") stay personal.
+- **Terms on sign-up** — both sign-ups (vendor `/app/login`, client
+  `/client/login`) have a required "I agree to the Terms of Service and the
+  Privacy Policy" box (`@jorna/shared/components/TermsAgreement`), for the
+  form and for Continue with Google; acceptance is sent as `accept_terms`
+  and recorded by the backend. Google sign-ups carry it across the round
+  trip in `OAUTH_TERMS_KEY`. The sign-in page's Google button can make a
+  new account too, so a notice under it says continuing agrees. The links
+  go to `/terms/` and `/privacy/`, which 404 until the drafts in `drafts/`
+  are filled in and published — shown now by the owner's decision.
+- **`/help`** described escrow, Stripe payouts, refunds within 24 hours and
+  a platform fee — none of which production has. Rewritten to the product
+  as it is: contracts signed online, clients pay vendors directly on the
+  contract's schedule, payments marked and confirmed in Jorna.

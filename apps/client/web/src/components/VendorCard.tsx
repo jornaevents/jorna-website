@@ -1,5 +1,6 @@
 "use client";
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
 import { categoryLabel, type VendorSearchItem } from "@/lib/types";
@@ -21,7 +22,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
   // their own schedule with nothing wrong on this end. Falling back to the
   // monogram on a failed load beats the browser's broken-image icon.
   const [photoFailed, setPhotoFailed] = useState(false);
-  const name = `${item.first_name ?? ""} ${item.last_name ?? ""}`.trim();
+  const name = vendorName(item);
   const price = money(item.service_price);
   const monogram = (name || item.service_name || "·").charAt(0).toUpperCase();
   // The listing's own photo first — the card leads with the service, so that's
