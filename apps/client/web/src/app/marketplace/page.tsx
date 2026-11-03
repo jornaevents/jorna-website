@@ -24,6 +24,7 @@
 // locally-filtered pool would skip rows. So any such filter switches the fetch
 // to a single large pool (QUERY_POOL) and hides "Show more".
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -69,6 +70,7 @@ function todayLocalIso(): string {
 
 function matches(item: VendorSearchItem, q: string) {
   return [
+    vendorName(item),
     `${item.first_name} ${item.last_name}`,
     item.category,
     categoryLabel(item.category),

@@ -37,11 +37,16 @@ test.describe("vendor onboarding", () => {
     await page.getByRole("button", { name: "Photographer" }).click();
     await expect(page.getByRole("button", { name: "Photographer" })).toHaveAttribute("aria-pressed", "true");
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
+    await page.getByLabel("Business name").fill("  Lens & Lehenga Studio ");
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "Where you work" })).toBeVisible();
     const [call] = api.requestsTo("POST", "/vendors");
-    expect(call.body).toMatchObject({ category: "photography", bio: "Full-service wedding photography team." });
+    expect(call.body).toMatchObject({
+      category: "photography",
+      bio: "Full-service wedding photography team.",
+      business_name: "Lens & Lehenga Studio",
+    });
   });
 
   test("the service directory adds a specific service", async ({ page, api }) => {

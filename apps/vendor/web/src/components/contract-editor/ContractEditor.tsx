@@ -21,6 +21,7 @@
 // DECISIONS #17): when and where are the client's, so those blocks only
 // show them. ?template=<id> starts from a saved template.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -459,7 +460,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const baseTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
   const client = (request?.client_name || draft.clientName).trim();
   const defaultTitle = client ? `${client} — ${baseTitle}` : baseTitle;
-  const vendorName = [vendor?.f_name, vendor?.l_name].filter(Boolean).join(" ") || "Your business";
+  const businessName = vendorName(vendor, "Your business");
 
   /** This block's problems. A terms problem belongs only to the section it's
    *  about: the one missing a title or text, or the one it names. */
@@ -810,7 +811,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   function renderBlock(b: LayoutBlock) {
     switch (b.type) {
       case "parties":
-        return <PartiesBlock vendorName={vendorName} vendorCategory={vendorCategory} draft={draft} set={set} request={request} />;
+        return <PartiesBlock vendorName={businessName} vendorCategory={vendorCategory} draft={draft} set={set} request={request} />;
       case "event":
         return <EventBlock draft={draft} set={set} request={request} clash={clash} />;
       case "items":
@@ -830,7 +831,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         return c ? <TermsBlock clause={c} onChange={(patch) => updateClause(c.key, patch)} /> : null;
       }
       case "signature":
-        return <SignatureBlock clientName={clientName} vendorName={vendorName} />;
+        return <SignatureBlock clientName={clientName} vendorName={businessName} />;
     }
   }
 
@@ -977,7 +978,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           aria-label="Contract document"
           className="min-w-0 rounded-2xl border border-card-edge bg-card px-5 py-6 shadow-[var(--shadow-card)] sm:px-10 sm:py-10"
         >
-          <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold">{vendorName}</p>
+          <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold">{businessName}</p>
           <input
             aria-label="Agreement title"
             value={draft.title}
@@ -1171,7 +1172,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         onClose={() => setPreviewing(false)}
         draft={draft}
         title={draft.title || defaultTitle}
-        vendorName={vendorName}
+        vendorName={businessName}
         clientName={clientName}
       />
     </div>

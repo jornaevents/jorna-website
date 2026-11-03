@@ -19,3 +19,8 @@ export const LAST_ROLE_KEY = "jorna_last_role";
 /** "vendor" while a Google sign-in started from the vendor side is away at
  *  Google (the vendor app's lib/supabase). */
 export const OAUTH_ROLE_KEY = "jorna_oauth_role";
+
+/** "1" while a Google sign-in is away at Google after the person agreed to
+ *  the Terms and Privacy Policy — the callback sends it as accept_terms when
+ *  it creates the account (each app's lib/supabase). */
+export const OAUTH_TERMS_KEY = "jorna_oauth_terms";

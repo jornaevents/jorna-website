@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase, takeOAuthNext, takeOAuthRole } from "@/lib/supabase";
+import { supabase, takeOAuthNext, takeOAuthRole, takeOAuthTerms } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
 import { defaultLanding, goTo } from "@/lib/role";
@@ -70,7 +70,7 @@ export default function AuthCallbackPage() {
         const next = takeOAuthNext();
         const role = takeOAuthRole();
 
-        const session_ = await within(googleRegister(session.access_token));
+        const session_ = await within(googleRegister(session.access_token, takeOAuthTerms()));
 
         if (session_.access_token && session_.refresh_token) {
           await within(adoptSession({

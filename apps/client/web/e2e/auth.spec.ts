@@ -28,6 +28,7 @@ test.describe("authentication", () => {
     await page.getByLabel("First name").fill("Priya");
     await page.getByLabel("Last name").fill("Shah");
     await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByLabel(/I agree to the Terms of Service/).check();
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page).toHaveURL(/\/client\/plan\/?$/);
@@ -36,7 +37,26 @@ test.describe("authentication", () => {
       password: "Celebrate2025",
       f_name: "Priya",
       l_name: "Shah",
+      accept_terms: true,
     });
+  });
+
+  test("signing up, either way, needs the Terms and Privacy Policy agreed", async ({ page, api }) => {
+    api.post("/auth/register", { user_id: "user-1", email: "priya@example.com" });
+
+    await page.goto("login/?mode=register");
+    await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms/");
+    await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy/");
+    await page.getByLabel("Email").fill("priya@example.com");
+    await page.getByLabel("First name").fill("Priya");
+    await page.getByLabel("Last name").fill("Shah");
+    await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+
+    await expect(page.getByText("Please agree to the Terms of Service and Privacy Policy")).toBeVisible();
+    expect(api.requestsTo("POST", "/auth/register")).toHaveLength(0);
+    await expect(page).toHaveURL(/\/client\/login\/\?mode=register$/);
   });
 
   // Drawn as the shared sign-in page is (the entry design): its own top bar

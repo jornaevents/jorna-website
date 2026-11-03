@@ -1,7 +1,7 @@
 "use client";
 
 // "Edit profile" on /vendor-profile, from the Figma Make design (Vendor
-// Profile 2): the details clients see — photo, specialty, where you're based,
+// Profile 2): the details clients see — photo, business name, specialty, where you're based,
 // whether you'll take events out of state, years in business, a short intro —
 // in one popup with a live preview beside it, saved together.
 //
@@ -9,6 +9,7 @@
 // on the vendor (PATCH /vendors/me). Travel radius isn't asked any more: the
 // out-of-state box replaced it, and a radius already saved is left alone.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -29,6 +30,7 @@ import { Icon } from "@/components/vendor/Icon";
 import { primaryClass } from "@/components/vendor/ui";
 
 interface Draft {
+  businessName: string;
   specializations: VendorSpecialization[];
   location: string;
   outOfState: boolean;
@@ -39,6 +41,7 @@ interface Draft {
 
 function draftOf(v: VendorDetail): Draft {
   return {
+    businessName: v.business_name ?? "",
     specializations: vendorSpecializations(v),
     location: v.location ?? "",
     outOfState: Boolean(v.open_to_long_distance),
@@ -78,7 +81,8 @@ export function ProfileEditModal({
 
   const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
   const yearsError = !validYears(draft.years);
-  const name = [vendor.f_name, vendor.l_name].filter(Boolean).join(" ") || "Your business";
+  // The preview follows what's typed, falling back to their own name.
+  const name = vendorName({ ...vendor, business_name: draft.businessName }, "Your business");
   const photoSrc = photo?.url ?? vendor.pfp_url;
   const primary = draft.specializations[0];
   const specialty = primary
@@ -127,6 +131,7 @@ export function ProfileEditModal({
         open_to_long_distance: draft.outOfState,
         years_experience: years ? Number(years) : null,
         instagram_username: draft.instagram.trim().replace(/^@/, "") || null,
+        business_name: draft.businessName.trim() || null,
       });
       onSaved(updated);
     } catch (err) {
@@ -195,6 +200,21 @@ export function ProfileEditModal({
                   </div>
                 </div>
               </div>
+
+              <label className="block sm:col-span-2">
+                <span className={labelClass}>Business name (optional)</span>
+                <input
+                  className={inputClass}
+                  maxLength={120}
+                  autoComplete="organization"
+                  placeholder="e.g. Saffron & Silk Catering"
+                  value={draft.businessName}
+                  onChange={(e) => patch({ businessName: e.target.value })}
+                />
+                <span className="mt-1 block text-xs text-ink-faint">
+                  What clients see you called. Leave it blank to go by your own name.
+                </span>
+              </label>
 
               <div className="grid gap-4 sm:col-span-2">
                 <VendorSpecializationFields

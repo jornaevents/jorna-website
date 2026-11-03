@@ -1,5 +1,6 @@
 "use client";
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -58,7 +59,7 @@ function InquireInner() {
     );
   }
 
-  const name = `${vendor.f_name ?? ""} ${vendor.l_name ?? ""}`.trim() || "this vendor";
+  const name = vendorName(vendor, "this vendor");
   const kind = vendor.subcategory || vendor.category;
   return (
     <div className="mx-auto w-[min(720px,100%-2rem)] py-10">
