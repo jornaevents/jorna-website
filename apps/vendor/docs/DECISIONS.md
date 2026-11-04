@@ -1121,3 +1121,24 @@ Backend #130 and #131, DECISIONS #35 there.
   - The free-text "Speciality" for Other is gone; Other is now a service like any other.
 - **Not yet:** the client surfaces. They're next.
 - **Ship order:** this needs the backend's 0080 live first. An older backend ignores `specialties`, so a new vendor would be saved as "other".
+
+## Decision: clients see the same label on their chats (2026-11-04)
+
+A client's chat with a vendor shows the label that vendor sees on it
+(Inquiry, Negotiation, Booked, Closed), in the client app's Messages and chat
+header, and on this app's `/conversation` page when a client reads there.
+
+- **The backend works it out for the client** (`label` on each chat,
+  backend DECISIONS #42): the client app has no Leads page and no single
+  list of its bookings. It uses the pipeline's stage rule and
+  `lib/messageLabels.ts`'s `relationFor` order, so a change to that order
+  needs the same change in the backend's `message_labels.py`. The backend
+  sends no label to the vendor; this app keeps working out its own.
+- **On purpose, the client's label can be blank where the vendor's isn't:**
+  a vendor's own lead (typed in, or added from Messages) and a request on a
+  plan the client hasn't sent aren't shown to the client.
+- **The words, colours and pill are shared** (`@jorna/shared`'s
+  `lib/messageLabels`, `StatusPill` in `components/ui`, and the `--pill-*`
+  tokens, now in `globals.css` instead of `vendor-shell.css`). The colours
+  are unchanged under every theme setting; an e2e test pins them.
+

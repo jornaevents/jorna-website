@@ -10,6 +10,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { getConversation } from "@/lib/jorna";
 import type { ConversationSummary } from "@/lib/types";
+import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
+import { StatusPill } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { useVendorShell } from "@/components/ChromeGate";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
@@ -64,6 +66,9 @@ function ConversationInner() {
   // you're both in is a different question, and one this doesn't answer.
   const otherMember =
     meta?.members && meta.members.length === 2 ? meta.members.find((m) => m.user_id !== user.user_id) : undefined;
+  // For a client reading here: where things stand with this vendor, in the
+  // words the vendor sees. The backend sends no label to the vendor.
+  const stage = knownLabel(meta?.label);
 
   return (
     <div className="mx-auto flex h-[calc(100vh-8rem)] w-[min(680px,100%-2rem)] flex-col py-4">
@@ -82,6 +87,16 @@ function ConversationInner() {
                   ? "Your vendors, without you"
                   : `${meta?.member_count ?? 0} people`}
           </p>
+          {stage ? (
+            <p className="mt-1.5 flex min-w-0 items-center gap-1.5">
+              <StatusPill tone={LABEL_TONE[stage.stage]} dot>
+                {LABEL_TEXT[stage.stage]}
+              </StatusPill>
+              {stage.service_name ? (
+                <span className="truncate text-xs text-ink-faint">{stage.service_name}</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className={`text-xs ${live ? "text-green" : "text-ink-faint"}`} title={live ? "Live" : "Reconnecting…"}>

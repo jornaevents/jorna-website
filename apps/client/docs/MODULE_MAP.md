@@ -96,7 +96,9 @@ always "none, verify manually" until a test runner is added.
 
 - **Responsible for:** client↔vendor chat (pre-booking questions and
   in-booking threads), price negotiation, and date-change requests.
-- **Code:** `web/src/lib/chat.ts`, `web/src/app/messages/`, `conversation/`,
+- **Code:** `web/src/lib/chat.ts`, `web/src/app/messages/`, `conversation/`
+  (each vendor chat's label from the backend's `label`, shown with
+  `@jorna/shared`'s `lib/messageLabels` and `StatusPill`),
   `web/src/components/AskVendor.tsx`, `InquiryForm.tsx` + `InquiryButton.tsx` and
   `web/src/app/inquire/` (the public inquiry form, DECISIONS 2026-10-17),
   `NegotiationPanel.tsx`,

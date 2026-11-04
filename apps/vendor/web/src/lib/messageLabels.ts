@@ -7,19 +7,17 @@
 // pipeline's stage, Booked is vendorPlan's bookingTab (a signed contract, or
 // an approved request from before contracts), and Closed is a lead the
 // pipeline archived with an outcome, or a booking that was called off.
+//
+// The client app shows the same labels, worked out by the backend with this
+// file's priority order (jorna-backend app/services/message_labels.py,
+// DECISIONS #42) — a change to the order here needs the same change there.
 
 import { bookingTab, isDeadVendorBooking } from "./vendorPlan";
 import type { ConversationSummary, Pipeline, PipelineItem, VendorBooking } from "./types";
+import type { MessageLabel } from "@jorna/shared/lib/messageLabels";
 
-export type MessageLabel = "inquiry" | "negotiation" | "booked" | "closed";
+export { LABEL_TEXT, LABEL_TONE, type MessageLabel } from "@jorna/shared/lib/messageLabels";
 export type MessageTab = "enquiries" | "bookings";
-
-export const LABEL_TEXT: Record<MessageLabel, string> = {
-  inquiry: "Inquiry",
-  negotiation: "Negotiation",
-  booked: "Booked",
-  closed: "Closed",
-};
 
 /** What a thread is to the vendor, for the list and the side panel. */
 export interface Relation {

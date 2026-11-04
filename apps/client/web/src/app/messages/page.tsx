@@ -7,7 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { listConversations } from "@/lib/jorna";
 import type { ConversationSummary } from "@/lib/types";
-import { Card, Chip, LinkButton } from "@jorna/shared/components/ui";
+import { Card, Chip, LinkButton, StatusPill } from "@jorna/shared/components/ui";
+import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
 import { signInUrl } from "@/lib/vendorSite";
 
 function timeAgo(iso?: string | null): string {
@@ -185,6 +186,9 @@ export default function MessagesPage() {
           {conversations.filter((c) => matches(c, filter)).map((c) => {
             const unread = c.unread_count ?? 0;
             const label = kindLabel(c);
+            // Where things stand with this vendor, in the words the vendor
+            // sees on the same chat.
+            const stage = knownLabel(c.label);
             return (
               <Link key={c.conversation_id} href={`/conversation?id=${c.conversation_id}`}>
                 <Card
@@ -202,6 +206,16 @@ export default function MessagesPage() {
                           </span>
                         ) : null}
                       </div>
+                      {stage ? (
+                        <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                          <StatusPill tone={LABEL_TONE[stage.stage]} dot>
+                            {LABEL_TEXT[stage.stage]}
+                          </StatusPill>
+                          {stage.service_name ? (
+                            <span className="truncate text-xs text-ink-faint">{stage.service_name}</span>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <p
                         className={`mt-0.5 truncate text-sm ${
                           unread > 0 ? "font-medium text-ink" : "text-ink-soft"

@@ -118,7 +118,8 @@ always "none, verify manually" until a test runner is added.
   is `components/vendor/InquiryShare.tsx`. Messages (step 4) is
   `components/vendor/MessagesHub.tsx` for vendors, on the shared
   `ConversationThread`, with each thread's label from
-  `lib/messageLabels.ts`; vendors' `/conversation?id=` forwards into it. Settings
+  `lib/messageLabels.ts` (words and colours from `@jorna/shared`'s
+  `lib/messageLabels`); vendors' `/conversation?id=` forwards into it. Settings
   holds account (`AccountSettings`, shared with `/account`), Venmo/Zelle,
   tentative-hold length, Google Calendar (`GoogleCalendarCard`, also on the
   calendar page), notifications and theme. See `docs/DECISIONS.md`.
