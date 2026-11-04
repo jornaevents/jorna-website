@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockBundleDetail, mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
+import { mockBundleDetail, mockServiceTaxonomy, mockTaxonomyCategories, mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
 
 // The design's four steps (Figma Make "Jorna-Vendor", 2026-10): what you offer,
@@ -10,6 +10,7 @@ test.describe("vendor onboarding", () => {
   test("blocks switching to vendor while a client booking is still open", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     // Not dead and not yet released — lib/planning's hasActiveBookings() reads
     // this as "still a client".
@@ -24,6 +25,7 @@ test.describe("vendor onboarding", () => {
   test("step 1 creates the vendor from the picked services and moves to where you work", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     api.get("/bundles", []);
     api.post("/vendors", mockVendorDetail());
@@ -35,29 +37,39 @@ test.describe("vendor onboarding", () => {
     // Nothing picked, nothing to continue with.
     await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
     await page.getByRole("button", { name: "Photographer" }).click();
-    await expect(page.getByRole("button", { name: "Photographer" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Photographer", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.getByLabel("About you").fill("Full-service wedding photography team.");
+    await page.getByLabel("Business name").fill("  Lens & Lehenga Studio ");
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "Where you work" })).toBeVisible();
     const [call] = api.requestsTo("POST", "/vendors");
-    expect(call.body).toMatchObject({ category: "photography", bio: "Full-service wedding photography team." });
+    // Service keys; the backend derives the old category fields from them.
+    expect(call.body).toMatchObject({
+      specialties: ["photography"],
+      bio: "Full-service wedding photography team.",
+      business_name: "Lens & Lehenga Studio",
+    });
+    expect(call.body).not.toHaveProperty("category");
   });
 
   test("the service directory adds a specific service", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     api.get("/bundles", []);
 
     await page.goto("vendor-onboarding/");
     await page.getByRole("button", { name: "Browse all services" }).click();
     const sheet = page.getByRole("dialog", { name: "All services" });
-    await sheet.getByPlaceholder("Search all services").fill("wedding");
-    await sheet.getByRole("button", { name: "Wedding Photography" }).click();
+    // Synonyms count, as in every service search: "mehendi" finds Mehndi artist.
+    await sheet.getByPlaceholder("Search all services").fill("mehendi");
+    await expect(sheet.getByRole("button", { name: "Photographer" })).toHaveCount(0);
+    await sheet.getByRole("button", { name: "Mehndi artist" }).click();
     await sheet.getByRole("button", { name: "Done" }).click();
 
-    await expect(page.getByRole("list", { name: "Picked services" })).toContainText("Wedding Photography");
+    await expect(page.getByRole("list", { name: "Picked services" })).toContainText("Mehndi artist");
   });
 
   test("steps 2 and 3 save where the vendor works, then the package step waits for a package (#162)", async ({
@@ -66,6 +78,7 @@ test.describe("vendor onboarding", () => {
   }) => {
     await loginAs(page, api);
     api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+    api.get("/taxonomy", mockServiceTaxonomy());
     api.get("/bundles", []);
     const vendor = mockVendorDetail({ venmo_handle: null, zelle_contact: null, payment_method: null });
     let hasVendor = false;

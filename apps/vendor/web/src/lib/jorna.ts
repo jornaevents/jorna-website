@@ -17,6 +17,7 @@ import type {
   SavedContractTemplate,
   TemplateKind,
   AttachedDocument,
+  PackageAttributeValue,
   AttachedDocumentKind,
   ConversationSummary,
   Earnings,
@@ -26,6 +27,7 @@ import type {
   GroupMessage,
   Guest,
   GuestBooking,
+  LinkThread,
   GuestBookingDetailsInput,
   GuestList,
   Invitation,
@@ -330,11 +332,12 @@ export function googleLookup(supabaseAccessToken: string): Promise<GoogleLookupR
  *
  *  Distinct from googleLookup, which creates nothing: iOS still shows a
  *  registration form after looking up, so that endpoint has to stay pure. */
-export function googleRegister(supabaseAccessToken: string): Promise<GoogleLookupResponse> {
+export function googleRegister(supabaseAccessToken: string, acceptTerms = false): Promise<GoogleLookupResponse> {
   return apiFetch<GoogleLookupResponse>("/auth/google/register", {
     method: "POST",
     auth: false,
-    body: { access_token: supabaseAccessToken },
+    // accept_terms is recorded only if this call makes the account (backend 0082).
+    body: { access_token: supabaseAccessToken, accept_terms: acceptTerms },
   });
 }
 
@@ -452,6 +455,11 @@ export interface ServiceInput {
   price_unit?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  /** The service this package is (backend DECISIONS #35); category and
+   *  subcategory are derived from it there. */
+  service_key?: string | null;
+  /** Its filters: {attribute key: option key | option keys | number | bool}. */
+  attributes?: Record<string, PackageAttributeValue> | null;
   description?: string | null;
   negotiable?: boolean;
   /** Opt-in requirement on top of whatever price_unit already demands. */
@@ -1248,6 +1256,17 @@ export function markConversationUnread(conversationId: string): Promise<Conversa
 /** preview: the vendor's own "View as client" — doesn't mark it viewed. */
 export function getGuestBooking(token: string, preview = false): Promise<GuestBooking> {
   return apiFetch<GuestBooking>(`/guest-bookings/${token}${preview ? "?preview=true" : ""}`);
+}
+
+/** The client's thread with their vendor, by the contract link (backend
+ *  0083, DECISIONS #41). Reading it marks it read, so the vendor's preview
+ *  never calls this. */
+export function getLinkMessages(token: string): Promise<LinkThread> {
+  return apiFetch<LinkThread>(`/guest-bookings/${token}/messages`);
+}
+
+export function sendLinkMessage(token: string, content: string): Promise<LinkThread> {
+  return apiFetch<LinkThread>(`/guest-bookings/${token}/messages`, { method: "POST", body: { content } });
 }
 
 /** An addendum or cancellation agreement, by its own link. */

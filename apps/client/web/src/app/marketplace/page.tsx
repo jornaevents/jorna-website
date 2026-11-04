@@ -9,12 +9,14 @@
 // it's its own tab now, so Home's search bar, tiles, and "Browse every vendor"
 // button link straight here instead of expanding in place.
 //
-// A category (and, for a few tiles, subcategory) can arrive via ?category=
-// &subcategory= — that's how Home's tiles hand off into a preset filter.
+// A service or group from the taxonomy (backend DECISIONS #35) can arrive via
+// ?service= — how the landing pages hand off into a preset filter. Older links
+// carry ?category=&subcategory=; those still filter (the backend reads the old
+// pairs), they just don't light a chip.
 //
 // Where each filter is applied, which is not uniform:
 //
-//   category/subcategory, rating, price, sort   → the search API
+//   service (or an old category), rating, price, sort   → the search API
 //   location                → API narrows to the state, the city is matched here
 //   date                    → not searchable at all; see lib/availability
 //   typed query             → here, over a pulled pool (the API has no q param)
@@ -24,14 +26,15 @@
 // locally-filtered pool would skip rows. So any such filter switches the fetch
 // to a single large pool (QUERY_POOL) and hides "Show more".
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
-import { listVendorCategories, searchVendors } from "@/lib/jorna";
+import { searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
-import { categoryLabel, type TaxonomyCategory, type VendorSearchItem } from "@/lib/types";
-import { TILES } from "@jorna/shared/lib/categoryTiles";
+import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { findService, groupOf, useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import { Button, Chip, Field, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
@@ -69,6 +72,7 @@ function todayLocalIso(): string {
 
 function matches(item: VendorSearchItem, q: string) {
   return [
+    vendorName(item),
     `${item.first_name} ${item.last_name}`,
     item.category,
     categoryLabel(item.category),
@@ -145,25 +149,17 @@ function MarketplaceInner() {
   // held in state, so it clears on the next navigation without any cleanup.
   const addedBundleId = searchParams.get("added");
   const addedName = searchParams.get("name");
-  const [category, setCategory] = useState(searchParams.get("category") ?? "");
-  const [subcategory, setSubcategory] = useState<string | undefined>(
-    searchParams.get("subcategory") ?? undefined,
-  );
+  // A group or service key — what the chips pick and the API's `service`
+  // takes. Groups for browsing, services for what's actually booked (#164:
+  // the chips are named the way vendors name what they sell).
+  const [pick, setPick] = useState(searchParams.get("service") ?? "");
+  // An old ?category=&subcategory= link, passed through until a chip is picked.
+  const [legacy, setLegacy] = useState(() => ({
+    category: searchParams.get("category") ?? undefined,
+    subcategory: searchParams.get("subcategory") ?? undefined,
+  }));
   const [showFilters, setShowFilters] = useState(false);
-  // The vendor categories, in the vendors' own words (#164): the chips used to
-  // be Home's tile names — "Photographer", "Mehndi" — which no vendor picks,
-  // so a mehndi artist filed under Beauty was only findable by a mapping
-  // nobody could see. Null until loaded; Home's tiles stand in meanwhile.
-  const [taxonomy, setTaxonomy] = useState<TaxonomyCategory[] | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    listVendorCategories()
-      .then((r) => !cancelled && setTaxonomy(r.categories))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const taxonomy = useTaxonomy();
 
   const [place, setPlace] = useState("");
   const [date, setDate] = useState("");
@@ -201,8 +197,7 @@ function MarketplaceInner() {
       setError(null);
       try {
         const res = await searchVendors({
-          category: category || undefined,
-          subcategory,
+          ...(pick ? { service: pick } : legacy),
           state: state || undefined,
           min_rating: minRating || undefined,
           max_price: maxPrice ? Number(maxPrice) : undefined,
@@ -219,7 +214,7 @@ function MarketplaceInner() {
         setLoading(false);
       }
     },
-    [category, subcategory, state, minRating, maxPrice, sortBy, pageSize],
+    [pick, legacy, state, minRating, maxPrice, sortBy, pageSize],
   );
 
   // Debounced so dragging through filters fires one fetch, not one per keystroke.
@@ -264,9 +259,9 @@ function MarketplaceInner() {
     };
   }, [availKey, candidateIds, date, timeStart, timeEnd]);
 
-  function pickCategory(next: string | null, sub?: string) {
-    setCategory(next ?? "");
-    setSubcategory(sub);
+  function choose(key: string | null) {
+    setPick(key ?? "");
+    setLegacy({ category: undefined, subcategory: undefined });
   }
 
   function clearFilters() {
@@ -287,12 +282,9 @@ function MarketplaceInner() {
     availReady && avail ? candidates.filter((i) => avail.ids.has(i.vendor_id)) : candidates;
   // Paging is meaningless while a local filter works over a pulled pool.
   const hasMore = !narrowing && items.length < total;
-  // The categories as chips; before the taxonomy loads (or if it can't), the
-  // distinct categories Home's tiles link to, under the same labels.
-  const categories: { value: string; label: string; subcategories: { value: string; label: string }[] }[] =
-    taxonomy ??
-    [...new Set(TILES.map((t) => t.category))].map((c) => ({ value: c, label: categoryLabel(c), subcategories: [] }));
-  const activeCategory = categories.find((c) => c.value === category) ?? null;
+  // The picked group, or the group of the picked service.
+  const activeGroup = taxonomy && pick ? (taxonomy.groups.find((g) => g.key === pick) ?? groupOf(taxonomy, pick)) : null;
+  const activeService = taxonomy && pick && findService(taxonomy, pick) ? pick : "";
   const activeFilters =
     (place ? 1 : 0) + (date ? 1 : 0) + (minRating ? 1 : 0) + (maxPrice ? 1 : 0);
   const placeUnrecognised = place.trim() !== "" && !state;
@@ -348,28 +340,24 @@ function MarketplaceInner() {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Chip active={!category} onClick={() => pickCategory(null)}>
+        <Chip active={!pick && !legacy.category} onClick={() => choose(null)}>
           All
         </Chip>
-        {categories.map((c) => (
-          <Chip key={c.value} active={category === c.value} onClick={() => pickCategory(c.value)}>
-            {c.label}
+        {(taxonomy?.groups ?? []).map((g) => (
+          <Chip key={g.key} active={activeGroup?.key === g.key} onClick={() => choose(g.key)}>
+            {g.label}
           </Chip>
         ))}
       </div>
 
-      {activeCategory && activeCategory.subcategories.length ? (
-        <div aria-label={`${activeCategory.label} types`} role="group" className="mt-2 flex flex-wrap gap-2">
-          <Chip active={!subcategory} onClick={() => pickCategory(activeCategory.value)}>
-            All {activeCategory.label.toLowerCase()}
+      {activeGroup && activeGroup.services.length > 1 ? (
+        <div aria-label={`${activeGroup.label} services`} role="group" className="mt-2 flex flex-wrap gap-2">
+          <Chip active={!activeService} onClick={() => choose(activeGroup.key)}>
+            All {activeGroup.label.toLowerCase()}
           </Chip>
-          {activeCategory.subcategories.map((sc) => (
-            <Chip
-              key={sc.value}
-              active={subcategory === sc.value}
-              onClick={() => pickCategory(activeCategory.value, sc.value)}
-            >
-              {sc.label}
+          {activeGroup.services.map((svc) => (
+            <Chip key={svc.key} active={activeService === svc.key} onClick={() => choose(svc.key)}>
+              {svc.label}
             </Chip>
           ))}
         </div>

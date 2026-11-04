@@ -28,13 +28,8 @@ import {
 } from "@/lib/jorna";
 import { hasActiveBookings } from "@/lib/planning";
 import { clearRoleCache } from "@/lib/role";
-import {
-  vendorSpecializations,
-  type ServiceItem,
-  type TaxonomyCategory,
-  type VendorDetail,
-  type VendorSpecialization,
-} from "@/lib/types";
+import type { ServiceItem, TaxonomyCategory, VendorDetail } from "@/lib/types";
+import { popularServices, searchServices, taxonomyLabel, useTaxonomy, type Taxonomy } from "@jorna/shared/lib/taxonomy";
 import { ServicesManager } from "@/components/ServicesManager";
 import { inquiryFormUrl } from "@/components/vendor/InquiryShare";
 import { clientAppUrl } from "@/lib/clientApp";
@@ -67,30 +62,12 @@ const HEADINGS: Record<number, { title: string; body: string }> = {
   },
 };
 
-// The design's "popular" chips, as real taxonomy picks. Shown only when the
-// taxonomy has them, so a renamed key drops a chip rather than breaking one.
-const POPULAR: { label: string; category: string; subcategory: string | null }[] = [
-  { label: "Venue", category: "venue", subcategory: null },
-  { label: "Caterer", category: "catering", subcategory: null },
-  { label: "Decorator", category: "floral_decor", subcategory: "decor" },
-  { label: "Photographer", category: "photography", subcategory: null },
-  { label: "DJ", category: "music_entertainment", subcategory: "dj" },
-  { label: "Mehndi artist", category: "beauty", subcategory: "mehndi_artist" },
-  { label: "Dhol player", category: "music_entertainment", subcategory: "dhol" },
-  { label: "Makeup artist", category: "beauty", subcategory: "bridal_makeup" },
-];
+// The design's "popular" chips: the taxonomy's own popular services, in its
+// order (backend DECISIONS #35), so they can't drift from what search shows.
+const POPULAR_CHIPS = 8;
 
 const RADIUS_MIN = 10;
 const RADIUS_MAX = 200;
-
-const same = (a: VendorSpecialization, category: string, subcategory: string | null) =>
-  a.category === category && (a.subcategory ?? null) === subcategory;
-
-function specLabel(s: VendorSpecialization, categories: TaxonomyCategory[]): string {
-  const cat = categories.find((c) => c.value === s.category);
-  const sub = cat?.subcategories.find((o) => o.value === s.subcategory);
-  return sub?.label ?? cat?.label ?? s.category;
-}
 
 export default function VendorOnboardingPage() {
   const { user, loading: authLoading, logout, setUser } = useAuth();
@@ -98,6 +75,7 @@ export default function VendorOnboardingPage() {
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [categories, setCategories] = useState<TaxonomyCategory[]>([]);
+  const taxonomy = useTaxonomy();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   // Null until the first load decides where to resume, so a vendor who's
@@ -109,7 +87,9 @@ export default function VendorOnboardingPage() {
   const [retryTick, setRetryTick] = useState(0);
 
   // Step 1
-  const [specializations, setSpecializations] = useState<VendorSpecialization[]>([]);
+  const [businessName, setBusinessName] = useState("");
+  /** Service keys (backend DECISIONS #35). */
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [bio, setBio] = useState("");
   const [yearsExperience, setYearsExperience] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -154,7 +134,8 @@ export default function VendorOnboardingPage() {
           return;
         }
         setVendor(mine);
-        setSpecializations(vendorSpecializations(mine));
+        setSpecialties(mine.specialties ?? []);
+        setBusinessName(mine.business_name ?? "");
         setBio(mine.bio ?? "");
         setYearsExperience(mine.years_experience?.toString() ?? "");
         if (mine.travel_radius_miles) setRadius(mine.travel_radius_miles);
@@ -182,13 +163,9 @@ export default function VendorOnboardingPage() {
     };
   }, [user, router, retryTick]);
 
-  function toggle(category: string, subcategory: string | null) {
+  function toggle(key: string) {
     setError(null);
-    setSpecializations((cur) =>
-      cur.some((s) => same(s, category, subcategory))
-        ? cur.filter((s) => !same(s, category, subcategory))
-        : [...cur, { category, subcategory }],
-    );
+    setSpecialties((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   }
 
   async function onLogo(file: File | undefined) {
@@ -207,7 +184,7 @@ export default function VendorOnboardingPage() {
   /** Save the step on screen. Returns false (with the reason shown) if it can't. */
   async function saveStep(current: Step): Promise<boolean> {
     if (current === "offer") {
-      if (specializations.length === 0) {
+      if (specialties.length === 0) {
         setError("Pick at least one service.");
         return false;
       }
@@ -215,13 +192,12 @@ export default function VendorOnboardingPage() {
         setError("Add a line or two about you.");
         return false;
       }
-      const [primary] = specializations;
+      // The backend derives category/subcategory and the old pairs from these.
       const payload = {
         bio: bio.trim(),
-        category: primary.category,
-        subcategory: primary.subcategory ?? undefined,
-        specializations,
+        specialties,
         years_experience: yearsExperience ? Number(yearsExperience) : null,
+        business_name: businessName.trim() || null,
       };
       if (vendor) {
         setVendor(await updateMyVendor(payload));
@@ -398,10 +374,7 @@ export default function VendorOnboardingPage() {
 
   const n = STEP_NUMBER[step] ?? 1;
   const heading = HEADINGS[n];
-  const popular = POPULAR.filter((p) => {
-    const cat = categories.find((c) => c.value === p.category);
-    return cat && (p.subcategory === null || cat.subcategories.some((s) => s.value === p.subcategory));
-  });
+  const popular = taxonomy ? popularServices(taxonomy, POPULAR_CHIPS) : [];
   const nextStep: Record<string, Step> = { offer: "where", where: "pay", pay: "package" };
   const prevStep: Record<string, Step> = { where: "offer", pay: "where", package: "pay" };
 
@@ -449,10 +422,26 @@ export default function VendorOnboardingPage() {
 
           {step === "offer" ? (
             <div className="mt-8 grid gap-5">
+              <EntryField
+                label="Business name"
+                optional
+                htmlFor="ob-business"
+                hint="What clients see you called. Leave it blank to go by your own name."
+              >
+                <input
+                  id="ob-business"
+                  className="e-input"
+                  maxLength={120}
+                  autoComplete="organization"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="e.g. Saffron & Silk Catering"
+                />
+              </EntryField>
               <EntryField label="Services you offer">
                 <div className="flex flex-wrap gap-1.5">
                   {popular.map((p) => (
-                    <Chip key={p.label} selected={specializations.some((s) => same(s, p.category, p.subcategory))} onClick={() => toggle(p.category, p.subcategory)}>
+                    <Chip key={p.key} selected={specialties.includes(p.key)} onClick={() => toggle(p.key)}>
                       {p.label}
                     </Chip>
                   ))}
@@ -460,15 +449,15 @@ export default function VendorOnboardingPage() {
                 <button type="button" onClick={() => setSheetOpen(true)} className="flex items-center gap-1 justify-self-start text-[13px] font-bold text-(--e-gold-dark) hover:underline">
                   Browse all services <FlowIcon name="arrow" size={13} />
                 </button>
-                {specializations.length > 0 ? (
+                {specialties.length > 0 ? (
                   <ul className="flex flex-wrap gap-1.5 border-t border-[#eee7de] pt-2.5" aria-label="Picked services">
-                    {specializations.map((s) => (
-                      <li key={`${s.category}:${s.subcategory ?? ""}`} className="flex items-center gap-1.5 rounded-lg bg-(--e-burgundy) px-2 py-1.5 text-[12px] font-bold text-white">
-                        {specLabel(s, categories)}
+                    {specialties.map((key) => (
+                      <li key={key} className="flex items-center gap-1.5 rounded-lg bg-(--e-burgundy) px-2 py-1.5 text-[12px] font-bold text-white">
+                        {taxonomyLabel(taxonomy, key)}
                         <button
                           type="button"
-                          aria-label={`Remove ${specLabel(s, categories)}`}
-                          onClick={() => toggle(s.category, s.subcategory ?? null)}
+                          aria-label={`Remove ${taxonomyLabel(taxonomy, key)}`}
+                          onClick={() => toggle(key)}
                           className="text-[15px] leading-none text-[#d9c2c8]"
                         >
                           ×
@@ -668,7 +657,7 @@ export default function VendorOnboardingPage() {
               <button
                 type="button"
                 className={primaryButton}
-                disabled={busy || (step === "offer" && specializations.length === 0)}
+                disabled={busy || (step === "offer" && specialties.length === 0)}
                 onClick={() => next(step, nextStep[step])}
               >
                 {busy ? "Saving…" : "Continue"} <FlowIcon name="arrow" size={14} />
@@ -680,8 +669,8 @@ export default function VendorOnboardingPage() {
 
       {sheetOpen ? (
         <ServiceSheet
-          categories={categories}
-          selected={specializations}
+          taxonomy={taxonomy}
+          selected={specialties}
           onToggle={toggle}
           onClose={() => setSheetOpen(false)}
         />
@@ -690,29 +679,28 @@ export default function VendorOnboardingPage() {
   );
 }
 
-/** "Browse all services": every category and the services in it, searchable. */
+/** "Browse all services": every group and its services, searchable the way
+ *  the shared picker searches (synonyms count: "mehendi" finds Mehndi). */
 function ServiceSheet({
-  categories,
+  taxonomy,
   selected,
   onToggle,
   onClose,
 }: {
-  categories: TaxonomyCategory[];
-  selected: VendorSpecialization[];
-  onToggle: (category: string, subcategory: string | null) => void;
+  taxonomy: Taxonomy | null;
+  selected: string[];
+  onToggle: (key: string) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const groups = categories
-    .map((c) => ({
-      c,
-      // A category with no finer services is itself the one thing to pick.
-      options: (c.subcategories.length ? c.subcategories.map((s) => ({ value: s.value as string | null, label: s.label })) : [{ value: null, label: c.label }]).filter(
-        (o) => !q || o.label.toLowerCase().includes(q) || c.label.toLowerCase().includes(q),
-      ),
+  const q = query.trim();
+  const matched = taxonomy && q ? new Set(searchServices(taxonomy, q, 100).map((m) => m.service.key)) : null;
+  const groups = (taxonomy?.groups ?? [])
+    .map((g) => ({
+      g,
+      options: g.services.filter((svc) => !matched || matched.has(svc.key) || g.label.toLowerCase().includes(q.toLowerCase())),
     }))
-    .filter((g) => g.options.length > 0);
+    .filter((x) => x.options.length > 0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -738,18 +726,18 @@ function ServiceSheet({
           <input autoFocus className="min-w-0 flex-1 bg-transparent text-(--e-text) outline-none" placeholder="Search all services" value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
         <div className="grid content-start gap-5 overflow-y-auto px-4 pb-5 pt-2.5">
-          {groups.map(({ c, options }) => (
-            <section key={c.value}>
-              <p className="text-[12px] font-bold uppercase tracking-widest text-(--e-muted)">{c.label}</p>
+          {groups.map(({ g, options }) => (
+            <section key={g.key}>
+              <p className="text-[12px] font-bold uppercase tracking-widest text-(--e-muted)">{g.label}</p>
               <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
                 {options.map((o) => {
-                  const on = selected.some((s) => same(s, c.value, o.value));
+                  const on = selected.includes(o.key);
                   return (
                     <button
-                      key={`${c.value}:${o.value ?? ""}`}
+                      key={o.key}
                       type="button"
                       aria-pressed={on}
-                      onClick={() => onToggle(c.value, o.value)}
+                      onClick={() => onToggle(o.key)}
                       className={`flex min-h-10 items-center gap-2 rounded-[9px] border px-2.5 text-left text-[13px] ${
                         on ? "border-[#d0b164] bg-[#fffaf0]" : "border-(--e-line) bg-white text-[#5f5852]"
                       }`}

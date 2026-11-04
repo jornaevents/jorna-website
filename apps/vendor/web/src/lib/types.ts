@@ -138,7 +138,7 @@ export interface BundleRequest {
   preferences?: string[];
 }
 
-// The 10 chatbot bundle categories (slot keys) with display labels.
+// The chatbot bundle slots (backend CHATBOT_SLOTS) with display labels.
 export const CATEGORY_LABELS: Record<string, string> = {
   venue: "Venue",
   catering: "Catering",
@@ -149,7 +149,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
   floral_decor: "Floral & Decor",
   makeup: "Makeup & Hair",
   mehndi: "Mehndi",
-  cultural_services: "Cultural Services",
+  // The old Cultural Services slot searches the Entertainment group (backend
+  // DECISIONS #35); Bar & bartending is the slot added with the taxonomy.
+  cultural_services: "Entertainment",
+  bar_beverage: "Bar & bartending",
 };
 
 // DB-level vendor categories (what /vendors/search rows carry) → display labels.
@@ -196,6 +199,8 @@ export interface Paginated<T> {
 export interface VendorSearchItem {
   vendor_id: string;
   user_id: string;
+  /** What clients see the vendor called; null → their own name (lib vendorName). */
+  business_name?: string | null;
   first_name: string;
   last_name: string;
   category: string;
@@ -232,6 +237,14 @@ export interface VendorSearchItem {
 /** One category, optionally narrowed to a speciality within it — what a
  *  vendor picks any number of during onboarding. See `specializations`
  *  below for why this is a list rather than a single pair. */
+/** One filter's value on a package — what the attribute's type allows. */
+export type PackageAttributeValue = string | string[] | number | boolean;
+
+export interface ServicePickNeeded {
+  category: string;
+  choices: string[];
+}
+
 export interface VendorSpecialization {
   category: string;
   subcategory?: string | null;
@@ -255,11 +268,20 @@ export interface VendorDetail {
    *  predates it, `vendorSpecializations()` below reconstructs a one-item
    *  list from `category`/`subcategory` on reload. */
   specializations?: VendorSpecialization[];
+  /** The service keys this vendor sells (backend DECISIONS #35) — what the
+   *  picker sets; specializations and category/subcategory are derived from
+   *  it there. Absent from a backend older than 0080. */
+  specialties?: string[];
+  /** Old categories that don't say which service yet ("Beauty"), with the
+   *  services to choose from — the "Which of these do you offer?" prompt. */
+  service_picks_needed?: ServicePickNeeded[];
   rating?: number | null;
   num_events?: number | null;
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;
+  /** What clients see the vendor called; null → f_name/l_name (lib vendorName). */
+  business_name?: string | null;
   f_name?: string | null;
   l_name?: string | null;
   location?: string | null;
@@ -334,6 +356,10 @@ export interface ServiceItem {
   media?: MediaItem[];
   category?: string | null;
   subcategory?: string | null;
+  /** The service this package is (backend DECISIONS #35). Null on a package
+   *  saved under a category that doesn't say which; its vendor is asked. */
+  service_key?: string | null;
+  attributes?: Record<string, PackageAttributeValue>;
   description?: string | null;
   negotiable?: boolean;
   // Opt-in on top of whatever the price unit already demands — a vendor can
@@ -782,6 +808,10 @@ export interface VendorCreateInput {
    *  `VendorDetail.specializations`), so they stay in sync rather than one
    *  being derived from the other. */
   specializations?: VendorSpecialization[];
+  /** Optional; blank or null clears it (backend 0082). */
+  business_name?: string | null;
+  /** Service keys; when sent, the backend derives the rest from them. */
+  specialties?: string[];
   years_experience?: number | null;
 }
 
@@ -790,6 +820,7 @@ export interface VendorUpdateInput {
   category?: string;
   subcategory?: string | null;
   specializations?: VendorSpecialization[];
+  specialties?: string[];
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;
@@ -805,6 +836,8 @@ export interface VendorUpdateInput {
   default_contract_terms?: ContractTerms | null;
   default_guest_count_mode?: "required" | "optional" | "not_applicable" | null;
   /** Years in business — on the vendor, not per package (backend 0063). */
+  /** Optional; blank or null clears it (backend 0082). */
+  business_name?: string | null;
   years_experience?: number | null;
   /** Days a sent contract holds its date (1–60); null for the backend's 7. */
   contract_hold_days?: number | null;
@@ -1348,6 +1381,21 @@ export interface SigningCodeSent {
  *  /guest-bookings/{token}, POST .../sign. Includes the vendor's payment
  *  handle (how the client actually pays) instead of contract_token (the
  *  token is already the credential the client used to get here). */
+/** The contract link's message thread (backend DECISIONS #41). */
+export interface LinkMessage {
+  message_id: string;
+  from: "you" | "vendor";
+  sender_name: string;
+  content: string;
+  kind: string;
+  created_at: string;
+}
+
+export interface LinkThread {
+  vendor_name: string;
+  items: LinkMessage[];
+}
+
 export interface GuestBooking {
   booking_id: string;
   /** Older backends send neither (backend DECISIONS #27). */

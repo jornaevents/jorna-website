@@ -5,13 +5,13 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
 import { resetPassword } from "@/lib/jorna";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 function ResetInner() {
-  const router = useRouter();
   const params = useSearchParams();
   const token = params.get("token") ?? "";
 
@@ -27,7 +27,7 @@ function ResetInner() {
     try {
       await resetPassword(token, password);
       setDone(true);
-      setTimeout(() => router.replace("/login"), 1600);
+      setTimeout(() => window.location.replace(signInUrl()), 1600);
     } catch (err) {
       setError(
         err instanceof ApiError

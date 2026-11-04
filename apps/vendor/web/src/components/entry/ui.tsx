@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { dmSans, manrope } from "@/lib/vendorFonts";
+import { dmSans, manrope } from "@jorna/shared/lib/fonts";
 import { JornaMark } from "@/components/JornaMark";
 import "@/app/entry.css";
 

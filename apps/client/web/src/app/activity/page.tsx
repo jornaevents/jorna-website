@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { loadAttention, type AttentionItem } from "@/lib/attention";
 import { PushOptIn } from "@jorna/shared/components/PushOptIn";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 export default function ActivityPage() {
   const { user, loading: authLoading } = useAuth();
@@ -22,7 +23,7 @@ export default function ActivityPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/activity");
+    if (!authLoading && !user) window.location.replace(signInUrl("/activity"));
   }, [authLoading, user, router]);
 
   // Force: this is the page you open *to* check, so it shouldn't show a

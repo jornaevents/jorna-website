@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ApiError } from "@jorna/shared/lib/api";
 import { requestPasswordReset } from "@/lib/jorna";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -38,9 +38,9 @@ export default function ForgotPasswordPage() {
             If that email is registered, a reset link is on its way. Open it on this
             device and you&apos;ll be able to set a new password.
           </p>
-          <Link href="/login" className="mt-5 inline-block text-sm font-semibold text-gold hover:underline">
+          <a href={signInUrl()} className="mt-5 inline-block text-sm font-semibold text-gold hover:underline">
             Back to sign in
-          </Link>
+          </a>
         </Card>
       ) : (
         <>
@@ -68,9 +68,9 @@ export default function ForgotPasswordPage() {
             </form>
           </Card>
           <p className="mt-5 text-center text-sm text-ink-soft">
-            <Link href="/login" className="font-semibold text-gold hover:underline">
+            <a href={signInUrl()} className="font-semibold text-gold hover:underline">
               Back to sign in
-            </Link>
+            </a>
           </p>
         </>
       )}

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { MobileNavMenu } from "./MobileNavMenu";
 import { MESSAGES, NavBadge, NEEDS_YOU, useAppNav } from "./nav";
 import { Button, LinkButton } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 // The top bar: wordmark, then the primary navigation, then the auth action.
 //
@@ -100,7 +101,7 @@ export function SiteHeader() {
             </Button>
           ) : (
             <>
-              <LinkButton href="/login" variant="ghost">
+              <LinkButton href={signInUrl()} variant="ghost">
                 Sign in
               </LinkButton>
               {/* Paired with "Sign in", so it says what it does. It used to read

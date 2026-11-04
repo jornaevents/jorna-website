@@ -102,7 +102,7 @@ export interface BundleRequest {
   preferences?: string[];
 }
 
-// The 10 chatbot bundle categories (slot keys) with display labels.
+// The chatbot bundle slots (backend CHATBOT_SLOTS) with display labels.
 export const CATEGORY_LABELS: Record<string, string> = {
   venue: "Venue",
   catering: "Catering",
@@ -113,7 +113,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
   floral_decor: "Floral & Decor",
   makeup: "Makeup & Hair",
   mehndi: "Mehndi",
-  cultural_services: "Cultural Services",
+  // The old Cultural Services slot searches the Entertainment group (backend
+  // DECISIONS #35); Bar & bartending is the slot added with the taxonomy.
+  cultural_services: "Entertainment",
+  bar_beverage: "Bar & bartending",
 };
 
 // DB-level vendor categories (what /vendors/search rows carry) → display labels.
@@ -160,6 +163,8 @@ export interface Paginated<T> {
 export interface VendorSearchItem {
   vendor_id: string;
   user_id: string;
+  /** What clients see the vendor called; null → their own name (lib vendorName). */
+  business_name?: string | null;
   first_name: string;
   last_name: string;
   category: string;
@@ -224,6 +229,8 @@ export interface VendorDetail {
   travel_radius_miles?: number | null;
   open_to_long_distance?: boolean;
   open_to_price_negotiation?: boolean;
+  /** What clients see the vendor called; null → f_name/l_name (lib vendorName). */
+  business_name?: string | null;
   f_name?: string | null;
   l_name?: string | null;
   location?: string | null;
@@ -326,6 +333,8 @@ export interface Review {
 }
 
 export interface VendorSearchParams {
+  /** Service or group keys from GET /taxonomy, comma-separated (backend 0080). */
+  service?: string;
   category?: string;
   subcategory?: string;
   min_price?: number;

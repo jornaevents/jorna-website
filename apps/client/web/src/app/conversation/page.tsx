@@ -14,6 +14,7 @@ import {
 import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
 import { ModerationMenu } from "@/components/ModerationMenu";
+import { signInUrl } from "@/lib/vendorSite";
 
 function clockTime(iso: string): string {
   const t = Date.parse(iso.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
@@ -115,7 +116,7 @@ function ConversationInner() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`/login?next=/conversation${conversationId ? `?id=${conversationId}` : ""}`);
+      window.location.replace(signInUrl(`/conversation${conversationId ? `?id=${conversationId}` : ""}`));
     }
   }, [authLoading, user, router, conversationId]);
 

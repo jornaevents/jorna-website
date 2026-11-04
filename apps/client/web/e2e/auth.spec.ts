@@ -28,6 +28,7 @@ test.describe("authentication", () => {
     await page.getByLabel("First name").fill("Priya");
     await page.getByLabel("Last name").fill("Shah");
     await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByLabel(/I agree to the Terms of Service/).check();
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page).toHaveURL(/\/client\/plan\/?$/);
@@ -36,14 +37,38 @@ test.describe("authentication", () => {
       password: "Celebrate2025",
       f_name: "Priya",
       l_name: "Shah",
+      accept_terms: true,
     });
   });
 
-  test("sign-up here is for hosts, and points vendors to jornaevents.com", async ({ page }) => {
+  test("signing up, either way, needs the Terms and Privacy Policy agreed", async ({ page, api }) => {
+    api.post("/auth/register", { user_id: "user-1", email: "priya@example.com" });
+
+    await page.goto("login/?mode=register");
+    await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms/");
+    await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy/");
+    await page.getByLabel("Email").fill("priya@example.com");
+    await page.getByLabel("First name").fill("Priya");
+    await page.getByLabel("Last name").fill("Shah");
+    await page.getByLabel("Password").fill("Celebrate2025");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+
+    await expect(page.getByText("Please agree to the Terms of Service and Privacy Policy")).toBeVisible();
+    expect(api.requestsTo("POST", "/auth/register")).toHaveLength(0);
+    await expect(page).toHaveURL(/\/client\/login\/\?mode=register$/);
+  });
+
+  // Drawn as the shared sign-in page is (the entry design): its own top bar
+  // with the logo instead of the site header.
+  test("sign-up here is for hosts, looks like the shared sign-in, and points vendors to theirs", async ({ page }) => {
     await page.goto("login/?mode=register");
 
+    await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Jorna home" })).toHaveAttribute("href", "https://jornaevents.com/app/");
+    await expect(page.getByRole("navigation", { name: "About Jorna" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Vendor/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Sign up on jornaevents.com" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Sign up as a vendor" })).toHaveAttribute(
       "href",
       "https://jornaevents.com/app/login/?mode=register&role=vendor",
     );
@@ -79,9 +104,22 @@ test.describe("authentication", () => {
     await page.route("https://jornaevents.com/**", (route) =>
       route.fulfill({ status: 200, contentType: "text/html", body: "shared sign-in" }),
     );
+    const viaOwnLogin: string[] = [];
+    page.on("request", (r) => {
+      if (r.isNavigationRequest() && new URL(r.url()).pathname.startsWith("/client/login")) viaOwnLogin.push(r.url());
+    });
     await page.goto("bundles/");
 
-    // Via this app's sign-in, which hands off to the shared one.
+    // Straight to the shared sign-in, not by way of this app's /login.
     await expect(page).toHaveURL("https://jornaevents.com/app/login/?next=%2Fclient%2Fbundles%2F");
+    expect(viaOwnLogin).toEqual([]);
+  });
+
+  test("Sign in links go straight to the shared sign-in page", async ({ page }) => {
+    await page.goto("forgot-password/");
+
+    const shared = /^https:\/\/jornaevents\.com\/app\/login\/$/;
+    await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toHaveAttribute("href", shared);
+    await expect(page.getByRole("main").getByRole("link", { name: /sign in/i }).first()).toHaveAttribute("href", shared);
   });
 });

@@ -1,13 +1,13 @@
 "use client";
 
+import { TermsAgreement } from "@jorna/shared/components/TermsAgreement";
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { clientLanding } from "@/lib/landing";
 import { ApiError } from "@jorna/shared/lib/api";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
-import { Button, Card, Field } from "@jorna/shared/components/ui";
+import { EntryField, EntryShell, ErrorNote, primaryButton, textButton } from "@/components/entry/ui";
 import { vendorSiteUrl } from "@/lib/vendorSite";
 import { withTrailingSlash } from "@jorna/shared/lib/paths";
 
@@ -48,8 +48,10 @@ function safeNext(raw: string | null): string | null {
   return raw;
 }
 
+const TERMS_NEEDED = "Please agree to the Terms of Service and Privacy Policy to create an account.";
+
 function LoginInner() {
-  const { login, register } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
@@ -89,8 +91,6 @@ function LoginInner() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Shared
-  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   // Register-only
   // Name, email and password: the backend derives a username and leaves age
@@ -98,6 +98,8 @@ function LoginInner() {
   const [email, setEmail] = useState("");
   const [fName, setFName] = useState("");
   const [lName, setLName] = useState("");
+  // The Terms and Privacy Policy box — needed for either way of signing up.
+  const [agreed, setAgreed] = useState(false);
   // Google-signup linkage (recovered from the persisted Supabase session)
   const [googleReady, setGoogleReady] = useState(!isGoogleSignup);
   const [googleUserId, setGoogleUserId] = useState<string | null>(null);
@@ -143,24 +145,25 @@ function LoginInner() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!agreed) {
+      setError(TERMS_NEEDED);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      if (mode === "login") {
-        await login(identifier, password);
-      } else {
-        await register({
-          email,
-          password,
-          f_name: fName,
-          l_name: lName,
-          ...(isGoogleSignup && googleUserId && googleToken
-            ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
-            : {}),
-        });
-        // The Jorna JWT is the session now; drop the Supabase one.
-        if (isGoogleSignup) await supabase.auth.signOut();
-      }
+      await register({
+        email,
+        password,
+        f_name: fName,
+        l_name: lName,
+        accept_terms: true,
+        ...(isGoogleSignup && googleUserId && googleToken
+          ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
+          : {}),
+      });
+      // The Jorna JWT is the session now; drop the Supabase one.
+      if (isGoogleSignup) await supabase.auth.signOut();
       router.push(next ?? (await clientLanding()));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -170,185 +173,118 @@ function LoginInner() {
   }
 
   async function google() {
+    if (!agreed) {
+      setError(TERMS_NEEDED);
+      return;
+    }
     setError(null);
     setGoogleBusy(true);
     try {
-      await startGoogleSignIn(next ?? "", null);
+      await startGoogleSignIn(next ?? "", null, true);
     } catch {
       setGoogleBusy(false);
       setError("Couldn't start Google sign-in. Please try again.");
     }
   }
 
-  const heading = isGoogleSignup
-    ? "Finish signing up"
-    : mode === "login"
-      ? "Welcome back"
-      : "Create your account";
-
-  const subheading =
-    mode === "login"
-      ? "Sign in to build and book your celebration."
-      : isGoogleSignup
-        ? "A few details and your Google account is all set."
-        : "A few details and you're planning.";
-
-  const submitLabel = busy
-    ? "One moment…"
-    : isGoogleSignup
-      ? "Complete sign-up"
-      : mode === "login"
-        ? "Sign in"
-        : "Create account";
-
   if (forVendor || handOff) {
-    return <p className="py-20 text-center text-ink-soft">Taking you to sign in…</p>;
+    return (
+      <EntryShell>
+        <p className="py-20 text-center text-[14px] text-(--e-muted)">Taking you to sign in…</p>
+      </EntryShell>
+    );
   }
 
+  // Signing in is the shared page's (handOff above), so this is only ever
+  // the sign-up form — laid out as the vendor sign-up there is.
   return (
-    <div className="mx-auto w-[min(460px,100%-2rem)] py-14">
-      <h1 className="serif text-center text-4xl text-maroon dark:text-gold">{heading}</h1>
-      <p className="mt-2 text-center text-ink-soft">{subheading}</p>
+    <EntryShell>
+      <main className="grid flex-1 place-items-center px-3 pb-16 pt-6 sm:pt-10">
+        <section className="w-full max-w-[500px] rounded-[20px] border border-(--e-line) bg-(--e-paper)/95 px-5 py-8 text-center shadow-[0_22px_60px_rgba(74,21,38,.1)] sm:px-9">
+          <h1 className="e-display text-[32px] sm:text-[36px]">{isGoogleSignup ? "Finish signing up" : "Create your account"}</h1>
+          <p className="mt-2 text-[14px] leading-normal text-(--e-muted)">
+            {isGoogleSignup ? "A few details and your Google account is all set." : "A few details and you're planning."}
+          </p>
 
-      <Card className="mt-8 p-6">
-        {/* Google — offered on the normal login/register screens, not mid-completion. */}
-        {!isGoogleSignup ? (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              disabled={googleBusy}
-              onClick={google}
-              className="w-full"
-            >
-              <GoogleMark />
-              {googleBusy ? "Connecting…" : "Continue with Google"}
-            </Button>
-            {mode === "register" ? (
-              <p className="mt-2 text-center text-xs text-ink-faint">
-                That&apos;s the whole sign-up — no form to fill in.
-              </p>
-            ) : null}
-            <div className="my-5 flex items-center gap-3 text-xs text-ink-faint">
-              <span className="h-px flex-1 bg-card-edge" />
-              or
-              <span className="h-px flex-1 bg-card-edge" />
+          <form onSubmit={submit} className="mt-7 grid gap-4 text-left">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <EntryField label="First name" htmlFor="reg-first">
+                <input id="reg-first" className="e-input" autoComplete="given-name" value={fName} onChange={(e) => setFName(e.target.value)} required />
+              </EntryField>
+              <EntryField label="Last name" htmlFor="reg-last">
+                <input id="reg-last" className="e-input" autoComplete="family-name" value={lName} onChange={(e) => setLName(e.target.value)} required />
+              </EntryField>
             </div>
-          </>
-        ) : null}
-
-        <form onSubmit={submit} className="grid gap-4">
-          {mode === "login" ? (
-            <Field
-              label="Email or username"
-              autoComplete="username"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-            />
-          ) : (
-            <>
-              <Field
-                label="Email"
+            <EntryField label="Email" htmlFor="reg-email" hint={isGoogleSignup ? "From your Google account." : undefined}>
+              <input
+                id="reg-email"
+                className="e-input"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 // Locked to the Google account: the backend rejects a mismatch.
                 readOnly={isGoogleSignup}
-                hint={isGoogleSignup ? "From your Google account." : undefined}
                 required
               />
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label="First name"
-                  value={fName}
-                  onChange={(e) => setFName(e.target.value)}
-                  required
-                />
-                <Field
-                  label="Last name"
-                  value={lName}
-                  onChange={(e) => setLName(e.target.value)}
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          <Field
-            label="Password"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            hint={
-              mode === "register"
-                ? "At least 8 characters, with an uppercase letter, a lowercase letter, and a number."
-                : undefined
-            }
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          {mode === "login" ? (
-            <div className="-mt-2 text-right">
-              <Link
-                href="/forgot-password"
-                className="text-sm font-semibold text-gold underline-offset-2 hover:underline"
+            </EntryField>
+            <EntryField label="Password" htmlFor="reg-password" hint="At least 8 characters, with an uppercase letter, a lowercase letter, and a number.">
+              <input
+                id="reg-password"
+                className="e-input"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </EntryField>
+            <TermsAgreement checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} />
+            {/* Google — offered when starting out, not mid-completion. */}
+            {!isGoogleSignup ? (
+              <button
+                type="button"
+                disabled={googleBusy}
+                onClick={google}
+                className="flex min-h-[46px] items-center justify-center gap-2.5 rounded-[10px] border border-(--e-field) bg-white text-[14px] font-bold text-[#4b4641] transition hover:border-[#baa985] disabled:opacity-60"
               >
-                Forgot password?
-              </Link>
-            </div>
+                <GoogleMark />
+                {googleBusy ? "Connecting…" : "Continue with Google"}
+              </button>
+            ) : null}
+
+            {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+            <button type="submit" disabled={busy || (isGoogleSignup && !googleReady)} className={`${primaryButton} mt-1 w-full`}>
+              {busy ? "One moment…" : isGoogleSignup ? "Complete sign-up" : "Create account"}
+            </button>
+          </form>
+
+          {!isGoogleSignup ? (
+            <>
+              <p className="mt-6 text-[14px] text-(--e-muted)">
+                Already have an account?{" "}
+                <button type="button" className={textButton} onClick={switchMode}>
+                  Sign in
+                </button>
+              </p>
+              <p className="mt-5 border-t border-(--e-line) pt-4 text-[13px] text-(--e-muted)">
+                Offering services instead?{" "}
+                <a href={vendorSiteUrl("/login?mode=register&role=vendor")} className={textButton}>
+                  Sign up as a vendor
+                </a>
+              </p>
+            </>
           ) : null}
-
-          {error ? (
-            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-              {error}
-            </p>
-          ) : null}
-
-          <Button
-            type="submit"
-            size="lg"
-            disabled={
-              busy || (isGoogleSignup && !googleReady)
-            }
-            className="mt-1"
-          >
-            {submitLabel}
-          </Button>
-        </form>
-      </Card>
-
-      {!isGoogleSignup ? (
-        <p className="mt-5 text-center text-sm text-ink-soft">
-          {mode === "login" ? "New to Jorna? " : "Already have an account? "}
-          <button
-            type="button"
-            className="font-semibold text-gold underline-offset-2 hover:underline"
-            onClick={switchMode}
-          >
-            {mode === "login" ? "Create an account" : "Sign in"}
-          </button>
-        </p>
-      ) : null}
-      <p className="mt-3 text-center text-xs text-ink-faint">
-        A vendor?{" "}
-        <a
-          href={vendorSiteUrl(mode === "login" ? "/login" : "/login?mode=register&role=vendor")}
-          className="font-semibold text-gold underline-offset-2 hover:underline"
-        >
-          {mode === "login" ? "Sign in on jornaevents.com" : "Sign up on jornaevents.com"}
-        </a>
-      </p>
-    </div>
+        </section>
+      </main>
+    </EntryShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={null}>
       <LoginInner />
     </Suspense>
   );

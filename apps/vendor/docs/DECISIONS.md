@@ -1081,3 +1081,43 @@ handover looks like one page arriving. Whether to show it is decided in
 screen) or a Google sign-in begun from the vendor side — and applied by CSS,
 so the pre-rendered page and React agree. Anyone else still sees "Finishing
 sign-in…". The skeleton fetches nothing: no session exists yet.
+
+## Decision: business name, terms on sign-up, an honest help page (2026-11-03)
+
+Before onboarding vendors:
+
+- **Business name** — optional, asked in onboarding step 1 and Edit profile
+  (backend 0082, `vendors.business_name`). Everywhere the web names a vendor
+  it goes through `@jorna/shared/lib/vendorName`: the business name when
+  set, else the person's name — the same rule as the backend's
+  `services/names.py`, which names vendors in emails, PDFs and the signing
+  page. Greetings to the vendor ("Good morning, Priya") stay personal.
+- **Terms on sign-up** — both sign-ups (vendor `/app/login`, client
+  `/client/login`) have a required "I agree to the Terms of Service and the
+  Privacy Policy" box (`@jorna/shared/components/TermsAgreement`), for the
+  form and for Continue with Google; acceptance is sent as `accept_terms`
+  and recorded by the backend. Google sign-ups carry it across the round
+  trip in `OAUTH_TERMS_KEY`. The sign-in page's Google button can make a
+  new account too, so a notice under it says continuing agrees. The links
+  go to `/terms/` and `/privacy/`, which 404 until the drafts in `drafts/`
+  are filled in and published — shown now by the owner's decision.
+- **`/help`** described escrow, Stripe payouts, refunds within 24 hours and
+  a platform fee — none of which production has. Rewritten to the product
+  as it is: contracts signed online, clients pay vendors directly on the
+  contract's schedule, payments marked and confirmed in Jorna.
+
+## Decision: vendors pick services from the taxonomy, not category + subcategory (2026-10-20)
+
+Backend #130 and #131, DECISIONS #35 there.
+
+- **The picker is shared:** `packages/shared/components/ServicePicker.tsx`, reading `GET /taxonomy` through `packages/shared/lib/taxonomy.ts` (`useTaxonomy`). The loaded taxonomy is cached in memory and in localStorage.
+  - Search matches labels and synonyms ("mehendi", "pandit"). A label match ranks above a synonym, and popular services break ties. Unit-tested in `taxonomy.test.ts`.
+  - Before typing, the picker shows popular chips and a "Browse all services" list grouped by category.
+- **Onboarding step 1 and the profile's About section** use it for "Services you offer" and save `specialties`. The backend derives `category`, `subcategory` and `specializations` from those for older readers.
+- **"Which of these do you offer?"** appears for each entry in the vendor's `service_picks_needed` (an old category such as Beauty that doesn't say which service). It goes away as soon as one of its choices is picked.
+- **The package form** (`ServicesManager`) asks "What is this package?". The choices are the vendor's own services, as chips; "Something else…" opens the full picker, and saving adds that service to their specialties server-side. Under it are the details clients filter by (cuisine, venue type, capacity…), drawn by attribute type (`components/packages/AttributeFields.tsx`).
+  - Changing the service clears the old service's details.
+  - A package saved under a vague old category has no `service_key` yet, so editing it asks the vendor to choose before saving.
+  - The free-text "Speciality" for Other is gone; Other is now a service like any other.
+- **Not yet:** the client surfaces. They're next.
+- **Ship order:** this needs the backend's 0080 live first. An older backend ignores `specialties`, so a new vendor would be saved as "other".

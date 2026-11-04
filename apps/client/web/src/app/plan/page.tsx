@@ -12,6 +12,7 @@ import { Button, Card, Chip, Field, TimeField } from "@jorna/shared/components/u
 import { BundleResults } from "@/components/BundleResults";
 import { CityCombobox, type Coords } from "@jorna/shared/components/CityCombobox";
 import { locateZip, type ZipPlace } from "@jorna/shared/lib/zips";
+import { signInUrl } from "@/lib/vendorSite";
 
 const BUDGETS = [
   { value: "budget-friendly", label: "Budget-friendly", hint: "Smart value" },
@@ -91,7 +92,7 @@ function PlanInner() {
   useEffect(() => {
     if (!loading && !user) {
       const next = celebration ? `/plan?event=${celebration.key}` : "/plan";
-      router.replace(`/login?next=${encodeURIComponent(next)}`);
+      window.location.replace(signInUrl(next));
     }
   }, [loading, user, router, celebration]);
 

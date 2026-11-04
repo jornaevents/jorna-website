@@ -9,6 +9,7 @@
 // is designed to ship in clients). Overridable via env for a different project.
 
 import { createClient } from "@supabase/supabase-js";
+import { OAUTH_TERMS_KEY } from "@jorna/shared/lib/sessionKeys";
 
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://ddfjhfqrrgvzphwiinch.supabase.co";
@@ -79,8 +80,26 @@ export function takeOAuthRole(): string | null {
 /** Begin the Google OAuth redirect. Rejects if Supabase won't start the flow.
  *  `role` is set when starting from the sign-up form, so a brand-new account
  *  knows whether it belongs to a host or a vendor. */
-export async function startGoogleSignIn(next: string, role?: string | null): Promise<void> {
+/** Whether the person agreed to the Terms before going to Google (see
+ *  startGoogleSignIn) — sent as accept_terms when the callback makes the account. */
+export function takeOAuthTerms(): boolean {
+  try {
+    const v = localStorage.getItem(OAUTH_TERMS_KEY);
+    localStorage.removeItem(OAUTH_TERMS_KEY);
+    return v === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function startGoogleSignIn(next: string, role?: string | null, acceptTerms = false): Promise<void> {
   rememberOAuthNext(next);
+  try {
+    if (acceptTerms) localStorage.setItem(OAUTH_TERMS_KEY, "1");
+    else localStorage.removeItem(OAUTH_TERMS_KEY);
+  } catch {
+    /* storage disabled — the account is made without the record */
+  }
   try {
     if (role) localStorage.setItem(OAUTH_ROLE_KEY, role);
     else localStorage.removeItem(OAUTH_ROLE_KEY);

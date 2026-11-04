@@ -8,7 +8,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { deleteMe, listBundles } from "@/lib/jorna";
 import { moneyForBundle } from "@/lib/planning";
 import { disableWebPushForThisDevice } from "@jorna/shared/lib/push";
-import { vendorSiteUrl } from "@/lib/vendorSite";
+import { vendorSiteUrl, signInUrl } from "@/lib/vendorSite";
 import { eventIsOver } from "@/lib/types";
 import { Button, Card } from "@jorna/shared/components/ui";
 
@@ -121,7 +121,7 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/profile");
+    if (!authLoading && !user) window.location.replace(signInUrl("/profile"));
   }, [authLoading, user, router]);
 
   if (authLoading || !user) {

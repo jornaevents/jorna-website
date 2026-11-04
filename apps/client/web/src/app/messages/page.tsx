@@ -8,6 +8,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { listConversations } from "@/lib/jorna";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton } from "@jorna/shared/components/ui";
+import { signInUrl } from "@/lib/vendorSite";
 
 function timeAgo(iso?: string | null): string {
   if (!iso) return "";
@@ -86,7 +87,7 @@ export default function MessagesPage() {
   const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/messages");
+    if (!authLoading && !user) window.location.replace(signInUrl("/messages"));
   }, [authLoading, user, router]);
 
   // Initial load, then a slow poll so a message that arrived elsewhere moves

@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
+import { mockServiceTaxonomy, mockTaxonomyCategories, mockUser, mockVendorDetail } from "./support/mock-data";
 import type { Page } from "@playwright/test";
 import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
@@ -15,6 +15,7 @@ function pkg(overrides: Record<string, unknown> = {}) {
     price: 1400,
     price_unit: "event",
     category: "photography",
+    service_key: "photography",
     status: "active",
     inclusions: [],
     add_ons: [],
@@ -32,6 +33,7 @@ async function openProfile(
   const v = mockVendorDetail({ bio: "", instagram_username: null, ...vendor });
   api.get("/vendors/me", v);
   api.get("/vendors/categories", { categories: mockTaxonomyCategories() });
+  api.get("/taxonomy", mockServiceTaxonomy());
   api.get("/reviews/vendor/vendor-1", { items: [], total: 0 });
   api.get("/vendors/me/availability", hours);
   let items = services;
@@ -89,6 +91,29 @@ test.describe("vendor profile (/vendor-profile)", () => {
     await expect(details).toContainText("Edison, NJ");
     await expect(details).toContainText("Open to out-of-state events");
     await expect(details).toContainText("12 years in business");
+  });
+
+  test("a business name is what the profile is called, and blank goes back to the person's name", async ({ page, api }) => {
+    const { vendor } = await openProfile(page, api, { vendor: { f_name: "Priya", l_name: "Shah", business_name: null } });
+    api.patch("/vendors/me", ({ route }: HandlerArgs) => ({ ...vendor, ...route.request().postDataJSON() }));
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit profile" });
+    const preview = dialog.getByLabel("Profile preview");
+    await expect(preview).toContainText("Priya Shah");
+    await dialog.getByLabel("Business name (optional)").fill("Saffron & Silk");
+    await expect(preview).toContainText("Saffron & Silk");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
+
+    await expect(dialog).toHaveCount(0);
+    expect(api.requestsTo("PATCH", "/vendors/me")[0].body).toMatchObject({ business_name: "Saffron & Silk" });
+    await expect(page.getByText("Saffron & Silk").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Edit profile" }).click();
+    await dialog.getByLabel("Business name (optional)").fill("   ");
+    await dialog.getByRole("button", { name: "Save profile" }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(api.requestsTo("PATCH", "/vendors/me")[1].body).toMatchObject({ business_name: null });
   });
 
   test("years in business takes whole numbers only", async ({ page, api }) => {
@@ -165,4 +190,67 @@ test.describe("vendor profile (/vendor-profile)", () => {
     expect(call.body).toMatchObject({ is_popular: true });
     await expect(row).toContainText("Most popular");
   });
+});
+
+test("a vague old category asks which service, and the answer saves as specialties", async ({ page, api }) => {
+  const { vendor } = await openProfile(page, api, {
+    vendor: {
+      bio: "Wedding photography and mehndi across New Jersey.",
+      specialties: ["photography"],
+      service_picks_needed: [{ category: "beauty", choices: ["bridal_makeup", "mehndi_artist"] }],
+    },
+  });
+  api.patch("/vendors/me", ({ route }: HandlerArgs) => ({
+    ...vendor,
+    ...route.request().postDataJSON(),
+    service_picks_needed: [],
+  }));
+  await page.getByRole("button", { name: "Edit profile" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit profile" });
+  const prompt = dialog.getByText("Which of these do you offer?");
+  await expect(prompt).toBeVisible();
+  await dialog.getByRole("button", { name: "Mehndi artist", exact: true }).first().click();
+  await expect(prompt).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Save profile" }).click();
+
+  await expect(dialog).toHaveCount(0);
+  const [call] = api.requestsTo("PATCH", "/vendors/me");
+  expect(call.body).toMatchObject({ specialties: ["photography", "mehndi_artist"] });
+  // The backend derives the old category fields from the service keys.
+  expect(call.body).not.toHaveProperty("category");
+});
+
+test("a package names its service from the vendor's own and fills that service's details", async ({ page, api }) => {
+  const { setServices } = await openProfile(page, api, {
+    vendor: { bio: "Caterer and photographer.", specialties: ["photography", "catering"] },
+  });
+  api.patch("/services/svc-1", ({ route }: HandlerArgs) => {
+    const updated = pkg(route.request().postDataJSON());
+    setServices([updated]);
+    return updated;
+  });
+  await page.getByRole("button", { name: /Reception set/ }).first().click();
+  await page.getByRole("button", { name: "Edit package" }).click();
+
+  const what = page.getByRole("radiogroup", { name: "What is this package?" });
+  await expect(what.getByRole("button", { name: "Photographer" })).toHaveAttribute("aria-pressed", "true");
+  await what.getByRole("button", { name: "Caterer" }).click();
+  const cuisine = page.getByRole("group", { name: "Cuisine" });
+  await cuisine.getByRole("button", { name: "Punjabi" }).click();
+  await cuisine.getByRole("button", { name: "Gujarati" }).click();
+  await page.locator("form").getByRole("button", { name: /Save/ }).first().click();
+
+  await expect.poll(() => api.requestsTo("PATCH", "/services/svc-1").length).toBe(1);
+  const [call] = api.requestsTo("PATCH", "/services/svc-1");
+  expect(call.body).toMatchObject({ service_key: "catering", attributes: { cuisine: ["punjabi", "gujarati"] } });
+  expect(call.body).not.toHaveProperty("category");
+});
+
+test("a package saved under a vague old category has to say what it is", async ({ page, api }) => {
+  await openProfile(page, api, { services: [pkg({ service_key: null, category: "beauty" })] });
+  await page.getByRole("button", { name: /Reception set/ }).first().click();
+  await page.getByRole("button", { name: "Edit package" }).click();
+  await page.locator("form").getByRole("button", { name: /Save/ }).first().click();
+  await expect(page.getByText("Choose what this package is.")).toBeVisible();
+  expect(api.requestsTo("PATCH", "/services/svc-1")).toHaveLength(0);
 });

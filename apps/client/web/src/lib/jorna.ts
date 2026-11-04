@@ -298,11 +298,12 @@ export function googleLookup(supabaseAccessToken: string): Promise<GoogleLookupR
  *
  *  Distinct from googleLookup, which creates nothing: iOS still shows a
  *  registration form after looking up, so that endpoint has to stay pure. */
-export function googleRegister(supabaseAccessToken: string): Promise<GoogleLookupResponse> {
+export function googleRegister(supabaseAccessToken: string, acceptTerms = false): Promise<GoogleLookupResponse> {
   return apiFetch<GoogleLookupResponse>("/auth/google/register", {
     method: "POST",
     auth: false,
-    body: { access_token: supabaseAccessToken },
+    // accept_terms is recorded only if this call makes the account (backend 0082).
+    body: { access_token: supabaseAccessToken, accept_terms: acceptTerms },
   });
 }
 

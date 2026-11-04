@@ -11,6 +11,7 @@
 //
 // The light/dark toggle that used to sit in the rail moved to Settings.
 
+import { vendorName } from "@jorna/shared/lib/vendorName";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -19,7 +20,7 @@ import { getMyVendor, getNewBookingsCount, getPipeline, getUnreadCount, listMySe
 import { BOOKINGS_SEEN_EVENT } from "@/lib/newBookings";
 import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
-import { dmSans, manrope } from "@/lib/vendorFonts";
+import { dmSans, manrope } from "@jorna/shared/lib/fonts";
 import { Avatar } from "@jorna/shared/components/ui";
 import { JornaMark } from "@/components/JornaMark";
 import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
@@ -263,7 +264,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     };
   }, [pathname]);
 
-  const name = [vendor?.f_name, vendor?.l_name].filter(Boolean).join(" ");
+  const name = vendorName(vendor);
   const category = vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : null;
   const badgeFor = (item: SidebarItem) =>
     item.badge === "leads"

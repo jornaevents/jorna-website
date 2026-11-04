@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { cormorant, inter } from "@/lib/landingFonts";
+import { cormorant, inter } from "@jorna/shared/lib/landingFonts";
 import { JornaMark } from "@/components/JornaMark";
 import "@/app/landing.css";
 
