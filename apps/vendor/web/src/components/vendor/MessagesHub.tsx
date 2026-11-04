@@ -23,23 +23,15 @@ import {
   openBookingThread,
 } from "@/lib/jorna";
 import { centsToMoney } from "@/lib/vendorPlan";
-import { LABEL_TEXT, relationFor, showInInbox, tabFor, type MessageLabel, type Relation } from "@/lib/messageLabels";
+import { LABEL_TEXT, LABEL_TONE, relationFor, showInInbox, tabFor, type Relation } from "@/lib/messageLabels";
 import type { ConversationSummary, Pipeline, VendorBooking } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
-import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill, type Tone } from "@/components/vendor/ui";
+import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 
 type Filter = "all" | "enquiries" | "bookings" | "unread";
-
-// Inquiry and Booked match the Leads and Bookings pages' own pills.
-const LABEL_TONE: Record<MessageLabel, Tone> = {
-  inquiry: "amber",
-  negotiation: "maroon",
-  booked: "green",
-  closed: "grey",
-};
 
 function initials(name?: string | null): string {
   const parts = (name ?? "").replace(/&/g, " ").split(/\s+/).filter(Boolean);

@@ -308,3 +308,22 @@ vendor app (`vendorSiteUrl`, contract links) are now same-origin.
   or For clients.
 - **Links to the vendor app carry their trailing slash** (`vendorSiteUrl`,
   `contractSignUrl`), so they don't cost a 308 on the way.
+
+## Decision: each chat with a vendor shows where things stand (2026-11-04)
+
+A chat with one vendor shows the label that vendor sees on it — Inquiry,
+Negotiation, Booked or Closed — with the package, in Messages and in the
+chat header. The backend sends it as `label` on each chat (backend
+DECISIONS #42), worked out by the vendor app's own rule, since this app has
+no Leads page or single list of bookings to work it out from.
+
+- **No new tabs.** All / Plans / Vendors stay; the label is on the row.
+- **Blank until there's something to label:** a question with no request
+  yet, a plan chat, and a request on a plan not yet sent show no pill.
+  A vendor adding a client to their own Leads doesn't either.
+- **The header re-reads the label** when a new offer or system line
+  arrives in the chat — the booking's steps land there — not on every
+  message.
+- Words, colours and the pill come from `@jorna/shared` (`lib/messageLabels`,
+  `StatusPill`), so both apps show the same thing.
+

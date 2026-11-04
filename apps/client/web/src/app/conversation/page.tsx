@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { offerTarget } from "@jorna/shared/lib/offerTarget";
+import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
+import { StatusPill } from "@jorna/shared/components/ui";
 import {
   getConversation,
   getConversationMessages,
@@ -142,8 +144,13 @@ function ConversationInner() {
       .finally(() => setLoading(false));
   }, [conversationId, upsert]);
 
-  // Who this is with, and what it's about. Fetched once — it doesn't change
-  // while you're reading, and the poll below is for messages.
+  // A booking's steps — an offer, a contract sent or signed, a payment —
+  // arrive here as offer and system lines, and each can move the label in
+  // the header, so a new one re-reads it.
+  const lastStep =
+    messages.findLast((m) => m.kind === "offer" || m.kind === "system")?.message_id ?? null;
+
+  // Who this is with, and what it's about.
   useEffect(() => {
     if (!conversationId || !user) return;
     let cancelled = false;
@@ -155,7 +162,7 @@ function ConversationInner() {
     return () => {
       cancelled = true;
     };
-  }, [conversationId, user]);
+  }, [conversationId, user, lastStep]);
 
   // Initial load, live socket, and a 5s poll fallback.
   useEffect(() => {
@@ -208,6 +215,8 @@ function ConversationInner() {
     meta?.members && meta.members.length === 2
       ? meta.members.find((m) => m.user_id !== user.user_id)
       : undefined;
+  // Where things stand with this vendor, in the words the vendor sees.
+  const stage = knownLabel(meta?.label);
 
   return (
     <div className="mx-auto flex h-[calc(100vh-8rem)] w-[min(680px,100%-2rem)] flex-col py-4">
@@ -232,6 +241,16 @@ function ConversationInner() {
                   ? "Your vendors, without you"
                   : `${meta?.member_count ?? 0} people`}
           </p>
+          {stage ? (
+            <p className="mt-1.5 flex min-w-0 items-center gap-1.5">
+              <StatusPill tone={LABEL_TONE[stage.stage]} dot>
+                {LABEL_TEXT[stage.stage]}
+              </StatusPill>
+              {stage.service_name ? (
+                <span className="truncate text-xs text-ink-faint">{stage.service_name}</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span
