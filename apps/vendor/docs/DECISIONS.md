@@ -1121,3 +1121,23 @@ Backend #130 and #131, DECISIONS #35 there.
   - The free-text "Speciality" for Other is gone; Other is now a service like any other.
 - **Not yet:** the client surfaces. They're next.
 - **Ship order:** this needs the backend's 0080 live first. An older backend ignores `specialties`, so a new vendor would be saved as "other".
+
+## Decision: AI summaries in the Messages inbox (2026-11-04)
+
+Backend DECISIONS #42. A busy thread's inbox row can carry `summary`
+(`{text, generated_at}`): a one-line AI description of its latest messages,
+shown in place of `last_message` by the shared `SummaryPreview`
+(`@jorna/shared/components/SummaryPreview`), with a sparkle icon and "AI
+summary · may miss details" for screen readers and on hover. The server
+decides who gets one (3+ unread, still current, nobody quoted is blocked,
+summaries on), so the page only draws it — and drops it once the row has
+nothing unread, which matters in a list that zeroes a count on open without
+refetching. Two lines at most (`line-clamp-2`) instead of the preview's
+one-line `truncate`: the line is written to fit 80 characters, and cutting it
+would lose who the thread is waiting on.
+
+"Show AI summaries" (`AiSummarySetting`, `PATCH /me {ai_summaries_enabled}`)
+sits in account settings in both apps. It only hides them for that person,
+and says so. A user from a server without the field reads as on. The whole
+feature is off server-side (`SUMMARIES_ENABLED`) until it launches; with it
+off `summary` is always null and the inbox is unchanged.

@@ -9,6 +9,7 @@ import { listConversations } from "@/lib/jorna";
 import { loadIsVendor } from "@/lib/role";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton } from "@jorna/shared/components/ui";
+import { SummaryPreview } from "@jorna/shared/components/SummaryPreview";
 import { clientAppUrl } from "@/lib/clientApp";
 import { Suspense } from "react";
 import { useVendorShell } from "@/components/ChromeGate";
@@ -232,13 +233,20 @@ function ClientMessages() {
                           </span>
                         ) : null}
                       </div>
-                      <p
-                        className={`mt-0.5 truncate text-sm ${
-                          unread > 0 ? "font-medium text-ink" : "text-ink-soft"
-                        }`}
-                      >
-                        {preview(c)}
-                      </p>
+                      {c.summary?.text && unread > 0 ? (
+                        <SummaryPreview
+                          text={c.summary.text}
+                          className={`mt-0.5 ${unread > 0 ? "font-medium text-ink" : "text-ink-soft"}`}
+                        />
+                      ) : (
+                        <p
+                          className={`mt-0.5 truncate text-sm ${
+                            unread > 0 ? "font-medium text-ink" : "text-ink-soft"
+                          }`}
+                        >
+                          {preview(c)}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <span className="text-xs text-ink-faint">

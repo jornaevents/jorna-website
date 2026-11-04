@@ -91,6 +91,29 @@ test.describe("vendor messages hub (/messages)", () => {
     expect(api.requestsTo("POST", "/conversations/c-booked/messages")).toHaveLength(1);
   });
 
+  test("an AI summary stands in for the last message until the thread is opened", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockHub(api);
+    api.get("/conversations", [
+      conv("c-booked", "Meera Shah", {
+        subject_type: "booking", booking_id: "bk1", unread_count: 4,
+        summary: { text: "Meera asked to move the sangeet to 7pm; waiting on the vendor", generated_at: now },
+      }),
+      conv("c-lead", "Riya Kapoor"),
+    ]);
+
+    await page.goto("messages/");
+    const list = page.getByRole("complementary", { name: "Conversations" });
+    await expect(list.getByText("Meera asked to move the sangeet to 7pm; waiting on the vendor")).toBeVisible();
+    await expect(list.getByText("Hi from Meera Shah")).toHaveCount(0);
+    await expect(list.getByText("Hi from Riya Kapoor")).toBeVisible();
+
+    // Opening it marks it read here, and the line goes with the unread count.
+    await list.getByRole("button", { name: /Meera Shah/ }).click();
+    await expect(list.getByText("Meera asked to move the sangeet to 7pm; waiting on the vendor")).toHaveCount(0);
+    await expect(list.getByText("Hi from Meera Shah")).toBeVisible();
+  });
+
   test("a thread that's a lead links to it; one that's neither can be added", async ({ page, api }) => {
     await loginAs(page, api);
     mockHub(api);

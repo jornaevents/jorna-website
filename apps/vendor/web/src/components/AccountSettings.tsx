@@ -11,6 +11,7 @@ import { changePassword, updateMe, uploadAvatar } from "@/lib/jorna";
 import { checkImageFiles, describeRejections } from "@jorna/shared/lib/uploads";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
+import { AiSummarySetting } from "@jorna/shared/components/AiSummarySetting";
 
 /** `loginNext`: where to come back to after the forced sign-in a password change causes. */
 export function AccountSettings({ loginNext }: { loginNext: string }) {
@@ -165,6 +166,12 @@ export function AccountSettings({ loginNext }: { loginNext: string }) {
     </Card>
 
     {/* Password */}
+    <AiSummarySetting
+      className="mt-6"
+      enabled={user.ai_summaries_enabled !== false}
+      onChange={async (next) => setUser(await updateMe({ ai_summaries_enabled: next }))}
+    />
+
     <Card className="mt-6 p-6">
       <h2 className="serif text-xl text-ink">Change password</h2>
       <form onSubmit={changePw} className="mt-4 grid gap-4">

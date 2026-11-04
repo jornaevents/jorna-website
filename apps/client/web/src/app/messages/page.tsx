@@ -8,6 +8,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { listConversations } from "@/lib/jorna";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton } from "@jorna/shared/components/ui";
+import { SummaryPreview } from "@jorna/shared/components/SummaryPreview";
 import { signInUrl } from "@/lib/vendorSite";
 
 function timeAgo(iso?: string | null): string {
@@ -202,13 +203,20 @@ export default function MessagesPage() {
                           </span>
                         ) : null}
                       </div>
-                      <p
-                        className={`mt-0.5 truncate text-sm ${
-                          unread > 0 ? "font-medium text-ink" : "text-ink-soft"
-                        }`}
-                      >
-                        {preview(c)}
-                      </p>
+                      {c.summary?.text && unread > 0 ? (
+                        <SummaryPreview
+                          text={c.summary.text}
+                          className={`mt-0.5 ${unread > 0 ? "font-medium text-ink" : "text-ink-soft"}`}
+                        />
+                      ) : (
+                        <p
+                          className={`mt-0.5 truncate text-sm ${
+                            unread > 0 ? "font-medium text-ink" : "text-ink-soft"
+                          }`}
+                        >
+                          {preview(c)}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <span className="text-xs text-ink-faint">
