@@ -50,3 +50,29 @@ export const unreadDirect = () =>
 export const newBookingsCount = () => cachedRead("new-bookings", getNewBookingsCount);
 
 export const contractTemplates = () => cachedRead("contract-templates", loadTemplates);
+
+// ── Read ahead ───────────────────────────────────────────────────────
+
+/** Each sidebar page's opening reads, started before the click lands — on
+ *  hover, focus or touch — so a first visit finds them remembered. The same
+ *  calls the page makes, so it can't read ahead the wrong thing. */
+const AHEAD: Record<string, (vendorId: string) => Promise<unknown>[]> = {
+  "/overview": (id) => [vendorBookings(id), myLeads(), myConversations(), leadPipeline()],
+  "/my-bookings": (id) => [vendorBookings(id)],
+  "/leads": () => [leadPipeline()],
+  "/contracts": (id) => [everyVendorBooking(id), contractTemplates(), myServices(id)],
+  "/my-calendar": (id) => [vendorBookings(id), myAvailability()],
+  "/my-earnings": (id) => [vendorEarnings(id)],
+};
+
+/** Start the reads the page at `href` opens with. Never throws; a page
+ *  without an entry here reads nothing ahead. */
+export function prefetchFor(href: string): void {
+  const reads = AHEAD[href];
+  if (!reads) return;
+  myVendor()
+    .then((v) => {
+      if (v) for (const p of reads(v.vendor_id)) p.catch(() => {});
+    })
+    .catch(() => {});
+}

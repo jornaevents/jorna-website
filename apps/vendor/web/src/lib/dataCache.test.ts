@@ -129,3 +129,114 @@ describe("forgetting", () => {
     expect(await cachedRead("k", () => Promise.resolve("after"))).toBe("after");
   });
 });
+
+describe("kept across a reload", () => {
+  function memoryStorage() {
+    const data = new Map<string, string>();
+    return {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+      clear: () => data.clear(),
+      key: () => null,
+      get length() {
+        return data.size;
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("sessionStorage", memoryStorage());
+  });
+
+  /** Read once as `who`, then "reload": a fresh module with the same tab storage. */
+  async function readThenReload(who: string) {
+    const first = await fresh();
+    first.setDataCacheOwner(who);
+    await first.cachedRead("k", () => Promise.resolve("remembered"));
+    await vi.runAllTimersAsync(); // the save is batched
+    return fresh();
+  }
+
+  it("shows the same person's answers after a reload, without asking", async () => {
+    const { cachedRead, setDataCacheOwner } = await readThenReload("u1");
+    setDataCacheOwner("u1");
+    const load = vi.fn(() => Promise.resolve("network"));
+    expect(await cachedRead("k", load)).toBe("remembered");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("a read that starts before the session is known waits for it, then uses the tab's answer", async () => {
+    const { cachedRead, setDataCacheOwner } = await readThenReload("u1");
+    const load = vi.fn(() => Promise.resolve("network"));
+    const early = cachedRead("k", load); // the role check, before /me is back
+    setDataCacheOwner("u1");
+    expect(await early).toBe("remembered");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("stops waiting for a session that never settles", async () => {
+    const { cachedRead } = await readThenReload("u1");
+    const early = cachedRead("k", () => Promise.resolve("network"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(await early).toBe("network");
+  });
+
+  it("never shows them to someone else, and throws them away", async () => {
+    const { cachedRead, setDataCacheOwner, STORAGE_KEY } = await readThenReload("u1");
+    setDataCacheOwner("u2");
+    expect(await cachedRead("k", () => Promise.resolve("u2's own"))).toBe("u2's own");
+    await vi.runAllTimersAsync();
+    expect(sessionStorage.getItem(STORAGE_KEY)).toContain('"owner":"u2"');
+    expect(sessionStorage.getItem(STORAGE_KEY)).not.toContain("remembered");
+  });
+
+  it("doesn't bring back an answer past its maximum age", async () => {
+    const { cachedRead, setDataCacheOwner, MAX_AGE_MS } = await readThenReload("u1");
+    vi.advanceTimersByTime(MAX_AGE_MS);
+    setDataCacheOwner("u1");
+    expect(await cachedRead("k", () => Promise.resolve("network"))).toBe("network");
+  });
+
+  it("saves nothing while nobody is signed in", async () => {
+    const { cachedRead, STORAGE_KEY } = await fresh();
+    await cachedRead("k", () => Promise.resolve("v"));
+    await vi.runAllTimersAsync();
+    expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("forgets the stored answers on a write and on signing out", async () => {
+    const a = await fresh();
+    a.setDataCacheOwner("u1");
+    await a.cachedRead("k", () => Promise.resolve("v"));
+    await vi.runAllTimersAsync();
+    expect(sessionStorage.getItem(a.STORAGE_KEY)).not.toBeNull();
+    a.clearDataCache(); // what a write and a sign-out both call
+    expect(sessionStorage.getItem(a.STORAGE_KEY)).toBeNull();
+
+    await a.cachedRead("k", () => Promise.resolve("v"));
+    await vi.runAllTimersAsync();
+    a.setDataCacheOwner(null); // the session ended
+    expect(sessionStorage.getItem(a.STORAGE_KEY)).toBeNull();
+    expect(await a.cachedRead("k", () => Promise.resolve("fresh"))).toBe("fresh");
+  });
+
+  it("carries on without storage when it's blocked", async () => {
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    });
+    const { cachedRead, setDataCacheOwner } = await fresh();
+    setDataCacheOwner("u1");
+    expect(await cachedRead("k", () => Promise.resolve("v"))).toBe("v");
+    await vi.runAllTimersAsync();
+    expect(await cachedRead("k", () => Promise.resolve("again"))).toBe("v");
+  });
+});

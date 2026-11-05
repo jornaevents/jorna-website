@@ -89,7 +89,9 @@ always "none, verify manually" until a test runner is added.
   so moving between pages doesn't start each from nothing; forgetting it on
   any write and on sign-out.
 - **Code:** `web/src/lib/dataCache.ts` (`cachedRead`, `useDataVersion`,
-  `clearDataCache`), `web/src/lib/vendorData.ts` (the cached reads, by name).
+  `clearDataCache`, `setDataCacheOwner` for keeping answers across a
+  reload), `web/src/lib/vendorData.ts` (the cached reads by name, and
+  `prefetchFor`, the sidebar's read-ahead).
 - **Depends on:** `lib/jorna.ts` for every read; `@jorna/shared/lib/api`'s
   `onApiWrite` to forget after a write.
 - **Consumers:** Overview, Leads, Contracts, Bookings, Calendar, Earnings,
