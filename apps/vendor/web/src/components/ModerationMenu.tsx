@@ -61,7 +61,7 @@ export function ModerationMenu({
   if (done === "blocked") {
     return (
       <p className="text-xs text-ink-faint">
-        Blocked. You won&apos;t see {label} anymore. Manage this under Profile → Blocked.
+        Blocked. You won&apos;t see {label} anymore. Manage this under Settings → Blocked people.
       </p>
     );
   }

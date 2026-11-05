@@ -52,3 +52,9 @@
 /app/my-dashboard       /app/overview                   301
 /app/my-dashboard/      /app/overview                   301
 
+
+# The /profile account hub was removed (2026-11): sign-out is in the vendor
+# sidebar, and account details, the blocked list and deleting the account are
+# all on Settings now.
+/app/profile            /app/settings                   301
+/app/profile/           /app/settings                   301
