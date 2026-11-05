@@ -11,10 +11,12 @@ function isoInDays(days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function mockOverview(api: import("./support/api-mock").ApiMock) {
+/** Each of Overview's reads on its own route, and all five together on
+ *  GET /vendors/me/overview — the same data, as the backend promises. */
+function mockOverview(api: import("./support/api-mock").ApiMock, { combined = true } = {}) {
   const vendor = mockVendorDetail();
   api.get("/vendors/me", vendor);
-  api.get(`/bookings/vendor/${vendor.vendor_id}`, {
+  const bookings = {
     items: [
       // Signed, deposit not in yet: the next event, and "Deposit due".
       mockVendorBooking({
@@ -41,30 +43,75 @@ function mockOverview(api: import("./support/api-mock").ApiMock) {
     total: 3,
     limit: 100,
     offset: 0,
-  });
-  api.get("/leads", { items: [mockLead()], total: 1 });
-  api.get("/conversations", [
+  };
+  api.get(`/bookings/vendor/${vendor.vendor_id}`, bookings);
+  const leads = { items: [mockLead()], total: 1 };
+  api.get("/leads", leads);
+  const conversations = [
     {
       conversation_id: "c1",
       name: "Meera Kapoor",
       unread_count: 2,
       last_message: { content: "Can we add a second shooter?", created_at: new Date().toISOString() },
     },
-  ]);
+  ];
+  api.get("/conversations", conversations);
   api.get("/conversations/unread-count", { unread_count: 2 });
   const now = new Date().toISOString();
   const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
-  api.get("/leads/pipeline", {
+  const pipeline = {
     items: [
       { id: "booking:request", source: "request", booking_id: "request", lead_id: null, name: "Priya Shah", stage: "inquiry", attention: "needs_you", attention_reason: "new_request", archived: false, created_at: hoursAgo(5), updated_at: now },
       { id: "lead:lead-1", source: "lead", booking_id: null, lead_id: "lead-1", name: "Anjali Rao", stage: "inquiry", attention: "needs_you", attention_reason: "new_lead", archived: false, created_at: "2026-08-01T00:00:00Z", updated_at: now },
     ],
     counts: { inquiries: 2, negotiations: 0, needs_you: 2, waiting: 0, archived: 0 },
-  });
+  };
+  api.get("/leads/pipeline", pipeline);
+  if (combined) {
+    api.get("/vendors/me/overview", { vendor, bookings, leads, conversations, pipeline, timings: {} });
+  }
   return vendor;
 }
 
+/** Overview's own reads, each on its own route. */
+function separateReads(api: import("./support/api-mock").ApiMock, vendorId: string) {
+  return [`/bookings/vendor/${vendorId}`, "/leads", "/conversations", "/leads/pipeline"].map(
+    (path) => api.requestsTo("GET", path).length,
+  );
+}
+
 test.describe("vendor overview (/overview)", () => {
+  test("everything comes in one request, and the next pages find it", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockOverview(api);
+
+    await page.goto("overview/");
+    await expect(page.getByText("2 need your reply")).toBeVisible();
+    expect(api.requestsTo("GET", "/vendors/me/overview")).toHaveLength(1);
+    // Not even the sidebar's pipeline: it waited on the combined read.
+    expect(separateReads(api, vendor.vendor_id)).toEqual([0, 0, 0, 0]);
+
+    const nav = page.getByRole("navigation", { name: "Vendor" });
+    await nav.getByRole("link", { name: /Bookings/ }).click();
+    await expect(page.getByRole("region", { name: "Booking list" })).toContainText("Meera & Arjun");
+    await nav.getByRole("link", { name: /Leads/ }).click();
+    await expect(page.getByRole("heading", { name: "Leads", level: 1 })).toBeVisible();
+    await expect(page.getByText("Priya Shah").first()).toBeVisible();
+    expect(separateReads(api, vendor.vendor_id)).toEqual([0, 0, 0, 0]);
+  });
+
+  test("when the combined read fails, the separate reads still fill the page", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockOverview(api, { combined: false });
+    api.error("GET", "/vendors/me/overview", 500, "Internal Server Error");
+
+    await page.goto("overview/");
+    await expect(page.getByText("2 need your reply")).toBeVisible();
+    await expect(page.getByText("In 12 days")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Meera Kapoor/ })).toBeVisible();
+    expect(separateReads(api, vendor.vendor_id).every((n) => n >= 1)).toBe(true);
+  });
+
   test("summarises leads, the next event, bookings and the inbox", async ({ page, api }) => {
     await loginAs(page, api);
     mockOverview(api);

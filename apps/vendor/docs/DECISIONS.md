@@ -1231,3 +1231,25 @@ everything afresh on each visit.
   fresh, and its bookings and templates from memory. None of them read
   again behind the person editing.
 
+## Decision: Overview opens with one request (2026-11-05)
+
+Overview's five reads (the vendor, bookings, leads, inbox, pipeline) go out
+as one request, `GET /vendors/me/overview` (backend DECISIONS #43), when
+memory doesn't already hold them all (`overviewReads` in `lib/vendorData`).
+
+- **Each part is filed under its own read's key** (`prime` in
+  `lib/dataCache`), started the moment the request goes out. Anything else
+  asking for one meanwhile waits on it rather than sending its own, and the
+  pages after Overview (Bookings, Leads, the sidebar) find them remembered.
+  Nothing a write went out during is kept, as with every read here.
+- **Falling back is per part.** A section the server sent as null, or the
+  whole request failing (a backend from before the route, a blip), means
+  that part reads on its own route, as before. Someone who isn't a vendor
+  gets a 404 for the whole thing, and their parts aren't asked for at all.
+- **The sidebar's badges wait for the session,** like the pages. Before, they
+  read the moment the shell mounted, which on a full load beat the page and
+  sent the pipeline twice; now they run just after the page's own load and
+  share it. The badges show with the page, not a moment before it.
+- **Whether one beats five is measured, not assumed:** the response carries
+  each section's server time (`timings`, and a `Server-Timing` header).
+

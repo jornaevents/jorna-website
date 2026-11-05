@@ -205,7 +205,8 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     if (item.href === "/contracts") return item.match(pathname) && !fromLeads;
     return item.match(pathname);
   };
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const signedIn = Boolean(user);
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [leadsBadge, setLeadsBadge] = useState(0);
   const [messagesBadge, setMessagesBadge] = useState(0);
@@ -245,6 +246,10 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     // Re-checked on navigation so the badge follows you as you act on things:
     // the pipeline's "needs your attention", the same count the Leads page
     // shows. lib/attention's count stands in if the pipeline can't be read.
+    // Once the session is known, like the pages: then this runs just after
+    // the page's own load, and shares its reads instead of racing them
+    // (Overview's one request, lib/vendorData).
+    if (!signedIn) return;
     let cancelled = false;
     leadPipeline()
       .then((p) => !cancelled && setLeadsBadge(p.counts.needs_you))
@@ -270,7 +275,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
       cancelled = true;
       window.removeEventListener(BOOKINGS_SEEN_EVENT, loadNew);
     };
-  }, [pathname, dataVersion]);
+  }, [pathname, dataVersion, signedIn]);
 
   const name = vendorName(vendor);
   const category = vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : null;

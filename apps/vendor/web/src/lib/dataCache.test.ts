@@ -240,3 +240,46 @@ describe("kept across a reload", () => {
     expect(await cachedRead("k", () => Promise.resolve("again"))).toBe("v");
   });
 });
+
+describe("filling from a combined read", () => {
+  it("a primed read answers everyone who asks meanwhile, once, and is remembered", async () => {
+    const { cachedRead, prime, isRemembered } = await fresh();
+    let answer!: (v: string) => void;
+    const combined = vi.fn(() => new Promise<string>((r) => (answer = r)));
+    prime("k", combined);
+    const own = vi.fn(() => Promise.resolve("its own request"));
+    const asked = cachedRead("k", own); // the sidebar, mounting meanwhile
+    answer("from overview");
+    expect(await asked).toBe("from overview");
+    expect(own).not.toHaveBeenCalled();
+    expect(combined).toHaveBeenCalledTimes(1);
+    expect(isRemembered("k")).toBe(true);
+  });
+
+  it("doesn't start a read for a key it already has", async () => {
+    const { cachedRead, prime } = await fresh();
+    await cachedRead("k", () => Promise.resolve("v"));
+    const load = vi.fn(() => Promise.resolve("again"));
+    prime("k", load);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("keeps nothing a write went out during", async () => {
+    const { prime, isRemembered, clearDataCache } = await fresh();
+    let answer!: (v: string) => void;
+    prime("k", () => new Promise<string>((r) => (answer = r)));
+    clearDataCache(); // a write while the combined read was out
+    answer("from before the write");
+    await vi.runAllTimersAsync();
+    expect(isRemembered("k")).toBe(false);
+  });
+
+  it("stops remembering past the maximum age", async () => {
+    const { prime, isRemembered, MAX_AGE_MS } = await fresh();
+    prime("k", () => Promise.resolve("v"));
+    await vi.runAllTimersAsync();
+    expect(isRemembered("k")).toBe(true);
+    vi.advanceTimersByTime(MAX_AGE_MS);
+    expect(isRemembered("k")).toBe(false);
+  });
+});
