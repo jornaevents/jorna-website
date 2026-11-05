@@ -4,6 +4,13 @@ import { mockVendorBooking, mockVendorDetail } from "./support/mock-data";
 // Moving between vendor pages reuses what was just read (lib/dataCache), and
 // any write makes the next page read afresh — so nothing shown can predate
 // the vendor's own action.
+/** The Calendar's own content, not its heading: the heading shows at once,
+ *  over the loading placeholders (PageSkeleton), before anything is read. */
+async function calendarLoaded(page: import("@playwright/test").Page) {
+  await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Loading your calendar…" })).toHaveCount(0);
+}
+
 test.describe("remembered reads between vendor pages", () => {
   const vendor = mockVendorDetail();
   const bookingsPath = `/bookings/vendor/${vendor.vendor_id}`;
@@ -30,7 +37,7 @@ test.describe("remembered reads between vendor pages", () => {
     const nav = page.getByRole("navigation", { name: "Vendor" });
 
     await page.goto("my-calendar/");
-    await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+    await calendarLoaded(page);
     // The sidebar, the role check and the page all asked; they shared one request.
     expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(1);
     expect(api.requestsTo("GET", bookingsPath)).toHaveLength(1);
@@ -38,7 +45,7 @@ test.describe("remembered reads between vendor pages", () => {
     await nav.getByRole("link", { name: /Bookings/ }).click();
     await expect(page.getByRole("region", { name: "Booking list" })).toContainText("Meera & Arjun");
     await nav.getByRole("link", { name: "Calendar" }).click();
-    await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+    await calendarLoaded(page);
 
     expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(1);
     expect(api.requestsTo("GET", bookingsPath)).toHaveLength(1);
@@ -56,7 +63,7 @@ test.describe("remembered reads between vendor pages", () => {
     const before = api.requestsTo("GET", bookingsPath).length;
 
     await nav.getByRole("link", { name: "Calendar" }).click();
-    await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+    await calendarLoaded(page);
     await expect.poll(() => api.requestsTo("GET", bookingsPath).length).toBe(before + 1);
   });
 });
