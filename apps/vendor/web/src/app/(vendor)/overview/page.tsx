@@ -12,8 +12,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth";
-import { leadPipeline, myConversations, myLeads, myVendor, vendorBookings } from "@/lib/vendorData";
+import { hasStoredSession, useAuth } from "@/lib/auth";
+import { overviewReads, startOverviewEarly } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import {
   bookingTab,
@@ -555,24 +555,21 @@ function OverviewInner() {
   }, [authLoading, user, router]);
 
   const load = useCallback(async (): Promise<Snapshot | "not-vendor" | "failed"> => {
-    let vendor: VendorDetail | null;
+    // One request when memory doesn't hold them all (lib/vendorData).
+    let reads: Awaited<ReturnType<typeof overviewReads>>;
     try {
-      vendor = await myVendor();
+      reads = await overviewReads();
     } catch {
       return "failed";
     }
-    if (!vendor) return "not-vendor";
+    if (!reads.vendor) return "not-vendor";
+    const vendor: VendorDetail = reads.vendor;
     // Each card degrades on its own: a failed inbox shouldn't blank the page.
-    // All four at once — the pipeline used to wait for the other three.
     const [bookings, leads, conversations, pipeline] = await Promise.all([
-      vendorBookings(vendor.vendor_id)
-        .then((r) => r.items)
-        .catch(() => [] as VendorBooking[]),
-      myLeads()
-        .then((r) => r.items)
-        .catch(() => [] as Lead[]),
-      myConversations().catch(() => [] as ConversationSummary[]),
-      leadPipeline().catch(() => null),
+      reads.bookings.then((r) => r.items).catch(() => [] as VendorBooking[]),
+      reads.leads.then((r) => r.items).catch(() => [] as Lead[]),
+      reads.conversations.catch(() => [] as ConversationSummary[]),
+      reads.pipeline.catch(() => null),
     ]);
     return { vendor, bookings, leads, conversations, pipeline };
   }, []);
@@ -658,6 +655,10 @@ function OverviewInner() {
 }
 
 export default function OverviewPage() {
+  // Before the session check is back: see startOverviewEarly.
+  useEffect(() => {
+    if (hasStoredSession()) startOverviewEarly();
+  }, []);
   return (
     <Suspense fallback={<OverviewSkeleton />}>
       <OverviewInner />

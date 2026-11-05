@@ -1231,6 +1231,24 @@ export function getPipeline(): Promise<Pipeline> {
   return apiFetch<Pipeline>("/leads/pipeline");
 }
 
+/** What Overview opens with, in one request (backend DECISIONS #43). Each
+ *  section is exactly what its own route returns, or null if that section
+ *  failed on the server; `timings` is each section's milliseconds. 404 when
+ *  the caller isn't a vendor — and from a backend that predates the route,
+ *  so callers fall back to the separate reads on any failure. */
+export interface VendorOverview {
+  vendor: VendorDetail;
+  bookings: Paginated<VendorBooking> | null;
+  leads: { items: Lead[]; total: number } | null;
+  conversations: ConversationSummary[] | null;
+  pipeline: Pipeline | null;
+  timings?: Record<string, number>;
+}
+
+export function getVendorOverview(): Promise<VendorOverview> {
+  return apiFetch<VendorOverview>("/vendors/me/overview");
+}
+
 /** Hide a request or unsigned contract from the active leads, or bring it
  *  back. Declines, voids and notifies nothing. */
 export function archiveBooking(bookingId: string, archived = true): Promise<VendorBooking> {

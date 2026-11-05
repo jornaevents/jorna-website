@@ -185,6 +185,39 @@ export function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
   return fetchInto(key, load) as Promise<T>;
 }
 
+// ── Filling it from a combined read ──────────────────────────────────
+// Overview reads five things in one request (GET /vendors/me/overview). Each
+// part is started here as that key's read (prime), so anything else asking
+// for the key meanwhile — the sidebar mounts at the same moment — waits on
+// it instead of sending its own request, and the answer is filed under the
+// key for the pages after. Same rules as cachedRead: nothing from before a
+// write is kept, and nothing before the session is known is used.
+
+/** Null when the tab's stored answers, if any, are already back; else what
+ *  resolves once they are (see setDataCacheOwner). Null rather than a
+ *  resolved promise so a caller with nothing to wait for can carry on in
+ *  the same tick — before the sidebar, mounting alongside, asks too. */
+export function ownerWait(): Promise<void> | null {
+  if (ownerKnown || !hasStored()) return null;
+  return ownerSettled.then(() => {
+    ownerKnown = true;
+  });
+}
+
+
+/** Whether `key` has an answer that cachedRead would show. */
+export function isRemembered(key: string): boolean {
+  const entry = entries.get(key);
+  return entry != null && Date.now() - entry.at < MAX_AGE_MS;
+}
+
+/** Start `key`'s read now, with `load`, unless it's remembered or already
+ *  being read. Its answer is filed and shared exactly as cachedRead's. */
+export function prime(key: string, load: () => Promise<unknown>): void {
+  if (isRemembered(key)) return;
+  fetchInto(key, load).catch(() => {});
+}
+
 /** Forget every remembered read, and any read still in flight. */
 export function clearDataCache() {
   generation += 1;

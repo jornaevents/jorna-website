@@ -1231,3 +1231,35 @@ everything afresh on each visit.
   fresh, and its bookings and templates from memory. None of them read
   again behind the person editing.
 
+## Decision: Overview opens with one request (2026-11-05)
+
+Overview's five reads (the vendor, bookings, leads, inbox, pipeline) go out
+as one request, `GET /vendors/me/overview` (backend DECISIONS #43), when the
+vendor isn't remembered (`overviewReads` in `lib/vendorData`) — sent as the
+page mounts (`startOverviewEarly`), alongside the session check, not after it.
+
+- **Measured on staging (2026-11-05, 25 runs each, medians):** a cold
+  Overview load went from 184 ms (`/me` beside `/vendors/me`, then the four
+  side by side) to 134 ms (`/me` beside the combined read); p90 241 → 141 ms.
+  Once the vendor is remembered, though, the four side by side (130 ms) beat
+  the combined read (160 ms), whose sections run one after another on the
+  server — so it's used only for a cold load.
+
+- **Each part is filed under its own read's key** (`prime` in
+  `lib/dataCache`), started the moment the request goes out. Anything else
+  asking for one meanwhile waits on it rather than sending its own, and the
+  pages after Overview (Bookings, Leads, the sidebar) find them remembered.
+  Nothing a write went out during is kept, as with every read here.
+- **Falling back is per part.** A section the server sent as null, or the
+  whole request failing (a backend from before the route, a blip), means
+  that part reads on its own route, as before. Someone who isn't a vendor
+  gets a 404 for the whole thing, and their parts aren't asked for at all.
+- **The sidebar's badges wait for the session,** like the pages. Before, they
+  read the moment the shell mounted, which on a full load beat the page and
+  sent the pipeline twice; now they run just after the page's own load and
+  share it. The badges show with the page, not a moment before it.
+- **Production may differ:** staging's database is Railway's own Postgres;
+  production's is Supabase, where each section likely takes longer. The
+  response carries each section's server time (`timings`, and a
+  `Server-Timing` header) to check there.
+
