@@ -14,7 +14,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
-  getMyVendor,
   getPipeline,
   leadFromConversation,
   listConversations,
@@ -23,24 +22,17 @@ import {
   openBookingThread,
 } from "@/lib/jorna";
 import { centsToMoney } from "@/lib/vendorPlan";
-import { LABEL_TEXT, relationFor, showInInbox, tabFor, type MessageLabel, type Relation } from "@/lib/messageLabels";
+import { myVendor } from "@/lib/vendorData";
+import { LABEL_TEXT, LABEL_TONE, relationFor, showInInbox, tabFor, type Relation } from "@/lib/messageLabels";
 import type { ConversationSummary, Pipeline, VendorBooking } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
 import { SummaryPreview } from "@jorna/shared/components/SummaryPreview";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
-import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill, type Tone } from "@/components/vendor/ui";
+import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 
 type Filter = "all" | "enquiries" | "bookings" | "unread";
-
-// Inquiry and Booked match the Leads and Bookings pages' own pills.
-const LABEL_TONE: Record<MessageLabel, Tone> = {
-  inquiry: "amber",
-  negotiation: "maroon",
-  booked: "green",
-  closed: "grey",
-};
 
 function initials(name?: string | null): string {
   const parts = (name ?? "").replace(/&/g, " ").split(/\s+/).filter(Boolean);
@@ -182,7 +174,7 @@ export function MessagesHub() {
    *  Null for whichever couldn't be loaded, so a failed refresh keeps the
    *  last good copy instead of wiping every label. */
   const fetchContext = useCallback(async () => {
-    if (!vendorId.current) vendorId.current = (await getMyVendor().catch(() => null))?.vendor_id ?? null;
+    if (!vendorId.current) vendorId.current = (await myVendor().catch(() => null))?.vendor_id ?? null;
     const id = vendorId.current;
     const [b, p] = await Promise.all([
       id ? listVendorBookings(id, { limit: 100 }).then((r) => r.items).catch(() => null) : Promise.resolve(null),

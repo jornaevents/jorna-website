@@ -10,7 +10,7 @@
 // couple says they've sent, answering a date change, checking in, or
 // cancelling. Those are the same calls this page made before the redesign.
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { money as exactMoney } from "@/lib/ledger";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,13 +20,13 @@ import {
   confirmBookingEvent,
   confirmDepositReceived,
   confirmPaymentReceived,
-  getMyVendor,
-  listVendorBookings,
   markBookingSeen,
   respondToChange,
   setBookingStatus,
 } from "@/lib/jorna";
 import { checkInAtVenue, LocationError } from "@/lib/checkin";
+import { myVendor, vendorBookings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import {
   bookingSteps,
   bookingMoney,
@@ -46,6 +46,7 @@ import { MessageVendorButton } from "@/components/MessageVendorButton";
 import { FilterTabs, PageHeader, StatTile, StatusPill, type Tone } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
+import { PageSkeleton, SkeletonList, SkeletonTiles, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 // The same three words as Overview ("Copy rules" in apps/vendor/CLAUDE.md).
 const TAB: Record<BookingTab, { label: string; tone: Tone }> = {
@@ -399,6 +400,21 @@ function Expanded({
 
 // ── Page ─────────────────────────────────────────────────────────────
 
+const HEADING: PageHeading = {
+  eyebrow: "Event management",
+  title: "Bookings",
+  subtitle: "Every celebration from signature to final payment.",
+};
+
+function BookingsSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your bookings…">
+      <SkeletonTiles />
+      <SkeletonList />
+    </PageSkeleton>
+  );
+}
+
 function BookingsInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -416,7 +432,7 @@ function BookingsInner() {
   }, [authLoading, user, router]);
 
   const load = useCallback(async (vendorId: string) => {
-    const res = await listVendorBookings(vendorId, { limit: 100 });
+    const res = await vendorBookings(vendorId);
     setBookings(res.items);
     return res.items;
   }, []);
@@ -433,10 +449,15 @@ function BookingsInner() {
       .catch(() => {});
   }, []);
 
+  const dataVersion = useDataVersion();
+  // The ?id= link marks its booking seen once, not again each time the page
+  // reads its bookings afresh.
+  const linkedSeen = useRef(false);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         if (!mine) {
@@ -447,13 +468,16 @@ function BookingsInner() {
         const items = await load(mine.vendor_id);
         // A link straight to one booking (?id=) opens it, so it's seen.
         const linked = items.find((b) => b.booking_id === params.get("id"));
-        if (!cancelled && linked) markSeen(linked);
+        if (!cancelled && linked && !linkedSeen.current) {
+          linkedSeen.current = true;
+          markSeen(linked);
+        }
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your bookings."));
     return () => {
       cancelled = true;
     };
-  }, [user, load, router, markSeen, params]);
+  }, [user, load, router, markSeen, params, dataVersion]);
 
   const rows = useMemo(() => {
     const tabbed = (bookings ?? [])
@@ -494,7 +518,7 @@ function BookingsInner() {
     return <p className="py-20 text-center text-ink-soft">{error}</p>;
   }
   if (authLoading || !user || !bookings) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <BookingsSkeleton />;
   }
 
   const count = (t: BookingTab) => rows.filter((r) => r.tab === t).length;
@@ -504,9 +528,7 @@ function BookingsInner() {
   return (
     <div>
       <PageHeader
-        eyebrow="Event management"
-        title="Bookings"
-        subtitle="Every celebration from signature to final payment."
+        {...HEADING}
         action={<NewMenu />}
       />
 
@@ -648,7 +670,7 @@ function BookingsInner() {
 
 export default function MyBookingsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<BookingsSkeleton />}>
       <BookingsInner />
     </Suspense>
   );

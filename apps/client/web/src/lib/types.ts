@@ -7,6 +7,8 @@ import { priceUnitKind, priceUnitLabel, type PriceUnitKind } from "@jorna/shared
 // "@/lib/types" keep working.
 export type { TokenPair } from "@jorna/shared/lib/api";
 export type { User } from "@jorna/shared/lib/auth";
+export type { ConversationLabel } from "@jorna/shared/lib/messageLabels";
+import type { ConversationLabel } from "@jorna/shared/lib/messageLabels";
 export { priceUnitKind, priceUnitLabel, type PriceUnitKind };
 
 
@@ -1014,6 +1016,9 @@ export interface ConversationSummary {
   members?: Array<{ user_id: string; name?: string | null; pfp_url?: string | null }>;
   /** Unread in this thread, for this reader. */
   unread_count?: number;
+  /** For the client in a chat with one vendor: the label that vendor sees
+   *  on it (Inquiry, Negotiation, Booked, Closed). Null otherwise. */
+  label?: ConversationLabel | null;
   last_message?: {
     message_id?: string;
     content?: string | null;

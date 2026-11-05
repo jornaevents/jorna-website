@@ -1,7 +1,7 @@
 import { test, expect, loginAs } from "./support/fixtures";
 import { mockUser } from "./support/mock-data";
 
-// AI summary lines in the inbox (backend summary_service, DECISIONS #42). The
+// AI summary lines in the inbox (backend summary_service, DECISIONS #43). The
 // server decides which rows get one; the page draws it in place of the last
 // message, and never on a row with nothing unread. Plus the account setting
 // that turns them off.

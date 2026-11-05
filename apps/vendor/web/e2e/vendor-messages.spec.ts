@@ -208,6 +208,41 @@ test.describe("vendor messages hub (/messages)", () => {
     );
   });
 
+  test("a client reading in this app sees where things stand with the vendor", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    const thread = conv("c-q", "Lens and Light Studio", {
+      label: { stage: "negotiation", booking_id: "b2", service_name: "Gold Photography" },
+    });
+    api.get("/conversations/c-q", thread);
+    api.get("/conversations", [thread]);
+    api.get("/conversations/unread-count", { unread_count: 0 });
+    api.get("/conversations/c-q/messages", { items: [], total: 0, limit: 100, offset: 0 });
+
+    await page.goto("conversation/?id=c-q");
+
+    await expect(page.getByRole("heading", { name: "Lens and Light Studio" })).toBeVisible();
+    await expect(page.getByText("Negotiation", { exact: true })).toBeVisible();
+    await expect(page.getByText("Gold Photography", { exact: true })).toBeVisible();
+  });
+
+  test("a client's chat with nothing to label shows no pill", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.error("GET", "/vendors/me", 404, "Not a vendor");
+    const thread = conv("c-q", "Lens and Light Studio", { label: null });
+    api.get("/conversations/c-q", thread);
+    api.get("/conversations", [thread]);
+    api.get("/conversations/unread-count", { unread_count: 0 });
+    api.get("/conversations/c-q/messages", { items: [], total: 0, limit: 100, offset: 0 });
+
+    await page.goto("conversation/?id=c-q");
+
+    await expect(page.getByText("Just the two of you")).toBeVisible();
+    for (const text of ["Inquiry", "Negotiation", "Booked", "Closed"]) {
+      await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    }
+  });
+
   test("a price offer in a question thread points to the booking it carries", async ({ page, api }) => {
     await loginAs(page, api);
     mockHub(api);
@@ -304,6 +339,36 @@ test.describe("vendor messages labels and tabs", () => {
     }
     await expect(row(page, "Sharma Wedding")).toHaveCount(0);
   });
+
+  // The pill colours moved from vendor-shell.css to @jorna/shared's
+  // globals.css, so the client app can use them; the vendor's pills look
+  // exactly as before under every theme setting.
+  for (const [setting, scheme, expected] of [
+    ["system light", "light", { booked: ["rgb(62, 109, 85)", "rgb(226, 238, 230)"], negotiation: ["rgb(122, 38, 58)", "rgb(243, 223, 227)"] }],
+    ["system dark", "dark", { booked: ["rgb(159, 208, 173)", "rgba(127, 180, 142, 0.16)"], negotiation: ["rgb(244, 179, 194)", "rgba(244, 179, 194, 0.13)"] }],
+    ["Dark on a light system", "light", { booked: ["rgb(159, 208, 173)", "rgba(127, 180, 142, 0.16)"], negotiation: ["rgb(244, 179, 194)", "rgba(244, 179, 194, 0.13)"] }],
+    ["Light on a dark system", "dark", { booked: ["rgb(62, 109, 85)", "rgb(226, 238, 230)"], negotiation: ["rgb(122, 38, 58)", "rgb(243, 223, 227)"] }],
+  ] as const) {
+    test(`label pills keep their colours: ${setting}`, async ({ page, api }) => {
+      await loginAs(page, api);
+      mockLabelled(api);
+      const choice = setting.startsWith("Dark") ? "dark" : setting.startsWith("Light") ? "light" : null;
+      if (choice) await page.addInitScript((t) => localStorage.setItem("jorna_theme", t), choice);
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("messages/");
+
+      const colours = async (name: string, text: string) => {
+        const pill = row(page, name).getByText(text, { exact: true });
+        await expect(pill).toBeVisible();
+        return pill.evaluate((el) => {
+          const s = getComputedStyle(el);
+          return [s.color, s.backgroundColor];
+        });
+      };
+      expect(await colours("Meera Shah", "Booked")).toEqual(expected.booked);
+      expect(await colours("Kiran Rao", "Negotiation")).toEqual(expected.negotiation);
+    });
+  }
 
   test("Questions holds threads with no lead or booking; Leads & bookings holds the rest", async ({ page, api }) => {
     await loginAs(page, api);

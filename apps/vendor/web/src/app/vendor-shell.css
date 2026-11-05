@@ -54,17 +54,6 @@
   --color-line-soft: #ebe6df;
   --color-card-edge: #e3ded6;
   --shadow-card: 0 5px 20px rgba(50, 44, 38, 0.035);
-
-  --pill-green-ink: #3e6d55;
-  --pill-green-bg: #e2eee6;
-  --pill-amber-ink: #936c32;
-  --pill-amber-bg: #f2e8cf;
-  --pill-grey-ink: #7c7770;
-  --pill-grey-bg: #eae7e2;
-  --pill-red-ink: #9b3b3b;
-  --pill-red-bg: #f5dcd8;
-  --pill-maroon-ink: #7a263a;
-  --pill-maroon-bg: #f3dfe3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -88,36 +77,8 @@
   }
 }
 
-[data-theme="dark"] .vendor-shell,
-:root:not([data-theme]) .vendor-shell {
-  --pill-green-ink: #9fd0ad;
-  --pill-green-bg: rgba(127, 180, 142, 0.16);
-  --pill-amber-ink: #f0c971;
-  --pill-amber-bg: rgba(224, 180, 87, 0.15);
-  --pill-grey-ink: #c9b3a5;
-  --pill-grey-bg: rgba(243, 230, 214, 0.08);
-  --pill-red-ink: #f2a7a0;
-  --pill-red-bg: rgba(242, 167, 160, 0.13);
-  --pill-maroon-ink: #f4b3c2;
-  --pill-maroon-bg: rgba(244, 179, 194, 0.13);
-}
-
-/* The rule above sets the dark pills for an unset theme too; put the light
-   ones back when the system is light. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) .vendor-shell {
-    --pill-green-ink: #3e6d55;
-    --pill-green-bg: #e2eee6;
-    --pill-amber-ink: #936c32;
-    --pill-amber-bg: #f2e8cf;
-    --pill-grey-ink: #7c7770;
-    --pill-grey-bg: #eae7e2;
-    --pill-red-ink: #9b3b3b;
-    --pill-red-bg: #f5dcd8;
-    --pill-maroon-ink: #7a263a;
-    --pill-maroon-bg: #f3dfe3;
-  }
-}
+/* The status pills' --pill-* colours live in @jorna/shared's globals.css,
+   with their dark variants, since the client app's Messages uses them too. */
 
 .vendor-shell h1,
 .vendor-shell h2,

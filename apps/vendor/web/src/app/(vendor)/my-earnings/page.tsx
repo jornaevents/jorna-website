@@ -6,8 +6,6 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import {
-  getEarnings,
-  getMyVendor,
   getStripeStatus,
   startStripeOnboarding,
   updateMyVendor,
@@ -18,10 +16,13 @@ import {
   type StripeStatus,
   type VendorDetail,
 } from "@/lib/types";
+import { myVendor, vendorEarnings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
 import { Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { PageHeader } from "@/components/vendor/ui";
-import { LedgerView } from "@/components/earnings/LedgerView";
+import { LedgerSkeleton, LedgerView } from "@/components/earnings/LedgerView";
+import { PageSkeleton, SkeletonCard, SkeletonList, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -52,6 +53,21 @@ function Stat({
 
 /** The escrow-era page: Stripe setup, paid out / held / upcoming, and a
  *  per-booking history. Only while ESCROW_ENABLED is on. */
+const ESCROW_HEADING: PageHeading = {
+  eyebrow: "Money",
+  title: "Earnings",
+  subtitle: "What you've been paid, what's on its way, and how clients pay you.",
+};
+
+function EscrowSkeleton() {
+  return (
+    <PageSkeleton heading={ESCROW_HEADING} label="Loading your earnings…">
+      <SkeletonCard lines={3} className="mt-7" />
+      <SkeletonList rows={4} />
+    </PageSkeleton>
+  );
+}
+
 function EscrowEarnings() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -81,22 +97,33 @@ function EscrowEarnings() {
     if (!authLoading && !user) router.replace("/login?next=/my-earnings");
   }, [authLoading, user, router]);
 
-  const load = useCallback(async (vendorId: string) => {
-    // Status is fetched live from Stripe, so returning from onboarding reflects
-    // reality without any extra step. Not fetched at all with escrow
-    // disabled — there's no Stripe account to check.
-    const [st, earn] = await Promise.all([
-      ESCROW_ENABLED ? getStripeStatus(vendorId).catch(() => null) : Promise.resolve(null),
-      getEarnings(vendorId).catch(() => null),
-    ]);
-    setStatus(st);
-    setEarnings(earn);
-  }, []);
+  /** Without touching state, so the refresh effect below can set it inside a
+   *  `.then` (react-hooks/set-state-in-effect). */
+  const readMoney = useCallback(
+    (vendorId: string) =>
+      // Status is fetched live from Stripe, so returning from onboarding
+      // reflects reality without any extra step. Not fetched at all with
+      // escrow disabled — there's no Stripe account to check.
+      Promise.all([
+        ESCROW_ENABLED ? getStripeStatus(vendorId).catch(() => null) : Promise.resolve(null),
+        vendorEarnings(vendorId).catch(() => null),
+      ]),
+    [],
+  );
+
+  const load = useCallback(
+    async (vendorId: string) => {
+      const [st, earn] = await readMoney(vendorId);
+      setStatus(st);
+      setEarnings(earn);
+    },
+    [readMoney],
+  );
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         setVendor(mine);
@@ -113,6 +140,24 @@ function EscrowEarnings() {
       cancelled = true;
     };
   }, [user, load]);
+
+  // A refresh behind remembered numbers re-reads the numbers only. The
+  // effect above also fills the Venmo and Zelle fields, and running it again
+  // would wipe what someone is typing there.
+  const dataVersion = useDataVersion();
+  const vendorId = vendor?.vendor_id;
+  useEffect(() => {
+    if (!vendorId || dataVersion === 0) return;
+    let cancelled = false;
+    readMoney(vendorId).then(([st, earn]) => {
+      if (cancelled) return;
+      setStatus(st);
+      setEarnings(earn);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId, readMoney, dataVersion]);
 
   async function onboard() {
     if (!vendor) return;
@@ -155,7 +200,7 @@ function EscrowEarnings() {
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <EscrowSkeleton />;
   }
 
   if (!vendor) {
@@ -179,11 +224,7 @@ function EscrowEarnings() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Money"
-        title="Earnings"
-        subtitle="What you've been paid, what's on its way, and how clients pay you."
-      />
+      <PageHeader {...ESCROW_HEADING} />
 
       {error ? (
         <p className="mt-6 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
@@ -482,13 +523,13 @@ function LedgerEarnings() {
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=/my-earnings");
   }, [loading, user, router]);
-  if (loading || !user) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (loading || !user) return <LedgerSkeleton />;
   return <LedgerView />;
 }
 
 export default function EarningsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={ESCROW_ENABLED ? <EscrowSkeleton /> : <LedgerSkeleton />}>
       {ESCROW_ENABLED ? <EscrowEarnings /> : <LedgerEarnings />}
     </Suspense>
   );

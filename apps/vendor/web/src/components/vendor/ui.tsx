@@ -2,14 +2,16 @@
 
 // The vendor app's shared pieces, from the Figma Make design: page header,
 // stat tile, status pill, filter tabs, list table and side drawer. Colours
-// come from the --color-* / --pill-* tokens vendor-shell.css defines, so each
-// piece has a dark variant without its own dark: classes. Cards are
+// come from the --color-* tokens vendor-shell.css defines and the --pill-*
+// ones in globals.css, so each piece has a dark variant without its own
+// dark: classes. Cards are
 // @jorna/shared's Card — the shell's tokens already give it the design's
 // hairline edge and soft shadow.
 
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
+import { toneStyle, type Tone } from "@jorna/shared/components/ui";
 import { Icon, type IconName } from "@/components/vendor/Icon";
 
 // ── Page header ──────────────────────────────────────────────────────
@@ -70,26 +72,9 @@ export function PageHeader({
 }
 
 // ── Status pill ──────────────────────────────────────────────────────
+// In @jorna/shared since the client app's Messages uses it too.
 
-export type Tone = "green" | "amber" | "grey" | "red" | "maroon";
-
-const toneStyle = (tone: Tone) => ({
-  color: `var(--pill-${tone}-ink)`,
-  background: `var(--pill-${tone}-bg)`,
-});
-
-/** Booking/contract/lead state. `dot` adds the design's leading dot (Leads' labels). */
-export function StatusPill({ tone, dot, children }: { tone: Tone; dot?: boolean; children: ReactNode }) {
-  return (
-    <span
-      style={toneStyle(tone)}
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[0.7rem] font-bold"
-    >
-      {dot ? <i aria-hidden="true" className="size-1.5 rounded-full bg-current" /> : null}
-      {children}
-    </span>
-  );
-}
+export { StatusPill, type Tone } from "@jorna/shared/components/ui";
 
 // ── Stat tile ────────────────────────────────────────────────────────
 

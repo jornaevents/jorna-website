@@ -1122,9 +1122,75 @@ Backend #130 and #131, DECISIONS #35 there.
 - **Not yet:** the client surfaces. They're next.
 - **Ship order:** this needs the backend's 0080 live first. An older backend ignores `specialties`, so a new vendor would be saved as "other".
 
+## Decision: clients see the same label on their chats (2026-11-04)
+
+A client's chat with a vendor shows the label that vendor sees on it
+(Inquiry, Negotiation, Booked, Closed), in the client app's Messages and chat
+header, and on this app's `/conversation` page when a client reads there.
+
+- **The backend works it out for the client** (`label` on each chat,
+  backend DECISIONS #42): the client app has no Leads page and no single
+  list of its bookings. It uses the pipeline's stage rule and
+  `lib/messageLabels.ts`'s `relationFor` order, so a change to that order
+  needs the same change in the backend's `message_labels.py`. The backend
+  sends no label to the vendor; this app keeps working out its own.
+- **On purpose, the client's label can be blank where the vendor's isn't:**
+  a vendor's own lead (typed in, or added from Messages) and a request on a
+  plan the client hasn't sent aren't shown to the client.
+- **The words, colours and pill are shared** (`@jorna/shared`'s
+  `lib/messageLabels`, `StatusPill` in `components/ui`, and the `--pill-*`
+  tokens, now in `globals.css` instead of `vendor-shell.css`). The colours
+  are unchanged under every theme setting; an e2e test pins them.
+
+## Decision: vendor pages remember what they just read (2026-11-05)
+
+Every vendor page used to start from nothing: wait for `/vendors/me`, then
+for its own data, then show it. The sidebar re-read three counts on every
+click, and Overview fetched the pipeline only after its other three reads.
+Now the pages' opening reads go through `lib/vendorData.ts`, which
+remembers them (`lib/dataCache.ts`).
+
+- **Show what you saw, then check.** A read answered in the last 15 seconds
+  isn't asked again. An older one, up to 5 minutes, is shown at once and
+  refreshed behind it; the pages that showed it read again when the refresh
+  lands (`useDataVersion` in their load effect's dependencies). Past 5
+  minutes it isn't shown at all.
+- **Any write forgets everything.** `@jorna/shared/lib/api` tells listeners
+  after every non-GET request, failed or not (a 500 can come after the
+  save), and a read that was in flight when the write went out isn't kept.
+  So no page can show a state from before the vendor's own action. Coarse on
+  purpose: a per-endpoint list of what each write invalidates would drift.
+- **Signing out forgets everything,** with the other session caches.
+- **Not for forms or polling.** Settings, Profile and onboarding read
+  `/vendors/me` fresh, since a refresh landing mid-edit would reset the
+  fields; Earnings re-reads only its numbers, not the Venmo/Zelle fields.
+  Messages, threads and negotiation polls keep calling `lib/jorna.ts`
+  directly: a remembered answer would put a poll one cycle behind.
+- **What the client side does:** nothing yet. The shared write hook is
+  there for it; the client app registers no listener.
+
+## Decision: vendor pages show their shape while they load (2026-11-05)
+
+Leads, Bookings, Contracts, Calendar, Earnings, Settings and Profile showed
+a bare "Loading…" until their data came; only Overview had a skeleton.
+Each now shows its real header at once and placeholders the size of what's
+coming (`components/vendor/PageSkeleton`), so nothing jumps when it lands.
+
+- **The header is the real one.** Its words don't depend on the data, and
+  each page renders it from one `HEADING` constant, shared with its
+  skeleton, so the two can't drift. Actions that need the data (New,
+  Defaults, the inquiry link) wait for it.
+- **Settings shows its account section at once,** as before; only the two
+  sections that need the vendor (payments, Google Calendar) are
+  placeholders, in their own places rather than appearing below Theme.
+- **Earnings has both shapes:** the ledger's summary and list (production,
+  escrow off) and the escrow page's card and list.
+- **Not yet:** the contract view, editor, document and changes pages still
+  say "Loading…".
+
 ## Decision: AI summaries in the Messages inbox (2026-11-04)
 
-Backend DECISIONS #42. A busy thread's inbox row can carry `summary`
+Backend DECISIONS #43. A busy thread's inbox row can carry `summary`
 (`{text, generated_at}`): a one-line AI description of its latest messages,
 shown in place of `last_message` by the shared `SummaryPreview`
 (`@jorna/shared/components/SummaryPreview`), with a sparkle icon and "AI

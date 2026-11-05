@@ -33,9 +33,13 @@ The service taxonomy (backend DECISIONS #35) is here too: `lib/taxonomy`
 (`useTaxonomy`, search and labels) and `components/ServicePicker`, so a
 service is found and named the same way in both apps.
 
+So are a chat's labels (Inquiry, Negotiation, Booked, Closed): their words
+and colours in `lib/messageLabels`, and `StatusPill` in `components/ui`,
+drawn with the `--pill-*` tokens in `styles/globals.css`.
+
 The Messages inbox's AI summary line (`components/SummaryPreview`) and its
 "Show AI summaries" account setting (`components/AiSummarySetting`) are here
-too, since both apps draw them the same way (backend DECISIONS #42).
+too, since both apps draw them the same way (backend DECISIONS #43).
 
 Change something here and both apps get it. What isn't here yet — the
 typed API layer (`lib/jorna.ts`), most of `lib/types.ts`, auth and the

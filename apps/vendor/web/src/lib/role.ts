@@ -7,7 +7,8 @@
 // "Has a vendor profile" (getMyVendor != null) is the same signal iOS uses
 // (vendorID != nil). Cached because several components ask at once.
 
-import { getMyVendor, listBundles, listEvents } from "./jorna";
+import { listBundles, listEvents } from "./jorna";
+import { myVendor } from "./vendorData";
 import { clientAppUrl } from "./clientApp";
 import { LAST_ROLE_KEY, ROLE_HINT_KEY } from "@jorna/shared/lib/sessionKeys";
 
@@ -20,8 +21,10 @@ let inflight: Promise<boolean | null> | null = null;
 function vendorStatus(): Promise<boolean | null> {
   if (cache && Date.now() - cache.at < TTL_MS) return Promise.resolve(cache.isVendor);
   if (inflight) return inflight;
-  inflight = getMyVendor()
-    .catch(() => getMyVendor())
+  // The remembered /vendors/me, so this check, the sidebar and the page
+  // opening share one request (lib/vendorData).
+  inflight = myVendor()
+    .catch(() => myVendor())
     .then(
       (v) => {
         cache = { at: Date.now(), isVendor: v != null };

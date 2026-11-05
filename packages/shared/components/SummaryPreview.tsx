@@ -1,5 +1,5 @@
 // The AI line an inbox row shows in place of its last message (backend
-// summary_service, DECISIONS #42). The server decides when a row gets one —
+// summary_service, DECISIONS #43). The server decides when a row gets one —
 // several unread, the line still current, nobody in it blocked, the reader
 // hasn't turned them off — so this only draws it.
 //

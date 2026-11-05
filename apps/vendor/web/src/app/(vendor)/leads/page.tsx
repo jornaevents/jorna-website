@@ -22,14 +22,14 @@ import {
   countersignContract,
   declineContractSignature,
   getContract,
-  getMyVendor,
-  getPipeline,
   sendContract,
   setBookingStatus,
   updateLead,
   voidContract,
 } from "@/lib/jorna";
 import { emailNotice, guestBookingLink } from "@/lib/contractLink";
+import { leadPipeline, myVendor } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import { describeEvent, visibleEvents } from "@/lib/contractTimeline";
 import { centsToMoney } from "@/lib/vendorPlan";
 import type { Contract, Pipeline, PipelineItem } from "@/lib/types";
@@ -41,6 +41,7 @@ import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
 import { InquiryShareButton } from "@/components/vendor/InquiryShare";
 import { CountersignPanel } from "@/components/vendor/CountersignPanel";
+import { PageSkeleton, SkeletonList, SkeletonTiles, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 type Filter = "all" | "inquiry" | "negotiation" | "archived";
 type Sort = "recent" | "upcoming" | "value";
@@ -618,6 +619,21 @@ function LinkPrimary({ href, children }: { href: string; children: React.ReactNo
 
 // ── Page ─────────────────────────────────────────────────────────────
 
+const HEADING: PageHeading = {
+  eyebrow: "Sales pipeline",
+  title: "Leads",
+  subtitle: "Everyone you're talking to who hasn't signed yet.",
+};
+
+function LeadsSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your leads…">
+      <SkeletonTiles />
+      <SkeletonList />
+    </PageSkeleton>
+  );
+}
+
 function LeadsInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -637,10 +653,21 @@ function LeadsInner() {
     if (!authLoading && !user) router.replace("/login?next=/leads&role=vendor");
   }, [authLoading, user, router]);
 
+  const dataVersion = useDataVersion();
+
   const load = useCallback(async () => {
-    const mine = await getMyVendor();
+    // Side by side: the pipeline doesn't need the vendor's id. Its failure is
+    // held until we know this is a vendor, whose page it is to report it.
+    const [mine, pipeline] = await Promise.all([
+      myVendor(),
+      leadPipeline().then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      ),
+    ]);
     if (!mine) return "not-vendor" as const;
-    return { vendorId: mine.vendor_id, pipeline: await getPipeline() };
+    if ("error" in pipeline) throw pipeline.error;
+    return { vendorId: mine.vendor_id, pipeline: pipeline.value };
   }, []);
 
   useEffect(() => {
@@ -660,7 +687,7 @@ function LeadsInner() {
     return () => {
       cancelled = true;
     };
-  }, [user, load, router, tick]);
+  }, [user, load, router, tick, dataVersion]);
 
   const shown = useMemo(() => {
     if (!pipeline) return [];
@@ -683,7 +710,7 @@ function LeadsInner() {
     );
   }
   if (authLoading || !user || !pipeline) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <LeadsSkeleton />;
   }
 
   const c = pipeline.counts;
@@ -691,9 +718,7 @@ function LeadsInner() {
   return (
     <div>
       <PageHeader
-        eyebrow="Sales pipeline"
-        title="Leads"
-        subtitle="Everyone you're talking to who hasn't signed yet."
+        {...HEADING}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {vendorId ? <InquiryShareButton vendorId={vendorId} /> : null}
@@ -822,7 +847,7 @@ function LeadsInner() {
 
 export default function LeadsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<LeadsSkeleton />}>
       <LeadsInner />
     </Suspense>
   );

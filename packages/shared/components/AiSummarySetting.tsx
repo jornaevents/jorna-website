@@ -1,7 +1,7 @@
 "use client";
 
 // "Show AI summaries" — the account setting behind the inbox's AI lines
-// (backend users.ai_summaries_enabled, DECISIONS #42). It only hides them for
+// (backend users.ai_summaries_enabled, DECISIONS #43). It only hides them for
 // this person; it doesn't keep their messages out of other members' lines,
 // which is what the copy says, because that's what the Privacy Policy says.
 //

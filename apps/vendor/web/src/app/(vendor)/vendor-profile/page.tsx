@@ -32,6 +32,7 @@ import {
 import { Avatar, Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { ServicesManager, type ServicesManagerHandle } from "@/components/ServicesManager";
 import { PageHeader, PrimaryAction, primaryClass } from "@/components/vendor/ui";
+import { Bar, PageSkeleton, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
 import { AvailabilityFields } from "@/components/AvailabilityFields";
 import { ProfileEditModal, yearsLabel } from "@/components/vendor/ProfileEditModal";
 
@@ -61,6 +62,32 @@ function checklist(vendor: VendorDetail, services: ServiceItem[], hasHours: bool
     { done: hasHours !== false, label: "Set the hours you're available", href: "#availability" },
     { done: Boolean(vendor.instagram_username?.trim()), label: "Link your Instagram", href: EDIT },
   ];
+}
+
+const HEADING: PageHeading = {
+  eyebrow: "Public presence",
+  title: "Vendor profile",
+  subtitle: "What clients see when they find you — your packages and your story.",
+};
+
+/** The profile card (banner, photo, name) and the packages below it. */
+function ProfileSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your profile…">
+      <div className="overflow-hidden rounded-2xl border border-card-edge bg-card shadow-[var(--shadow-card)]">
+        <div className="h-24 bg-[#641f34] opacity-80" />
+        <div className="relative px-5 pb-5 pt-12 sm:px-6">
+          <div className="absolute -top-9 left-5 size-[4.5rem] rounded-full border-4 border-card bg-line sm:left-6" />
+          <div className="h-6 w-48 rounded-md bg-line" />
+          <Bar className="mt-3 h-3 w-64 max-w-full" />
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SkeletonCard lines={3} />
+        <SkeletonCard lines={3} />
+      </div>
+    </PageSkeleton>
+  );
 }
 
 export default function VendorProfilePage() {
@@ -124,7 +151,7 @@ export default function VendorProfilePage() {
     return error ? (
       <p role="alert" className="py-20 text-center text-ink-soft">{error}</p>
     ) : (
-      <p className="py-20 text-center text-ink-soft">Loading…</p>
+      <ProfileSkeleton />
     );
   }
 
@@ -135,9 +162,7 @@ export default function VendorProfilePage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Public presence"
-        title="Vendor profile"
-        subtitle="What clients see when they find you — your packages and your story."
+        {...HEADING}
         action={<PrimaryAction onClick={() => packagesRef.current?.startNew()}>Add package</PrimaryAction>}
       />
 

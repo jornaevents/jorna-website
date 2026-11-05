@@ -351,3 +351,28 @@ export function Rule() {
     </div>
   );
 }
+
+// ── Status pill ──────────────────────────────────────────────────────
+//
+// Colours come from the --pill-* tokens in globals.css, each with a dark
+// variant, so the pill needs no dark: classes of its own.
+
+export type Tone = "green" | "amber" | "grey" | "red" | "maroon";
+
+export const toneStyle = (tone: Tone) => ({
+  color: `var(--pill-${tone}-ink)`,
+  background: `var(--pill-${tone}-bg)`,
+});
+
+/** Booking/contract/lead state. `dot` adds the design's leading dot (Leads' labels). */
+export function StatusPill({ tone, dot, children }: { tone: Tone; dot?: boolean; children: ReactNode }) {
+  return (
+    <span
+      style={toneStyle(tone)}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[0.7rem] font-bold"
+    >
+      {dot ? <i aria-hidden="true" className="size-1.5 rounded-full bg-current" /> : null}
+      {children}
+    </span>
+  );
+}
