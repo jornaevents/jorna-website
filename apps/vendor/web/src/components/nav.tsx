@@ -121,7 +121,9 @@ export const NO_VENDOR_TABS: NavItem[] = [
   },
   NEEDS_YOU,
   MESSAGES,
-  { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
+  // No vendor profile yet, so no Settings (it sends them to onboarding) — their
+  // name, password and sign-in details are on /account.
+  { href: "/account", label: "Account", icon: icon(I.profile), match: ["/account", "/blocked"] },
 ];
 
 // No Home tab. /home is a marketing page written to sell the bundle builder to
@@ -152,12 +154,11 @@ export const VENDOR_TABS: NavItem[] = [
       "/browse",
       "/leads",
       "/contracts",
-      "/settings",
     ],
   },
   NEEDS_YOU,
   MESSAGES,
-  { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
+  { href: "/settings", label: "Settings", icon: icon(I.gear), match: ["/settings", "/blocked"] },
 ];
 
 /**
@@ -173,9 +174,9 @@ export const VENDOR_TABS: NavItem[] = [
  * bar's own note puts the floor at about 68 — there, the two navigations are at
  * opposite ends of the screen and don't read as a repetition anyway.
  *
- * Their work first, then the account. "Vendor Profile" rather than a second "Profile":
- * the two went to different pages under one word, and which one you got
- * depended on which bar you happened to click.
+ * Their work first, then the account. "Vendor Profile" is the only "Profile":
+ * the old account hub at /profile went to a different page under the same
+ * word, and is gone now (folded into Settings).
  */
 export const VENDOR_DESKTOP_TABS: NavItem[] = [
   {
@@ -230,11 +231,10 @@ export const VENDOR_DESKTOP_TABS: NavItem[] = [
     href: "/settings",
     label: "Settings",
     icon: icon(I.gear),
-    match: ["/settings"],
+    match: ["/settings", "/blocked"],
   },
   NEEDS_YOU,
   MESSAGES,
-  { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
 ];
 
 /**

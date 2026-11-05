@@ -3,21 +3,18 @@ import { loginAs } from "./support/fixtures";
 import { mockVendorDetail } from "./support/mock-data";
 
 // Settings (sidebar footer), from the 2026-10 vendor redesign: Venmo/Zelle
-// saves to the vendor record, and the theme choice sticks across a reload.
-// The tentative-hold length moved to Contracts → Defaults (plan 2.4).
+// saves to the vendor record, the theme choice sticks across a reload, and the
+// account can be deleted from the foot of the page. The tentative-hold length
+// moved to Contracts → Defaults (plan 2.4); Google Calendar is on the calendar.
 test.describe("vendor settings (/settings)", () => {
   function mockSettings(api: import("./support/api-mock").ApiMock) {
     const vendor = mockVendorDetail({ payment_method: "manual", venmo_handle: "@old" });
     api.get("/vendors/me", vendor);
-    api.get(`/vendors/${vendor.vendor_id}/calendar-status`, {
-      google_calendar_connected: false,
-      google_calendar_write_enabled: false,
-    });
     api.patch("/vendors/me", { ...vendor, venmo_handle: "@studio" });
     return vendor;
   }
 
-  test("saves Venmo, and points to Contracts for the hold length", async ({ page, api }) => {
+  test("saves Venmo without touching the hold length", async ({ page, api }) => {
     await loginAs(page, api);
     mockSettings(api);
 
@@ -28,7 +25,6 @@ test.describe("vendor settings (/settings)", () => {
     ).toHaveAttribute("aria-current", "page");
 
     await page.getByLabel("Venmo handle").fill("@studio");
-    await expect(page.getByRole("link", { name: "Contracts → Defaults" })).toHaveAttribute("href", /\/contracts\/?$/);
     await page.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(page.getByText("Saved.")).toBeVisible();
@@ -37,6 +33,20 @@ test.describe("vendor settings (/settings)", () => {
     expect(calls[0].body).toMatchObject({ venmo_handle: "@studio" });
     // Not sent from here, so it can't overwrite what Defaults saved.
     expect(calls[0].body).not.toHaveProperty("contract_hold_days");
+  });
+
+  test("deletes the account after asking twice", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockSettings(api);
+    api.delete("/me", null);
+
+    await page.goto("settings/");
+    await expect(page.getByRole("heading", { name: "Google Calendar" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Delete account" }).click();
+    await page.getByRole("button", { name: "Delete my account permanently" }).click();
+
+    await expect(page).toHaveURL(/\/home\/?$/);
+    expect(api.requestsTo("DELETE", "/me")).toHaveLength(1);
   });
 
   test("the theme choice survives a reload", async ({ page, api }) => {

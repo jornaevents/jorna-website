@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@jorna/shared/components/ui";
@@ -21,10 +20,7 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto w-[min(640px,100%-2rem)] py-10">
-      <Link href="/profile" className="text-sm text-ink-soft hover:text-ink">
-        ← Profile
-      </Link>
-      <h1 className="serif mt-4 text-3xl text-maroon dark:text-gold">Account settings</h1>
+      <h1 className="serif text-3xl text-maroon dark:text-gold">Account settings</h1>
 
       <div className="mt-7">
         <AccountSettings loginNext="/account" />
