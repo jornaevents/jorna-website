@@ -5,7 +5,7 @@
 // with, so two different questions can't share an answer. Pages and the
 // sidebar use these; anything that polls keeps calling lib/jorna.
 
-import { cachedRead, isRemembered, ownerWait, peek, prime } from "./dataCache";
+import { cachedRead, isRemembered, ownerWait, prime } from "./dataCache";
 import {
   allVendorBookings,
   getContract,
@@ -24,7 +24,6 @@ import {
 } from "./jorna";
 import { loadTemplates } from "./contractTemplates";
 import type { VendorOverview } from "./jorna";
-import type { VendorDetail } from "./types";
 
 /** /vendors/me: every vendor page and the sidebar ask for it first, so it
  *  used to cost a round trip before each page could start on its own data. */
@@ -106,24 +105,27 @@ export function prefetchFor(href: string): void {
 
 // ── Overview in one request ──────────────────────────────────────────
 
-/** Overview's five reads. When memory doesn't already hold them all, one
- *  request (GET /vendors/me/overview, backend DECISIONS #43) fills each
- *  under its own read's key, so these are then answered from memory — and
- *  so are Bookings, Leads and the sidebar after it. A section the server
- *  couldn't give, or the whole request failing (an older backend, a
- *  blip), just means those reads go out on their own, as before. */
+/** Overview's five reads. When the vendor isn't remembered, one request
+ *  (GET /vendors/me/overview, backend DECISIONS #43) fills each under its
+ *  own read's key, so these are then answered from memory — and so are
+ *  Bookings, Leads and the sidebar after it. A section the server couldn't
+ *  give, or the whole request failing (an older backend, a blip), just
+ *  means those reads go out on their own, as before.
+ *
+ *  Only when the vendor isn't remembered: the combined read's sections run
+ *  one after another on the server, so it beats the separate reads by
+ *  sparing the wait for /vendors/me before the other four can start — and
+ *  loses to them once that wait is gone. Measured on staging, 2026-11-05:
+ *  cold, vendor-then-four 221 ms vs combined 160 ms (median); vendor
+ *  remembered, the four side by side 130 ms vs combined 160 ms. */
 export async function overviewReads() {
   // No await before the combined read when there's nothing to wait for:
   // the sidebar mounts in the same tick and would send its own requests.
   const waiting = ownerWait();
   if (waiting) await waiting;
-  const known = peek(VENDOR) as VendorDetail | null | undefined;
-  const complete =
-    known === null || // remembered as not a vendor: nothing to combine
-    (known != null && [bookingsKey(known.vendor_id), LEADS, CONVERSATIONS, PIPELINE].every(isRemembered));
-  // The vendor can arrive first, from the role check's own request; the
-  // bookings are filed only once the combined read is back.
-  if (!complete) await fillFromOverview();
+  // The bookings are filed only once the combined read is back, so wait for
+  // it — including one Overview started before the session was known.
+  if (!isRemembered(VENDOR) || overviewInFlight) await fillFromOverview();
 
   const vendor = await myVendor();
   if (!vendor) return { vendor: null } as const;
@@ -143,9 +145,23 @@ function ownIfVendor<T>(own: () => Promise<T>): Promise<T> {
   return myVendor().then((v) => (v ? own() : Promise.reject(new Error("Not a vendor"))));
 }
 
+/** Start the combined read as Overview mounts, before the session check is
+ *  back, so it runs alongside /me instead of after it — in place of the
+ *  sidebar's own /vendors/me, which joins it (the page's effects run before
+ *  the shell's). Only for a tab with a stored session, with no stored
+ *  answers to wait for, and with the vendor not already remembered. */
+export function startOverviewEarly(): void {
+  if (ownerWait() || isRemembered(VENDOR)) return;
+  void fillFromOverview();
+}
+
+let overviewInFlight: Promise<unknown> | null = null;
+
 /** One request for all five, each part started as its own key's read; a
- *  part the server couldn't give, or the request failing, reads on its own. */
+ *  part the server couldn't give, or the request failing, reads on its own.
+ *  One at a time: a second caller shares the request already out. */
 function fillFromOverview(): Promise<unknown> {
+  if (overviewInFlight) return overviewInFlight;
   const combined = getVendorOverview();
   const part =
     <T>(pick: (o: VendorOverview) => T | null, own: () => Promise<T>) =>
@@ -167,6 +183,11 @@ function fillFromOverview(): Promise<unknown> {
   prime(LEADS, part((o) => o.leads, listLeads));
   prime(CONVERSATIONS, part((o) => o.conversations, listConversations));
   prime(PIPELINE, part((o) => o.pipeline, getPipeline));
-  return combined.catch(() => {});
+  overviewInFlight = combined
+    .catch(() => {})
+    .finally(() => {
+      overviewInFlight = null;
+    });
+  return overviewInFlight;
 }
 

@@ -12,8 +12,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth";
-import { overviewReads } from "@/lib/vendorData";
+import { hasStoredSession, useAuth } from "@/lib/auth";
+import { overviewReads, startOverviewEarly } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import {
   bookingTab,
@@ -655,6 +655,10 @@ function OverviewInner() {
 }
 
 export default function OverviewPage() {
+  // Before the session check is back: see startOverviewEarly.
+  useEffect(() => {
+    if (hasStoredSession()) startOverviewEarly();
+  }, []);
   return (
     <Suspense fallback={<OverviewSkeleton />}>
       <OverviewInner />

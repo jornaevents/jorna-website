@@ -204,10 +204,6 @@ export function ownerWait(): Promise<void> | null {
   });
 }
 
-/** `key`'s remembered answer, or undefined; read without waiting. */
-export function peek(key: string): unknown {
-  return isRemembered(key) ? entries.get(key)!.value : undefined;
-}
 
 /** Whether `key` has an answer that cachedRead would show. */
 export function isRemembered(key: string): boolean {

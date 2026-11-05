@@ -88,7 +88,9 @@ test.describe("vendor overview (/overview)", () => {
     await page.goto("overview/");
     await expect(page.getByText("2 need your reply")).toBeVisible();
     expect(api.requestsTo("GET", "/vendors/me/overview")).toHaveLength(1);
-    // Not even the sidebar's pipeline: it waited on the combined read.
+    // Not even the sidebar's: it waited on the combined read, which went
+    // out as the page mounted, alongside the session check.
+    expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(0);
     expect(separateReads(api, vendor.vendor_id)).toEqual([0, 0, 0, 0]);
 
     const nav = page.getByRole("navigation", { name: "Vendor" });
@@ -98,6 +100,23 @@ test.describe("vendor overview (/overview)", () => {
     await expect(page.getByRole("heading", { name: "Leads", level: 1 })).toBeVisible();
     await expect(page.getByText("Priya Shah").first()).toBeVisible();
     expect(separateReads(api, vendor.vendor_id)).toEqual([0, 0, 0, 0]);
+  });
+
+  test("once the vendor is remembered, Overview reads the rest side by side instead", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockOverview(api);
+    api.get("/vendors/me/availability", []);
+
+    // Calendar first: the vendor (and the bookings) are remembered after it.
+    await page.goto("my-calendar/");
+    await expect(page.getByRole("status").filter({ hasText: "Loading your calendar…" })).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: "Overview" }).click();
+    await expect(page.getByText("2 need your reply")).toBeVisible();
+
+    // Measured on staging: with no wait for the vendor left, four reads side
+    // by side beat one request that runs its sections in turn.
+    expect(api.requestsTo("GET", "/vendors/me/overview")).toHaveLength(0);
+    expect(api.requestsTo("GET", "/leads").length).toBeGreaterThan(0);
   });
 
   test("when the combined read fails, the separate reads still fill the page", async ({ page, api }) => {
