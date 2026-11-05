@@ -20,10 +20,10 @@ import {
   getContract,
   getContractNegotiation,
   getContractProposals,
-  getMyVendor,
   saveContractDraft,
   updateContract,
 } from "@/lib/jorna";
+import { myVendor } from "@/lib/vendorData";
 import { defaultClauses, fromContract, problems, toDocument, type Draft } from "@jorna/shared/lib/contractDraft";
 import { draftToSave, roundOf } from "@jorna/shared/lib/negotiation";
 import type { Contract, ProposalHistory, VendorDetail } from "@/lib/types";
@@ -67,7 +67,7 @@ export function VendorNegotiation({
     Promise.all([
       getContract(bookingId),
       getContractProposals(bookingId),
-      getMyVendor().catch(() => null),
+      myVendor().catch(() => null),
       getContractNegotiation(bookingId).catch(() => null),
     ])
       .then(([c, h, v, f]) => {

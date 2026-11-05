@@ -13,7 +13,8 @@ import { OverviewSkeleton } from "@/components/vendor/OverviewSkeleton";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { getMyVendor, getPipeline, listConversations, listLeads, listVendorBookings } from "@/lib/jorna";
+import { leadPipeline, myConversations, myLeads, myVendor, vendorBookings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import {
   bookingTab,
   overPill,
@@ -541,6 +542,7 @@ function OverviewInner() {
   const [failed, setFailed] = useState(false);
   const [eventIndex, setEventIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
+  const dataVersion = useDataVersion();
 
   // The old dashboard's "Leads" tab is its own page; old links still carry it.
   const leadsView = params.get("view") === "leads";
@@ -555,22 +557,23 @@ function OverviewInner() {
   const load = useCallback(async (): Promise<Snapshot | "not-vendor" | "failed"> => {
     let vendor: VendorDetail | null;
     try {
-      vendor = await getMyVendor();
+      vendor = await myVendor();
     } catch {
       return "failed";
     }
     if (!vendor) return "not-vendor";
     // Each card degrades on its own: a failed inbox shouldn't blank the page.
-    const [bookings, leads, conversations] = await Promise.all([
-      listVendorBookings(vendor.vendor_id, { limit: 100 })
+    // All four at once — the pipeline used to wait for the other three.
+    const [bookings, leads, conversations, pipeline] = await Promise.all([
+      vendorBookings(vendor.vendor_id)
         .then((r) => r.items)
         .catch(() => [] as VendorBooking[]),
-      listLeads()
+      myLeads()
         .then((r) => r.items)
         .catch(() => [] as Lead[]),
-      listConversations().catch(() => [] as ConversationSummary[]),
+      myConversations().catch(() => [] as ConversationSummary[]),
+      leadPipeline().catch(() => null),
     ]);
-    const pipeline = await getPipeline().catch(() => null);
     return { vendor, bookings, leads, conversations, pipeline };
   }, []);
 
@@ -589,7 +592,7 @@ function OverviewInner() {
     return () => {
       cancelled = true;
     };
-  }, [user, leadsView, load, router, attempt]);
+  }, [user, leadsView, load, router, attempt, dataVersion]);
 
   const upcoming = useMemo(() => (snap ? upcomingBookings(snap.bookings) : []), [snap]);
   const leads = useMemo<LeadNumbers>(() => {

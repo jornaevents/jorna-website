@@ -87,6 +87,22 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
+// Told after every request that can change something (anything but a GET),
+// whether or not it succeeded — a 500 can come after the change was saved. An
+// app's read caches listen, so nothing it shows can predate its own action.
+const writeListeners = new Set<() => void>();
+
+export function onApiWrite(listener: () => void): () => void {
+  writeListeners.add(listener);
+  return () => {
+    writeListeners.delete(listener);
+  };
+}
+
+function wrote(method: string) {
+  if (method.toUpperCase() !== "GET") writeListeners.forEach((l) => l());
+}
+
 interface RequestOpts {
   method?: string;
   body?: unknown;
@@ -102,11 +118,12 @@ export async function apiFetch<T>(path: string, opts: RequestOpts = {}): Promise
   if (access) headers.Authorization = `Bearer ${access}`;
   const sentWith = tokens.getRefresh();
 
+  // finally: a request that dropped mid-flight may still have landed.
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  }).finally(() => wrote(method));
 
   // One transparent refresh attempt on an expired token.
   if (res.status === 401 && auth && retry && tokens.getRefresh()) {
@@ -138,7 +155,7 @@ export async function apiUpload<T>(
   if (access) headers.Authorization = `Bearer ${access}`;
   const sentWith = tokens.getRefresh();
 
-  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: form });
+  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: form }).finally(() => wrote(method));
 
   if (res.status === 401 && retry && tokens.getRefresh()) {
     const refreshed = await tryRefresh(sentWith);

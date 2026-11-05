@@ -1,0 +1,52 @@
+"use client";
+
+// The vendor pages' opening reads, remembered between pages (lib/dataCache).
+// Each is lib/jorna's own call under a key naming everything it was asked
+// with, so two different questions can't share an answer. Pages and the
+// sidebar use these; anything that polls keeps calling lib/jorna.
+
+import { cachedRead } from "./dataCache";
+import {
+  allVendorBookings,
+  getEarnings,
+  getMyAvailability,
+  getMyVendor,
+  getNewBookingsCount,
+  getPipeline,
+  getUnreadCount,
+  listConversations,
+  listLeads,
+  listMyServices,
+  listVendorBookings,
+} from "./jorna";
+import { loadTemplates } from "./contractTemplates";
+
+/** /vendors/me: every vendor page and the sidebar ask for it first, so it
+ *  used to cost a round trip before each page could start on its own data. */
+export const myVendor = () => cachedRead("vendor", getMyVendor);
+
+export const vendorBookings = (vendorId: string) =>
+  cachedRead(`bookings:${vendorId}:100`, () => listVendorBookings(vendorId, { limit: 100 }));
+
+export const everyVendorBooking = (vendorId: string) =>
+  cachedRead(`bookings:${vendorId}:all`, () => allVendorBookings(vendorId));
+
+export const myServices = (vendorId: string) => cachedRead(`services:${vendorId}`, () => listMyServices(vendorId));
+
+export const vendorEarnings = (vendorId: string) => cachedRead(`earnings:${vendorId}`, () => getEarnings(vendorId));
+
+export const myAvailability = () => cachedRead("availability", getMyAvailability);
+
+export const leadPipeline = () => cachedRead("pipeline", getPipeline);
+
+export const myLeads = () => cachedRead("leads", listLeads);
+
+export const myConversations = () => cachedRead("conversations", listConversations);
+
+/** The sidebar's Messages badge, which leaves plan chats out. */
+export const unreadDirect = () =>
+  cachedRead("unread:direct", () => getUnreadCount({ includePlanChats: false }));
+
+export const newBookingsCount = () => cachedRead("new-bookings", getNewBookingsCount);
+
+export const contractTemplates = () => cachedRead("contract-templates", loadTemplates);

@@ -23,11 +23,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import {
   getCalendarStatus,
-  getMyAvailability,
-  getMyVendor,
   getVendorAvailability,
-  listVendorBookings,
 } from "@/lib/jorna";
+import { myAvailability, myVendor, vendorBookings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import {
   calendarMonth,
   dayStatus,
@@ -214,15 +213,17 @@ export default function VendorCalendarPage() {
     if (!authLoading && !user) router.replace("/login?next=/my-calendar");
   }, [authLoading, user, router]);
 
+  const dataVersion = useDataVersion();
+
   const fetchAll = useCallback(async () => {
     if (!user) return null;
-    const me = await getMyVendor().catch(() => null);
+    const me = await myVendor().catch(() => null);
     if (!me) return { vendor: null as null };
     const [bk, avail] = await Promise.all([
-      listVendorBookings(me.vendor_id, { limit: 100 })
+      vendorBookings(me.vendor_id)
         .then((r) => r.items)
         .catch(() => [] as VendorBooking[]),
-      getMyAvailability().catch(() => [] as AvailabilitySlot[]),
+      myAvailability().catch(() => [] as AvailabilitySlot[]),
     ]);
     return { vendor: me, bookings: bk, availability: avail };
   }, [user]);
@@ -244,7 +245,7 @@ export default function VendorCalendarPage() {
     return () => {
       cancelled = true;
     };
-  }, [fetchAll]);
+  }, [fetchAll, dataVersion]);
 
   // Google-busy days for the year on show. Its own effect because it depends on
   // the year, and a failure only costs the fourth legend entry.

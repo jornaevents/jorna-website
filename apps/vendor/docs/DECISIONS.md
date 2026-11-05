@@ -1142,3 +1142,30 @@ header, and on this app's `/conversation` page when a client reads there.
   tokens, now in `globals.css` instead of `vendor-shell.css`). The colours
   are unchanged under every theme setting; an e2e test pins them.
 
+## Decision: vendor pages remember what they just read (2026-11-05)
+
+Every vendor page used to start from nothing: wait for `/vendors/me`, then
+for its own data, then show it. The sidebar re-read three counts on every
+click, and Overview fetched the pipeline only after its other three reads.
+Now the pages' opening reads go through `lib/vendorData.ts`, which
+remembers them (`lib/dataCache.ts`).
+
+- **Show what you saw, then check.** A read answered in the last 15 seconds
+  isn't asked again. An older one, up to 5 minutes, is shown at once and
+  refreshed behind it; the pages that showed it read again when the refresh
+  lands (`useDataVersion` in their load effect's dependencies). Past 5
+  minutes it isn't shown at all.
+- **Any write forgets everything.** `@jorna/shared/lib/api` tells listeners
+  after every non-GET request, failed or not (a 500 can come after the
+  save), and a read that was in flight when the write went out isn't kept.
+  So no page can show a state from before the vendor's own action. Coarse on
+  purpose: a per-endpoint list of what each write invalidates would drift.
+- **Signing out forgets everything,** with the other session caches.
+- **Not for forms or polling.** Settings, Profile and onboarding read
+  `/vendors/me` fresh, since a refresh landing mid-edit would reset the
+  fields; Earnings re-reads only its numbers, not the Venmo/Zelle fields.
+  Messages, threads and negotiation polls keep calling `lib/jorna.ts`
+  directly: a remembered answer would put a poll one cycle behind.
+- **What the client side does:** nothing yet. The shared write hook is
+  there for it; the client app registers no listener.
+
