@@ -8,6 +8,7 @@
 import { cachedRead } from "./dataCache";
 import {
   allVendorBookings,
+  getContract,
   getEarnings,
   getMyAvailability,
   getMyVendor,
@@ -15,6 +16,7 @@ import {
   getPipeline,
   getUnreadCount,
   listConversations,
+  listDocuments,
   listLeads,
   listMyServices,
   listVendorBookings,
@@ -51,6 +53,15 @@ export const newBookingsCount = () => cachedRead("new-bookings", getNewBookingsC
 
 export const contractTemplates = () => cachedRead("contract-templates", loadTemplates);
 
+/** One contract, as its page shows it. The editor and the negotiation
+ *  workspace read it fresh instead: they start an edit from it, and an
+ *  edit should start from what the server has now. */
+export const contractById = (bookingId: string) => cachedRead(`contract:${bookingId}`, () => getContract(bookingId));
+
+/** The addenda and cancellations attached to a contract, for its page. */
+export const contractDocuments = (bookingId: string) =>
+  cachedRead(`documents:${bookingId}`, () => listDocuments(bookingId));
+
 // ── Read ahead ───────────────────────────────────────────────────────
 
 /** Each sidebar page's opening reads, started before the click lands — on
@@ -64,6 +75,12 @@ const AHEAD: Record<string, (vendorId: string) => Promise<unknown>[]> = {
   "/my-calendar": (id) => [vendorBookings(id), myAvailability()],
   "/my-earnings": (id) => [vendorEarnings(id)],
 };
+
+/** A contract's page reads, started when its row is pointed at. */
+export function prefetchContract(bookingId: string): void {
+  contractById(bookingId).catch(() => {});
+  contractDocuments(bookingId).catch(() => {});
+}
 
 /** Start the reads the page at `href` opens with. Never throws; a page
  *  without an entry here reads nothing ahead. */

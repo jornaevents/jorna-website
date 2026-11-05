@@ -81,6 +81,43 @@ test.describe("remembered reads between vendor pages", () => {
     await expect.poll(() => api.requestsTo("GET", `/payments/vendors/${vendor.vendor_id}/earnings`).length).toBe(1);
   });
 
+  test("opening a contract again doesn't read it again; pointing at its row reads it ahead", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockShell(api);
+    api.get("/contract-templates", { items: [], total: 0 });
+    api.get("/contracts/c-1/documents", { items: [], total: 0 });
+    api.get("/contracts/c-1", {
+      booking_id: "c-1", vendor_id: vendor.vendor_id, service_name: "Coverage", date_iso: "2030-06-25", date_end: null,
+      time_start: "18:00", time_end: "23:00", location: "Pines Manor", guest_count: 150, amount_cents: 250000,
+      line_items: [], payment_schedule: [], terms_clauses: [], guest_name: "Asha Mehta", guest_email: "a@example.com",
+      signed_at: null, status: "approved", contract_status: "sent", contract_token: "tok-c1", timeline: [],
+    });
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, {
+      items: [
+        mockVendorBooking({
+          booking_id: "c-1", event_name: "Asha & Dev", status: "approved", contract_token: "tok-c1",
+          contract_status: "sent", guest_name: "Asha Mehta", date_iso: "2030-06-25",
+        }),
+      ],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("contracts/");
+    const row = page.getByRole("link", { name: /Asha & Dev/ }).first();
+    await expect(row).toBeVisible();
+    await row.hover();
+    await expect.poll(() => api.requestsTo("GET", "/contracts/c-1").length).toBe(1);
+
+    await row.click();
+    await expect(page.getByRole("heading", { name: "Asha Mehta", level: 1 })).toBeVisible();
+    await page.getByRole("link", { name: "← All contracts" }).click();
+    await expect(page.getByRole("link", { name: /Asha & Dev/ }).first()).toBeVisible();
+    await page.getByRole("link", { name: /Asha & Dev/ }).first().click();
+    await expect(page.getByRole("heading", { name: "Asha Mehta", level: 1 })).toBeVisible();
+
+    expect(api.requestsTo("GET", "/contracts/c-1")).toHaveLength(1);
+  });
+
   test("after a write, the next page reads afresh", async ({ page, api }) => {
     await loginAs(page, api);
     mockShell(api);

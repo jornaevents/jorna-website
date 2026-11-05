@@ -24,6 +24,7 @@ import {
   updateContract,
 } from "@/lib/jorna";
 import { myVendor } from "@/lib/vendorData";
+import { NegotiationSkeleton } from "@/components/vendor/ContractSkeletons";
 import { defaultClauses, fromContract, problems, toDocument, type Draft } from "@jorna/shared/lib/contractDraft";
 import { draftToSave, roundOf } from "@jorna/shared/lib/negotiation";
 import type { Contract, ProposalHistory, VendorDetail } from "@/lib/types";
@@ -112,7 +113,7 @@ export function VendorNegotiation({
     );
   }
   if (!contract || !history || !drafts) {
-    return <p className="py-20 text-center text-ink-soft">Loading the negotiation…</p>;
+    return <NegotiationSkeleton />;
   }
   if (contract.signed_at) {
     return (

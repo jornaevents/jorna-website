@@ -1210,3 +1210,24 @@ Two additions to "vendor pages remember what they just read".
   link starts that page's opening reads (`prefetchFor` in `lib/vendorData`,
   the same calls the page makes), so a first visit usually finds them done.
 
+## Decision: contract pages load like the others (2026-11-05)
+
+The contract view, builder (new contract and template), document and
+changes pages were the last to show a bare "Loading…" and to read
+everything afresh on each visit.
+
+- **Placeholders in each page's own layout** (`components/vendor/ContractSkeletons`):
+  the view's centred column and paper, the builder's paper beside its side
+  panel, the negotiation workspace inside its frame, the document's fields.
+- **The view page remembers** its contract and attached documents
+  (`contractById`, `contractDocuments` in `lib/vendorData`) and reads again
+  when a refresh behind them lands, like the list pages. Pointing at a row
+  on the Contracts list reads that contract ahead (`prefetchContract`);
+  not a draft's, which opens in the builder.
+- **An edit starts from the server.** The builder and the negotiation
+  workspace still read the contract (and its proposals) fresh; only their
+  supporting reads (the vendor, packages, templates, leads, bookings) come
+  from memory. The document page likewise reads the document it edits
+  fresh, and its bookings and templates from memory. None of them read
+  again behind the person editing.
+

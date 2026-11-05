@@ -19,14 +19,15 @@ import {
   countersignDocument,
   declineContractSignature,
   declineDocumentSignature,
-  getContract,
-  listDocuments,
   sendContract,
   sendDocument,
   voidContract,
   voidDocument,
 } from "@/lib/jorna";
 import { KIND_LABEL, documentStatus } from "@/lib/attachedDocuments";
+import { contractById, contractDocuments } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
+import { ContractViewSkeleton } from "@/components/vendor/ContractSkeletons";
 import { downloadContractPdf, downloadDocumentPdf } from "@/lib/download";
 import { describeDue, describeWhen, fromContract, money } from "@jorna/shared/lib/contractDraft";
 import { ContractPaper } from "@jorna/shared/components/negotiation/ContractPaper";
@@ -101,12 +102,13 @@ function ContractViewInner() {
     if (!authLoading && !user) router.replace(`/login?next=${encodeURIComponent(`/contracts/view?id=${id}`)}&role=vendor`);
   }, [authLoading, user, router, id]);
 
-  const load = useCallback(() => getContract(id), [id]);
+  const dataVersion = useDataVersion();
+  const load = useCallback(() => contractById(id), [id]);
 
   useEffect(() => {
     if (!user || !id) return;
     let cancelled = false;
-    Promise.all([load(), listDocuments(id).catch(() => ({ items: [] as AttachedDocument[] }))])
+    Promise.all([load(), contractDocuments(id).catch(() => ({ items: [] as AttachedDocument[] }))])
       .then(([res, attached]) => {
         if (cancelled) return;
         setC(res);
@@ -117,7 +119,7 @@ function ContractViewInner() {
     return () => {
       cancelled = true;
     };
-  }, [user, id, load]);
+  }, [user, id, load, dataVersion]);
 
   /** Do something, then re-read the contract so the timeline catches up. */
   async function act(key: string, fn: () => Promise<unknown>) {
@@ -125,7 +127,8 @@ function ContractViewInner() {
     setError(null);
     try {
       await fn();
-      const [fresh, attached] = await Promise.all([load(), listDocuments(id).catch(() => null)]);
+      // The action was a write, so these go to the server (lib/dataCache).
+      const [fresh, attached] = await Promise.all([load(), contractDocuments(id).catch(() => null)]);
       setC(fresh);
       if (attached) setDocs(attached.items);
     } catch (err) {
@@ -158,7 +161,7 @@ function ContractViewInner() {
   }
 
   if (authLoading || !user || (loading && id)) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ContractViewSkeleton />;
   }
   if (!c) {
     return (
@@ -598,7 +601,7 @@ function ContractViewInner() {
 
 export default function ContractViewPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<ContractViewSkeleton />}>
       <ContractViewInner />
     </Suspense>
   );

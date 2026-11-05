@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { sendContract, voidContract } from "@/lib/jorna";
-import { contractTemplates, everyVendorBooking, myServices, myVendor } from "@/lib/vendorData";
+import { contractTemplates, everyVendorBooking, myServices, myVendor, prefetchContract } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import {
   type SavedContractTemplate,
@@ -692,8 +692,17 @@ export default function ContractsPage() {
             const href = s === "draft" ? `/contracts/new?edit=${b.booking_id}` : `/contracts/view?id=${b.booking_id}`;
             const sendable = s === "draft" || s === "expired";
             const live = s === "awaiting_signature" || s === "expired" || s === "draft";
+            // Its page's reads start when the row is pointed at. Not a draft's:
+            // the builder reads the contract fresh.
+            const ahead = s === "draft" ? undefined : () => prefetchContract(b.booking_id);
             return (
-              <li key={b.booking_id} className="border-t border-line-soft">
+              <li
+                key={b.booking_id}
+                className="border-t border-line-soft"
+                onPointerEnter={ahead}
+                onFocusCapture={ahead}
+                onTouchStart={ahead}
+              >
                 <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3.5 px-3 py-3 md:grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,1fr)_8rem_7rem_17rem]">
                   <span className="grid size-8 place-items-center rounded-lg bg-gold-bright/15 text-gold">
                     <Icon name="contract" size={17} />

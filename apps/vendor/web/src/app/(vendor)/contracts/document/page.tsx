@@ -20,15 +20,14 @@ import { ApiError } from "@jorna/shared/lib/api";
 import {
   createDocument,
   listDocuments,
-  listVendorBookings,
   sendDocument,
   updateDocument,
 } from "@/lib/jorna";
-import { myVendor } from "@/lib/vendorData";
+import { contractTemplates, myVendor, vendorBookings } from "@/lib/vendorData";
+import { DocumentSkeleton } from "@/components/vendor/ContractSkeletons";
 import { KIND_LABEL, starterSections, type SectionDraft } from "@/lib/attachedDocuments";
 import { describeWhen, newKey } from "@jorna/shared/lib/contractDraft";
 import {
-  loadTemplates,
   saveDocumentTemplate,
   templatesOfKind,
   type DocumentTemplateBody,
@@ -103,8 +102,8 @@ function DocumentEditorInner() {
           return;
         }
         const [res, tpl, docs] = await Promise.all([
-          listVendorBookings(mine.vendor_id, { limit: 100 }),
-          loadTemplates().catch(() => [] as SavedContractTemplate[]),
+          vendorBookings(mine.vendor_id),
+          contractTemplates().catch(() => [] as SavedContractTemplate[]),
           documentId && bookingId ? listDocuments(bookingId) : Promise.resolve(null),
         ]);
         if (cancelled) return;
@@ -261,7 +260,7 @@ function DocumentEditorInner() {
   }
 
   if (authLoading || !user || (!bookings && !loadError)) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <DocumentSkeleton />;
   }
   if (loadError || !vendor || !bookings) {
     return <p role="alert" className="py-20 text-center text-ink-soft">{loadError ?? "Couldn't load your bookings."}</p>;
@@ -616,7 +615,7 @@ function DocumentEditorInner() {
 
 export default function DocumentEditorPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<DocumentSkeleton />}>
       <DocumentEditorInner />
     </Suspense>
   );

@@ -91,7 +91,8 @@ always "none, verify manually" until a test runner is added.
 - **Code:** `web/src/lib/dataCache.ts` (`cachedRead`, `useDataVersion`,
   `clearDataCache`, `setDataCacheOwner` for keeping answers across a
   reload), `web/src/lib/vendorData.ts` (the cached reads by name, and
-  `prefetchFor`, the sidebar's read-ahead).
+  `prefetchFor`, the sidebar's read-ahead; `prefetchContract`, the Contracts
+  list's).
 - **Depends on:** `lib/jorna.ts` for every read; `@jorna/shared/lib/api`'s
   `onApiWrite` to forget after a write.
 - **Consumers:** Overview, Leads, Contracts, Bookings, Calendar, Earnings,

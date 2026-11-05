@@ -5,10 +5,11 @@
 
 import { Suspense } from "react";
 import { ContractEditor } from "@/components/contract-editor/ContractEditor";
+import { ContractEditorSkeleton } from "@/components/vendor/ContractSkeletons";
 
 export default function NewContractPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<ContractEditorSkeleton />}>
       <ContractEditor />
     </Suspense>
   );
