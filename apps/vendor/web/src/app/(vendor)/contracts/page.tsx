@@ -43,6 +43,7 @@ import { Drawer, FilterTabs, PageHeader, StatusPill, type Tone } from "@/compone
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
 import { ContractDefaultsDrawer } from "@/components/vendor/ContractDefaultsDrawer";
+import { Bar, PageSkeleton, SkeletonList, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 /** The plan's statuses: Draft, Sent, Viewed, Signed, Deposit due, Paid,
  *  Expired, Declined, Void — plus the two where the couple says they've paid
@@ -394,6 +395,32 @@ function ManageTemplates({
 
 // ── Page ─────────────────────────────────────────────────────────────
 
+const HEADING: PageHeading = {
+  eyebrow: "Document workspace",
+  title: "Contracts",
+  subtitle: "Create, send and manage every client agreement in one place.",
+};
+
+function ContractsSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your contracts…">
+      <Bar className="h-2.5 w-28" />
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-xl border border-card-edge bg-card">
+            <div className="h-36 rounded-t-xl bg-ground-2" />
+            <div className="grid gap-2 p-3">
+              <Bar className="h-3.5 w-3/4" />
+              <Bar className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <SkeletonList className="mt-7" />
+    </PageSkeleton>
+  );
+}
+
 export default function ContractsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -517,7 +544,7 @@ export default function ContractsPage() {
 
   if (error && !contracts) return <p className="py-20 text-center text-ink-soft">{error}</p>;
   if (authLoading || !user || !contracts || !vendor) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ContractsSkeleton />;
   }
 
   const brand = vendorName(vendor, "Your business");
@@ -530,9 +557,7 @@ export default function ContractsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Document workspace"
-        title="Contracts"
-        subtitle="Create, send and manage every client agreement in one place."
+        {...HEADING}
         action={
           <div className="flex items-center gap-2">
             <button

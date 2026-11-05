@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { ESCROW_ENABLED, PUSH_ENABLED } from "@jorna/shared/lib/flags";
 import { getCalendarStatus, getMyVendor, updateMyVendor } from "@/lib/jorna";
+import { PageSkeleton, SkeletonBody, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
 import type { CalendarStatus, VendorDetail } from "@/lib/types";
 import Link from "next/link";
 import { Button, Card } from "@jorna/shared/components/ui";
@@ -133,6 +134,12 @@ function ThemePicker() {
   );
 }
 
+const HEADING: PageHeading = {
+  eyebrow: "Account",
+  title: "Settings",
+  subtitle: "Your account, how clients pay you, and how Jorna works for you.",
+};
+
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -168,12 +175,18 @@ export default function SettingsPage() {
   }, [user, router]);
 
   if (authLoading || !user) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return (
+      <PageSkeleton heading={HEADING} label="Loading your settings…" className="max-w-3xl">
+        <SkeletonCard lines={2} />
+        <SkeletonCard lines={3} className="mt-9" />
+        <SkeletonCard lines={2} className="mt-9" />
+      </PageSkeleton>
+    );
   }
 
   return (
     <div className="max-w-3xl">
-      <PageHeader eyebrow="Account" title="Settings" subtitle="Your account, how clients pay you, and how Jorna works for you." />
+      <PageHeader {...HEADING} />
 
       {error ? (
         <p role="alert" className="mb-6 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
@@ -199,7 +212,22 @@ export default function SettingsPage() {
             />
           </Section>
         </>
-      ) : null}
+      ) : error ? null : (
+        // The account section above needs no vendor; these two wait for it,
+        // in their own places rather than popping in below the theme.
+        <>
+          <Section title="How clients pay you" hint="Clients pay you directly; this shows on every contract you send.">
+            <SkeletonBody label="Loading how clients pay you…">
+              <SkeletonCard lines={3} />
+            </SkeletonBody>
+          </Section>
+          <Section title="Google Calendar">
+            <SkeletonBody label="Loading your calendar connection…">
+              <SkeletonCard lines={2} />
+            </SkeletonBody>
+          </Section>
+        </>
+      )}
 
       {/* The opt-in renders nothing while push is off; an empty section would
           read as broken (#101). */}

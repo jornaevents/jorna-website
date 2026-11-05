@@ -41,6 +41,7 @@ import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
 import { InquiryShareButton } from "@/components/vendor/InquiryShare";
 import { CountersignPanel } from "@/components/vendor/CountersignPanel";
+import { PageSkeleton, SkeletonList, SkeletonTiles, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 type Filter = "all" | "inquiry" | "negotiation" | "archived";
 type Sort = "recent" | "upcoming" | "value";
@@ -618,6 +619,21 @@ function LinkPrimary({ href, children }: { href: string; children: React.ReactNo
 
 // ── Page ─────────────────────────────────────────────────────────────
 
+const HEADING: PageHeading = {
+  eyebrow: "Sales pipeline",
+  title: "Leads",
+  subtitle: "Everyone you're talking to who hasn't signed yet.",
+};
+
+function LeadsSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your leads…">
+      <SkeletonTiles />
+      <SkeletonList />
+    </PageSkeleton>
+  );
+}
+
 function LeadsInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -694,7 +710,7 @@ function LeadsInner() {
     );
   }
   if (authLoading || !user || !pipeline) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <LeadsSkeleton />;
   }
 
   const c = pipeline.counts;
@@ -702,9 +718,7 @@ function LeadsInner() {
   return (
     <div>
       <PageHeader
-        eyebrow="Sales pipeline"
-        title="Leads"
-        subtitle="Everyone you're talking to who hasn't signed yet."
+        {...HEADING}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {vendorId ? <InquiryShareButton vendorId={vendorId} /> : null}
@@ -833,7 +847,7 @@ function LeadsInner() {
 
 export default function LeadsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<LeadsSkeleton />}>
       <LeadsInner />
     </Suspense>
   );

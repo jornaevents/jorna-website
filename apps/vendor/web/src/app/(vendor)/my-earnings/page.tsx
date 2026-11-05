@@ -21,7 +21,8 @@ import { useDataVersion } from "@/lib/dataCache";
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
 import { Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { PageHeader } from "@/components/vendor/ui";
-import { LedgerView } from "@/components/earnings/LedgerView";
+import { LedgerSkeleton, LedgerView } from "@/components/earnings/LedgerView";
+import { PageSkeleton, SkeletonCard, SkeletonList, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -52,6 +53,21 @@ function Stat({
 
 /** The escrow-era page: Stripe setup, paid out / held / upcoming, and a
  *  per-booking history. Only while ESCROW_ENABLED is on. */
+const ESCROW_HEADING: PageHeading = {
+  eyebrow: "Money",
+  title: "Earnings",
+  subtitle: "What you've been paid, what's on its way, and how clients pay you.",
+};
+
+function EscrowSkeleton() {
+  return (
+    <PageSkeleton heading={ESCROW_HEADING} label="Loading your earnings…">
+      <SkeletonCard lines={3} className="mt-7" />
+      <SkeletonList rows={4} />
+    </PageSkeleton>
+  );
+}
+
 function EscrowEarnings() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -184,7 +200,7 @@ function EscrowEarnings() {
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <EscrowSkeleton />;
   }
 
   if (!vendor) {
@@ -208,11 +224,7 @@ function EscrowEarnings() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Money"
-        title="Earnings"
-        subtitle="What you've been paid, what's on its way, and how clients pay you."
-      />
+      <PageHeader {...ESCROW_HEADING} />
 
       {error ? (
         <p className="mt-6 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
@@ -511,13 +523,13 @@ function LedgerEarnings() {
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=/my-earnings");
   }, [loading, user, router]);
-  if (loading || !user) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (loading || !user) return <LedgerSkeleton />;
   return <LedgerView />;
 }
 
 export default function EarningsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={ESCROW_ENABLED ? <EscrowSkeleton /> : <LedgerSkeleton />}>
       {ESCROW_ENABLED ? <EscrowEarnings /> : <LedgerEarnings />}
     </Suspense>
   );

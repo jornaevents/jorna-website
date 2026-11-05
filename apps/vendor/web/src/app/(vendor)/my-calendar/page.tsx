@@ -38,6 +38,7 @@ import { WEEKDAYS, type AvailabilitySlot, type VendorBooking } from "@/lib/types
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { FilterTabs, PageHeader } from "@/components/vendor/ui";
 import { GoogleCalendarCard } from "@/components/GoogleCalendarCard";
+import { PageSkeleton, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -187,6 +188,34 @@ function MiniMonth({
         ))}
       </div>
     </button>
+  );
+}
+
+const HEADING: PageHeading = {
+  eyebrow: "Schedule",
+  title: "Calendar",
+  subtitle: "Booked days, tentative holds and your Google busy times, in one place.",
+};
+
+function CalendarSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your calendar…">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="rounded-2xl border border-card-edge bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="size-9 rounded-full bg-line-soft" />
+            <div className="h-5 w-36 rounded-md bg-line" />
+            <div className="size-9 rounded-full bg-line-soft" />
+          </div>
+          <div className="mt-5 grid grid-cols-7 gap-1.5">
+            {Array.from({ length: 42 }, (_, i) => (
+              <div key={i} className="aspect-square rounded-lg bg-ground-2" />
+            ))}
+          </div>
+        </div>
+        <SkeletonCard lines={4} />
+      </div>
+    </PageSkeleton>
   );
 }
 
@@ -356,7 +385,7 @@ export default function VendorCalendarPage() {
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <CalendarSkeleton />;
   }
 
   if (notVendor) {
@@ -378,9 +407,7 @@ export default function VendorCalendarPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Schedule"
-        title="Calendar"
-        subtitle="Booked days, tentative holds and your Google busy times, in one place."
+        {...HEADING}
         action={
           // iOS toggles the same two modes.
           <FilterTabs<"month" | "year">
