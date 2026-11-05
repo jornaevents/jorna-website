@@ -16,7 +16,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { leadPipeline, myServices, myVendor, newBookingsCount, unreadDirect } from "@/lib/vendorData";
+import { leadPipeline, myServices, myVendor, newBookingsCount, prefetchFor, unreadDirect } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import { BOOKINGS_SEEN_EVENT } from "@/lib/newBookings";
 import { loadAttention } from "@/lib/attention";
@@ -83,6 +83,10 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
+      // Reading ahead: by the click, the page's data is usually in hand.
+      onPointerEnter={() => prefetchFor(item.href)}
+      onFocus={() => prefetchFor(item.href)}
+      onTouchStart={() => prefetchFor(item.href)}
       aria-current={active ? "page" : undefined}
       style={{
         color: active ? "white" : "var(--rail-ink)",

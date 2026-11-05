@@ -1,5 +1,5 @@
 import { test, expect, loginAs } from "./support/fixtures";
-import { mockVendorBooking, mockVendorDetail } from "./support/mock-data";
+import { mockEarnings, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
 
 // Moving between vendor pages reuses what was just read (lib/dataCache), and
 // any write makes the next page read afresh — so nothing shown can predate
@@ -49,6 +49,36 @@ test.describe("remembered reads between vendor pages", () => {
 
     expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(1);
     expect(api.requestsTo("GET", bookingsPath)).toHaveLength(1);
+  });
+
+  test("a reload shows the pages without asking again", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockShell(api);
+
+    await page.goto("my-calendar/");
+    await calendarLoaded(page);
+    expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(1);
+
+    await page.reload();
+    await calendarLoaded(page);
+    // The session is checked again; the vendor and the bookings come from the tab.
+    expect(api.requestsTo("GET", "/me").length).toBeGreaterThan(1);
+    expect(api.requestsTo("GET", "/vendors/me")).toHaveLength(1);
+    expect(api.requestsTo("GET", bookingsPath)).toHaveLength(1);
+  });
+
+  test("pointing at a sidebar link reads that page's data ahead", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockShell(api);
+    api.get(`/payments/vendors/${vendor.vendor_id}/earnings`, mockEarnings());
+    const nav = page.getByRole("navigation", { name: "Vendor" });
+
+    await page.goto("my-calendar/");
+    await calendarLoaded(page);
+    expect(api.requestsTo("GET", `/payments/vendors/${vendor.vendor_id}/earnings`)).toHaveLength(0);
+
+    await nav.getByRole("link", { name: "Earnings" }).hover();
+    await expect.poll(() => api.requestsTo("GET", `/payments/vendors/${vendor.vendor_id}/earnings`).length).toBe(1);
   });
 
   test("after a write, the next page reads afresh", async ({ page, api }) => {

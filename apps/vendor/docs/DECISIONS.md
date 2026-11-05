@@ -1188,3 +1188,25 @@ coming (`components/vendor/PageSkeleton`), so nothing jumps when it lands.
 - **Not yet:** the contract view, editor, document and changes pages still
   say "Loading…".
 
+## Decision: remembered reads outlive a reload, and the sidebar reads ahead (2026-11-05)
+
+Two additions to "vendor pages remember what they just read".
+
+- **Kept in the tab across a reload.** `lib/dataCache` also writes its answers
+  to `sessionStorage`, stamped with the signed-in user's id. After a reload
+  they come back only once the session confirms the same person
+  (`setDataCacheOwner`, set from `lib/auth` in a layout effect, before any
+  page's load); anyone else's are thrown away. The usual rules then apply:
+  shown at once, refreshed behind if older than 15 seconds, never shown past
+  5 minutes. A write or signing out removes them, as it does the memory.
+  - **sessionStorage, not localStorage:** it ends with the tab and never
+    reaches another, so a shared computer keeps nothing after the tab closes.
+  - **Reads wait for the session on a reload.** The role check and the
+    sidebar start before `/me` is back; while the owner is unknown and the tab
+    has stored answers, a read waits for it (at most 3 seconds) instead of
+    going to the network for what the tab already has. `/me` is the round
+    trip a reload can't skip, so the wait costs nothing.
+- **The sidebar reads ahead.** Pointing at, focusing or touching a sidebar
+  link starts that page's opening reads (`prefetchFor` in `lib/vendorData`,
+  the same calls the page makes), so a first visit usually finds them done.
+
