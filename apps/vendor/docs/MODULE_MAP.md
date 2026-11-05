@@ -79,9 +79,25 @@ always "none, verify manually" until a test runner is added.
   (Google identity), `web/src/app/login/`, `forgot-password/`,
   `reset-password/`, `auth/callback/`.
 - **Entry points:** `AuthProvider`, `useAuth()` (defined in `auth.tsx`).
-- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts` and
-  `lib/role.ts` (cache clearing on logout).
+- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts`,
+  `lib/role.ts` and `lib/dataCache.ts` (cache clearing on logout).
 - **Consumers:** `RootLayout`, every page gating on `user`.
+
+## Remembered reads (vendor pages)
+
+- **Responsible for:** reusing what the vendor pages and sidebar just read,
+  so moving between pages doesn't start each from nothing; forgetting it on
+  any write and on sign-out.
+- **Code:** `web/src/lib/dataCache.ts` (`cachedRead`, `useDataVersion`,
+  `clearDataCache`), `web/src/lib/vendorData.ts` (the cached reads, by name).
+- **Depends on:** `lib/jorna.ts` for every read; `@jorna/shared/lib/api`'s
+  `onApiWrite` to forget after a write.
+- **Consumers:** Overview, Leads, Contracts, Bookings, Calendar, Earnings,
+  `VendorSidebar`, `MessagesHub` (its vendor id), the contract editor,
+  document and negotiation pages (the vendor only), `lib/role.ts`,
+  `lib/attention.ts`. Settings, Profile and onboarding still read
+  `/vendors/me` fresh, and nothing that polls goes through it — see
+  DECISIONS "vendor pages remember what they just read".
 
 ## Client planning flow
 

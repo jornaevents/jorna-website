@@ -19,12 +19,12 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   createDocument,
-  getMyVendor,
   listDocuments,
   listVendorBookings,
   sendDocument,
   updateDocument,
 } from "@/lib/jorna";
+import { myVendor } from "@/lib/vendorData";
 import { KIND_LABEL, starterSections, type SectionDraft } from "@/lib/attachedDocuments";
 import { describeWhen, newKey } from "@jorna/shared/lib/contractDraft";
 import {
@@ -95,7 +95,7 @@ function DocumentEditorInner() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         if (!mine) {

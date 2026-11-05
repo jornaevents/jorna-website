@@ -10,7 +10,7 @@
 // couple says they've sent, answering a date change, checking in, or
 // cancelling. Those are the same calls this page made before the redesign.
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { money as exactMoney } from "@/lib/ledger";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,13 +20,13 @@ import {
   confirmBookingEvent,
   confirmDepositReceived,
   confirmPaymentReceived,
-  getMyVendor,
-  listVendorBookings,
   markBookingSeen,
   respondToChange,
   setBookingStatus,
 } from "@/lib/jorna";
 import { checkInAtVenue, LocationError } from "@/lib/checkin";
+import { myVendor, vendorBookings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import {
   bookingSteps,
   bookingMoney,
@@ -416,7 +416,7 @@ function BookingsInner() {
   }, [authLoading, user, router]);
 
   const load = useCallback(async (vendorId: string) => {
-    const res = await listVendorBookings(vendorId, { limit: 100 });
+    const res = await vendorBookings(vendorId);
     setBookings(res.items);
     return res.items;
   }, []);
@@ -433,10 +433,15 @@ function BookingsInner() {
       .catch(() => {});
   }, []);
 
+  const dataVersion = useDataVersion();
+  // The ?id= link marks its booking seen once, not again each time the page
+  // reads its bookings afresh.
+  const linkedSeen = useRef(false);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         if (!mine) {
@@ -447,13 +452,16 @@ function BookingsInner() {
         const items = await load(mine.vendor_id);
         // A link straight to one booking (?id=) opens it, so it's seen.
         const linked = items.find((b) => b.booking_id === params.get("id"));
-        if (!cancelled && linked) markSeen(linked);
+        if (!cancelled && linked && !linkedSeen.current) {
+          linkedSeen.current = true;
+          markSeen(linked);
+        }
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your bookings."));
     return () => {
       cancelled = true;
     };
-  }, [user, load, router, markSeen, params]);
+  }, [user, load, router, markSeen, params, dataVersion]);
 
   const rows = useMemo(() => {
     const tabbed = (bookings ?? [])

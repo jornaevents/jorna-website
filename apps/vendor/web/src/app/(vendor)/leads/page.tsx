@@ -22,14 +22,14 @@ import {
   countersignContract,
   declineContractSignature,
   getContract,
-  getMyVendor,
-  getPipeline,
   sendContract,
   setBookingStatus,
   updateLead,
   voidContract,
 } from "@/lib/jorna";
 import { emailNotice, guestBookingLink } from "@/lib/contractLink";
+import { leadPipeline, myVendor } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import { describeEvent, visibleEvents } from "@/lib/contractTimeline";
 import { centsToMoney } from "@/lib/vendorPlan";
 import type { Contract, Pipeline, PipelineItem } from "@/lib/types";
@@ -637,10 +637,21 @@ function LeadsInner() {
     if (!authLoading && !user) router.replace("/login?next=/leads&role=vendor");
   }, [authLoading, user, router]);
 
+  const dataVersion = useDataVersion();
+
   const load = useCallback(async () => {
-    const mine = await getMyVendor();
+    // Side by side: the pipeline doesn't need the vendor's id. Its failure is
+    // held until we know this is a vendor, whose page it is to report it.
+    const [mine, pipeline] = await Promise.all([
+      myVendor(),
+      leadPipeline().then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      ),
+    ]);
     if (!mine) return "not-vendor" as const;
-    return { vendorId: mine.vendor_id, pipeline: await getPipeline() };
+    if ("error" in pipeline) throw pipeline.error;
+    return { vendorId: mine.vendor_id, pipeline: pipeline.value };
   }, []);
 
   useEffect(() => {
@@ -660,7 +671,7 @@ function LeadsInner() {
     return () => {
       cancelled = true;
     };
-  }, [user, load, router, tick]);
+  }, [user, load, router, tick, dataVersion]);
 
   const shown = useMemo(() => {
     if (!pipeline) return [];

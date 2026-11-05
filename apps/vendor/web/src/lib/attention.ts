@@ -10,7 +10,8 @@
 // Every rule mirrors a backend guard, so an item never points at an action the
 // server must reject.
 
-import { getMyVendor, getStripeStatus, listBundles, listVendorBookings } from "@/lib/jorna";
+import { getStripeStatus, listBundles } from "@/lib/jorna";
+import { myVendor, vendorBookings } from "@/lib/vendorData";
 import type { BundleDetail, StripeStatus, VendorBooking } from "@/lib/types";
 import { ATTENTION_KINDS, planForBundle, taskDetail } from "@/lib/planning";
 import { vendorTasks } from "@/lib/vendorPlan";
@@ -96,11 +97,11 @@ async function derive(): Promise<AttentionItem[]> {
 
   // A vendor's own money comes first: without Stripe onboarding a client
   // literally cannot pay them, and checkout refuses.
-  const vendor = await getMyVendor().catch(() => null);
+  const vendor = await myVendor().catch(() => null);
   if (vendor) {
     const [stripe, bookings] = await Promise.all([
       getStripeStatus(vendor.vendor_id).catch(() => null),
-      listVendorBookings(vendor.vendor_id, { limit: 100 })
+      vendorBookings(vendor.vendor_id)
         .then((r) => r.items)
         .catch(() => [] as VendorBooking[]),
     ]);

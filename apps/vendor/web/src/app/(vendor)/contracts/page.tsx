@@ -21,7 +21,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { allVendorBookings, getMyVendor, listMyServices, sendContract, voidContract } from "@/lib/jorna";
+import { sendContract, voidContract } from "@/lib/jorna";
+import { contractTemplates, everyVendorBooking, myServices, myVendor } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import {
   type SavedContractTemplate,
   type ServiceItem,
@@ -414,10 +416,12 @@ export default function ContractsPage() {
     if (!authLoading && !user) router.replace("/login?next=/contracts&role=vendor");
   }, [authLoading, user, router]);
 
+  const dataVersion = useDataVersion();
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         if (!mine) {
@@ -426,9 +430,9 @@ export default function ContractsPage() {
         }
         setVendor(mine);
         const [res, tpl, svc] = await Promise.all([
-          allVendorBookings(mine.vendor_id),
-          loadTemplates().catch(() => [] as SavedContractTemplate[]),
-          listMyServices(mine.vendor_id).catch(() => null),
+          everyVendorBooking(mine.vendor_id),
+          contractTemplates().catch(() => [] as SavedContractTemplate[]),
+          myServices(mine.vendor_id).catch(() => null),
         ]);
         if (cancelled) return;
         setContracts(res.items.filter((b) => b.contract_token));
@@ -439,7 +443,7 @@ export default function ContractsPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router]);
+  }, [user, router, dataVersion]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -6,6 +6,7 @@
 
 import { AuthProvider as SharedAuthProvider } from "@jorna/shared/lib/auth";
 import { clearAttentionCache } from "./attention";
+import { clearDataCache } from "./dataCache";
 import { clearRoleCache } from "./role";
 
 export { hasStoredSession, useAuth } from "@jorna/shared/lib/auth";
@@ -14,6 +15,7 @@ export { hasStoredSession, useAuth } from "@jorna/shared/lib/auth";
 function clearCaches() {
   clearAttentionCache();
   clearRoleCache();
+  clearDataCache();
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

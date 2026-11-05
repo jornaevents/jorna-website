@@ -32,13 +32,13 @@ import {
   createContract,
   getContract,
   getContractProposals,
-  getMyVendor,
   listLeads,
   listMyServices,
   listVendorBookings,
   proposeFromRequest,
   updateContract,
 } from "@/lib/jorna";
+import { myVendor } from "@/lib/vendorData";
 import {
   applyTemplate,
   BLANK,
@@ -300,7 +300,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         if (!mine) {

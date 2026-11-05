@@ -16,7 +16,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { getMyVendor, getNewBookingsCount, getPipeline, getUnreadCount, listMyServices } from "@/lib/jorna";
+import { leadPipeline, myServices, myVendor, newBookingsCount, unreadDirect } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import { BOOKINGS_SEEN_EVENT } from "@/lib/newBookings";
 import { loadAttention } from "@/lib/attention";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
@@ -212,7 +213,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     // Once per mount: this lives in app/(vendor)/layout.tsx, which Next keeps
     // mounted across vendor routes, and the name/category rarely change.
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then((v) => {
         if (cancelled) return;
         setVendor(v);
@@ -221,7 +222,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
         // counts, archived too, so a vendor who retired them all isn't sent
         // back to setup. A failed check leaves them where they are.
         if (v) {
-          listMyServices(v.vendor_id)
+          myServices(v.vendor_id)
             .then((svc) => {
               if (!cancelled && svc.items.length === 0) router.replace("/vendor-onboarding");
             })
@@ -234,26 +235,29 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
+  const dataVersion = useDataVersion();
+
   useEffect(() => {
     // Re-checked on navigation so the badge follows you as you act on things:
     // the pipeline's "needs your attention", the same count the Leads page
     // shows. lib/attention's count stands in if the pipeline can't be read.
     let cancelled = false;
-    getPipeline()
+    leadPipeline()
       .then((p) => !cancelled && setLeadsBadge(p.counts.needs_you))
       .catch(() =>
         loadAttention()
           .then((items) => !cancelled && setLeadsBadge(items.length))
           .catch(() => {}),
       );
-    getUnreadCount({ includePlanChats: false })
+    unreadDirect()
       .then((r) => !cancelled && setMessagesBadge(r.unread_count))
       .catch(() => {});
     // Bookings a client signed that the vendor hasn't opened (backend
     // DECISIONS #30). Opening one on the Bookings page doesn't navigate, so
-    // that page says so with an event and the count is read again.
+    // that page says so with an event and the count is read again — past the
+    // remembered one, since marking it seen was a write (lib/dataCache).
     const loadNew = () =>
-      getNewBookingsCount()
+      newBookingsCount()
         .then((r) => !cancelled && setBookingsBadge(typeof r.count === "number" ? r.count : 0))
         .catch(() => {});
     loadNew();
@@ -262,7 +266,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
       cancelled = true;
       window.removeEventListener(BOOKINGS_SEEN_EVENT, loadNew);
     };
-  }, [pathname]);
+  }, [pathname, dataVersion]);
 
   const name = vendorName(vendor);
   const category = vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : null;

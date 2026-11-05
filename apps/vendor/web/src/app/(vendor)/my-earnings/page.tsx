@@ -6,8 +6,6 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import {
-  getEarnings,
-  getMyVendor,
   getStripeStatus,
   startStripeOnboarding,
   updateMyVendor,
@@ -18,6 +16,8 @@ import {
   type StripeStatus,
   type VendorDetail,
 } from "@/lib/types";
+import { myVendor, vendorEarnings } from "@/lib/vendorData";
+import { useDataVersion } from "@/lib/dataCache";
 import { paymentsSetup, vendorMoney } from "@/lib/vendorPlan";
 import { Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { PageHeader } from "@/components/vendor/ui";
@@ -81,22 +81,33 @@ function EscrowEarnings() {
     if (!authLoading && !user) router.replace("/login?next=/my-earnings");
   }, [authLoading, user, router]);
 
-  const load = useCallback(async (vendorId: string) => {
-    // Status is fetched live from Stripe, so returning from onboarding reflects
-    // reality without any extra step. Not fetched at all with escrow
-    // disabled — there's no Stripe account to check.
-    const [st, earn] = await Promise.all([
-      ESCROW_ENABLED ? getStripeStatus(vendorId).catch(() => null) : Promise.resolve(null),
-      getEarnings(vendorId).catch(() => null),
-    ]);
-    setStatus(st);
-    setEarnings(earn);
-  }, []);
+  /** Without touching state, so the refresh effect below can set it inside a
+   *  `.then` (react-hooks/set-state-in-effect). */
+  const readMoney = useCallback(
+    (vendorId: string) =>
+      // Status is fetched live from Stripe, so returning from onboarding
+      // reflects reality without any extra step. Not fetched at all with
+      // escrow disabled — there's no Stripe account to check.
+      Promise.all([
+        ESCROW_ENABLED ? getStripeStatus(vendorId).catch(() => null) : Promise.resolve(null),
+        vendorEarnings(vendorId).catch(() => null),
+      ]),
+    [],
+  );
+
+  const load = useCallback(
+    async (vendorId: string) => {
+      const [st, earn] = await readMoney(vendorId);
+      setStatus(st);
+      setEarnings(earn);
+    },
+    [readMoney],
+  );
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyVendor()
+    myVendor()
       .then(async (mine) => {
         if (cancelled) return;
         setVendor(mine);
@@ -113,6 +124,24 @@ function EscrowEarnings() {
       cancelled = true;
     };
   }, [user, load]);
+
+  // A refresh behind remembered numbers re-reads the numbers only. The
+  // effect above also fills the Venmo and Zelle fields, and running it again
+  // would wipe what someone is typing there.
+  const dataVersion = useDataVersion();
+  const vendorId = vendor?.vendor_id;
+  useEffect(() => {
+    if (!vendorId || dataVersion === 0) return;
+    let cancelled = false;
+    readMoney(vendorId).then(([st, earn]) => {
+      if (cancelled) return;
+      setStatus(st);
+      setEarnings(earn);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId, readMoney, dataVersion]);
 
   async function onboard() {
     if (!vendor) return;
