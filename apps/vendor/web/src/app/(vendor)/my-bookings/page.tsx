@@ -46,6 +46,7 @@ import { MessageVendorButton } from "@/components/MessageVendorButton";
 import { FilterTabs, PageHeader, StatTile, StatusPill, type Tone } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
+import { PageSkeleton, SkeletonList, SkeletonTiles, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 // The same three words as Overview ("Copy rules" in apps/vendor/CLAUDE.md).
 const TAB: Record<BookingTab, { label: string; tone: Tone }> = {
@@ -399,6 +400,21 @@ function Expanded({
 
 // ── Page ─────────────────────────────────────────────────────────────
 
+const HEADING: PageHeading = {
+  eyebrow: "Event management",
+  title: "Bookings",
+  subtitle: "Every celebration from signature to final payment.",
+};
+
+function BookingsSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your bookings…">
+      <SkeletonTiles />
+      <SkeletonList />
+    </PageSkeleton>
+  );
+}
+
 function BookingsInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -502,7 +518,7 @@ function BookingsInner() {
     return <p className="py-20 text-center text-ink-soft">{error}</p>;
   }
   if (authLoading || !user || !bookings) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <BookingsSkeleton />;
   }
 
   const count = (t: BookingTab) => rows.filter((r) => r.tab === t).length;
@@ -512,9 +528,7 @@ function BookingsInner() {
   return (
     <div>
       <PageHeader
-        eyebrow="Event management"
-        title="Bookings"
-        subtitle="Every celebration from signature to final payment."
+        {...HEADING}
         action={<NewMenu />}
       />
 
@@ -656,7 +670,7 @@ function BookingsInner() {
 
 export default function MyBookingsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<BookingsSkeleton />}>
       <BookingsInner />
     </Suspense>
   );

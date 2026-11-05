@@ -20,6 +20,7 @@ import {
 } from "@/lib/ledger";
 import type { Ledger, LedgerRow } from "@/lib/types";
 import { FilterTabs, PageHeader, StatusPill } from "@/components/vendor/ui";
+import { PageSkeleton, SkeletonBody, SkeletonList, type PageHeading } from "@/components/vendor/PageSkeleton";
 import { Icon } from "@/components/vendor/Icon";
 import { PaymentDrawer } from "@/components/earnings/PaymentDrawer";
 
@@ -38,6 +39,38 @@ const PERIODS: { value: Period; label: string }[] = [
 
 function isTab(v: string | null): v is LedgerTab {
   return TABS.some((t) => t.value === v);
+}
+
+export const LEDGER_HEADING: PageHeading = {
+  eyebrow: "Money",
+  title: "Earnings",
+  subtitle: "Every booking and every payment, as your contracts set them.",
+};
+
+/** The summary's four figures and the ledger card, in their own sizes. */
+function LedgerBodySkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-card-edge bg-card lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="grid gap-2 p-4">
+            <div className="h-3 w-20 rounded-full bg-line-soft" />
+            <div className="h-6 w-24 rounded-md bg-line" />
+          </div>
+        ))}
+      </div>
+      <SkeletonList rows={6} />
+    </>
+  );
+}
+
+/** The whole page while the session settles, before LedgerView mounts. */
+export function LedgerSkeleton() {
+  return (
+    <PageSkeleton heading={LEDGER_HEADING} label="Loading your earnings…">
+      <LedgerBodySkeleton />
+    </PageSkeleton>
+  );
 }
 
 export function LedgerView() {
@@ -110,9 +143,7 @@ export function LedgerView() {
   return (
     <div>
       <PageHeader
-        eyebrow="Money"
-        title="Earnings"
-        subtitle="Every booking and every payment, as your contracts set them."
+        {...LEDGER_HEADING}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <div role="group" aria-label="Period" className="flex gap-0.5 rounded-[9px] bg-panel p-[3px]">
@@ -147,7 +178,9 @@ export function LedgerView() {
       ) : null}
 
       {!current ? (
-        <p className="py-20 text-center text-ink-soft">Loading…</p>
+        <SkeletonBody label="Loading your earnings…">
+          <LedgerBodySkeleton />
+        </SkeletonBody>
       ) : current.error || !ledger ? (
         <div className="py-20 text-center">
           <p className="text-ink-soft">{current.error}</p>

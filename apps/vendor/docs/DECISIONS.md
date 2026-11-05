@@ -1169,3 +1169,22 @@ remembers them (`lib/dataCache.ts`).
 - **What the client side does:** nothing yet. The shared write hook is
   there for it; the client app registers no listener.
 
+## Decision: vendor pages show their shape while they load (2026-11-05)
+
+Leads, Bookings, Contracts, Calendar, Earnings, Settings and Profile showed
+a bare "Loading…" until their data came; only Overview had a skeleton.
+Each now shows its real header at once and placeholders the size of what's
+coming (`components/vendor/PageSkeleton`), so nothing jumps when it lands.
+
+- **The header is the real one.** Its words don't depend on the data, and
+  each page renders it from one `HEADING` constant, shared with its
+  skeleton, so the two can't drift. Actions that need the data (New,
+  Defaults, the inquiry link) wait for it.
+- **Settings shows its account section at once,** as before; only the two
+  sections that need the vendor (payments, Google Calendar) are
+  placeholders, in their own places rather than appearing below Theme.
+- **Earnings has both shapes:** the ledger's summary and list (production,
+  escrow off) and the escrow page's card and list.
+- **Not yet:** the contract view, editor, document and changes pages still
+  say "Loading…".
+
