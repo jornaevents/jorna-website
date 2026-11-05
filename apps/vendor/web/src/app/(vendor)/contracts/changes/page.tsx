@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { VendorNegotiation } from "@/components/negotiation/VendorNegotiation";
+import { NegotiationSkeleton } from "@/components/vendor/ContractSkeletons";
 
 function ChangesInner() {
   const { user, loading: authLoading } = useAuth();
@@ -23,7 +24,18 @@ function ChangesInner() {
     }
   }, [authLoading, user, router, id]);
 
-  if (authLoading || !user) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (authLoading || !user) {
+    return (
+      <div>
+        <Link href={`/contracts/view?id=${id}`} className="eyebrow hover:text-gold">
+          ← The contract
+        </Link>
+        <div className="mt-3 h-[min(60rem,calc(100dvh-8rem))] overflow-hidden rounded-2xl border border-card-edge shadow-[var(--shadow-card)]">
+          <NegotiationSkeleton />
+        </div>
+      </div>
+    );
+  }
   if (!id) return <p className="py-20 text-center text-ink-soft">No contract picked.</p>;
 
   return (
@@ -43,7 +55,7 @@ function ChangesInner() {
 
 export default function ContractChangesPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<NegotiationSkeleton />}>
       <ChangesInner />
     </Suspense>
   );

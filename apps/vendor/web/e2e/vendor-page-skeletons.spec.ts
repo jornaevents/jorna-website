@@ -31,3 +31,29 @@ test.describe("vendor pages while they load", () => {
     });
   }
 });
+
+// The contract pages have no page header to show early; their placeholders
+// follow each page's own layout (components/vendor/ContractSkeletons).
+const CONTRACT_PAGES = [
+  { path: "contracts/view/?id=c-1", status: "Loading the contract…" },
+  { path: "contracts/changes/?id=c-1", status: "Loading the negotiation…" },
+  { path: "contracts/new/", status: "Loading the contract builder…" },
+  { path: "contracts/template/", status: "Loading the contract builder…" },
+  { path: "contracts/document/?kind=addendum", status: "Loading the document…" },
+];
+
+test.describe("contract pages while they load", () => {
+  for (const p of CONTRACT_PAGES) {
+    test(`${p.path} shows its placeholders`, async ({ page, api }) => {
+      await loginAs(page, api);
+      await page.route(`${MOCK_API_BASE}/**`, (route) =>
+        new URL(route.request().url()).pathname === "/me" ? route.fallback() : new Promise<void>(() => {}),
+      );
+
+      await page.goto(p.path);
+
+      await expect(page.getByRole("status").filter({ hasText: p.status })).toBeAttached();
+      await expect(page.getByText("Loading…", { exact: true })).toHaveCount(0);
+    });
+  }
+});

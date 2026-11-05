@@ -32,13 +32,11 @@ import {
   createContract,
   getContract,
   getContractProposals,
-  listLeads,
-  listMyServices,
-  listVendorBookings,
   proposeFromRequest,
   updateContract,
 } from "@/lib/jorna";
-import { myVendor } from "@/lib/vendorData";
+import { contractTemplates, myLeads, myServices, myVendor, vendorBookings } from "@/lib/vendorData";
+import { ContractEditorSkeleton } from "@/components/vendor/ContractSkeletons";
 import {
   applyTemplate,
   BLANK,
@@ -72,7 +70,7 @@ import {
   type SchedulePreset,
   type Step,
 } from "@jorna/shared/lib/contractDraft";
-import { deleteTemplate, loadTemplates, saveEditedTemplate, saveTemplate, templatesOfKind } from "@/lib/contractTemplates";
+import { deleteTemplate, saveEditedTemplate, saveTemplate, templatesOfKind } from "@/lib/contractTemplates";
 import { allChoices, packageChoiceId, templateChoices, type TemplateChoice } from "@/lib/templateChoices";
 import { guestBookingLink } from "@/lib/contractLink";
 import { clashWith } from "@/lib/dateClash";
@@ -309,13 +307,15 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         }
         setVendor(mine);
         const [svc, leads, tpl, existing, requests, proposals] = await Promise.all([
-          listMyServices(mine.vendor_id).catch(() => null),
-          leadId ? listLeads().catch(() => null) : Promise.resolve(null),
-          loadTemplates().catch(() => [] as SavedContractTemplate[]),
+          myServices(mine.vendor_id).catch(() => null),
+          leadId ? myLeads().catch(() => null) : Promise.resolve(null),
+          contractTemplates().catch(() => [] as SavedContractTemplate[]),
+          // The contract being edited is read fresh: an edit starts from what
+          // the server has now, not from what this tab saw (lib/vendorData).
           editId ? getContract(editId) : Promise.resolve(null),
           // The vendor's own bookings: the request being accepted, and what
           // a picked date would clash with.
-          listVendorBookings(mine.vendor_id, { limit: 100 }).catch(() => null),
+          vendorBookings(mine.vendor_id).catch(() => null),
           editId && proposalId ? getContractProposals(editId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelled) return;
@@ -706,7 +706,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ContractEditorSkeleton />;
   }
 
   if (loadError || !vendor) {
