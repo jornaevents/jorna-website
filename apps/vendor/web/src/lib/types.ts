@@ -1022,6 +1022,13 @@ export interface ConversationSummary {
     kind?: string | null;
     created_at?: string | null;
   } | null;
+  /**
+   * An AI line about the thread's latest messages, shown in place of
+   * last_message. The server only sends one when this reader should see it
+   * (several unread, still current, summaries on); null otherwise, and always
+   * null while the backend's SUMMARIES_ENABLED is off.
+   */
+  summary?: { text: string; generated_at?: string | null } | null;
   created_at?: string | null;
 }
 

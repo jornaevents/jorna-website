@@ -8,6 +8,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { listConversations } from "@/lib/jorna";
 import type { ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton, StatusPill } from "@jorna/shared/components/ui";
+import { SummaryPreview } from "@jorna/shared/components/SummaryPreview";
 import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
 import { signInUrl } from "@/lib/vendorSite";
 
@@ -216,13 +217,20 @@ export default function MessagesPage() {
                           ) : null}
                         </div>
                       ) : null}
-                      <p
-                        className={`mt-0.5 truncate text-sm ${
-                          unread > 0 ? "font-medium text-ink" : "text-ink-soft"
-                        }`}
-                      >
-                        {preview(c)}
-                      </p>
+                      {c.summary?.text && unread > 0 ? (
+                        <SummaryPreview
+                          text={c.summary.text}
+                          className={`mt-0.5 ${unread > 0 ? "font-medium text-ink" : "text-ink-soft"}`}
+                        />
+                      ) : (
+                        <p
+                          className={`mt-0.5 truncate text-sm ${
+                            unread > 0 ? "font-medium text-ink" : "text-ink-soft"
+                          }`}
+                        >
+                          {preview(c)}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <span className="text-xs text-ink-faint">

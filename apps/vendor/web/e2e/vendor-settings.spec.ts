@@ -39,6 +39,19 @@ test.describe("vendor settings (/settings)", () => {
     expect(calls[0].body).not.toHaveProperty("contract_hold_days");
   });
 
+  test("Show AI summaries can be turned off", async ({ page, api }) => {
+    const user = await loginAs(page, api);
+    mockSettings(api);
+    api.patch("/me", { ...user, ai_summaries_enabled: false });
+
+    await page.goto("settings/");
+    const box = page.getByRole("checkbox", { name: /Show AI summaries/ });
+    await expect(box).toBeChecked();
+    await box.uncheck();
+    await expect(box).not.toBeChecked();
+    expect(api.requestsTo("PATCH", "/me")[0].body).toEqual({ ai_summaries_enabled: false });
+  });
+
   test("the theme choice survives a reload", async ({ page, api }) => {
     await loginAs(page, api);
     mockSettings(api);

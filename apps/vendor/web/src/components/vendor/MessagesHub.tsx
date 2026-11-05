@@ -26,6 +26,7 @@ import { myVendor } from "@/lib/vendorData";
 import { LABEL_TEXT, LABEL_TONE, relationFor, showInInbox, tabFor, type Relation } from "@/lib/messageLabels";
 import type { ConversationSummary, Pipeline, VendorBooking } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
+import { SummaryPreview } from "@jorna/shared/components/SummaryPreview";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
 import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill } from "@/components/vendor/ui";
@@ -416,7 +417,11 @@ export function MessagesHub() {
                           {r.pkg ? <span className="truncate text-[0.68rem] text-ink-faint">{r.pkg}</span> : null}
                         </span>
                       ) : null}
-                      <span className="truncate text-xs text-ink-faint">{c.last_message?.content || "No messages yet"}</span>
+                      {c.summary?.text && unread > 0 ? (
+                        <SummaryPreview text={c.summary.text} size="xs" className="text-ink-soft" />
+                      ) : (
+                        <span className="truncate text-xs text-ink-faint">{c.last_message?.content || "No messages yet"}</span>
+                      )}
                     </span>
                     {unread > 0 ? (
                       <span className="grid h-5 min-w-5 place-items-center rounded-[6px] bg-gold-bright px-1 text-[0.65rem] font-bold text-[#2a0c19]">

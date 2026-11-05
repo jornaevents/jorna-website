@@ -9,6 +9,7 @@ import { changePassword, updateMe, uploadAvatar } from "@/lib/jorna";
 import { checkImageFiles, describeRejections } from "@jorna/shared/lib/uploads";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
+import { AiSummarySetting } from "@jorna/shared/components/AiSummarySetting";
 import { signInUrl } from "@/lib/vendorSite";
 
 export default function AccountPage() {
@@ -174,6 +175,12 @@ export default function AccountPage() {
           </Button>
         </form>
       </Card>
+
+      <AiSummarySetting
+        className="mt-6"
+        enabled={user.ai_summaries_enabled !== false}
+        onChange={async (next) => setUser(await updateMe({ ai_summaries_enabled: next }))}
+      />
 
       {/* Password */}
       <Card className="mt-6 p-6">

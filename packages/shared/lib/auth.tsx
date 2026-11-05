@@ -27,6 +27,8 @@ export interface User {
   phone?: string | null;
   location?: string | null;
   pfp_url?: string | null;
+  /** "Show AI summaries" in the Messages inbox; absent from older servers = on. */
+  ai_summaries_enabled?: boolean;
 }
 
 /** A token as every tab currently sees it. Storage is the one copy all tabs

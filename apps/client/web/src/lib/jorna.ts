@@ -310,6 +310,7 @@ export function googleRegister(supabaseAccessToken: string, acceptTerms = false)
 // ── Account (current user) ───────────────────────────────────────────
 
 export interface MeUpdate {
+  ai_summaries_enabled?: boolean;
   email?: string;
   f_name?: string;
   l_name?: string;
