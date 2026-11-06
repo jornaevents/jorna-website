@@ -19,10 +19,15 @@ jobs:
   changes:
     name: Which apps changed
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     outputs:
       client: ${{ steps.diff.outputs.client }}
       vendor: ${{ steps.diff.outputs.vendor }}
       shared: ${{ steps.diff.outputs.shared }}
+      tested: ${{ steps.tested.outputs.tested }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,10 +52,45 @@ jobs:
             if [ "$own" -gt 0 ] || [ "$shared" -gt 0 ]; then echo "$app=true"; else echo "$app=false"; fi >> "$GITHUB_OUTPUT"
           done
 
+      # A merged PR has already passed lint, tests and e2e on exactly the code
+      # that lands: branch protection makes a PR be up to date with main
+      # before it merges, so its tree is the merge's tree. Running them again
+      # on the push only delays staging, so the apps skip their checks when
+      # all of this holds — and run them, as before, when any of it doesn't
+      # (a direct push, an admin merge past a stale branch, a failed check):
+      # the push is one commit on top of the old main, that commit is a
+      # merged PR's merge commit, the PR's head contained the old main, and
+      # both required checks passed on that head.
+      - id: tested
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          tested=false
+          if [ "$(git rev-parse "$GITHUB_SHA^1" 2>/dev/null)" = "$BEFORE" ]; then
+            head=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              --jq "map(select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\"))[0].head.sha // empty" || true)
+            if [ -n "$head" ]; then
+              status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$head" --jq .status || true)
+              passed=0
+              for check in "Lint, typecheck, test, build" "E2E (Playwright)"; do
+                conclusion=$(gh api -X GET "repos/$GITHUB_REPOSITORY/commits/$head/check-runs" -f check_name="$check" \
+                  --jq '[.check_runs[] | select(.app.slug == "github-actions")][0].conclusion // empty' || true)
+                echo "$check on $head: ${conclusion:-none}"
+                if [ "$conclusion" = success ]; then passed=$((passed + 1)); fi
+              done
+              echo "PR head $head vs the old main: $status"
+              if { [ "$status" = ahead ] || [ "$status" = identical ]; } && [ "$passed" -eq 2 ]; then tested=true; fi
+            fi
+          fi
+          echo "tested=$tested"
+          echo "tested=$tested" >> "$GITHUB_OUTPUT"
+
   shared:
     name: Shared package
     needs: changes
-    if: needs.changes.outputs.shared == 'true'
+    if: needs.changes.outputs.shared == 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -71,6 +111,7 @@ jobs:
     uses: ./.github/workflows/app.yml
     with:
       app: client
+      skip_checks: ${{ needs.changes.outputs.tested == 'true' }}
       pages_project: jorna-events
       deploy_domain: https://jorna-events.pages.dev
     secrets: inherit
@@ -85,6 +126,7 @@ jobs:
     uses: ./.github/workflows/app.yml
     with:
       app: vendor
+      skip_checks: ${{ needs.changes.outputs.tested == 'true' }}
       pages_project: jorna-vendor
       deploy_domain: https://jorna-vendor.pages.dev
     secrets: inherit
