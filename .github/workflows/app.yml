@@ -20,10 +20,16 @@ on:
         description: Where the deploy is verified from CI (see below)
         required: true
         type: string
+      skip_checks:
+        description: The merged PR already passed build and e2e on this exact code (see ci.yml)
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
     name: Lint, typecheck, test, build
+    if: ${{ !inputs.skip_checks }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -56,6 +62,7 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
+    if: ${{ !inputs.skip_checks }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,14 +70,34 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - id: node
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
 
-      - run: npm ci
+      # The installed node_modules, keyed on the lockfile and Node version:
+      # restoring them takes seconds where `npm ci` took about a minute, so
+      # it only runs when the lockfile changed.
+      - id: modules
+        uses: actions/cache@v6
+        with:
+          path: |
+            node_modules
+            apps/*/web/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci
         working-directory: .
+
+      # Playwright's Chromium download, reused until the lockfile (and so the
+      # Playwright version) changes. The install below still adds the system
+      # packages it needs, and skips the download when it's already here.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       # Google's own apt repo for Chrome has intermittently served a
       # Packages.gz that doesn't match its Release file's hash, which fails
@@ -184,7 +211,9 @@ jobs:
   deploy-staging:
     name: Deploy to staging
     needs: [build, e2e]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Runs when build and e2e passed, or were skipped because the merged PR
+    # already passed them (skip_checks) — never after either failed.
+    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     environment:
       name: staging
