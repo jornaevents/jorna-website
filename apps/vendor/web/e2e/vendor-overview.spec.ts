@@ -86,7 +86,7 @@ test.describe("vendor overview (/overview)", () => {
     const vendor = mockOverview(api);
 
     await page.goto("overview/");
-    await expect(page.getByText("2 need your reply")).toBeVisible();
+    await expect(page.getByText("2 need you", { exact: true })).toBeVisible();
     expect(api.requestsTo("GET", "/vendors/me/overview")).toHaveLength(1);
     // Not even the sidebar's: it waited on the combined read, which went
     // out as the page mounted, alongside the session check.
@@ -111,7 +111,7 @@ test.describe("vendor overview (/overview)", () => {
     await page.goto("my-calendar/");
     await expect(page.getByRole("status").filter({ hasText: "Loading your calendar…" })).toHaveCount(0);
     await page.getByRole("navigation", { name: "Vendor" }).getByRole("link", { name: "Overview" }).click();
-    await expect(page.getByText("2 need your reply")).toBeVisible();
+    await expect(page.getByText("2 need you", { exact: true })).toBeVisible();
 
     // Measured on staging: with no wait for the vendor left, four reads side
     // by side beat one request that runs its sections in turn.
@@ -125,7 +125,7 @@ test.describe("vendor overview (/overview)", () => {
     api.error("GET", "/vendors/me/overview", 500, "Internal Server Error");
 
     await page.goto("overview/");
-    await expect(page.getByText("2 need your reply")).toBeVisible();
+    await expect(page.getByText("2 need you", { exact: true })).toBeVisible();
     await expect(page.getByText("In 12 days")).toBeVisible();
     await expect(page.getByRole("link", { name: /Meera Kapoor/ })).toBeVisible();
     expect(separateReads(api, vendor.vendor_id).every((n) => n >= 1)).toBe(true);
@@ -150,8 +150,8 @@ test.describe("vendor overview (/overview)", () => {
 
     // The request and the informal lead are both open; both wait on a reply,
     // and the header says so in words.
-    await expect(page.getByText("2 clients are waiting on you.")).toBeVisible();
-    await expect(page.getByText("2 need your reply")).toBeVisible();
+    await expect(page.getByText("2 leads need you.")).toBeVisible();
+    await expect(page.getByText("2 need you", { exact: true })).toBeVisible();
     // Only the request came in this week; the lead has waited longest.
     await expect(page.getByText("+1 this week")).toBeVisible();
     await expect(page.getByText(/Oldest has waited \d+d/)).toBeVisible();

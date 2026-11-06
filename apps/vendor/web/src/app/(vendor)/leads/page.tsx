@@ -730,7 +730,7 @@ function LeadsInner() {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile icon="leads" tone="amber" label="Inquiries" value={c.inquiries} note="No contract sent yet" />
         <StatTile icon="clock" tone="green" label="Waiting on client" value={c.waiting} note="No action needed" />
-        <StatTile icon="messages" tone="red" label="Needs your attention" value={c.needs_you} note="Reply soon" />
+        <StatTile icon="messages" tone="red" label="Needs your attention" value={c.needs_you} />
       </div>
 
       <section aria-label="Pipeline" className="mt-4 rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]">
@@ -797,7 +797,7 @@ function LeadsInner() {
           {(["inquiry", "waiting", "attention"] as const).map((k) => (
             <span key={k} className="flex items-center gap-1.5">
               <i aria-hidden="true" className={`h-3 w-1 rounded-full border-l-4 ${LOOK[k].border}`} />
-              {k === "inquiry" ? "Inquiry" : k === "waiting" ? "Waiting on the client" : "Needs your attention"}
+              {LOOK[k].label}
             </span>
           ))}
         </div>
