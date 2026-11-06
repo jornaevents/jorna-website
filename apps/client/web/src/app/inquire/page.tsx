@@ -11,8 +11,9 @@ import { getVendor } from "@/lib/jorna";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
 
 // /inquire?vendor=<id>: the link a vendor shares (Instagram bio, their own
-// site). Just the vendor and the inquiry form, for anyone — no account, no
-// marketplace around it (backend DECISIONS #32).
+// site). Just the vendor and the inquiry form, no marketplace around it.
+// Anyone can fill it in; sending needs a client account, and signing up
+// comes back here (backend DECISIONS #32, #45).
 
 function InquireInner() {
   const vendorId = useSearchParams().get("vendor");
@@ -73,7 +74,7 @@ function InquireInner() {
         </div>
       </header>
       <p className="mt-5 max-w-[60ch] text-ink-soft">
-        Tell them about your event. They&apos;ll get it straight away and reply to your email.
+        Tell them about your event. They&apos;ll get it straight away and reply in your messages on Jorna.
       </p>
       <Card className="relative mt-6 p-5 sm:p-6">
         <InquiryForm vendorId={vendor.vendor_id} vendorName={name} />

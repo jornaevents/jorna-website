@@ -634,11 +634,10 @@ export function getConversation(conversationId: string): Promise<ConversationSum
  * Refused with 429 when the client has too many questions nobody has answered.
  * That message is written to be read, so show it as it comes.
  */
-/** What the public inquiry form sends (backend DECISIONS #32). No account
- *  needed: it lands in the vendor's Leads. `website` is the honeypot. */
+/** What the inquiry form sends (backend DECISIONS #32, #45). Signed in: the
+ *  sender is the account (name and email come from it), and it lands in the
+ *  client's thread with the vendor. `website` is the honeypot. */
 export interface InquiryInput {
-  name: string;
-  email: string;
   phone?: string | null;
   event_date_iso?: string | null;
   event_type?: string | null;
@@ -647,15 +646,15 @@ export interface InquiryInput {
   website?: string;
 }
 
-export function sendInquiry(
-  vendorId: string,
-  body: InquiryInput,
-): Promise<{ received: boolean; vendor_name: string }> {
-  return apiFetch<{ received: boolean; vendor_name: string }>(`/vendors/${vendorId}/inquiries`, {
-    method: "POST",
-    body,
-    auth: false,
-  });
+export interface InquiryReply {
+  received: boolean;
+  vendor_name: string;
+  /** The client's thread with the vendor; absent from an older backend. */
+  conversation_id?: string | null;
+}
+
+export function sendInquiry(vendorId: string, body: InquiryInput): Promise<InquiryReply> {
+  return apiFetch<InquiryReply>(`/vendors/${vendorId}/inquiries`, { method: "POST", body });
 }
 
 export function askVendor(
