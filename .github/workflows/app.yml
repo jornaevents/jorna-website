@@ -276,7 +276,10 @@ jobs:
   staging-checks:
     name: Staging checks
     needs: [deploy-staging]
-    if: inputs.app == 'vendor' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # !cancelled() && !failure(): build and e2e are skipped after a merge
+    # (skip_checks), and a skipped ancestor skips every job after it unless
+    # the condition says otherwise.
+    if: ${{ !cancelled() && !failure() && inputs.app == 'vendor' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -316,7 +319,9 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     needs: [deploy-staging]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Same guard as staging-checks: without it, skipped checks after a merge
+    # skip production too.
+    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     # Requires a reviewer's approval (repo Settings → Environments →
     # production): check staging, then approve in the Actions tab.
