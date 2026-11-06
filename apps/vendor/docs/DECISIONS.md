@@ -1263,3 +1263,21 @@ page mounts (`startOverviewEarly`), alongside the session check, not after it.
   response carries each section's server time (`timings`, and a
   `Server-Timing` header) to check there.
 
+## Decision: a lead's next steps are message, contract, or not going ahead (2026-11-06)
+
+In the Leads drawer, a lead (`source: "lead"`) has three buttons under Next
+step and no footer:
+
+- **Message client** opens their thread when there is one, otherwise their
+  email (`mailto:`). Hidden when there's neither.
+- **Create contract**, starting from the package they asked about when there
+  is one.
+- **Mark as not going ahead** sets the status to `lost`, which the backend
+  files under Archived.
+
+There's **no Archive button** for a lead, and **no "Mark as contacted"**.
+An archived lead shows **Unarchive** instead. A lead that was not going ahead
+comes back as `new` (the vendor's move again). A lead archived the old way
+just leaves Archived. Requests and contracts keep their own buttons and
+Archive.
+

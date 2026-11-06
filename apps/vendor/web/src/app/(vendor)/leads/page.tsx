@@ -281,6 +281,13 @@ function LeadDrawer({
   const ghost = "w-full sm:w-auto";
   const fromForm = item.lead_source === "inquiry_form";
 
+  // A lead's buttons all live under Next step: message, contract, or close
+  // it. Closing is "not going ahead", which files it under Archived; there's
+  // no separate Archive for a lead.
+  const isLead = item.source === "lead";
+  const messageButton =
+    "inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04] sm:w-auto";
+
   const archiveAction = () =>
     item.lead_id
       ? updateLead(item.lead_id, { archived: !archived })
@@ -293,6 +300,7 @@ function LeadDrawer({
       title={item.name}
       subtitle={item.event_name && item.event_name !== item.name ? item.event_name : item.service_name ?? undefined}
       footer={
+        isLead ? undefined : (
         <div className="flex flex-wrap gap-2">
           {/* A form inquiry has no thread; email is how they asked to hear back. */}
           {fromForm && item.email && !item.conversation_id ? (
@@ -323,6 +331,7 @@ function LeadDrawer({
             </Button>
           )}
         </div>
+        )
       }
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -367,8 +376,32 @@ function LeadDrawer({
         </div>
       ) : null}
 
-      {/* What this stage can do. A closed lead has nothing left to do. */}
-      <div className={`mt-6 ${item.outcome ? "hidden" : ""}`}>
+      {/* What this stage can do. A closed request or contract has nothing
+          left to do; a lead closed or archived can come back. */}
+      {isLead && archived ? (
+        <div className="mt-6">
+          <p className="eyebrow">Next step</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              className={ghost}
+              disabled={busy != null}
+              onClick={() =>
+                run(
+                  "unarchive",
+                  // Not going ahead is a status; reopening puts it back as new,
+                  // so it's the vendor's move again.
+                  () => updateLead(item.lead_id!, item.lead_status === "lost" ? { status: "new", archived: false } : { archived: false }),
+                  "Back in your active leads.",
+                )
+              }
+            >
+              Unarchive
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      <div className={`mt-6 ${item.outcome || (isLead && archived) ? "hidden" : ""}`}>
         <p className="eyebrow">Next step</p>
         {isContract && status === "awaiting_vendor" ? (
           <div className="mt-2.5">
@@ -422,28 +455,28 @@ function LeadDrawer({
             </>
           ) : null}
 
-          {item.source === "lead" ? (
+          {isLead ? (
             <>
+              {/* Their thread when there is one; otherwise their email. */}
+              {item.conversation_id ? (
+                <Link href={`/conversation?id=${item.conversation_id}`} className={messageButton}>
+                  <Icon name="messages" size={16} /> Message client
+                </Link>
+              ) : item.email ? (
+                <a href={`mailto:${item.email}`} className={messageButton}>
+                  <Icon name="messages" size={16} /> Message client
+                </a>
+              ) : null}
               <LinkPrimary
                 href={`/contracts/new?lead=${item.lead_id}${item.service_id ? `&package=${item.service_id}` : ""}`}
               >
                 Create contract
               </LinkPrimary>
-              {item.lead_status === "new" ? (
-                <Button
-                  variant="ghost"
-                  className={ghost}
-                  disabled={busy != null}
-                  onClick={() => run("contacted", () => updateLead(item.lead_id!, { status: "contacted" }), "Marked as contacted.")}
-                >
-                  Mark as contacted
-                </Button>
-              ) : null}
               <Button
                 variant="ghost"
                 className={ghost}
                 disabled={busy != null}
-                onClick={() => run("lost", () => updateLead(item.lead_id!, { status: "lost" }), "Closed.")}
+                onClick={() => run("lost", () => updateLead(item.lead_id!, { status: "lost" }), "Moved to Archived.")}
               >
                 Mark as not going ahead
               </Button>
@@ -554,13 +587,15 @@ function LeadDrawer({
           </div>
         ) : null}
 
-        {notice ? <p className="mt-3 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">{notice}</p> : null}
-        {error ? (
-          <p role="alert" className="mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-            {error}
-          </p>
-        ) : null}
       </div>
+      {/* Outside Next step, which hides once a lead is closed — "Moved to
+          Archived." has to show after that. */}
+      {notice ? <p className="mt-3 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">{notice}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+          {error}
+        </p>
+      ) : null}
 
       {item.attention_reason === "counter_offer" || item.attention_reason === "counter_sent" ? (
         <div className="mt-6">
