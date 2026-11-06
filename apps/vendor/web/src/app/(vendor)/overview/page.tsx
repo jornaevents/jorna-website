@@ -94,13 +94,14 @@ function initials(name?: string | null): string {
   return (parts[0]?.[0] ?? "·").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase();
 }
 
-/** The header's one line: who's waiting on you today, in words — leads
- *  waiting on a reply, and money on signed contracts: payments to confirm
- *  and payments past due (web #170, which said "Nothing needs you" while
- *  Bookings said "Your move"). */
+/** The header's one line: what's waiting on you today, in words — leads
+ *  that need you, and money on signed contracts: payments to confirm and
+ *  payments past due (web #170, which said "Nothing needs you" while
+ *  Bookings said "Your move"). "Leads", not "clients waiting": a draft you
+ *  haven't sent or a hold that ran out needs you with no client waiting. */
 function todayLine(needReply: number, money: { confirm: number; overdue: number }): string {
   const parts: string[] = [];
-  if (needReply) parts.push(needReply === 1 ? "1 client is waiting on you" : `${needReply} clients are waiting on you`);
+  if (needReply) parts.push(needReply === 1 ? "1 lead needs you" : `${needReply} leads need you`);
   if (money.confirm) parts.push(money.confirm === 1 ? "1 payment to confirm" : `${money.confirm} payments to confirm`);
   if (money.overdue) parts.push(money.overdue === 1 ? "1 payment is overdue" : `${money.overdue} payments are overdue`);
   if (!parts.length) return "Nothing needs you today.";
@@ -274,7 +275,7 @@ function LeadsCard({ open, needReply, newThisWeek, oldestWaitingIso }: LeadNumbe
       <div className="mt-7 mb-5">
         {needReply > 0 ? (
           <StatusPill tone="red" dot>
-            {needReply} {needReply === 1 ? "needs" : "need"} your reply
+            {needReply} {needReply === 1 ? "needs" : "need"} you
           </StatusPill>
         ) : (
           <p className="text-sm text-ink-faint">Nobody&apos;s waiting on you.</p>
