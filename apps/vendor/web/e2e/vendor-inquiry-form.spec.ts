@@ -45,14 +45,17 @@ function mockLeads(api: ApiMock, items: unknown[] = [FORM_LEAD]) {
 }
 
 test.describe("inquiry form (vendor side)", () => {
-  test("Leads shares the form as a link and a QR code", async ({ page, context, api }) => {
+  test("New shares the form as a link and a QR code", async ({ page, context, api }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await loginAs(page, api);
     mockLeads(api, []);
 
     await page.goto("leads/");
-    await expect(page.getByText(/Share your inquiry form to get your first one/)).toBeVisible();
-    await page.getByRole("button", { name: "Share your inquiry form" }).click();
+    await expect(page.getByText(/Share your inquiry form from New to get your first one/)).toBeVisible();
+    // Its own header button is gone; it's the New menu's first choice here.
+    await expect(page.getByRole("button", { name: "Share your inquiry form" })).toHaveCount(0);
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("menuitem", { name: /Share inquiry form/ }).click();
 
     const drawer = page.getByRole("dialog");
     const link = drawer.getByLabel("Link");
@@ -81,28 +84,5 @@ test.describe("inquiry form (vendor side)", () => {
     await expect(drawer.getByText("180")).toBeVisible();
     await expect(drawer.getByRole("link", { name: "Reply by email" })).toHaveAttribute("href", "mailto:neha@example.com");
     await expect(drawer.getByRole("link", { name: "Create contract" })).toHaveAttribute("href", /\/contracts\/new\/?\?lead=inq1/);
-  });
-
-  test("a client the vendor adds by hand can carry the event and guest count", async ({ page, api }) => {
-    await loginAs(page, api);
-    mockLeads(api, []);
-    api.post("/leads", { lead_id: "lead-new", vendor_id: "vendor-1", name: "Kiran Mehta", email: "kiran@example.com" });
-
-    await page.goto("leads/");
-    await page.getByRole("button", { name: "New", exact: true }).click();
-    await page.getByRole("menu", { name: "New" }).getByRole("menuitem").first().click();
-    const drawer = page.getByRole("dialog");
-    await drawer.getByLabel("Name", { exact: true }).fill("Kiran Mehta");
-    await drawer.getByLabel("Email", { exact: true }).fill("kiran@example.com");
-    await drawer.getByLabel("Event", { exact: true }).fill("Mehndi");
-    await drawer.getByLabel("Guests").fill("0");
-    await drawer.getByRole("button", { name: "Add client" }).click();
-    await expect(drawer.getByRole("alert")).toContainText("between 1 and 100,000");
-
-    await drawer.getByLabel("Guests").fill("90");
-    await drawer.getByRole("button", { name: "Add client" }).click();
-    await expect(page.getByText("Kiran Mehta is on your leads as an inquiry.")).toBeVisible();
-    const [sent] = api.requestsTo("POST", "/leads");
-    expect(sent.body).toMatchObject({ name: "Kiran Mehta", event_type: "Mehndi", guest_count: 90 });
   });
 });

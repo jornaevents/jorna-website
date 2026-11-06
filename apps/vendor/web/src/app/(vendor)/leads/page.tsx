@@ -39,7 +39,6 @@ import { NegotiationPanel as ContractNegotiation } from "@/components/negotiatio
 import { Drawer, FilterTabs, PageHeader, StatTile, StatusPill, type Tone } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
 import { NewMenu } from "@/components/vendor/NewMenu";
-import { InquiryShareButton } from "@/components/vendor/InquiryShare";
 import { CountersignPanel } from "@/components/vendor/CountersignPanel";
 import { PageSkeleton, SkeletonList, SkeletonTiles, type PageHeading } from "@/components/vendor/PageSkeleton";
 
@@ -639,7 +638,6 @@ function LeadsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
-  const [vendorId, setVendorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("recent");
@@ -656,8 +654,8 @@ function LeadsInner() {
   const dataVersion = useDataVersion();
 
   const load = useCallback(async () => {
-    // Side by side: the pipeline doesn't need the vendor's id. Its failure is
-    // held until we know this is a vendor, whose page it is to report it.
+    // Side by side: the pipeline doesn't wait on the vendor check. Its failure
+    // is held until we know this is a vendor, whose page it is to report it.
     const [mine, pipeline] = await Promise.all([
       myVendor(),
       leadPipeline().then(
@@ -667,7 +665,7 @@ function LeadsInner() {
     ]);
     if (!mine) return "not-vendor" as const;
     if ("error" in pipeline) throw pipeline.error;
-    return { vendorId: mine.vendor_id, pipeline: pipeline.value };
+    return { pipeline: pipeline.value };
   }, []);
 
   useEffect(() => {
@@ -679,7 +677,6 @@ function LeadsInner() {
         if (r === "not-vendor") router.replace("/vendor-onboarding");
         else {
           setError(null);
-          setVendorId(r.vendorId);
           setPipeline(r.pipeline);
         }
       })
@@ -720,17 +717,7 @@ function LeadsInner() {
       <PageHeader
         {...HEADING}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            {vendorId ? <InquiryShareButton vendorId={vendorId} /> : null}
-            <NewMenu
-              first="client"
-              onClientAdded={(lead) => {
-                setNotice(`${lead.name} is on your leads as an inquiry.`);
-                setFilter("all");
-                setTick((n) => n + 1);
-              }}
-            />
-          </div>
+          <NewMenu first="inquiry" />
         }
       />
 
@@ -802,7 +789,7 @@ function LeadsInner() {
           <p className="py-14 text-center text-sm text-ink-faint">
             {filter === "archived"
               ? "Nothing archived."
-              : "No leads here yet. Inquiries from your inquiry form, requests from the marketplace, clients you add from Messages and contracts you send all show up here. Share your inquiry form to get your first one."}
+              : "No leads here yet. Inquiries from your inquiry form, requests from the marketplace, clients you add from Messages and contracts you send all show up here. Share your inquiry form from New to get your first one."}
           </p>
         ) : null}
 
