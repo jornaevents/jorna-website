@@ -67,7 +67,7 @@ test.describe("vendor settings (/settings)", () => {
     await page.getByLabel("New password").fill("new-password-123");
     await page.getByRole("button", { name: "Update password" }).click();
 
-    await expect(page).toHaveURL(/\/login\/?\?next=\/settings/);
+    await expect(page).toHaveURL(/\/login\/?\?next=(%2F|\/)settings/);
     expect(api.requestsTo("POST", "/auth/change-password")).toHaveLength(1);
   });
 
