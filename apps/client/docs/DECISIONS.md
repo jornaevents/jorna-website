@@ -353,4 +353,5 @@ Backend DECISIONS #45 reverses "no account" above.
 - **A vendor account never gets here**: `VendorAccountGate` already turns them away on this app; the server refuses them too.
 - **Sent says they'll reply in your messages,** with a link to the thread, and that a copy was emailed.
 - **Where and which package (2026-11-06, backend #46):** two optional fields — "Where's the event?" (free text, venue or just the city) and a Package dropdown of the vendor's packages that defaults to "Not sure yet". No packages loaded, no dropdown. Both are kept in the draft through sign-up.
+- **A package and a date are required (2026-11-06, backend #47).** The Package dropdown has no "Not sure yet": it starts on "Choose a package", or is already set when the vendor has only one. "Event date" lost its "leave it blank" hint. A vendor with no packages listed can't be sent one here; the form says so and Send is off. The rest stays optional.
 
