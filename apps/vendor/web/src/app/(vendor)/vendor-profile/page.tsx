@@ -23,13 +23,12 @@ import {
 } from "@/lib/jorna";
 import {
   categoryLabel,
-  priceUnitLabel,
   type Review,
   type ServiceItem,
   type TaxonomyCategory,
   type VendorDetail,
 } from "@/lib/types";
-import { Avatar, Card, LinkButton, Stars } from "@jorna/shared/components/ui";
+import { Avatar, Card, Stars } from "@jorna/shared/components/ui";
 import { ServicesManager, type ServicesManagerHandle } from "@/components/ServicesManager";
 import { PageHeader, PrimaryAction, primaryClass } from "@/components/vendor/ui";
 import { Bar, PageSkeleton, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
@@ -102,7 +101,6 @@ export default function VendorProfilePage() {
   const [hasHours, setHasHours] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const packagesRef = useRef<ServicesManagerHandle>(null);
-  const [previewing, setPreviewing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,17 +188,6 @@ export default function VendorProfilePage() {
             ) : null}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <button
-              type="button"
-              aria-pressed={previewing}
-              onClick={() => setPreviewing((p) => !p)}
-              className="hidden h-10 items-center rounded-full border border-card-edge px-4 text-sm font-semibold text-ink-soft transition hover:text-ink xl:inline-flex"
-            >
-              {previewing ? "Hide preview" : "See it as a client"}
-            </button>
-            <LinkButton href={`/vendor?id=${vendor.vendor_id}`} variant="ghost" size="md">
-              Open public profile
-            </LinkButton>
             <button type="button" onClick={() => setEditing(true)} className={primaryClass}>
               Edit profile
             </button>
@@ -247,7 +234,7 @@ export default function VendorProfilePage() {
         ))}
       </nav>
 
-      <div className={previewing ? "xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start xl:gap-6" : ""}>
+      <div>
         <div className="min-w-0">
           {/* Services first: a price change or a new photo is a weekly job, and
               the details below are set once. Each package saves itself. */}
@@ -319,11 +306,6 @@ export default function VendorProfilePage() {
           </section>
         </div>
 
-        {previewing ? (
-          <aside aria-label="Client preview" className="hidden xl:sticky xl:top-6 xl:block">
-            <ClientPreview vendor={vendor} taxonomy={taxonomy} services={services} />
-          </aside>
-        ) : null}
       </div>
 
       {editing ? (
@@ -366,75 +348,4 @@ function profileMeta(v: VendorDetail): Meta[] {
 function primaryServiceLabel(vendor: VendorDetail, taxonomy: Taxonomy | null): string | null {
   if (vendor.specialties?.length) return taxonomyLabel(taxonomy, vendor.specialties[0]);
   return vendor.category ? categoryLabel(vendor.subcategory || vendor.category) : null;
-}
-
-/** The listing as a client sees it. The Edit profile popup has its own
- *  preview of the details as they're typed; this one adds the packages. */
-function ClientPreview({
-  vendor,
-  taxonomy,
-  services,
-}: {
-  vendor: VendorDetail;
-  taxonomy: Taxonomy | null;
-  services: ServiceItem[];
-}) {
-  const name = vendorName(vendor, "Your business");
-  const category = primaryServiceLabel(vendor, taxonomy);
-  const listed = services
-    .filter((s) => s.status !== "hidden" && s.status !== "archived")
-    .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9));
-  const bio = vendor.bio?.trim() ?? "";
-  const instagram = vendor.instagram_username?.trim().replace(/^@/, "");
-
-  return (
-    <div className="rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]">
-      <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">What clients see</p>
-      <div className="mt-3 flex items-center gap-3">
-        <Avatar src={vendor.pfp_url} name={name} size={48} />
-        <div className="min-w-0">
-          <p className="serif truncate text-lg text-ink">{name}</p>
-          <p className="truncate text-xs text-ink-faint">{[category, vendor.location].filter(Boolean).join(" · ")}</p>
-        </div>
-      </div>
-      {bio ? (
-        <p className="mt-3 line-clamp-6 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{bio}</p>
-      ) : (
-        <p className="mt-3 text-sm italic text-ink-faint">No bio yet.</p>
-      )}
-      <p className="mt-2 text-xs text-ink-faint">
-        {[
-          vendor.years_experience != null ? yearsLabel(vendor.years_experience) : null,
-          vendor.open_to_long_distance ? "Open to out-of-state events" : null,
-          instagram ? `@${instagram}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
-      <div className="mt-4 grid gap-2">
-        {listed.length ? (
-          listed.map((s) => (
-            <div key={s.service_id} className="rounded-lg border border-line-soft px-3 py-2">
-              {s.is_popular ? (
-                <span className="mb-1 inline-block rounded-full bg-gold/15 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">
-                  Most popular
-                </span>
-              ) : null}
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-sm text-ink">{s.name}</span>
-                <span className="shrink-0 text-sm text-ink">
-                  ${Math.round(s.price).toLocaleString()}
-                  {priceUnitLabel(s.price_unit) ? (
-                    <span className="text-xs text-ink-faint"> {priceUnitLabel(s.price_unit)}</span>
-                  ) : null}
-                </span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm italic text-ink-faint">No public packages yet.</p>
-        )}
-      </div>
-    </div>
-  );
 }
