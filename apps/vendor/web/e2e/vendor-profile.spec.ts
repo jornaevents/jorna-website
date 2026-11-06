@@ -160,8 +160,10 @@ test.describe("vendor profile (/vendor-profile)", () => {
   test("the popup's preview follows the fields as they're typed", async ({ page, api }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openProfile(page, api, { services: [pkg({ is_popular: true })] });
-    await page.getByRole("button", { name: "See it as a client" }).click();
-    await expect(page.getByRole("complementary", { name: "Client preview" }).getByText("Most popular")).toBeVisible();
+    // The page's own client preview and public-profile link are gone
+    // (2026-11); the popup's preview is the one place to see the listing.
+    await expect(page.getByRole("button", { name: "See it as a client" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open public profile" })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Edit profile" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit profile" });
