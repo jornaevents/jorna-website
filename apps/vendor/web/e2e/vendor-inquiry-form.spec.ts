@@ -97,7 +97,8 @@ test.describe("inquiry form (vendor side)", () => {
     await expect(drawer.getByText("What they wrote")).toBeVisible();
     await expect(drawer.getByText("Looking for sangeet coverage in Edison.")).toBeVisible();
     await expect(drawer.getByText("180")).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Reply by email" })).toHaveAttribute("href", "mailto:neha@example.com");
+    // No thread on this one, so Message client is their email.
+    await expect(drawer.getByRole("link", { name: "Message client" })).toHaveAttribute("href", "mailto:neha@example.com");
     await expect(drawer.getByRole("link", { name: "Create contract" })).toHaveAttribute("href", /\/contracts\/new\/?\?lead=inq1/);
   });
 });

@@ -241,6 +241,66 @@ test.describe("vendor leads (/leads)", () => {
     expect(api.requestsTo("POST", "/bookings/b1/archive")[0].body).toMatchObject({ archived: true });
     expect(api.requestsTo("PUT", "/bookings/b1/status")).toHaveLength(0);
   });
+  test("a lead's next steps are message, contract or not going ahead — no Archive", async ({ page, api }) => {
+    await loginAs(page, api);
+    const lead = item({
+      id: "lead:l2",
+      source: "lead",
+      booking_id: null,
+      lead_id: "l2",
+      conversation_id: "conv-9",
+      name: "Neha Patel",
+      attention_reason: "new_lead",
+      lead_status: "new",
+      lead_source: "inquiry_form",
+    });
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/leads/pipeline", { items: [lead], counts: { inquiries: 1, negotiations: 0, needs_you: 1, waiting: 0, archived: 0 } });
+    api.patch("/leads/l2", { lead_id: "l2", status: "lost" });
+
+    await page.goto("leads/");
+    await page.getByRole("button", { name: /Neha Patel/ }).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByRole("link", { name: "Message client" })).toHaveAttribute("href", /conversation\/?\?id=conv-9$/);
+    await expect(drawer.getByRole("link", { name: "Create contract" })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Archive" })).toHaveCount(0);
+    await expect(drawer.getByRole("button", { name: "Mark as contacted" })).toHaveCount(0);
+
+    await drawer.getByRole("button", { name: "Mark as not going ahead" }).click();
+    await expect(page.getByText("Moved to Archived.")).toBeVisible();
+    expect(api.requestsTo("PATCH", "/leads/l2")[0].body).toEqual({ status: "lost" });
+  });
+
+  test("a lead marked not going ahead can be unarchived, back as new", async ({ page, api }) => {
+    await loginAs(page, api);
+    const closed = item({
+      id: "lead:l3",
+      source: "lead",
+      booking_id: null,
+      lead_id: "l3",
+      name: "Kiran Rao",
+      attention: null,
+      attention_reason: null,
+      archived: true,
+      outcome: "not_going_ahead",
+      lead_status: "lost",
+    });
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/leads/pipeline", { items: [closed], counts: { inquiries: 0, negotiations: 0, needs_you: 0, waiting: 0, archived: 1 } });
+    api.patch("/leads/l3", { lead_id: "l3", status: "new" });
+
+    await page.goto("leads/");
+    await page.getByRole("tab", { name: /Archived/ }).click();
+    await page.getByRole("button", { name: /Kiran Rao/ }).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByText("Not going ahead").first()).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Mark as not going ahead" })).toHaveCount(0);
+    await drawer.getByRole("button", { name: "Unarchive" }).click();
+
+    await expect(page.getByText("Back in your active leads.")).toBeVisible();
+    expect(api.requestsTo("PATCH", "/leads/l3")[0].body).toEqual({ status: "new", archived: false });
+  });
+
   test("New on Leads offers the inquiry form first, and no way to add a client by hand", async ({ page, api }) => {
     await loginAs(page, api);
     mockLeads(api);
