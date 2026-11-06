@@ -41,27 +41,29 @@ export function DeleteAccountSection({ vendor, className = "" }: { vendor: Vendo
 
   return (
     <section
-      className={`rounded-2xl border border-maroon/30 bg-maroon/[0.04] p-5 dark:border-gold/25 dark:bg-gold/[0.04] ${className}`}
+      aria-labelledby="delete-account-title"
+      className={`rounded-2xl border border-card-edge bg-card px-5 py-4 shadow-[var(--shadow-card)] sm:px-6 ${className}`}
     >
-      <h2 className="serif text-lg text-ink">Delete your account</h2>
-
-      {confirmDelete ? (
-        <>
-          <p className="mt-1 max-w-[60ch] text-sm text-ink-soft">
-            This removes your account, your celebrations and every booking on
-            them{vendor ? ", along with your vendor profile, packages and hours" : ""}.
-            Vendors you&apos;ve booked lose the request too. It cannot be undone
-            and there is no way to get any of it back.
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 id="delete-account-title" className="text-sm font-semibold text-ink">
+            Delete your account
+          </h2>
+          <p className="mt-0.5 max-w-[64ch] text-sm text-ink-faint">
+            {confirmDelete ? (
+              <>
+                This removes your account, your celebrations and every booking on
+                them{vendor ? ", along with your vendor profile, packages and hours" : ""}.
+                Vendors you&apos;ve booked lose the request too. It cannot be undone
+                and there is no way to get any of it back.
+              </>
+            ) : (
+              <>Permanently removes your account and everything on it. There&apos;s no undo.</>
+            )}
           </p>
-          {error ? (
-            <p className="mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
-              {error}
-            </p>
-          ) : null}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button disabled={busy} onClick={remove}>
-              {busy ? "Deleting…" : "Delete my account permanently"}
-            </Button>
+        </div>
+        {confirmDelete ? (
+          <div className="flex shrink-0 flex-wrap gap-2">
             <Button
               variant="ghost"
               disabled={busy}
@@ -72,23 +74,27 @@ export function DeleteAccountSection({ vendor, className = "" }: { vendor: Vendo
             >
               Keep my account
             </Button>
+            <Button disabled={busy} onClick={remove}>
+              {busy ? "Deleting…" : "Delete my account permanently"}
+            </Button>
           </div>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 max-w-[60ch] text-sm text-ink-soft">
-            Permanently removes your account and everything on it. There&apos;s
-            no undo.
-          </p>
+        ) : (
+          // Quiet until asked: the one control on the page that can't be taken
+          // back shouldn't be the loudest thing on it.
           <Button
             variant="ghost"
-            className="mt-4"
+            className="shrink-0 hover:border-maroon/40 hover:text-maroon dark:hover:border-gold/40 dark:hover:text-gold"
             onClick={() => setConfirmDelete(true)}
           >
             Delete account
           </Button>
-        </>
-      )}
+        )}
+      </div>
+      {error ? (
+        <p role="alert" className="mt-3 text-sm text-maroon dark:text-gold">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

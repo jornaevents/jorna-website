@@ -4,7 +4,8 @@ import { mockVendorDetail } from "./support/mock-data";
 
 // Settings (sidebar footer), from the 2026-10 vendor redesign: Venmo/Zelle
 // saves to the vendor record, the theme choice sticks across a reload, and the
-// account can be deleted from the foot of the page. The tentative-hold length
+// account can be deleted from the foot of the page. Saves wait for a change,
+// and the password fields stay closed until asked for. The tentative-hold length
 // moved to Contracts → Defaults (plan 2.4); Google Calendar is on the calendar.
 test.describe("vendor settings (/settings)", () => {
   function mockSettings(api: import("./support/api-mock").ApiMock) {
@@ -33,6 +34,41 @@ test.describe("vendor settings (/settings)", () => {
     expect(calls[0].body).toMatchObject({ venmo_handle: "@studio" });
     // Not sent from here, so it can't overwrite what Defaults saved.
     expect(calls[0].body).not.toHaveProperty("contract_hold_days");
+  });
+
+  test("profile Save waits for a change", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockSettings(api);
+
+    await page.goto("settings/");
+    const save = page.getByRole("button", { name: "Save changes" });
+    await expect(save).toBeDisabled();
+
+    await page.getByLabel("Phone").fill("555-0100");
+    await expect(save).toBeEnabled();
+  });
+
+  test("password fields open on request, and Cancel closes them", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockSettings(api);
+    api.post("/auth/change-password", { message: "ok" });
+
+    await page.goto("settings/");
+    await expect(page.getByLabel("Current password")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Change password" }).click();
+    await page.getByLabel("Current password").fill("old-password");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByLabel("Current password")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Change password" }).click();
+    await expect(page.getByLabel("Current password")).toHaveValue("");
+    await page.getByLabel("Current password").fill("old-password");
+    await page.getByLabel("New password").fill("new-password-123");
+    await page.getByRole("button", { name: "Update password" }).click();
+
+    await expect(page).toHaveURL(/\/login\/?\?next=\/settings/);
+    expect(api.requestsTo("POST", "/auth/change-password")).toHaveLength(1);
   });
 
   test("deletes the account after asking twice", async ({ page, api }) => {
