@@ -13,19 +13,8 @@ export function inquiryFormUrl(vendorId: string): string {
   return clientAppUrl(`/inquire/?vendor=${encodeURIComponent(vendorId)}`);
 }
 
-export function InquiryShareButton({ vendorId }: { vendorId: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>
-        Share your inquiry form
-      </Button>
-      <InquiryShareDrawer open={open} vendorId={vendorId} onClose={() => setOpen(false)} />
-    </>
-  );
-}
-
-function InquiryShareDrawer({ open, vendorId, onClose }: { open: boolean; vendorId: string; onClose: () => void }) {
+/** Opened from the New menu's "Share inquiry form", on every page that has one. */
+export function InquiryShareDrawer({ open, vendorId, onClose }: { open: boolean; vendorId: string; onClose: () => void }) {
   const url = inquiryFormUrl(vendorId);
   // Kept with the link it was drawn for, so nothing is reset by hand.
   const [qr, setQr] = useState<{ url: string; png: string } | null>(null);
