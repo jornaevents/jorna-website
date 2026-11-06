@@ -1,13 +1,13 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
 import { CELEBRATIONS } from "@jorna/shared/lib/celebrations";
 import { Button, Field } from "@jorna/shared/components/ui";
 import { useAuth } from "@/lib/auth";
-import { sendInquiry } from "@/lib/jorna";
+import { listServices, sendInquiry } from "@/lib/jorna";
 
 // The inquiry form (backend DECISIONS #32, #45): a client account with a
 // confirmed email sends it, and it opens their thread with the vendor. Anyone
@@ -16,9 +16,18 @@ import { sendInquiry } from "@/lib/jorna";
 // Used on the vendor's page (in a drawer) and on /inquire, the link vendors
 // share — coming back always lands on /inquire.
 
-type FieldKey = "phone" | "date" | "guests";
+type FieldKey = "phone" | "date" | "guests" | "package";
 
-type Draft = { vendorId: string; phone: string; date: string; eventType: string; guests: string; note: string };
+type Draft = {
+  vendorId: string;
+  phone: string;
+  date: string;
+  eventType: string;
+  location?: string;
+  serviceId?: string;
+  guests: string;
+  note: string;
+};
 
 const DRAFT_KEY = "jorna_inquiry_draft";
 const CONFIRM_EMAIL = "Confirm your email before sending an inquiry";
@@ -57,6 +66,7 @@ function fieldFor(message: string): FieldKey | null {
   if (m.includes("phone")) return "phone";
   if (m.includes("date")) return "date";
   if (m.includes("guest")) return "guests";
+  if (m.includes("package")) return "package";
   return null;
 }
 
@@ -73,6 +83,11 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   const [phone, setPhone] = useState(draft?.phone || user?.phone || "");
   const [date, setDate] = useState(draft?.date ?? "");
   const [eventType, setEventType] = useState(draft?.eventType ?? "");
+  const [location, setLocation] = useState(draft?.location ?? "");
+  // "" is "not sure yet".
+  const [serviceId, setServiceId] = useState(draft?.serviceId ?? "");
+  // The packages the client can see, kept with the vendor they're for.
+  const [packages, setPackages] = useState<{ vendorId: string; items: { id: string; name: string }[] } | null>(null);
   const [guests, setGuests] = useState(draft?.guests ?? "");
   const [note, setNote] = useState(draft?.note ?? "");
   // Hidden from people; a bot fills it in and the server quietly drops it.
@@ -82,11 +97,25 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<{ conversationId: string | null } | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    listServices({ vendor_id: vendorId, limit: 50 })
+      .then((page) => {
+        if (!cancelled) setPackages({ vendorId, items: page.items.map((p) => ({ id: p.service_id, name: p.name })) });
+      })
+      // No list, no picker: the inquiry still goes, as "not sure yet".
+      .catch(() => !cancelled && setPackages({ vendorId, items: [] }));
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId]);
+  const packageOptions = packages?.vendorId === vendorId ? packages.items : [];
+
   const back = `/inquire?vendor=${encodeURIComponent(vendorId)}`;
 
   /** Keep what they typed and go do what sending needs first. */
   function leaveFor(path: string) {
-    saveDraft({ vendorId, phone, date, eventType, guests, note });
+    saveDraft({ vendorId, phone, date, eventType, location, serviceId, guests, note });
     router.push(path);
   }
 
@@ -136,6 +165,8 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
         phone: phone.trim() || null,
         event_date_iso: date || null,
         event_type: eventType.trim() || null,
+        event_location: location.trim() || null,
+        service_id: packageOptions.some((p) => p.id === serviceId) ? serviceId : null,
         guest_count: count,
         note: note.trim() || null,
         website,
@@ -207,6 +238,35 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
             ))}
           </datalist>
         </div>
+        <div>
+          <Field
+            label="Where's the event? (optional)"
+            placeholder="Venue, or just the city"
+            autoComplete="off"
+            maxLength={255}
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+        {packageOptions.length > 0 ? (
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-ink-soft">Package (optional)</span>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              {...described("package")}
+              className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+            >
+              <option value="">Not sure yet</option>
+              {packageOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {err("package")}
+          </label>
+        ) : null}
         <div>
           <Field
             label="Rough guest count (optional)"

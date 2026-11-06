@@ -71,6 +71,7 @@ import {
   type Step,
 } from "@jorna/shared/lib/contractDraft";
 import { deleteTemplate, saveEditedTemplate, saveTemplate, templatesOfKind } from "@/lib/contractTemplates";
+import { isCompleteLocation } from "@jorna/shared/lib/address";
 import { allChoices, packageChoiceId, templateChoices, type TemplateChoice } from "@/lib/templateChoices";
 import { guestBookingLink } from "@/lib/contractLink";
 import { clashWith } from "@/lib/dateClash";
@@ -365,6 +366,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           start.clientPhone = lead.phone ?? "";
           if (lead.event_date_iso && lead.event_date_iso >= todayIso()) start.dateIso = lead.event_date_iso;
           if (lead.guest_count) start.guestCount = String(lead.guest_count);
+          // Only a full address: "Edison, NJ" would stop the contract at the
+          // venue check. The lead still shows what they wrote.
+          if (lead.event_location && isCompleteLocation(lead.event_location)) start.location = lead.event_location;
         }
         const picked = packageId
           ? offered.find((c) => c.id === packageChoiceId(packageId))

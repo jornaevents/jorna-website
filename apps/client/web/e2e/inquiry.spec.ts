@@ -39,9 +39,40 @@ test.describe("inquiry form", () => {
       phone: "(732) 555-0100",
       event_date_iso: null,
       event_type: "Sangeet",
+      event_location: null,
+      service_id: null,
       guest_count: 180,
       note: "Looking for sangeet coverage in Edison.",
       website: "",
+    });
+  });
+
+  test("it can say where the event is and which package, or not sure yet", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: true }));
+    mockVendor(api);
+    api.get("/services", {
+      items: [
+        { service_id: "svc-1", name: "Sangeet coverage", vendor_id: "vendor-1", price: 2500, price_unit: "event" },
+        { service_id: "svc-2", name: "Full wedding day", vendor_id: "vendor-1", price: 6000, price_unit: "event" },
+      ],
+      total: 2,
+      limit: 50,
+      offset: 0,
+    });
+    api.post("/vendors/vendor-1/inquiries", SENT);
+
+    await page.goto("inquire/?vendor=vendor-1");
+    const pick = page.getByLabel("Package (optional)");
+    await expect(pick).toHaveValue("");
+    await expect(pick.locator("option")).toHaveText(["Not sure yet", "Sangeet coverage", "Full wedding day"]);
+    await pick.selectOption({ label: "Full wedding day" });
+    await page.getByLabel("Where's the event? (optional)").fill("Oak Tree Manor, Edison");
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+
+    await expect(page.getByRole("status")).toBeVisible();
+    expect(api.requestsTo("POST", "/vendors/vendor-1/inquiries")[0].body).toMatchObject({
+      event_location: "Oak Tree Manor, Edison",
+      service_id: "svc-2",
     });
   });
 
