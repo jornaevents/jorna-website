@@ -6,7 +6,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const OWN_CHROME = ["/login"];
+const OWN_CHROME = ["/login", "/verify-email"];
 
 export function ChromeGate({ children }: { children: ReactNode }) {
   const path = usePathname()?.replace(/\/$/, "") || "/";

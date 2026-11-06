@@ -327,3 +327,17 @@ no Leads page or single list of bookings to work it out from.
 - Words, colours and the pill come from `@jorna/shared` (`lib/messageLabels`,
   `StatusPill`), so both apps show the same thing.
 
+## Decision: a password sign-up confirms its email with a code (2026-11-06)
+
+Every client who signs up with a password lands on `/verify-email` next: a
+6-digit code goes to their address on arrival, and entering it carries on to
+wherever sign-up was headed (`next`, else the usual landing). Google sign-ups
+skip it, since Google has checked the address (backend DECISIONS #44).
+
+- **Why now:** the inquiry form will need an account with a proved email, so
+  its confirmation can repeat what the client sent.
+- **No skip button,** but nothing else is blocked yet: an older account that
+  never confirmed is asked at its next inquiry, not on sign-in.
+- **A mistyped address is fixed on the same screen** ("Wrong email? Change
+  it"), which saves the new one and sends the code there.
+

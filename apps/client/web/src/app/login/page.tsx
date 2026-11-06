@@ -4,7 +4,7 @@ import { TermsAgreement } from "@jorna/shared/components/TermsAgreement";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { clientLanding } from "@/lib/landing";
+import { clientLanding, safeNext } from "@/lib/landing";
 import { ApiError } from "@jorna/shared/lib/api";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
 import { EntryField, EntryShell, ErrorNote, primaryButton, textButton } from "@/components/entry/ui";
@@ -26,27 +26,6 @@ function GoogleMark() {
 // Sign-up here is for hosts. Vendors join and work on jornaevents.com (the
 // jorna-vendor app); this page used to ask "Host or Vendor?" and send vendors
 // into an onboarding that now lives there. See VendorAccountGate.
-
-/**
- * Where a successful login is allowed to send someone.
- *
- * `next` comes straight off the URL, so a crafted link — mailed, messaged, or
- * just shared — can put anything there. Without this, a login that succeeds
- * for real would hand the browser off to whatever the link named, right after
- * the one moment a phishing page most wants to borrow credibility from.
- * Anything but a single leading slash (a bare path, no scheme, no host) is
- * rejected in favour of the same default an absent `next` already gets.
- *
- * Null means nothing asked for a page: the sign-in then picks one by whether
- * the client has started planning (clientLanding).
- */
-function safeNext(raw: string | null): string | null {
-  if (!raw) return null;
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) {
-    return null;
-  }
-  return raw;
-}
 
 const TERMS_NEEDED = "Please agree to the Terms of Service and Privacy Policy to create an account.";
 
@@ -162,9 +141,15 @@ function LoginInner() {
           ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
           : {}),
       });
-      // The Jorna JWT is the session now; drop the Supabase one.
-      if (isGoogleSignup) await supabase.auth.signOut();
-      router.push(next ?? (await clientLanding()));
+      // The Jorna JWT is the session now; drop the Supabase one. Google has
+      // already checked the address; anyone else confirms theirs with a code
+      // first (backend DECISIONS #44).
+      if (isGoogleSignup) {
+        await supabase.auth.signOut();
+        router.push(next ?? (await clientLanding()));
+      } else {
+        router.push(next ? `/verify-email?next=${encodeURIComponent(next)}` : "/verify-email");
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {

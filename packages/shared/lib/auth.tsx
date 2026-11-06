@@ -27,6 +27,9 @@ export interface User {
   phone?: string | null;
   location?: string | null;
   pfp_url?: string | null;
+  /** The account has proved it reads this email: a code, or a Google
+   *  sign-in (backend DECISIONS #44). Absent from an older backend. */
+  email_verified?: boolean;
 }
 
 /** A token as every tab currently sees it. Storage is the one copy all tabs

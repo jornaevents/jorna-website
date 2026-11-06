@@ -61,7 +61,7 @@ always "none, verify manually" until a test runner is added.
 - **Responsible for:** session state, token persistence, login/register,
   Google OAuth handoff.
 - **Code:** `web/src/lib/auth.tsx` (context/provider), `web/src/lib/supabase.ts`
-  (Google identity), `web/src/app/login/`, `forgot-password/`,
+  (Google identity), `web/src/app/login/`, `verify-email/` (the sign-up email code), `forgot-password/`,
   `reset-password/`, `auth/callback/`.
 - **Entry points:** `AuthProvider`, `useAuth()` (defined in `auth.tsx`).
 - **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts` and
