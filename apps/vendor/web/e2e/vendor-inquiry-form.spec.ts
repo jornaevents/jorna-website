@@ -68,6 +68,21 @@ test.describe("inquiry form (vendor side)", () => {
     await expect(drawer.getByRole("link", { name: "Download QR code" })).toHaveAttribute("download", "jorna-inquiry-form-qr.png");
   });
 
+  test("an inquiry's place and package show on the lead, and Create contract starts from that package", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockLeads(api, [{ ...FORM_LEAD, location: "Oak Tree Manor, Edison", service_name: "Sangeet coverage", service_id: "svc-1" }]);
+
+    await page.goto("leads/");
+    await page.getByRole("region", { name: "Pipeline" }).getByRole("button", { name: /Neha Patel/ }).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByText("Oak Tree Manor, Edison")).toBeVisible();
+    await expect(drawer.getByText("Sangeet coverage", { exact: true })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Create contract" })).toHaveAttribute(
+      "href",
+      /\/contracts\/new\/?\?lead=inq1&package=svc-1$/,
+    );
+  });
+
   test("an inquiry from the form says where it came from, and offers a reply by email", async ({ page, api }) => {
     await loginAs(page, api);
     mockLeads(api);

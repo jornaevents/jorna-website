@@ -1482,6 +1482,10 @@ export interface Lead {
   /** What the event is ("Sangeet") and a rough head count (backend 0077). */
   event_type?: string | null;
   guest_count?: number | null;
+  /** Where the event is and the package asked about, from the inquiry form (backend #46). */
+  event_location?: string | null;
+  service_id?: string | null;
+  service_name?: string | null;
   note: string | null;
   status: LeadStatus;
   /** Where it came from: the vendor, a Messages thread, or the inquiry form. */
@@ -1544,6 +1548,8 @@ export interface PipelineItem {
   event_date_end: string | null;
   location: string | null;
   service_name: string | null;
+  /** A lead's package from the inquiry form (backend #46); bookings leave it out. */
+  service_id?: string | null;
   estimated_value_cents: number | null;
   contract_status: string | null;
   hold_expires_at: string | null;

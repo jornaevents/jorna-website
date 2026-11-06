@@ -424,7 +424,11 @@ function LeadDrawer({
 
           {item.source === "lead" ? (
             <>
-              <LinkPrimary href={`/contracts/new?lead=${item.lead_id}`}>Create contract</LinkPrimary>
+              <LinkPrimary
+                href={`/contracts/new?lead=${item.lead_id}${item.service_id ? `&package=${item.service_id}` : ""}`}
+              >
+                Create contract
+              </LinkPrimary>
               {item.lead_status === "new" ? (
                 <Button
                   variant="ghost"

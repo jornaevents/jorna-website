@@ -641,6 +641,10 @@ export interface InquiryInput {
   phone?: string | null;
   event_date_iso?: string | null;
   event_type?: string | null;
+  /** Where the event is, as they write it (backend DECISIONS #46). */
+  event_location?: string | null;
+  /** One of the vendor's packages; null is "not sure yet". */
+  service_id?: string | null;
   guest_count?: number | null;
   note?: string | null;
   website?: string;

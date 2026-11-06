@@ -352,4 +352,5 @@ Backend DECISIONS #45 reverses "no account" above.
 - **An unconfirmed email goes to `/verify-email` first** (from the account's `email_verified`, or the server's 403), the draft kept the same way.
 - **A vendor account never gets here**: `VendorAccountGate` already turns them away on this app; the server refuses them too.
 - **Sent says they'll reply in your messages,** with a link to the thread, and that a copy was emailed.
+- **Where and which package (2026-11-06, backend #46):** two optional fields — "Where's the event?" (free text, venue or just the city) and a Package dropdown of the vendor's packages that defaults to "Not sure yet". No packages loaded, no dropdown. Both are kept in the draft through sign-up.
 
