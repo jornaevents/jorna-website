@@ -9,7 +9,8 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { defaultLanding, goTo } from "@/lib/role";
 import { supabase, startGoogleSignIn } from "@/lib/supabase";
 import { clientAppUrl } from "@/lib/clientApp";
-import { EntryField, EntryShell, ErrorNote, FlowIcon, primaryButton, textButton } from "@/components/entry/ui";
+import { EntryField, EntryShell, ErrorNote, primaryButton, textButton } from "@/components/entry/ui";
+import { JornaMark } from "@/components/JornaMark";
 
 function GoogleMark() {
   // Google "G", inline so nothing is fetched over the network (the site's ethos).
@@ -223,9 +224,7 @@ function LoginInner() {
       <main className="grid flex-1 place-items-center px-3 pb-16 pt-6 sm:pt-10">
         <section className="w-full max-w-[500px] rounded-[20px] border border-(--e-line) bg-(--e-paper)/95 px-5 py-8 text-center shadow-[0_22px_60px_rgba(74,21,38,.1)] sm:px-9">
           {mode === "login" ? (
-            <span className="mx-auto mb-4 grid size-11 place-items-center rounded-[14px] bg-[#eddcae] text-(--e-burgundy)">
-              <FlowIcon name="sparkles" />
-            </span>
+            <JornaMark className="mx-auto mb-4 block h-12" />
           ) : null}
           <h1 className="e-display text-[32px] sm:text-[36px]">{heading}</h1>
           <p className="mt-2 text-[14px] leading-normal text-(--e-muted)">{subheading}</p>
