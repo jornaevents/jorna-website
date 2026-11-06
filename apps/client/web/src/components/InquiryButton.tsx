@@ -5,8 +5,8 @@ import { Button, Card } from "@jorna/shared/components/ui";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { InquiryForm } from "@/components/InquiryForm";
 
-/** "Send an inquiry" on a vendor's page: the inquiry form in a sheet, for
- *  anyone, signed in or not. */
+/** "Send an inquiry" on a vendor's page: the inquiry form in a sheet. Anyone
+ *  can fill it in; sending needs a client account (backend DECISIONS #45). */
 export function InquiryButton({
   vendorId,
   vendorName,
@@ -50,7 +50,7 @@ function InquirySheet({
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-line-soft bg-card p-4">
           <div>
             <h2 className="serif text-xl text-ink">Send {vendorName} an inquiry</h2>
-            <p className="mt-0.5 text-xs text-ink-faint">It goes straight to them, and they reply by email.</p>
+            <p className="mt-0.5 text-xs text-ink-faint">It goes straight to them, and they reply in your messages.</p>
           </div>
           <button onClick={onClose} className="text-sm text-ink-faint hover:text-ink" aria-label="Close">
             ✕

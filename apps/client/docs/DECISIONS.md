@@ -266,6 +266,8 @@ From the 2026-10-05 staging walkthrough (#164, #132), decided 2026-10-14: fields
 
 ## Decision: anyone can send a vendor an inquiry, from their page or the link they share (2026-10-17)
 
+*Since 2026-11-06 sending needs a client account with a confirmed email — see "an inquiry needs an account" below. Where the form lives, the honeypot and the error handling stand.*
+
 Backend #66, DECISIONS #32 there. Decided 2026-10-17: the form lives on the vendor's page and at a link of its own; short fields; spam is a honeypot plus rate limits.
 
 - **`/inquire?vendor=<id>` is the link vendors share** (Instagram bio, their site): the vendor's name and photo, then the form, with nothing else around it. **"Send an inquiry"** on `/vendor` opens the same form (`InquiryForm`) in a sheet.
@@ -340,4 +342,14 @@ skip it, since Google has checked the address (backend DECISIONS #44).
   never confirmed is asked at its next inquiry, not on sign-in.
 - **A mistyped address is fixed on the same screen** ("Wrong email? Change
   it"), which saves the new one and sends the code there.
+
+## Decision: an inquiry needs an account, and what was typed waits through sign-up (2026-11-06)
+
+Backend DECISIONS #45 reverses "no account" above.
+
+- **Anyone can fill it in.** Signed out, the button is "Create an account to send" (and "I have an account"); what they typed is kept in sessionStorage and they come back to `/inquire?vendor=` with it filled in, then press Send themselves. Nothing is sent on its own.
+- **Signed in, the account is the sender:** no name or email fields, just "Sending as Priya Shah · email. Not you?" Phone stays, filled from the account.
+- **An unconfirmed email goes to `/verify-email` first** (from the account's `email_verified`, or the server's 403), the draft kept the same way.
+- **A vendor account never gets here**: `VendorAccountGate` already turns them away on this app; the server refuses them too.
+- **Sent says they'll reply in your messages,** with a link to the thread, and that a copy was emailed.
 

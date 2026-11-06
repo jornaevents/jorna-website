@@ -46,7 +46,7 @@ export function InquiryShareDrawer({ open, vendorId, onClose }: { open: boolean;
       open={open}
       onClose={onClose}
       title="Your inquiry form"
-      subtitle="Anyone with this link can ask you about their event, no account needed. What they send shows up here as a new lead, and we email it to you."
+      subtitle="Anyone with this link can ask you about their event — they make a free Jorna account to send it. What they send shows up here as a new lead and in Messages, and we email it to you."
     >
       <div className="grid gap-6">
         <div>

@@ -1,25 +1,59 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
 import { CELEBRATIONS } from "@jorna/shared/lib/celebrations";
 import { Button, Field } from "@jorna/shared/components/ui";
 import { useAuth } from "@/lib/auth";
 import { sendInquiry } from "@/lib/jorna";
 
-// The public inquiry form (backend DECISIONS #32): anyone can send it, signed
-// in or not, and it lands in the vendor's Leads. Used on the vendor's page (in
-// a drawer) and on /inquire, the link vendors share.
+// The inquiry form (backend DECISIONS #32, #45): a client account with a
+// confirmed email sends it, and it opens their thread with the vendor. Anyone
+// can fill it in; signed out, what they typed is kept while they make an
+// account (or confirm their email) and is waiting here when they come back.
+// Used on the vendor's page (in a drawer) and on /inquire, the link vendors
+// share — coming back always lands on /inquire.
 
-type FieldKey = "name" | "email" | "phone" | "date" | "guests";
+type FieldKey = "phone" | "date" | "guests";
+
+type Draft = { vendorId: string; phone: string; date: string; eventType: string; guests: string; note: string };
+
+const DRAFT_KEY = "jorna_inquiry_draft";
+const CONFIRM_EMAIL = "Confirm your email before sending an inquiry";
+
+function loadDraft(vendorId: string): Draft | null {
+  try {
+    const raw = typeof window === "undefined" ? null : sessionStorage.getItem(DRAFT_KEY);
+    const draft = raw ? (JSON.parse(raw) as Draft) : null;
+    return draft?.vendorId === vendorId ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: Draft) {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // No storage: they'll type it again, which beats not getting there.
+  }
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
 
 /** Which field a server refusal is about, so it shows under that field. The
  *  backend's messages are written to be read; they just don't say which
  *  input they mean. */
 function fieldFor(message: string): FieldKey | null {
   const m = message.toLowerCase();
-  if (m.includes("name")) return "name";
-  if (m.includes("email")) return "email";
   if (m.includes("phone")) return "phone";
   if (m.includes("date")) return "date";
   if (m.includes("guest")) return "guests";
@@ -32,52 +66,73 @@ function todayIso() {
 }
 
 export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendorName: string }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const id = useId();
-  const signedInName = user ? `${user.f_name ?? ""} ${user.l_name ?? ""}`.trim() : "";
-  const [name, setName] = useState(signedInName);
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
-  const [date, setDate] = useState("");
-  const [eventType, setEventType] = useState("");
-  const [guests, setGuests] = useState("");
-  const [note, setNote] = useState("");
+  const [draft] = useState(() => loadDraft(vendorId));
+  const [phone, setPhone] = useState(draft?.phone || user?.phone || "");
+  const [date, setDate] = useState(draft?.date ?? "");
+  const [eventType, setEventType] = useState(draft?.eventType ?? "");
+  const [guests, setGuests] = useState(draft?.guests ?? "");
+  const [note, setNote] = useState(draft?.note ?? "");
   // Hidden from people; a bot fills it in and the server quietly drops it.
   const [website, setWebsite] = useState("");
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ conversationId: string | null } | null>(null);
 
-  if (sentTo) {
+  const back = `/inquire?vendor=${encodeURIComponent(vendorId)}`;
+
+  /** Keep what they typed and go do what sending needs first. */
+  function leaveFor(path: string) {
+    saveDraft({ vendorId, phone, date, eventType, guests, note });
+    router.push(path);
+  }
+
+  if (sent) {
     return (
       <div role="status" className="rounded-2xl border border-card-edge bg-panel p-6">
         <p className="serif text-xl text-ink">Sent</p>
         <p className="mt-2 text-ink-soft">
-          {vendorName} will reply to {sentTo}.
+          {vendorName} will reply in your messages, and we&apos;ve emailed you a copy.
         </p>
+        {sent.conversationId ? (
+          <Link href={`/conversation?id=${sent.conversationId}`} className="mt-3 inline-block font-semibold text-gold hover:underline">
+            Open the conversation
+          </Link>
+        ) : null}
       </div>
     );
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function check(): number | null | false {
     const found: Partial<Record<FieldKey, string>> = {};
-    if (!name.trim()) found.name = "Add your name so they know who's asking";
-    if (!email.trim()) found.email = "Add your email so they can reply";
     const count = guests.trim() ? Number(guests) : null;
     if (count !== null && (!Number.isInteger(count) || count < 1 || count > 100_000)) {
       found.guests = "Guest count must be between 1 and 100,000";
     }
     setErrors(found);
     setFormError(null);
-    if (Object.keys(found).length > 0) return;
+    return Object.keys(found).length > 0 ? false : count;
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const count = check();
+    if (count === false) return;
+    if (!user) {
+      leaveFor(`/login?mode=register&next=${encodeURIComponent(back)}`);
+      return;
+    }
+    if (user.email_verified === false) {
+      leaveFor(`/verify-email?next=${encodeURIComponent(back)}`);
+      return;
+    }
 
     setBusy(true);
     try {
-      await sendInquiry(vendorId, {
-        name: name.trim(),
-        email: email.trim(),
+      const reply = await sendInquiry(vendorId, {
         phone: phone.trim() || null,
         event_date_iso: date || null,
         event_type: eventType.trim() || null,
@@ -85,9 +140,14 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
         note: note.trim() || null,
         website,
       });
-      setSentTo(email.trim());
+      clearDraft();
+      setSent({ conversationId: reply.conversation_id ?? null });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Couldn't send that. Check your connection and try again.";
+      if (message === CONFIRM_EMAIL) {
+        leaveFor(`/verify-email?next=${encodeURIComponent(back)}`);
+        return;
+      }
       const key = fieldFor(message);
       if (key) setErrors({ [key]: message });
       else setFormError(message);
@@ -105,21 +165,21 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   const described = (key: FieldKey) =>
     errors[key] ? { "aria-invalid": true, "aria-describedby": `${id}-${key}-error` } : {};
 
+  const signedInName = user ? `${user.f_name ?? ""} ${user.l_name ?? ""}`.trim() : "";
+
   return (
     <form onSubmit={submit} noValidate className="grid gap-4">
+      {user ? (
+        <p className="text-sm text-ink-soft">
+          Sending as <span className="font-medium text-ink">{signedInName || user.email}</span>
+          {signedInName ? <> · {user.email}</> : null}.{" "}
+          <button type="button" onClick={() => logout()} className="font-semibold text-gold hover:underline">
+            Not you?
+          </button>
+        </p>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Field label="Your name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} {...described("name")} />
-          {err("name")}
-        </div>
-        <div>
-          <Field label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} {...described("email")} />
-          {err("email")}
-        </div>
-        <div>
-          <Field label="Phone (optional)" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} {...described("phone")} />
-          {err("phone")}
-        </div>
         <div>
           <Field
             label="Event date (optional)"
@@ -160,6 +220,10 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
           />
           {err("guests")}
         </div>
+        <div>
+          <Field label="Phone (optional)" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} {...described("phone")} />
+          {err("phone")}
+        </div>
       </div>
 
       <label className="block">
@@ -188,12 +252,26 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={busy}>
-          {busy ? "Sending…" : "Send inquiry"}
-        </Button>
-        <p className="text-xs text-ink-faint">They&apos;ll reply to your email. No account needed.</p>
-      </div>
+      {user ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={busy}>
+            {busy ? "Sending…" : "Send inquiry"}
+          </Button>
+          <p className="text-xs text-ink-faint">They&apos;ll reply in your messages on Jorna.</p>
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit">Create an account to send</Button>
+            <Button type="button" variant="ghost" onClick={() => leaveFor(`/login?next=${encodeURIComponent(back)}`)}>
+              I have an account
+            </Button>
+          </div>
+          <p className="text-xs text-ink-faint">
+            What you&apos;ve written is kept. You&apos;ll come back here to send it, and {vendorName} replies in your messages.
+          </p>
+        </div>
+      )}
     </form>
   );
 }
