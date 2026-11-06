@@ -14,12 +14,14 @@ test.describe("authentication", () => {
     await expect(page).toHaveURL("https://jornaevents.com/app/login/?next=%2Fclient%2Fbundle%2F%3Fid%3Db1");
   });
 
-  test("signing up asks only a name, email and password, then opens the Plan wizard", async ({ page, api }) => {
+  test("signing up asks only a name, email and password, then a code to the email, then opens the Plan wizard", async ({ page, api }) => {
     api.post("/auth/register", { user_id: "user-1", email: "priya@example.com" });
     api.post("/auth/login", mockTokenPair());
     api.get("/me", mockUser());
     api.get("/bundles", []);
     api.get("/events", []);
+    api.post("/auth/email/send-code", { email_verified: false, sent_to: "p••••@example.com", expires_in_minutes: 10 });
+    api.post("/auth/email/verify", { email_verified: true, email: "priya@example.com" });
 
     await page.goto("login/?mode=register");
     await expect(page.getByLabel("Username")).toHaveCount(0);
@@ -31,7 +33,15 @@ test.describe("authentication", () => {
     await page.getByLabel(/I agree to the Terms of Service/).check();
     await page.getByRole("button", { name: "Create account" }).click();
 
+    // Backend DECISIONS #44: a password sign-up proves the email first.
+    await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+    await expect(page.getByText("We sent a 6-digit code to p••••@example.com")).toBeVisible();
+    await page.getByLabel("6-digit code").fill("123456");
+    await page.getByRole("button", { name: "Confirm email" }).click();
+
     await expect(page).toHaveURL(/\/client\/plan\/?$/);
+    expect(api.requestsTo("POST", "/auth/email/send-code")).toHaveLength(1);
+    expect(api.requestsTo("POST", "/auth/email/verify")[0].body).toEqual({ code: "123456" });
     expect(api.requestsTo("POST", "/auth/register")[0].body).toEqual({
       email: "priya@example.com",
       password: "Celebrate2025",
@@ -39,6 +49,58 @@ test.describe("authentication", () => {
       l_name: "Shah",
       accept_terms: true,
     });
+  });
+
+  test("the email code step keeps where sign-up was headed", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: false }));
+    api.post("/auth/email/send-code", { email_verified: false, sent_to: "p••••@example.com", expires_in_minutes: 10 });
+    api.post("/auth/email/verify", { email_verified: true, email: "priya@example.com" });
+
+    await page.goto(`verify-email/?next=${encodeURIComponent("/inquire?vendor=v1")}`);
+    await page.getByLabel("6-digit code").fill("123456");
+    await page.getByRole("button", { name: "Confirm email" }).click();
+
+    await expect(page).toHaveURL(/\/client\/inquire\/?\?vendor=v1$/);
+  });
+
+  test("a wrong code says so, and a new one can be sent", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: false }));
+    api.post("/auth/email/send-code", { email_verified: false, sent_to: "p••••@example.com", expires_in_minutes: 10 });
+    api.error("POST", "/auth/email/verify", 400, "That code isn't right. Check the email we sent and try again");
+
+    await page.goto("verify-email/");
+    await page.getByLabel("6-digit code").fill("000000");
+    await page.getByRole("button", { name: "Confirm email" }).click();
+    await expect(page.getByText("That code isn't right. Check the email we sent and try again")).toBeVisible();
+
+    await page.getByRole("button", { name: "Send a new code" }).click();
+    await expect.poll(() => api.requestsTo("POST", "/auth/email/send-code").length).toBe(2);
+  });
+
+  test("a mistyped email can be fixed, and the code goes to the new one", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email: "priya@exmaple.com", email_verified: false }));
+    api.post("/auth/email/send-code", { email_verified: false, sent_to: "p••••@example.com", expires_in_minutes: 10 });
+    api.patch("/me", mockUser({ email: "priya@example.com", email_verified: false }));
+
+    await page.goto("verify-email/");
+    await page.getByRole("button", { name: "Change it" }).click();
+    await page.getByLabel("Your email").fill("priya@example.com");
+    await page.getByRole("button", { name: "Send the code there" }).click();
+
+    await expect(page.getByLabel("6-digit code")).toBeVisible();
+    expect(api.requestsTo("PATCH", "/me")[0].body).toEqual({ email: "priya@example.com" });
+    await expect.poll(() => api.requestsTo("POST", "/auth/email/send-code").length).toBe(2);
+  });
+
+  test("an account that's already verified goes straight on", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: true }));
+    api.get("/bundles", []);
+    api.get("/events", []);
+
+    await page.goto("verify-email/");
+
+    await expect(page).toHaveURL(/\/client\/plan\/?$/);
+    expect(api.requestsTo("POST", "/auth/email/send-code")).toHaveLength(0);
   });
 
   test("signing up, either way, needs the Terms and Privacy Policy agreed", async ({ page, api }) => {

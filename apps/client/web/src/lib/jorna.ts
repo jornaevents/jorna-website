@@ -318,6 +318,25 @@ export interface MeUpdate {
 }
 
 /** Partial update of the signed-in user's profile. Returns the updated user. */
+/** The answer to sending or checking an email code (backend DECISIONS #44).
+ *  `sent_to` is masked. */
+export type EmailCodeState =
+  | { email_verified: true; email: string }
+  | { email_verified: false; sent_to: string; expires_in_minutes: number };
+
+/** Email the signed-in account a 6-digit code; an earlier one stops working. */
+export function sendEmailCode(): Promise<EmailCodeState> {
+  return apiFetch<EmailCodeState>("/auth/email/send-code", { method: "POST" });
+}
+
+/** Confirm the signed-in account's email with its latest code. */
+export function verifyEmailCode(code: string): Promise<{ email_verified: true; email: string }> {
+  return apiFetch<{ email_verified: true; email: string }>("/auth/email/verify", {
+    method: "POST",
+    body: { code },
+  });
+}
+
 export function updateMe(updates: MeUpdate): Promise<User> {
   return apiFetch<User>("/me", { method: "PATCH", body: updates });
 }
