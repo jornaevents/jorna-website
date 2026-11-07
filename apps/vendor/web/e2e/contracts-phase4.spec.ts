@@ -62,9 +62,9 @@ test.describe("contracts — Phase 4 (requests become proposals)", () => {
     // The plan follows the total until the vendor edits it.
     await expect(page.getByLabel("Amount ($)").first()).toHaveValue("750");
     await expect(page.getByRole("button", { name: "Save as draft" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Accept & send contract" }).click();
+    await page.getByRole("button", { name: "Accept & send in chat" }).click();
 
-    await expect(page.getByRole("heading", { name: "On its way" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
     const [call] = api.requestsTo("POST", "/bookings/vbooking-1/propose");
     expect(call.body).toMatchObject({
       line_items: [
@@ -72,8 +72,8 @@ test.describe("contracts — Phase 4 (requests become proposals)", () => {
         { kind: "custom", name: "Second shooter", unit_price_cents: 50000 },
       ],
       payment_schedule: [{ amount_cents: 75000 }, { amount_cents: 225000 }],
-      email_client: true,
     });
+    expect(call.body).not.toHaveProperty("email_client");
     expect(call.body).not.toHaveProperty("date_iso");
   });
 

@@ -126,7 +126,7 @@ describe("relationFor", () => {
       const lead = item({ id: "lead:l1", source: "lead", booking_id: null, lead_id: "l1", conversation_id: "c1" });
       const r = relationFor(conv(), [], pipeline(lead), VENDOR);
       expect(r).toMatchObject({
-        kind: "lead", label: "inquiry", href: "/leads?open=lead%3Al1", linkLabel: "View lead", contractId: null,
+        kind: "lead", label: "inquiry", href: "/leads?open=lead%3Al1", linkLabel: null, contractId: null, leadId: "l1",
       });
       expect(tabFor(r)).toBe("bookings");
     });

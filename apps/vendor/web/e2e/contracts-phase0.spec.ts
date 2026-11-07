@@ -34,7 +34,7 @@ test.describe("contracts — Phase 0", () => {
       contract_status: "sent",
     });
 
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Client name").fill("Meera Iyer");
     await page.getByLabel("Client email").fill("meera@example.com");
     await page.getByLabel("Date", { exact: true }).fill("2030-06-01");
@@ -53,10 +53,9 @@ test.describe("contracts — Phase 0", () => {
 
     await page.getByRole("button", { name: "Pay in full" }).click();
     await expect(page.getByTestId("rail-total")).toHaveText("$9,000.00");
-    await page.getByLabel(/Email it to/).uncheck();
-    await page.getByRole("button", { name: "Send & hold date" }).click();
+    await page.getByRole("button", { name: "Send in chat" }).click();
 
-    await expect(page.getByRole("heading", { name: "Send this link" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
     const [call] = api.requestsTo("POST", "/contracts");
     expect(call.body).toMatchObject({
       line_items: [{ kind: "package", service_id: "svc-pp", unit_price_cents: 4500, quantity: 200 }],
@@ -66,7 +65,7 @@ test.describe("contracts — Phase 0", () => {
       location: "12 Maple Ave, Evanston, IL 60201",
       date_end: null,
       draft: false,
-      email_client: false,
+      conversation_id: "c1",
     });
   });
 
@@ -101,15 +100,15 @@ test.describe("contracts — Phase 0", () => {
     await page.getByLabel("End time").fill("22:00");
     // Adding the package drafts the usual payment plan — nothing more to set.
     await page.getByLabel("Add a package").selectOption("svc-flat");
-    await page.getByRole("button", { name: "Send & hold date" }).click();
+    await page.getByRole("button", { name: "Send in chat" }).click();
 
-    await expect(page.getByRole("heading", { name: "On its way" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
     expect(api.requestsTo("POST", "/leads/lead-9/convert")).toHaveLength(1);
-    expect(api.requestsTo("POST", "/leads/lead-9/convert")[0].body).toMatchObject({ email_client: true });
+    expect(api.requestsTo("POST", "/leads/lead-9/convert")[0].body).not.toHaveProperty("email_client");
     expect(api.requestsTo("POST", "/contracts")).toHaveLength(0);
   });
 
-  test("when the email can't be sent, the vendor is told to share the link themselves", async ({
+  test("when the email can't be sent, the vendor is told it's in the chat anyway", async ({
     page,
     api,
   }) => {
@@ -140,13 +139,12 @@ test.describe("contracts — Phase 0", () => {
     await page.getByLabel("End time").fill("22:00");
     // Adding the package drafts the usual payment plan — nothing more to set.
     await page.getByLabel("Add a package").selectOption("svc-flat");
-    await page.getByRole("button", { name: "Send & hold date" }).click();
+    await page.getByRole("button", { name: "Send in chat" }).click();
 
-    await expect(page.getByRole("heading", { name: "Send this link" })).toBeVisible();
-    await expect(page.getByText(/We couldn't email rohan@example.com/)).toBeVisible();
-    await expect(page.getByText(/We emailed the link/)).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
+    await expect(page.getByText(/We couldn't email them about it/)).toBeVisible();
     expect(api.requestsTo("POST", "/leads/lead-9/convert")).toHaveLength(1);
-    expect(api.requestsTo("POST", "/leads/lead-9/convert")[0].body).toMatchObject({ email_client: true });
+    expect(api.requestsTo("POST", "/leads/lead-9/convert")[0].body).not.toHaveProperty("email_client");
     expect(api.requestsTo("POST", "/contracts")).toHaveLength(0);
   });
 

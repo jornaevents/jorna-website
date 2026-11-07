@@ -91,16 +91,26 @@ test.describe("vendor messages hub (/messages)", () => {
     expect(api.requestsTo("POST", "/conversations/c-booked/messages")).toHaveLength(1);
   });
 
-  test("a thread that's a lead links to it; one that's neither can be added", async ({ page, api }) => {
+  test("a lead's thread offers Send contract for that lead; one that's neither can be added", async ({ page, api }) => {
     await loginAs(page, api);
     mockHub(api);
     api.post("/conversations/c-new/lead", { lead_id: "l9", name: "Sana Omar", status: "new" });
 
     await page.goto("messages/?id=c-lead");
     const details = page.getByRole("complementary", { name: "Details" });
-    await expect(details.getByRole("link", { name: "View lead" })).toHaveAttribute("href", /leads\/?\?open=lead%3Al1/);
+    // Contracts go out in the chat (backend DECISIONS #48); no View lead.
+    await expect(details.getByRole("link", { name: "View lead" })).toHaveCount(0);
+    await expect(details.getByRole("link", { name: "Send contract" })).toHaveAttribute(
+      "href",
+      /contracts\/new\/?\?conversation=c-lead&lead=l1$/,
+    );
 
     await page.getByRole("complementary", { name: "Conversations" }).getByRole("button", { name: /Sana Omar/ }).click();
+    // Neither a lead nor a booking yet: a contract can still start here.
+    await expect(details.getByRole("link", { name: "Send contract" })).toHaveAttribute(
+      "href",
+      /contracts\/new\/?\?conversation=c-new$/,
+    );
     await details.getByRole("button", { name: "Add to leads" }).click();
     await expect(page.getByText("Added to your leads.")).toBeVisible();
     expect(api.requestsTo("POST", "/conversations/c-new/lead")).toHaveLength(1);
@@ -379,7 +389,9 @@ test.describe("vendor messages labels and tabs", () => {
 
     const details = page.getByRole("complementary", { name: "Details" });
     await expect(details.getByText("Negotiation", { exact: true })).toBeVisible();
-    await expect(details.getByRole("link", { name: "View lead" })).toHaveAttribute("href", /leads\/?\?open=booking%3Abk-n/);
+    // A contract already open with this client: View contract, not a new one.
+    await expect(details.getByRole("link", { name: "View contract" })).toHaveAttribute("href", /contracts\/view\/?\?id=bk-n/);
+    await expect(details.getByRole("link", { name: "Send contract" })).toHaveCount(0);
     await expect(page.getByText(/^Negotiation · /)).toBeVisible();
   });
 

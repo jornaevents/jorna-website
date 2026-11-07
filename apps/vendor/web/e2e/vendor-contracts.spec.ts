@@ -17,12 +17,7 @@ test.describe("vendor contracts list (/contracts)", () => {
       ...overrides,
     });
 
-  test("lists contracts by status and lets the vendor copy a share link", async ({
-    page,
-    api,
-    context,
-  }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  test("lists contracts by status, with no share link to copy", async ({ page, api }) => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
     api.get("/vendors/me", vendor);
@@ -70,10 +65,8 @@ test.describe("vendor contracts list (/contracts)", () => {
     await expect(page.getByText("Meera Iyer")).not.toBeVisible();
     await expect(rows).toHaveCount(1);
 
-    await rows.first().getByRole("button", { name: "Copy link" }).click();
-    await expect(rows.first().getByRole("button", { name: "Copied!" })).toBeVisible();
-    const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toMatch(/\/app\/booking-link\?t=tok-unsigned$/);
+    // Contracts go out in the chat (backend DECISIONS #48).
+    await expect(rows.first().getByRole("button", { name: "Copy link" })).toHaveCount(0);
   });
 
   test("shows an empty state pointing at the new-contract form", async ({ page, api }) => {

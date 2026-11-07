@@ -15,7 +15,7 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     offset: 0,
   });
 
-  test("the editor sends its title and block order, and Copy link sends without email", async ({
+  test("the editor sends its title and block order, in the chat it was started from", async ({
     page,
     api,
     context,
@@ -34,7 +34,7 @@ test.describe("contract editor and attached documents (step 7b)", () => {
       hold_expires_at: "2030-05-08T12:00:00",
     });
 
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     const doc = page.getByRole("article", { name: "Contract document" });
     await doc.getByLabel("Agreement title").fill("Wedding reception DJ agreement");
     await doc.getByLabel("Client name").fill("Meera Iyer");
@@ -56,15 +56,17 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     await meals.getByRole("button", { name: "Meals options" }).click();
     await meals.getByRole("menuitem", { name: "Move meals up" }).click();
 
-    await page.getByRole("button", { name: "Copy link" }).click();
-    await expect(page.getByRole("heading", { name: "Link copied" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("/app/booking-link?t=tok-1");
+    // No Copy link any more (backend DECISIONS #48): it goes to the chat.
+    await expect(page.getByRole("button", { name: "Copy link" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Send in chat" }).click();
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to the chat" })).toHaveAttribute("href", /messages\/?\?id=c1$/);
 
     const [call] = api.requestsTo("POST", "/contracts");
     expect(call.body).toMatchObject({
       document_title: "Wedding reception DJ agreement",
       draft: false,
-      email_client: false,
+      conversation_id: "c1",
       terms_clauses: [{ title: "Meals" }],
     });
     const layout = (call.body as { document_layout: { type: string; title?: string }[] }).document_layout;

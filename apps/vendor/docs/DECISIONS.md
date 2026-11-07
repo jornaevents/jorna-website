@@ -1281,3 +1281,20 @@ comes back as `new` (the vendor's move again). A lead archived the old way
 just leaves Archived. Requests and contracts keep their own buttons and
 Archive.
 
+## Decision: contracts are sent in the chat; no links (2026-11-06)
+
+Backend DECISIONS #48. A contract goes out in the client's chat, and the
+client signs it in their own app.
+
+- **Messages' right panel:** **Send contract** (→ `/contracts/new?conversation=<thread>`, plus `&lead=`
+  when the thread is a lead, or `?request=` for a marketplace request) when there's no open contract
+  with this client; **View contract** when there is; View booking once booked. No more View lead.
+- **The editor's Send is "Send in chat"** (request: "Accept & send in chat"). It needs a client: a
+  thread, a lead or a request. Without one there's no Send, only Save as draft, and a line saying where
+  to start. The sent screen says it's in the chat and links back to it.
+- **No Copy link and no Send by email** — in the editor, the contract page, the Contracts list and the
+  Leads drawer. Drafts there have **Send in chat**. Resend passes `email_client` so a contract sent by
+  link before #48 is still resent by email; the backend ignores it for chat contracts.
+- **New → Send a contract** opens Messages: start from the client's chat.
+- Addenda and cancellation agreements still go by link for now.
+

@@ -27,7 +27,7 @@ import {
   updateLead,
   voidContract,
 } from "@/lib/jorna";
-import { emailNotice, guestBookingLink } from "@/lib/contractLink";
+import { sendNotice } from "@/lib/contractLink";
 import { leadPipeline, myVendor } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import { describeEvent, visibleEvents } from "@/lib/contractTimeline";
@@ -259,21 +259,6 @@ function LeadDrawer({
     }
   }
 
-  /** Copying the link counts as sending it (plan): a draft is sent first, so
-   *  the hold starts and the lead becomes a Negotiation. */
-  async function copyLink() {
-    if (!item || !bookingId) return;
-    await run(
-      "copy",
-      async () => {
-        const token = contract?.contract_token ?? (await getContract(bookingId)).contract_token;
-        if (item.contract_status === "draft") await sendContract(bookingId);
-        await navigator.clipboard.writeText(guestBookingLink(token));
-      },
-      item.contract_status === "draft" ? "Link copied — the date is now on hold for them." : "Link copied.",
-    );
-  }
-
   const reason = item.attention_reason ? REASON[item.attention_reason] ?? null : null;
   const l = LOOK[look(item)];
   const archived = item.archived;
@@ -438,11 +423,9 @@ function LeadDrawer({
                   run("accept", async () => {
                     const r = await setBookingStatus(item.booking_id!, "approved");
                     setNotice(
-                      r.email_sent === true
-                        ? "Sent — we've emailed them a contract built from your usual terms. The date is held until they sign."
-                        : r.email_sent === false
-                          ? "Sent a contract built from your usual terms, but we couldn't email them. Copy the link from the contract and send it yourself. The date is held until they sign."
-                          : "Sent a contract built from your usual terms. The date is held until they sign.",
+                      r.email_sent === false
+                        ? "Sent a contract built from your usual terms in your chat. We couldn't email them about it, so they'll see it next time they open Jorna. The date is held until they sign."
+                        : "Sent a contract built from your usual terms in your chat, and emailed them to open it there. The date is held until they sign.",
                     );
                   })
                 }
@@ -486,23 +469,20 @@ function LeadDrawer({
           {isContract && status === "draft" ? (
             <>
               <LinkPrimary href={`/contracts/new?edit=${item.booking_id}`}>Edit contract</LinkPrimary>
-              {item.email ? (
-                <Button
-                  variant="ghost"
-                  className={ghost}
-                  disabled={busy != null}
-                  onClick={() =>
-                    run("send", async () => {
-                      const c = await sendContract(item.booking_id!, { emailClient: true });
-                      setNotice(emailNotice(c.email_sent, item.email));
-                    })
-                  }
-                >
-                  Send by email
-                </Button>
-              ) : null}
-              <Button variant="ghost" className={ghost} disabled={busy != null} onClick={copyLink}>
-                Copy link
+              {/* In the client's chat (backend DECISIONS #48); a draft with no
+                  client to send to says why. */}
+              <Button
+                variant="ghost"
+                className={ghost}
+                disabled={busy != null}
+                onClick={() =>
+                  run("send", async () => {
+                    const c = await sendContract(item.booking_id!);
+                    setNotice(sendNotice(c.email_sent, item.name));
+                  })
+                }
+              >
+                Send in chat
               </Button>
             </>
           ) : null}
@@ -518,9 +498,6 @@ function LeadDrawer({
               >
                 View contract
               </Link>
-              <Button variant="ghost" className={ghost} disabled={busy != null} onClick={copyLink}>
-                Copy link
-              </Button>
               <Button
                 variant="ghost"
                 className={ghost}
@@ -528,7 +505,8 @@ function LeadDrawer({
                 onClick={() =>
                   run(
                     "resend",
-                    () => sendContract(item.booking_id!, { emailClient: Boolean(item.email) }),
+                    // A contract sent by link before #48 is resent by email.
+                    () => sendContract(item.booking_id!, { emailClient: true }),
                     status === "expired" ? "Resent — the date is held again." : "Resent.",
                   )
                 }

@@ -142,7 +142,7 @@ test.describe("vendor overview (/overview)", () => {
     await page.getByRole("button", { name: "New", exact: true }).click();
     const first = page.getByRole("menu", { name: "New" }).getByRole("menuitem").first();
     await expect(first).toContainText("Send a contract");
-    await expect(first).toHaveAttribute("href", /\/contracts\/new\/?$/);
+    await expect(first).toHaveAttribute("href", /\/messages\/?$/);
     // The inquiry form is on every page's New, not only Leads'.
     await expect(page.getByRole("menu", { name: "New" }).getByRole("menuitem").nth(1)).toContainText("Share inquiry form");
     await page.keyboard.press("Escape");

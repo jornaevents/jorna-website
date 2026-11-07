@@ -7,17 +7,16 @@ export function guestBookingLink(token: string): string {
   return `${window.location.origin}/app/booking-link?t=${token}`;
 }
 
-/** What to tell the vendor after sending with "email it to them": the
- *  backend's email_sent says whether the email actually went (false when
- *  email isn't set up or the provider refused it). Only a true claims an
- *  email; anything else doesn't say either way. */
-export function emailNotice(emailSent: boolean | null | undefined, to: string | null | undefined): string {
+/** What to tell the vendor after sending: it's in the client's chat
+ *  (backend DECISIONS #48), and email_sent says whether the email pointing
+ *  them there went. Only a true claims an email. */
+export function sendNotice(emailSent: boolean | null | undefined, to: string | null | undefined): string {
   const who = to || "your client";
-  if (emailSent === true) return `Sent — we emailed the link to ${who}.`;
+  if (emailSent === true) return `Sent in your chat — we emailed ${who} to open it there.`;
   if (emailSent === false) {
-    return `Sent — but we couldn't email ${who}. Copy the link and send it yourself; the date is held either way.`;
+    return `Sent in your chat. We couldn't email ${who} about it, so they'll see it next time they open Jorna.`;
   }
-  return "Sent. Copy the link if you'd like to send it yourself too.";
+  return "Sent in your chat.";
 }
 
 /** The vendor's own "View as client" — the same page, but opening it

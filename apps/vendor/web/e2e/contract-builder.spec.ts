@@ -23,7 +23,7 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
   test("problems wait for Send, then show under their block", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     const doc = page.getByRole("article", { name: "Contract document" });
     const event = doc.getByRole("region", { name: "Event details" });
 
@@ -32,7 +32,7 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
     await expect(page.getByText(/things? to fix before sending/)).toBeVisible();
 
     // …and Send says what's missing where it's fixed, instead of sending.
-    await page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send & hold date" }).click();
+    await page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send in chat" }).click();
     await expect(event.getByText("Pick the event date.")).toBeVisible();
     await expect(doc.getByRole("region", { name: "Packages & items" }).getByText("Add at least one of your packages.")).toBeVisible();
     expect(api.requestsTo("POST", "/contracts")).toHaveLength(0);
@@ -41,7 +41,7 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
   test("the cancellation window lives in its own section, overtime under the schedule", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     const doc = page.getByRole("article", { name: "Contract document" });
     const schedule = doc.getByRole("region", { name: "Payment schedule" });
 
@@ -62,7 +62,7 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
   test("a new custom item takes the cursor, and left blank it neither blocks nor eats the next click", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     const doc = page.getByRole("article", { name: "Contract document" });
     const items = doc.getByRole("region", { name: "Packages & items" });
@@ -73,14 +73,14 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
     await doc.getByRole("button", { name: "Three payments" }).click();
     await expect(doc.getByRole("region", { name: "Payment schedule" }).getByLabel("Name")).toHaveCount(3);
 
-    await page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send & hold date" }).click();
+    await page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send in chat" }).click();
     await expect(items.getByText("Every line needs a name.")).toHaveCount(0);
   });
 
   test("Preview as client shows the contract as the client reads it", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     await page.getByRole("button", { name: "Preview as client" }).click();
 
@@ -93,11 +93,11 @@ test.describe("contract editor fixes (plan 2.3b)", () => {
     await page.setViewportSize({ width: 390, height: 800 });
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
 
     const bar = page.locator("div.fixed.bottom-0");
     await expect(bar).toContainText("$1,400.00");
-    await expect(bar.getByRole("button", { name: "Send & hold date" })).toBeInViewport();
+    await expect(bar.getByRole("button", { name: "Send in chat" })).toBeInViewport();
   });
 });
