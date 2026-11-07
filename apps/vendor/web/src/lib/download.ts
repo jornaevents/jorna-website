@@ -4,7 +4,7 @@
 // session, so they're fetched and saved from a blob; the couple's are plain
 // links — the token in the URL is their whole credential, as on the page.
 
-import { API_BASE, apiDownload } from "@jorna/shared/lib/api";
+import { apiDownload } from "@jorna/shared/lib/api";
 
 async function save(path: string, fallbackName: string): Promise<void> {
   const { blob, filename } = await apiDownload(path);
@@ -27,10 +27,4 @@ export function downloadDocumentPdf(documentId: string): Promise<void> {
   return save(`/contract-documents/${documentId}/pdf`, "document.pdf");
 }
 
-export function guestContractPdfUrl(token: string): string {
-  return `${API_BASE}/guest-bookings/${token}/pdf`;
-}
-
-export function guestDocumentPdfUrl(token: string): string {
-  return `${API_BASE}/guest-documents/${token}/pdf`;
-}
+export { guestContractPdfUrl, guestDocumentPdfUrl } from "@jorna/shared/lib/guestBooking";

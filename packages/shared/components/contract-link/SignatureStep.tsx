@@ -9,10 +9,10 @@
 // as before.
 
 import { useState } from "react";
-import { ApiError } from "@jorna/shared/lib/api";
-import { Button, Card, Field } from "@jorna/shared/components/ui";
-import { signerMatches } from "@/lib/signerName";
-import type { EsignConsent, SigningCodeSent, SigningProof } from "@/lib/types";
+import { ApiError } from "../../lib/api";
+import { Button, Card, Field } from "../ui";
+import { signerMatches } from "../../lib/signerName";
+import type { EsignConsent, SigningCodeSent, SigningProof } from "../../lib/guestBooking";
 
 export function SignatureStep({
   kindLabel,

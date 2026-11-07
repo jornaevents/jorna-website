@@ -4,7 +4,6 @@ import { ApiError, apiFetch, apiUpload } from "@jorna/shared/lib/api";
 import type {
   Ledger,
   LedgerRow,
-  PaidVia,
   BundleDetail,
   BundleRequest,
   ChangeRequest,
@@ -26,9 +25,6 @@ import type {
   EventItem,
   GroupMessage,
   Guest,
-  GuestBooking,
-  LinkThread,
-  GuestBookingDetailsInput,
   GuestList,
   Invitation,
   RsvpReply,
@@ -58,10 +54,6 @@ import type {
   VendorAvailability,
   NegotiationDraft,
   ProposalHistory,
-  SigningCodeSent,
-  SigningProof,
-  TermsChanges,
-  TermsVersion,
 } from "./types";
 import type { FieldAnswer, FieldNegotiationState } from "@jorna/shared/lib/contractTypes";
 
@@ -943,36 +935,11 @@ export function declineProposal(bookingId: string, proposalId: string, note?: st
   });
 }
 
-export function getGuestProposals(token: string): Promise<ProposalHistory> {
-  return apiFetch<ProposalHistory>(`/guest-bookings/${token}/proposals`);
-}
 
-/** Client: suggest changes to the version they're reading. 409s if the
- *  vendor has edited since. */
-export function proposeGuestChanges(
-  token: string,
-  baseRevision: number,
-  changes: TermsChanges,
-  message: string | null,
-): Promise<ProposalHistory> {
-  return apiFetch<ProposalHistory>(`/guest-bookings/${token}/proposals`, {
-    method: "POST",
-    body: { base_revision: baseRevision, changes, message },
-  });
-}
 
-export function withdrawGuestProposal(token: string, proposalId: string): Promise<ProposalHistory> {
-  return apiFetch<ProposalHistory>(`/guest-bookings/${token}/proposals/${proposalId}/withdraw`, { method: "POST" });
-}
 
 // ── Negotiation drafts (backend 0069, DECISIONS #24) ─────────────────
 
-export interface DraftInput {
-  base_revision: number;
-  changes: Partial<TermsVersion>;
-  message?: string | null;
-  proposal_id?: string | null;
-}
 
 export function saveContractDraft(bookingId: string, draft: DraftInput): Promise<NegotiationDraft> {
   return apiFetch<NegotiationDraft>(`/contracts/${bookingId}/proposals/draft`, { method: "PUT", body: draft });
@@ -1005,33 +972,10 @@ export function saveContractNegotiationDraft(bookingId: string, answers: FieldAn
   return apiFetch(`/contracts/${bookingId}/negotiation/draft`, { method: "PUT", body: { answers, message } });
 }
 
-export function getGuestNegotiation(token: string): Promise<FieldNegotiationState> {
-  return apiFetch<FieldNegotiationState>(`/guest-bookings/${token}/negotiation`);
-}
 
-export function sendGuestNegotiation(
-  token: string,
-  baseRound: number,
-  answers: FieldAnswer[],
-  message: string | null,
-): Promise<FieldNegotiationState> {
-  return apiFetch<FieldNegotiationState>(`/guest-bookings/${token}/negotiation/send`, {
-    method: "POST",
-    body: { base_round: baseRound, answers, message },
-  });
-}
 
-export function saveGuestNegotiationDraft(token: string, answers: FieldAnswer[], message: string | null): Promise<unknown> {
-  return apiFetch(`/guest-bookings/${token}/negotiation/draft`, { method: "PUT", body: { answers, message } });
-}
 
-export function saveGuestDraft(token: string, draft: Omit<DraftInput, "proposal_id">): Promise<NegotiationDraft> {
-  return apiFetch<NegotiationDraft>(`/guest-bookings/${token}/proposals/draft`, { method: "PUT", body: draft });
-}
 
-export function dropGuestDraft(token: string): Promise<void> {
-  return apiFetch<void>(`/guest-bookings/${token}/proposals/draft`, { method: "DELETE" });
-}
 
 /** Send a draft, or resend an expired offer — restarts the date hold. 409s
  *  if the date has been taken meanwhile. */
@@ -1265,124 +1209,50 @@ export function markConversationUnread(conversationId: string): Promise<Conversa
   return apiFetch<ConversationSummary>(`/conversations/${conversationId}/unread`, { method: "POST" });
 }
 
-// ── Guest booking link (public, no login — see /booking-link) ─────────
-//
-// None of these go through the normal Authorization-bearer path — there's no
-// session to attach. The contract_token in the URL is the entire credential,
-// same trust model as the RSVP system's invitation token.
 
-/** preview: the vendor's own "View as client" — doesn't mark it viewed. */
-export function getGuestBooking(token: string, preview = false): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}${preview ? "?preview=true" : ""}`);
-}
 
-/** The client's thread with their vendor, by the contract link (backend
- *  0083, DECISIONS #41). Reading it marks it read, so the vendor's preview
- *  never calls this. */
-export function getLinkMessages(token: string): Promise<LinkThread> {
-  return apiFetch<LinkThread>(`/guest-bookings/${token}/messages`);
-}
 
-export function sendLinkMessage(token: string, content: string): Promise<LinkThread> {
-  return apiFetch<LinkThread>(`/guest-bookings/${token}/messages`, { method: "POST", body: { content } });
-}
 
-/** An addendum or cancellation agreement, by its own link. */
-export function getGuestDocument(token: string, preview = false): Promise<AttachedDocument> {
-  return apiFetch(`/guest-documents/${token}${preview ? "?preview=true" : ""}`);
-}
 
-export function signGuestDocument(
-  token: string,
-  signerName: string,
-  proof?: SigningProof | null,
-): Promise<AttachedDocument> {
-  return apiFetch(`/guest-documents/${token}/sign`, {
-    method: "POST",
-    body: { signer_name: signerName, ...(proof ?? {}) },
-  });
-}
 
-/** Email the client the 6-digit code they sign with (backend DECISIONS #27). */
-export function requestGuestSigningCode(token: string): Promise<SigningCodeSent> {
-  return apiFetch(`/guest-bookings/${token}/signing-code`, { method: "POST" });
-}
 
-export function requestDocumentSigningCode(token: string): Promise<SigningCodeSent> {
-  return apiFetch(`/guest-documents/${token}/signing-code`, { method: "POST" });
-}
 
-export function declineGuestDocument(token: string, reason: string | null): Promise<AttachedDocument> {
-  return apiFetch(`/guest-documents/${token}/decline`, { method: "POST", body: { reason } });
-}
 
-/** The client turns the offer down; frees the vendor's date. */
-export function declineGuestBooking(token: string, reason: string | null): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}/decline`, {
-    method: "POST",
-    body: { reason },
-  });
-}
 
-export function fillGuestBookingDetails(
-  token: string,
-  details: GuestBookingDetailsInput,
-): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}`, { method: "PATCH", body: details });
-}
 
-/** revision: the version the client was shown — the backend 409s if the
- *  vendor has edited since. */
-export function signGuestBooking(
-  token: string,
-  signerName: string,
-  revision?: number | null,
-  /** Field-by-field contracts: sign while changes are waiting, taking the
-   *  vendor's and dropping your own (backend DECISIONS #26). */
-  asIs = false,
-  /** The emailed code and the consent box (backend DECISIONS #27). */
-  proof?: SigningProof | null,
-): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}/sign`, {
-    method: "POST",
-    body: {
-      signer_name: signerName,
-      ...(revision != null ? { revision } : {}),
-      ...(asIs ? { as_is: true } : {}),
-      ...(proof ?? {}),
-    },
-  });
-}
 
-/** Client: one scheduled payment is sent. Returns the refreshed booking. */
-export function guestMarkInstallmentPaid(
-  token: string,
-  installmentId: string,
-  paidVia?: PaidVia,
-): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}/payments/${installmentId}/mark-paid`, {
-    method: "POST",
-    body: paidVia ? { paid_via: paidVia } : undefined,
-  });
-}
 
-/** Take back the client's own "I've sent this", until the vendor confirms
- *  it (backend DECISIONS #37). */
-export function guestUnmarkInstallment(token: string, installmentId: string): Promise<GuestBooking> {
-  return apiFetch<GuestBooking>(`/guest-bookings/${token}/payments/${installmentId}/unmark`, { method: "POST" });
-}
 
-export function guestMarkFullPaid(
-  token: string,
-): Promise<{ message: string; payment_status: string }> {
-  return apiFetch(`/guest-bookings/${token}/mark-paid`, { method: "POST" });
-}
 
-export function guestMarkDepositPaid(
-  token: string,
-): Promise<{ message: string; deposit_marked_paid_at: string }> {
-  return apiFetch(`/guest-bookings/${token}/mark-deposit-paid`, { method: "POST" });
-}
+// The contract link's calls (guest-bookings / guest-documents) live in the
+// shared package so the client app can open contracts too (backend #48).
+export {
+  getGuestProposals,
+  proposeGuestChanges,
+  withdrawGuestProposal,
+  getGuestNegotiation,
+  sendGuestNegotiation,
+  saveGuestNegotiationDraft,
+  saveGuestDraft,
+  dropGuestDraft,
+  getGuestBooking,
+  getLinkMessages,
+  sendLinkMessage,
+  getGuestDocument,
+  signGuestDocument,
+  requestGuestSigningCode,
+  requestDocumentSigningCode,
+  declineGuestDocument,
+  declineGuestBooking,
+  fillGuestBookingDetails,
+  signGuestBooking,
+  guestMarkInstallmentPaid,
+  guestUnmarkInstallment,
+  guestMarkFullPaid,
+  guestMarkDepositPaid,
+} from "@jorna/shared/lib/guestBooking";
+export type { DraftInput } from "@jorna/shared/lib/guestBooking";
+import type { DraftInput } from "@jorna/shared/lib/guestBooking";
 
 // ── Events ───────────────────────────────────────────────────────────
 //

@@ -1186,18 +1186,36 @@ export interface VendorBooking {
 
 // ── Contracts (vendor-authored, no-login guest bookings) ──────────────
 
-/** The backend's contract_status (DECISIONS.md #15 there). "expired" is a
- *  sent/viewed offer whose date hold has lapsed — derived there, never stored. */
-export type ContractLifecycle =
-  | "draft"
-  | "sent"
-  | "viewed"
-  /** The client signed; it waits on the vendor's countersignature (#34). */
-  | "awaiting_vendor"
-  | "signed"
-  | "declined"
-  | "voided"
-  | "expired";
+// Shared with the client app, which opens contracts in the chat too
+// (backend DECISIONS #48).
+import type {
+  ContractLifecycle,
+  AttachedDocumentKind,
+  AttachedDocument,
+  EsignConsent,
+  VendorEsignConsent,
+  SigningProof,
+  SigningCodeSent,
+  LinkMessage,
+  LinkThread,
+  GuestBooking,
+  GuestBookingDetailsInput,
+  PaidVia,
+} from "@jorna/shared/lib/guestBooking";
+export type {
+  ContractLifecycle,
+  AttachedDocumentKind,
+  AttachedDocument,
+  EsignConsent,
+  VendorEsignConsent,
+  SigningProof,
+  SigningCodeSent,
+  LinkMessage,
+  LinkThread,
+  GuestBooking,
+  GuestBookingDetailsInput,
+  PaidVia,
+};
 
 /** The vendor's own view of a contract — GET/PATCH /contracts/{id},
  *  POST /contracts. Shares most fields with GuestBooking below; kept as a
@@ -1302,171 +1320,6 @@ export type ContractUpdateInput = Partial<ContractCreateInput> & {
   /** With proposal_id: a note to the client sent with the new version. */
   proposal_note?: string | null;
 };
-
-// ── Documents attached to a booking (backend 0067, DECISIONS #21) ─────
-
-/** An addendum or cancellation agreement: text only, signed on its own link,
- *  never changing the booking's price, date or hold. */
-export type AttachedDocumentKind = "addendum" | "cancellation";
-
-export interface AttachedDocument {
-  document_id: string;
-  booking_id: string;
-  kind: AttachedDocumentKind;
-  title: string;
-  sections: Clause[];
-  /** An addendum's priced changes (backend DECISIONS #38). */
-  line_items?: { name: string; unit_price_cents: number; quantity: number }[] | null;
-  removed_line_ids?: string[] | null;
-  changes?: {
-    added: { name: string; quantity: number; unit_price_cents: number; total_cents: number }[];
-    removed: string[];
-    total_before: number | null;
-    total_after: number | null;
-  } | null;
-  /** awaiting_vendor: the client signed, the vendor hasn't yet (#34). */
-  status: "draft" | "sent" | "viewed" | "awaiting_vendor" | "signed" | "declined" | "voided";
-  sent_at: string | null;
-  viewed_at: string | null;
-  signed_at: string | null;
-  signer_name: string | null;
-  /** The client's own signature; signed_at is set only once the vendor has
-   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
-  client_signed_at?: string | null;
-  vendor_signer_name?: string | null;
-  vendor_signed_at?: string | null;
-
-  declined_at: string | null;
-  decline_reason: string | null;
-  /** Why the vendor wouldn't countersign (backend DECISIONS #37). */
-  vendor_decline_reason?: string | null;
-  voided_at: string | null;
-  signed_snapshot_sha256: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  vendor_display_name: string | null;
-  client_name: string | null;
-  date_iso: string | null;
-  location: string | null;
-  /** The vendor's view only — the couple's link is the token. */
-  token?: string;
-  vendor_esign_consent?: VendorEsignConsent;
-  /** The couple's view only (backend DECISIONS #27). */
-  esign_consent?: EsignConsent;
-  signing_code_required?: boolean;
-}
-
-/** The e-records consent the signing page shows, word for word, and sends
- *  back by version (backend DECISIONS #27). */
-export interface EsignConsent {
-  version: string;
-  text: string;
-}
-
-/** The same words for the vendor's countersignature, asked only until
- *  they've agreed to this version once (backend DECISIONS #34). */
-export interface VendorEsignConsent extends EsignConsent {
-  given: boolean;
-}
-
-/** What a signature by link sends besides the name (backend DECISIONS #27). */
-export interface SigningProof {
-  code: string;
-  consent: true;
-  consent_version: string;
-}
-
-export interface SigningCodeSent {
-  /** Masked, e.g. "p••••@example.com". */
-  sent_to: string;
-  expires_in_minutes: number;
-}
-
-/** The public, no-login view of a guest booking — GET/PATCH
- *  /guest-bookings/{token}, POST .../sign. Includes the vendor's payment
- *  handle (how the client actually pays) instead of contract_token (the
- *  token is already the credential the client used to get here). */
-/** The contract link's message thread (backend DECISIONS #41). */
-export interface LinkMessage {
-  message_id: string;
-  from: "you" | "vendor";
-  sender_name: string;
-  content: string;
-  kind: string;
-  created_at: string;
-}
-
-export interface LinkThread {
-  vendor_name: string;
-  items: LinkMessage[];
-}
-
-export interface GuestBooking {
-  booking_id: string;
-  /** Older backends send neither (backend DECISIONS #27). */
-  esign_consent?: EsignConsent;
-  signing_code_required?: boolean;
-  vendor_display_name: string | null;
-  vendor_venmo_handle: string | null;
-  vendor_zelle_contact: string | null;
-  service_name: string | null;
-  date_iso: string;
-  date_end: string | null;
-  time_start: string;
-  time_end: string;
-  location: string;
-  guest_count: number | null;
-  amount_cents: number;
-  deposit_percent: number | null;
-  deposit_amount_cents: number | null;
-  cancellation_window_hours: number | null;
-  overtime_rate_cents: number | null;
-  addon_rate_cents: number | null;
-  contract_terms: ContractTerms | null;
-  guest_name: string | null;
-  guest_email: string | null;
-  guest_phone: string | null;
-  signer_name: string | null;
-  signed_at: string | null;
-  /** The client's own signature; signed_at is set only once the vendor has
-   *  countersigned too (backend DECISIONS #34). Absent from an older backend. */
-  client_signed_at?: string | null;
-  vendor_signer_name?: string | null;
-  vendor_signed_at?: string | null;
-  payment_status: string;
-  /** "rejected" once voided or declined — the link still opens, but
-   *  nothing on it can be acted on. */
-  status?: string;
-  /** "vendor_declined_signature" when the vendor wouldn't countersign;
-   *  their reason is vendor_decline_note. */
-  rejected_reason?: string | null;
-  vendor_decline_note?: string | null;
-  contract_status?: ContractLifecycle | null;
-  /** Until when the vendor is holding this date for the client. */
-  hold_expires_at?: string | null;
-  line_items?: LineItem[] | null;
-  subtotal_cents?: number;
-  discount_cents?: number | null;
-  payment_schedule?: Installment[] | null;
-  terms_clauses?: Clause[] | null;
-  document_title?: string | null;
-  document_layout?: LayoutBlock[] | null;
-  /** Sent back with the signature; a stale one is refused. */
-  revision?: number | null;
-  signed_snapshot_sha256?: string | null;
-  deposit_marked_paid_at: string | null;
-  deposit_confirmed_received_at: string | null;
-  /** The latest change proposal's status (backend DECISIONS #23). */
-  proposal_status?: ProposalStatus | null;
-}
-
-export interface GuestBookingDetailsInput {
-  guest_name?: string | null;
-  guest_email?: string | null;
-  guest_phone?: string | null;
-  location?: string | null;
-  guest_count?: number | null;
-}
 
 // ── Leads ────────────────────────────────────────────────────────────
 
@@ -1922,7 +1775,6 @@ export function headcountGap(
 // ── Earnings ledger (backend DECISIONS #33) ──────────────────────────
 
 export type LedgerStatus = "received" | "client_says_sent" | "cancelled" | "overdue" | "due_soon" | "scheduled";
-export type PaidVia = "venmo" | "zelle" | "other";
 
 export interface LedgerEvent {
   at: string;

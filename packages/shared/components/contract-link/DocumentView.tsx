@@ -9,15 +9,15 @@
 // client already gave both for when they signed the contract.
 
 import { useEffect, useState } from "react";
-import { ApiError } from "@jorna/shared/lib/api";
-import { declineGuestDocument, getGuestDocument, requestDocumentSigningCode, signGuestDocument } from "@/lib/jorna";
-import { KIND_LABEL } from "@/lib/attachedDocuments";
-import { guestDocumentPdfUrl } from "@/lib/download";
-import { Button, Card, Field } from "@jorna/shared/components/ui";
-import type { AttachedDocument, SigningProof } from "@/lib/types";
+import { ApiError } from "../../lib/api";
+import { declineGuestDocument, getGuestDocument, requestDocumentSigningCode, signGuestDocument } from "../../lib/guestBooking";
+import { KIND_LABEL } from "../../lib/guestBooking";
+import { guestDocumentPdfUrl } from "../../lib/guestBooking";
+import { Button, Card, Field } from "../ui";
+import type { AttachedDocument, SigningProof } from "../../lib/guestBooking";
 import { SignatureStep } from "./SignatureStep";
 import { Stepper } from "./Stepper";
-import { DOCUMENT_STEPS, type LinkStep } from "@/lib/linkSteps";
+import { DOCUMENT_STEPS, type LinkStep } from "../../lib/linkSteps";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso) return null;
