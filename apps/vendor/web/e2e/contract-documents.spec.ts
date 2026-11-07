@@ -15,6 +15,35 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     offset: 0,
   });
 
+  test("the generated title is text the vendor edits in place", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail({ f_name: "Sound", l_name: "Studio" });
+    api.get("/vendors/me", vendor);
+    api.get("/services", services(vendor.vendor_id));
+    api.get("/contract-templates", { items: [], total: 0 });
+
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
+    const doc = page.getByRole("article", { name: "Contract document" });
+    const title = doc.getByLabel("Agreement title");
+    await doc.getByLabel("Add a package").selectOption("svc-1");
+    await doc.getByLabel("Client name").fill("Meera Iyer");
+    // It follows the package and client until the vendor types.
+    await expect(title).toHaveValue("Meera Iyer — Reception set agreement");
+
+    // Typing edits the text rather than replacing it.
+    // (End doesn't move the caret on macOS, so place it directly.)
+    await title.evaluate((el: HTMLInputElement) => {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
+    await title.pressSequentially(" (June)");
+    await expect(title).toHaveValue("Meera Iyer — Reception set agreement (June)");
+
+    // Once edited, it stops following.
+    await doc.getByLabel("Client name").fill("Asha Rao");
+    await expect(title).toHaveValue("Meera Iyer — Reception set agreement (June)");
+  });
+
   test("the editor sends its title and block order, in the chat it was started from", async ({
     page,
     api,
