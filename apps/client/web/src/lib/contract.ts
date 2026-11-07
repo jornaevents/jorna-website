@@ -9,16 +9,21 @@
 
 import { eventIsOver, type BundleBooking, type Installment } from "./types";
 
-const VENDOR_APP_ORIGIN = process.env.NEXT_PUBLIC_VENDOR_APP_URL ?? "https://jornaevents.com";
 
 export function contractSignUrl(token: string): string {
-  return `${VENDOR_APP_ORIGIN}/app/booking-link/?t=${encodeURIComponent(token)}`;
+  // In this app since contracts went into the chat (backend DECISIONS #48).
+  return `/contract?t=${encodeURIComponent(token)}&sign=1`;
 }
 
 /** The same page, opened straight into "Propose changes" (backend
  *  DECISIONS #23). */
 export function contractProposeUrl(token: string): string {
-  return `${contractSignUrl(token)}&propose=1`;
+  return `/contract?t=${encodeURIComponent(token)}&propose=1`;
+}
+
+/** A contract sent in the chat, by its booking (backend DECISIONS #48). */
+export function contractInChatPath(bookingId: string): string {
+  return `/contract?id=${encodeURIComponent(bookingId)}&sign=1`;
 }
 
 /** This app's own read-only page for a contract. */

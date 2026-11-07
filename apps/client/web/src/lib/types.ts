@@ -993,7 +993,7 @@ export interface GroupMessage {
   content: string;
   created_at: string;
   /**
-   * text | offer | system. `content` is a human sentence whatever the kind, so
+   * text | offer | system | contract (#48). `content` is a human sentence whatever the kind, so
    * an unknown one still renders something true — the kind only decides
    * whether a card is drawn around it.
    */

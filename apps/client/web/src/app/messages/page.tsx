@@ -76,6 +76,7 @@ function preview(c: ConversationSummary): string {
   const last = c.last_message;
   if (!last?.content) return "No messages yet";
   if (last.kind === "offer") return `💬 ${last.content}`;
+  if (last.kind === "contract") return `📄 ${last.content}`;
   return last.content;
 }
 
