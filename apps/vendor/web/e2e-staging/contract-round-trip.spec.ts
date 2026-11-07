@@ -15,13 +15,22 @@ test.describe("staging: contract round trip", () => {
 
   test("send → (negotiate) → sign, end to end", async ({ page }) => {
     const vendor = await ensureVendor();
-    await signIn(CLIENT); // the client's account exists, as a returning client's would
+    const client = await signIn(CLIENT); // the client's account exists, as a returning client's would
     const token = vendor.tokens.access_token;
+    // A contract is sent in the client's chat with the vendor (backend
+    // DECISIONS #48), so the client asks first. One thread per client and
+    // vendor: every run after the first reuses it.
+    const thread = await api<{ conversation_id: string }>("/conversations/enquiry", {
+      method: "POST",
+      token: client.access_token,
+      body: { vendor_id: vendor.vendorId, content: "Staging check: are you free for an evening event?" },
+    });
 
     const contract = await onFreeDate((date_iso) => api<{ booking_id: string; contract_token: string }>("/contracts", {
       method: "POST",
       token,
       body: {
+        conversation_id: thread.conversation_id,
         service_id: vendor.serviceId,
         date_iso,
         time_start: "18:00",
