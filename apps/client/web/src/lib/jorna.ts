@@ -661,6 +661,12 @@ export function sendInquiry(vendorId: string, body: InquiryInput): Promise<Inqui
   return apiFetch<InquiryReply>(`/vendors/${vendorId}/inquiries`, { method: "POST", body });
 }
 
+/** One of the client's own bookings — a contract sent in the chat opens
+ *  by its booking id, and this carries its contract_token (#48). */
+export function getMyBooking(bookingId: string): Promise<{ booking_id: string; contract_token: string | null }> {
+  return apiFetch<{ booking_id: string; contract_token: string | null }>(`/bookings/${encodeURIComponent(bookingId)}`);
+}
+
 export function askVendor(
   vendorId: string,
   content: string,

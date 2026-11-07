@@ -11,13 +11,14 @@
 //   as a proposal. Save draft keeps their work on the server.
 
 import { useMemo, useState } from "react";
-import { Field } from "@jorna/shared/components/ui";
-import { fillGuestBookingDetails, proposeGuestChanges, saveGuestDraft, withdrawGuestProposal } from "@/lib/jorna";
-import { fromContract, proposalChanges } from "@jorna/shared/lib/contractDraft";
-import { termsOf } from "@jorna/shared/lib/contractDiff";
-import { draftToSave, proposalProblems, roundOf } from "@jorna/shared/lib/negotiation";
-import type { GuestBooking, ProposalHistory } from "@/lib/types";
-import { NegotiationWorkspace } from "@jorna/shared/components/negotiation/NegotiationWorkspace";
+import { Field } from "../ui";
+import { fillGuestBookingDetails, proposeGuestChanges, saveGuestDraft, withdrawGuestProposal } from "../../lib/guestBooking";
+import { fromContract, proposalChanges } from "../../lib/contractDraft";
+import { termsOf } from "../../lib/contractDiff";
+import { draftToSave, proposalProblems, roundOf } from "../../lib/negotiation";
+import type { GuestBooking } from "../../lib/guestBooking";
+import type { ProposalHistory } from "../../lib/contractTypes";
+import { NegotiationWorkspace } from "./NegotiationWorkspace";
 
 export function ClientNegotiation({
   token,

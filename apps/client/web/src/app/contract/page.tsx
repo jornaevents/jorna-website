@@ -1,18 +1,17 @@
 "use client";
 
-// A contract, read in this app: what was agreed, what's been paid, and the
-// signature. Signing still happens on jornaevents.com's no-login page — the
-// one page every client signs on, guest or account (backend DECISIONS.md
-// #17) — so an unsigned contract here just points there.
-//
-// Opened by the contract's token, the same credential its link carries;
-// the plan passes it from the booking (contractViewPath).
+// A contract in this app: what was agreed, what's been paid, and the
+// signature — and, with ?sign=1 or ?propose=1, the review → changes → sign
+// steps themselves (the shared ContractLink, in its in-app form). Contracts
+// arrive in the chat (backend DECISIONS #48) and open here by their booking
+// (?id=); the plan opens them by token (?t=, contractViewPath).
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
-import { getContract, markInstallmentSent } from "@/lib/jorna";
+import { getContract, getMyBooking, markInstallmentSent } from "@/lib/jorna";
+import { ContractLink } from "@jorna/shared/components/contract-link/ContractLink";
 import {
   bookingStage,
   centsMoney,
@@ -166,7 +165,59 @@ function Terms({ c }: { c: Contract }) {
 }
 
 function ContractInner() {
-  const token = useSearchParams().get("t") ?? "";
+  const params = useSearchParams();
+  const bookingId = params.get("id");
+  const signing = params.get("sign") === "1";
+  const proposing = params.get("propose") === "1";
+  // By booking (a contract card in the chat), the token comes from the
+  // client's own booking; kept with the id it was read for.
+  const [byBooking, setByBooking] = useState<{ id: string; token: string | null; error: string | null } | null>(null);
+  useEffect(() => {
+    if (!bookingId) return;
+    let cancelled = false;
+    getMyBooking(bookingId)
+      .then((b) => !cancelled && setByBooking({ id: bookingId, token: b.contract_token, error: null }))
+      .catch(
+        (err) =>
+          !cancelled &&
+          setByBooking({
+            id: bookingId,
+            token: null,
+            error: err instanceof ApiError ? err.message : "Couldn't load this contract.",
+          }),
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+  const loaded = byBooking && byBooking.id === bookingId ? byBooking : null;
+  const token = bookingId ? (loaded?.token ?? "") : (params.get("t") ?? "");
+
+  if (bookingId && !loaded) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (bookingId && !token) {
+    return (
+      <div className="mx-auto w-[min(560px,100%-2rem)] py-20 text-center">
+        <p className="text-ink-soft">{loaded?.error ?? "There's no contract on this booking yet."}</p>
+        <Link href="/messages" className="mt-4 inline-block text-sm font-semibold text-gold hover:underline">
+          Back to messages
+        </Link>
+      </div>
+    );
+  }
+  if (token && (signing || proposing)) {
+    return (
+      <div className="mx-auto w-[min(820px,100%-2rem)] py-6">
+        <Link href={`/contract?t=${encodeURIComponent(token)}`} className="text-sm text-ink-soft hover:text-ink">
+          ← The contract
+        </Link>
+        <ContractLink token={token} propose={proposing} inApp />
+      </div>
+    );
+  }
+  return <ContractRead token={token} />;
+}
+
+function ContractRead({ token }: { token: string }) {
   const [contract, setContract] = useState<Contract | null>(null);
   const [error, setError] = useState<string | null>(token ? null : "This link is missing its contract.");
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -279,23 +330,19 @@ function ContractInner() {
             {/* The signing page is on the vendor site; see the note at the top. */}
             <div className="flex flex-wrap items-center gap-2">
               {c.proposal_status !== "open" ? (
-                <a
+                <Link
                   href={contractProposeUrl(token)}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="inline-flex items-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:border-gold"
                 >
                   Propose changes
-                </a>
+                </Link>
               ) : null}
-              <a
+              <Link
                 href={contractSignUrl(token)}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
               >
                 Review &amp; sign
-              </a>
+              </Link>
             </div>
           </div>
         ) : null}

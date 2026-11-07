@@ -221,9 +221,10 @@ test.describe("bundle detail (/bundle)", () => {
     await page.goto("bundle/?id=bundle-1");
     await expect(page.getByText(/accepted — review and sign the contract/)).toBeVisible();
     await expect(page.getByText("Contract to review")).toBeVisible();
+    // Signed in this app now (backend DECISIONS #48).
     await expect(page.getByRole("link", { name: "Review & sign" })).toHaveAttribute(
       "href",
-      "https://jornaevents.com/app/booking-link/?t=tok-1",
+      /\/contract\/?\?t=tok-1&sign=1$/,
     );
     // Nothing is owed until it's signed.
     await expect(page.getByRole("button", { name: "I sent payment" })).toHaveCount(0);
@@ -358,7 +359,7 @@ test.describe("bundle detail (/bundle)", () => {
     // One "Propose changes": not on the card whose proposal is still open.
     const propose = page.getByRole("link", { name: "Propose changes" });
     await expect(propose).toHaveCount(1);
-    await expect(propose).toHaveAttribute("href", "https://jornaevents.com/app/booking-link/?t=tok-new&propose=1");
+    await expect(propose).toHaveAttribute("href", /\/contract\/?\?t=tok-new&propose=1$/);
     await expect(page.getByRole("link", { name: "Review & sign" })).toHaveCount(2);
   });
 

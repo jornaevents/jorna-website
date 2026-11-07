@@ -5,7 +5,7 @@
 // except in the vendor's preview, where nothing is saved and every step is
 // there to look at.
 
-import type { LinkStep } from "@/lib/linkSteps";
+import type { LinkStep } from "../../lib/linkSteps";
 
 export function Stepper({
   steps,

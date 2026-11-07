@@ -355,3 +355,11 @@ Backend DECISIONS #45 reverses "no account" above.
 - **Where and which package (2026-11-06, backend #46):** two optional fields — "Where's the event?" (free text, venue or just the city) and a Package dropdown of the vendor's packages that defaults to "Not sure yet". No packages loaded, no dropdown. Both are kept in the draft through sign-up.
 - **A package and a date are required (2026-11-06, backend #47).** The Package dropdown has no "Not sure yet": it starts on "Choose a package", or is already set when the vendor has only one. "Event date" lost its "leave it blank" hint. A vendor with no packages listed can't be sent one here; the form says so and Send is off. The rest stays optional.
 
+## Decision: contracts arrive in the chat and are signed here (2026-11-06)
+
+Backend DECISIONS #48: a vendor sends a contract in the client's chat, and the client reviews, asks for changes and signs **in this app**, not on jornaevents.com's link page. The e-sign legal review has cleared.
+
+- **The chat shows a contract card** (`kind: "contract"`, `meta.booking_id`) with Review & sign → `/contract?id=<booking>&sign=1`.
+- **`/contract`** opens by booking (`?id=`, the token comes from the client's own booking) or by token (`?t=`, the plan). `?sign=1` / `?propose=1` show the steps themselves: the shared `ContractLink` (packages/shared/components/contract-link), the same component the vendor app's link page uses, with `inApp` — no email step (it's the account's) and no link message box (the chat is here). Same email code, consent and signed record.
+- The plan's **Review & sign / Propose changes** open those in-app routes instead of a new tab on another site.
+

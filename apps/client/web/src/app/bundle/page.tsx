@@ -860,25 +860,21 @@ function BookingRow({
               : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Plain anchors: it's a different site, opened in a new tab. */}
+            {/* In this app (backend DECISIONS #48). */}
             {booking.proposal_status !== "open" ? (
-              <a
+              <Link
                 href={contractProposeUrl(booking.contract_token)}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:border-gold"
               >
                 Propose changes
-              </a>
+              </Link>
             ) : null}
-            <a
+            <Link
               href={contractSignUrl(booking.contract_token)}
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
             >
               Review &amp; sign
-            </a>
+            </Link>
           </div>
         </div>
       ) : signStep === "expired" ? (

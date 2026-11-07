@@ -5,10 +5,7 @@
 
 import type { AttachedDocument, AttachedDocumentKind } from "./types";
 
-export const KIND_LABEL: Record<AttachedDocumentKind, string> = {
-  addendum: "Service addendum",
-  cancellation: "Cancellation agreement",
-};
+export { KIND_LABEL } from "@jorna/shared/lib/guestBooking";
 
 export interface SectionDraft {
   key: string;

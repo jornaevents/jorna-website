@@ -17,6 +17,7 @@ import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { signInUrl } from "@/lib/vendorSite";
+import { contractInChatPath } from "@/lib/contract";
 
 function clockTime(iso: string): string {
   const t = Date.parse(iso.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
@@ -148,7 +149,7 @@ function ConversationInner() {
   // arrive here as offer and system lines, and each can move the label in
   // the header, so a new one re-reads it.
   const lastStep =
-    messages.findLast((m) => m.kind === "offer" || m.kind === "system")?.message_id ?? null;
+    messages.findLast((m) => m.kind === "offer" || m.kind === "system" || m.kind === "contract")?.message_id ?? null;
 
   // Who this is with, and what it's about.
   useEffect(() => {
@@ -314,6 +315,8 @@ function ConversationInner() {
                   ) : null}
                   {m.kind === "offer" ? (
                     <OfferCard message={m} mine={mine} conversation={meta} />
+                  ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
+                    <ContractCard text={m.content} bookingId={m.meta.booking_id} />
                   ) : (
                     <div
                       className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${
@@ -390,5 +393,22 @@ export default function ConversationPage() {
     <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
       <ConversationInner />
     </Suspense>
+  );
+}
+
+/** A contract sent in the chat (backend DECISIONS #48): opens in this app,
+ *  at its review-and-sign steps. */
+function ContractCard({ text, bookingId }: { text: string; bookingId: string }) {
+  return (
+    <div className="w-[min(320px,85vw)] rounded-2xl border border-card-edge bg-card p-4">
+      <p className="eyebrow">Contract</p>
+      <p className="mt-1.5 text-sm text-ink">{text}</p>
+      <Link
+        href={contractInChatPath(bookingId)}
+        className="mt-3 inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
+      >
+        Review &amp; sign
+      </Link>
+    </div>
   );
 }

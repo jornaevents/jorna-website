@@ -10,10 +10,10 @@
 // doesn't load it — that would mark the client's messages read for them.
 
 import { useEffect, useRef, useState } from "react";
-import { ApiError } from "@jorna/shared/lib/api";
-import { Button, Card } from "@jorna/shared/components/ui";
-import { getLinkMessages, sendLinkMessage } from "@/lib/jorna";
-import type { LinkThread } from "@/lib/types";
+import { ApiError } from "../../lib/api";
+import { Button, Card } from "../ui";
+import { getLinkMessages, sendLinkMessage } from "../../lib/guestBooking";
+import type { LinkThread } from "../../lib/guestBooking";
 
 const POLL_MS = 15_000;
 
