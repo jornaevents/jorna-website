@@ -102,8 +102,8 @@ describe("utcToday", () => {
 });
 
 describe("contractSignUrl", () => {
-  it("points at the vendor site's signing page", () => {
-    expect(contractSignUrl("a b")).toBe("https://jornaevents.com/app/booking-link/?t=a%20b");
+  it("opens the signing steps in this app (backend DECISIONS #48)", () => {
+    expect(contractSignUrl("a b")).toBe("/contract?t=a%20b&sign=1");
   });
 });
 
