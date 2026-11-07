@@ -215,6 +215,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [titleEdited, setTitleEdited] = useState(false);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   /** The template this started from — what Update / Save writes back to. */
   const [startedFrom, setStartedFrom] = useState<TemplateChoice | null>(null);
@@ -469,6 +470,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const baseTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
   const client = (request?.client_name || draft.clientName).trim();
   const defaultTitle = client ? `${client} — ${baseTitle}` : baseTitle;
+  // The generated title is real text in the field, not a placeholder, so the
+  // vendor can edit it in place. It follows the package and client until
+  // they type; after that an emptied field stays empty (and saves as the
+  // generated title).
+  const shownTitle = titleEdited || draft.title ? draft.title : defaultTitle;
   const businessName = vendorName(vendor, "Your business");
 
   /** This block's problems. A terms problem belongs only to the section it's
@@ -971,11 +977,14 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-gold">{businessName}</p>
           <input
             aria-label="Agreement title"
-            value={draft.title}
+            value={shownTitle}
             placeholder={defaultTitle}
-            onChange={(e) => set({ title: e.target.value })}
+            onChange={(e) => {
+              setTitleEdited(true);
+              set({ title: e.target.value });
+            }}
             maxLength={200}
-            className="serif mt-2 w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl sm:text-3xl text-ink outline-none placeholder:text-ink focus:border-gold"
+            className="serif mt-2 w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl sm:text-3xl text-ink outline-none placeholder:text-ink-faint focus:border-gold"
           />
           {isTemplate ? null : (
             <p className="mt-1 text-sm text-ink-faint">
