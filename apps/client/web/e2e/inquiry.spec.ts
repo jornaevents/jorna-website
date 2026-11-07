@@ -3,15 +3,21 @@ import { loginAs } from "./support/fixtures";
 import { mockTokenPair, mockUser, mockVendorDetail } from "./support/mock-data";
 import type { ApiMock } from "./support/api-mock";
 
-// The inquiry form (backend DECISIONS #32, #45): the link a vendor shares,
-// /inquire, and "Send an inquiry" on their page. Anyone can fill it in;
-// sending needs a client account with a confirmed email, and what was typed
-// waits through sign-up.
+// The inquiry form (backend DECISIONS #32, #45, #47): the link a vendor
+// shares, /inquire, and "Send an inquiry" on their page. Anyone can fill it
+// in; sending needs a client account with a confirmed email, a package and a
+// date, and what was typed waits through sign-up.
 const VENDOR = mockVendorDetail({ user_id: "vendor-user-1", f_name: "Arjun", l_name: "Kapoor", location: "Edison, NJ", pfp_url: null });
 
-function mockVendor(api: ApiMock) {
+const PACKAGE = { service_id: "svc-1", name: "Sangeet coverage", vendor_id: "vendor-1", price: 2500, price_unit: "event" };
+
+/** The vendor and their packages — one by default, which the form picks for you. */
+function mockVendor(api: ApiMock, packages: unknown[] = [PACKAGE]) {
   api.get("/vendors/vendor-1", VENDOR);
+  api.get("/services", { items: packages, total: packages.length, limit: 50, offset: 0 });
 }
+
+const DATE = "2027-05-14";
 
 const SENT = { received: true, vendor_name: "Arjun Kapoor", conversation_id: "conv-1" };
 
@@ -27,6 +33,9 @@ test.describe("inquiry form", () => {
     await expect(page.getByLabel("Your name")).toHaveCount(0);
     await expect(page.getByLabel("Email")).toHaveCount(0);
     await expect(page.getByLabel("Phone (optional)")).toHaveValue("(732) 555-0100");
+    // Their only package is already picked.
+    await expect(page.getByLabel("Package")).toHaveValue("svc-1");
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByLabel("What's the event? (optional)").fill("Sangeet");
     await page.getByLabel("Rough guest count (optional)").fill("180");
     await page.getByLabel("Message (optional)").fill("Looking for sangeet coverage in Edison.");
@@ -37,35 +46,33 @@ test.describe("inquiry form", () => {
     const [sent] = api.requestsTo("POST", "/vendors/vendor-1/inquiries");
     expect(sent.body).toEqual({
       phone: "(732) 555-0100",
-      event_date_iso: null,
+      event_date_iso: DATE,
       event_type: "Sangeet",
       event_location: null,
-      service_id: null,
+      service_id: "svc-1",
       guest_count: 180,
       note: "Looking for sangeet coverage in Edison.",
       website: "",
     });
   });
 
-  test("it can say where the event is and which package, or not sure yet", async ({ page, api }) => {
+  test("with several packages one has to be picked, and a date given; there's no not sure yet", async ({ page, api }) => {
     await loginAs(page, api, mockUser({ email_verified: true }));
-    mockVendor(api);
-    api.get("/services", {
-      items: [
-        { service_id: "svc-1", name: "Sangeet coverage", vendor_id: "vendor-1", price: 2500, price_unit: "event" },
-        { service_id: "svc-2", name: "Full wedding day", vendor_id: "vendor-1", price: 6000, price_unit: "event" },
-      ],
-      total: 2,
-      limit: 50,
-      offset: 0,
-    });
+    mockVendor(api, [PACKAGE, { ...PACKAGE, service_id: "svc-2", name: "Full wedding day" }]);
     api.post("/vendors/vendor-1/inquiries", SENT);
 
     await page.goto("inquire/?vendor=vendor-1");
-    const pick = page.getByLabel("Package (optional)");
+    const pick = page.getByLabel("Package");
+    await expect(pick.locator("option")).toHaveText(["Choose a package", "Sangeet coverage", "Full wedding day"]);
     await expect(pick).toHaveValue("");
-    await expect(pick.locator("option")).toHaveText(["Not sure yet", "Sangeet coverage", "Full wedding day"]);
+
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+    await expect(page.getByText("Pick the package you're asking about")).toBeVisible();
+    await expect(page.getByText("Add your event date")).toBeVisible();
+    expect(api.requestsTo("POST", "/vendors/vendor-1/inquiries")).toHaveLength(0);
+
     await pick.selectOption({ label: "Full wedding day" });
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByLabel("Where's the event? (optional)").fill("Oak Tree Manor, Edison");
     await page.getByRole("button", { name: "Send inquiry" }).click();
 
@@ -73,7 +80,17 @@ test.describe("inquiry form", () => {
     expect(api.requestsTo("POST", "/vendors/vendor-1/inquiries")[0].body).toMatchObject({
       event_location: "Oak Tree Manor, Edison",
       service_id: "svc-2",
+      event_date_iso: DATE,
     });
+  });
+
+  test("a vendor with no packages listed can't be sent one here", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: true }));
+    mockVendor(api, []);
+
+    await page.goto("inquire/?vendor=vendor-1");
+    await expect(page.getByText("Arjun Kapoor hasn't listed any packages yet")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send inquiry" })).toBeDisabled();
   });
 
   test("signed out, it's kept through sign-up and the code, then sent from the same form", async ({ page, api }) => {
@@ -86,6 +103,7 @@ test.describe("inquiry form", () => {
     api.post("/vendors/vendor-1/inquiries", SENT);
 
     await page.goto("inquire/?vendor=vendor-1");
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByLabel("What's the event? (optional)").fill("Sangeet");
     await page.getByLabel("Message (optional)").fill("Looking for sangeet coverage in Edison.");
     await page.getByRole("button", { name: "Create an account to send" }).click();
@@ -102,6 +120,7 @@ test.describe("inquiry form", () => {
     await page.getByRole("button", { name: "Confirm email" }).click();
 
     await expect(page).toHaveURL(/\/client\/inquire\/?\?vendor=vendor-1$/);
+    await expect(page.getByLabel("Event date")).toHaveValue(DATE);
     await expect(page.getByLabel("What's the event? (optional)")).toHaveValue("Sangeet");
     await expect(page.getByLabel("Message (optional)")).toHaveValue("Looking for sangeet coverage in Edison.");
     // Nothing went out on its own.
@@ -111,6 +130,8 @@ test.describe("inquiry form", () => {
     await expect(page.getByRole("status")).toContainText("will reply in your messages");
     expect(api.requestsTo("POST", "/vendors/vendor-1/inquiries")[0].body).toMatchObject({
       event_type: "Sangeet",
+      event_date_iso: DATE,
+      service_id: "svc-1",
       note: "Looking for sangeet coverage in Edison.",
     });
   });
@@ -121,6 +142,7 @@ test.describe("inquiry form", () => {
     api.post("/auth/email/send-code", { email_verified: false, sent_to: "p••••@example.com", expires_in_minutes: 10 });
 
     await page.goto("inquire/?vendor=vendor-1");
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByLabel("Message (optional)").fill("Are you free in March?");
     await page.getByRole("button", { name: "Send inquiry" }).click();
 
@@ -133,6 +155,7 @@ test.describe("inquiry form", () => {
     mockVendor(api);
     api.error("POST", "/vendors/vendor-1/inquiries", 422, "That phone number doesn't look right — check it, or leave it blank");
     await page.goto("inquire/?vendor=vendor-1");
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByLabel("Phone (optional)").fill("12");
     await page.getByLabel("Message (optional)").fill("Hello");
     await page.getByRole("button", { name: "Send inquiry" }).click();
@@ -146,6 +169,7 @@ test.describe("inquiry form", () => {
     mockVendor(api);
     api.error("POST", "/vendors/vendor-1/inquiries", 429, "Arjun Kapoor has had a lot of inquiries today — try again tomorrow");
     await page.goto("inquire/?vendor=vendor-1");
+    await page.getByLabel("Event date").fill(DATE);
     await page.getByRole("button", { name: "Send inquiry" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "try again tomorrow" })).toBeVisible();
   });
@@ -159,7 +183,6 @@ test.describe("inquiry form", () => {
   test("on the vendor's page it opens in a sheet for a signed-in client", async ({ page, api }) => {
     await loginAs(page, api, mockUser({ email_verified: true }));
     mockVendor(api);
-    api.get("/services", { items: [], total: 0, limit: 50, offset: 0 });
     api.get("/reviews/vendor/vendor-1", { items: [], total: 0, limit: 50, offset: 0 });
     api.post("/vendors/vendor-1/inquiries", SENT);
 
@@ -167,6 +190,7 @@ test.describe("inquiry form", () => {
     await page.getByRole("button", { name: "Send an inquiry" }).click();
     const sheet = page.getByRole("dialog", { name: "Send Arjun Kapoor an inquiry" });
     await expect(sheet.getByText("Sending as Priya Shah")).toBeVisible();
+    await sheet.getByLabel("Event date").fill(DATE);
     await sheet.getByRole("button", { name: "Send inquiry" }).click();
     await expect(sheet.getByRole("status")).toContainText("will reply in your messages");
   });

@@ -84,10 +84,15 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   const [date, setDate] = useState(draft?.date ?? "");
   const [eventType, setEventType] = useState(draft?.eventType ?? "");
   const [location, setLocation] = useState(draft?.location ?? "");
-  // "" is "not sure yet".
+  // "" until they pick one; a package is required (backend DECISIONS #47).
   const [serviceId, setServiceId] = useState(draft?.serviceId ?? "");
   // The packages the client can see, kept with the vendor they're for.
-  const [packages, setPackages] = useState<{ vendorId: string; items: { id: string; name: string }[] } | null>(null);
+  // `failed`: the list didn't load, so there's nothing to pick from.
+  const [packages, setPackages] = useState<{
+    vendorId: string;
+    items: { id: string; name: string }[];
+    failed?: boolean;
+  } | null>(null);
   const [guests, setGuests] = useState(draft?.guests ?? "");
   const [note, setNote] = useState(draft?.note ?? "");
   // Hidden from people; a bot fills it in and the server quietly drops it.
@@ -103,19 +108,27 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
       .then((page) => {
         if (!cancelled) setPackages({ vendorId, items: page.items.map((p) => ({ id: p.service_id, name: p.name })) });
       })
-      // No list, no picker: the inquiry still goes, as "not sure yet".
-      .catch(() => !cancelled && setPackages({ vendorId, items: [] }));
+      .catch(() => !cancelled && setPackages({ vendorId, items: [], failed: true }));
     return () => {
       cancelled = true;
     };
   }, [vendorId]);
-  const packageOptions = packages?.vendorId === vendorId ? packages.items : [];
+  const loaded = packages?.vendorId === vendorId ? packages : null;
+  const packageOptions = loaded?.items ?? [];
+  // One package is the answer already.
+  const chosen = packageOptions.some((p) => p.id === serviceId)
+    ? serviceId
+    : packageOptions.length === 1
+      ? packageOptions[0].id
+      : "";
+  // Nothing to pick from: they can't send it here.
+  const noPackages = loaded != null && packageOptions.length === 0;
 
   const back = `/inquire?vendor=${encodeURIComponent(vendorId)}`;
 
   /** Keep what they typed and go do what sending needs first. */
   function leaveFor(path: string) {
-    saveDraft({ vendorId, phone, date, eventType, location, serviceId, guests, note });
+    saveDraft({ vendorId, phone, date, eventType, location, serviceId: chosen, guests, note });
     router.push(path);
   }
 
@@ -137,6 +150,8 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
 
   function check(): number | null | false {
     const found: Partial<Record<FieldKey, string>> = {};
+    if (!chosen) found.package = "Pick the package you're asking about";
+    if (!date) found.date = "Add your event date";
     const count = guests.trim() ? Number(guests) : null;
     if (count !== null && (!Number.isInteger(count) || count < 1 || count > 100_000)) {
       found.guests = "Guest count must be between 1 and 100,000";
@@ -166,7 +181,7 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
         event_date_iso: date || null,
         event_type: eventType.trim() || null,
         event_location: location.trim() || null,
-        service_id: packageOptions.some((p) => p.id === serviceId) ? serviceId : null,
+        service_id: chosen,
         guest_count: count,
         note: note.trim() || null,
         website,
@@ -212,11 +227,40 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
+          {noPackages ? (
+            <p className="rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-sm text-ink-soft">
+              {loaded?.failed
+                ? "Couldn't load their packages. Reload the page to try again."
+                : `${vendorName} hasn't listed any packages yet, so you can't send them an inquiry here.`}
+            </p>
+          ) : (
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-ink-soft">Package</span>
+              <select
+                value={chosen}
+                onChange={(e) => setServiceId(e.target.value)}
+                disabled={!loaded}
+                {...described("package")}
+                className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+              >
+                <option value="" disabled>
+                  {loaded ? "Choose a package" : "Loading packages…"}
+                </option>
+                {packageOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {err("package")}
+            </label>
+          )}
+        </div>
+        <div>
           <Field
-            label="Event date (optional)"
+            label="Event date"
             type="date"
             min={todayIso()}
-            hint="Leave it blank if you're not sure yet."
             value={date}
             onChange={(e) => setDate(e.target.value)}
             {...described("date")}
@@ -248,25 +292,6 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
             onChange={(e) => setLocation(e.target.value)}
           />
         </div>
-        {packageOptions.length > 0 ? (
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-ink-soft">Package (optional)</span>
-            <select
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              {...described("package")}
-              className="w-full rounded-xl border border-card-edge bg-ground-2 px-3.5 py-2.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
-            >
-              <option value="">Not sure yet</option>
-              {packageOptions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {err("package")}
-          </label>
-        ) : null}
         <div>
           <Field
             label="Rough guest count (optional)"
@@ -314,7 +339,7 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
 
       {user ? (
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy || noPackages}>
             {busy ? "Sending…" : "Send inquiry"}
           </Button>
           <p className="text-xs text-ink-faint">They&apos;ll reply in your messages on Jorna.</p>
@@ -322,7 +347,9 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
       ) : (
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit">Create an account to send</Button>
+            <Button type="submit" disabled={noPackages}>
+              Create an account to send
+            </Button>
             <Button type="button" variant="ghost" onClick={() => leaveFor(`/login?next=${encodeURIComponent(back)}`)}>
               I have an account
             </Button>
