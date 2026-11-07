@@ -118,6 +118,23 @@ test.describe("contract template picker", () => {
     await expect(page.getByLabel("Item", { exact: true })).toHaveValue("Full day");
   });
 
+  test("Undo after a template brings back the generated title, not a blank one", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockVendor(api);
+    await page.goto("contracts/new/?scratch=1");
+    const title = page.getByLabel("Agreement title");
+    await expect(title).toHaveValue(/ agreement$/);
+    await title.fill("");
+    await expect(title).toHaveValue("");
+
+    await page.getByRole("button", { name: "More" }).click();
+    await page.getByLabel("Start from a template").selectOption({ label: "Full day" });
+    await expect(title).toHaveValue("Full day agreement");
+    await page.getByRole("button", { name: "Undo" }).click();
+    // The emptied title was an edit to the draft Undo replaced.
+    await expect(title).toHaveValue(/ agreement$/);
+  });
+
   // ── Batch 4 of the contract fix plan (2026-10-26 staging test) ──
 
   test("an edited template says what's in it, and offers the package's price today", async ({ page, api }) => {
