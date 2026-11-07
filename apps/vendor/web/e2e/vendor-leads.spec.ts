@@ -293,17 +293,17 @@ test.describe("vendor leads (/leads)", () => {
     expect(api.requestsTo("PATCH", "/leads/l3")[0].body).toEqual({ status: "new", archived: false });
   });
 
-  test("New on Leads offers the inquiry form first, and no way to add a client by hand", async ({ page, api }) => {
+  test("New on Leads only shares the inquiry form: no contract, no adding a client by hand", async ({ page, api }) => {
     await loginAs(page, api);
     mockLeads(api);
 
     await page.goto("leads/");
     await page.getByRole("button", { name: "New", exact: true }).click();
     const items = page.getByRole("menu", { name: "New" }).getByRole("menuitem");
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(1);
     await expect(items.first()).toContainText("Share inquiry form");
-    // Contracts start from the client's chat (backend DECISIONS #48).
-    await expect(items.nth(1)).toHaveAttribute("href", /\/messages\/?$/);
+    // Contracts are sent from a lead or a chat, not from New (2026-11-07).
+    await expect(page.getByRole("menuitem", { name: /Send a contract/ })).toHaveCount(0);
     await expect(page.getByRole("menuitem", { name: /Add a client/ })).toHaveCount(0);
 
     await items.first().click();

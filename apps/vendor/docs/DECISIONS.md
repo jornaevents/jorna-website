@@ -1298,3 +1298,17 @@ client signs it in their own app.
 - **New → Send a contract** opens Messages: start from the client's chat.
 - Addenda and cancellation agreements still go by link for now.
 
+
+## Decision: contracts start only from a lead or a chat (2026-11-07)
+
+Follows the decision above. Every new contract goes to a client's chat, so the only ways to start one
+are a lead (Leads → Create contract) and Messages' right panel (Send contract).
+
+- **New** only shares the inquiry form, on every page. Its "Send a contract" item is gone.
+- **Contracts** has no template gallery and no "Start a contract from it". **Manage templates** moved
+  to the page header and edits templates only; addenda and cancellations still start there. The empty
+  list points to Messages and Leads.
+- **`/contracts/new` with no `lead`, `conversation` or `request`** shows "Send contracts from your
+  client's chat" with links to Messages and Leads, instead of the editor. Editing an existing contract
+  (`?edit=`) and template mode are unchanged.
+- A declined contract's **Start a new contract** keeps its lead (or failing that its chat).

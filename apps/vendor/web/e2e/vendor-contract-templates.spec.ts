@@ -31,7 +31,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       updated_at: "2030-01-01T00:00:00",
     });
 
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     await page.getByRole("button", { name: "Deposit + balance" }).click();
     await page.getByRole("button", { name: "+ Travel" }).click();
@@ -85,7 +85,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       total: 1,
     });
 
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByRole("button", { name: "More" }).click();
     await page.getByLabel("Start from a template").selectOption({ label: "Sangeet" });
     await expect(page.getByLabel("Amount ($)").first()).toHaveValue("600");
@@ -133,8 +133,8 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
 
     await page.goto("contracts/");
     // Saved templates are in Send a contract's list (backend DECISIONS #31);
-    // the gallery says so, and Manage templates opens the builder on one.
-    await expect(page.getByText(/1 saved template in/)).toBeVisible();
+    // Manage templates edits them, but starts no contract (2026-11-07).
+    await expect.poll(() => api.requestsTo("POST", "/contract-templates").length).toBe(1);
 
     const [upload] = api.requestsTo("POST", "/contract-templates");
     expect(upload.body).toMatchObject({
@@ -151,16 +151,17 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
     await page.getByRole("button", { name: "Manage templates" }).first().click();
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByText("Old terms")).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Start a contract from it" })).toHaveAttribute(
+    await expect(drawer.getByRole("link", { name: "Start a contract from it" })).toHaveCount(0);
+    await expect(drawer.getByRole("region", { name: "Saved templates" }).getByRole("link", { name: "Edit" })).toHaveAttribute(
       "href",
-      /contracts\/new\/?\?template=t-old/,
+      /contracts\/template\/?\?id=t-old/,
     );
     await drawer.getByRole("region", { name: "Saved templates" }).getByRole("button", { name: "Delete" }).click();
     await expect(drawer.getByText("Old terms")).toHaveCount(0);
     expect(api.requestsTo("DELETE", "/contract-templates/t-old")).toHaveLength(1);
   });
 
-  test("a gallery link opens the builder already on that template", async ({ page, api }) => {
+  test("a template in the link opens the builder already on it", async ({ page, api }) => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
     api.get("/vendors/me", vendor);
@@ -185,7 +186,7 @@ test.describe("contract templates (/contracts/new, /contracts)", () => {
       total: 1,
     });
 
-    await page.goto("contracts/new/?template=t-1");
+    await page.goto("contracts/new/?conversation=c1&template=t-1");
 
     await expect(page.getByText("Started from “Sangeet”.", { exact: false })).toBeVisible();
     await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Meals");

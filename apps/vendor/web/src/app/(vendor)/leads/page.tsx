@@ -522,8 +522,14 @@ function LeadDrawer({
             </>
           ) : null}
 
-          {isContract && status === "declined" ? (
-            <LinkPrimary href="/contracts/new">Start a new contract</LinkPrimary>
+          {/* A new contract stays tied to this lead, or failing that its chat:
+              contracts are only sent to a client account (DECISIONS #48). */}
+          {isContract && status === "declined" && (item.lead_id || item.conversation_id) ? (
+            <LinkPrimary
+              href={item.lead_id ? `/contracts/new?lead=${item.lead_id}` : `/contracts/new?conversation=${item.conversation_id}`}
+            >
+              Start a new contract
+            </LinkPrimary>
           ) : null}
         </div>
 
@@ -734,7 +740,7 @@ function LeadsInner() {
       <PageHeader
         {...HEADING}
         action={
-          <NewMenu first="inquiry" />
+          <NewMenu />
         }
       />
 

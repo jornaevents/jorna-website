@@ -150,7 +150,7 @@ test.describe("editing contract templates", () => {
       ...EDIT, ...route.request().postDataJSON(), template_id: "t-new",
     }));
 
-    await page.goto("contracts/new/?package=svc-full");
+    await page.goto("contracts/new/?conversation=c1&package=svc-full");
     await page.getByLabel(/^Price/).fill("2600");
     await page.getByRole("button", { name: "More" }).click();
     await page.getByRole("button", { name: "Update “Full day”" }).click();

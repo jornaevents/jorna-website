@@ -138,13 +138,12 @@ test.describe("vendor overview (/overview)", () => {
     await page.goto("overview/");
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Priya");
-    // One "New" button; on Overview the contract comes first.
+    // One "New" button, on every page: it shares the inquiry form. Contracts
+    // are sent from a lead or a chat (2026-11-07).
     await page.getByRole("button", { name: "New", exact: true }).click();
-    const first = page.getByRole("menu", { name: "New" }).getByRole("menuitem").first();
-    await expect(first).toContainText("Send a contract");
-    await expect(first).toHaveAttribute("href", /\/messages\/?$/);
-    // The inquiry form is on every page's New, not only Leads'.
-    await expect(page.getByRole("menu", { name: "New" }).getByRole("menuitem").nth(1)).toContainText("Share inquiry form");
+    const items = page.getByRole("menu", { name: "New" }).getByRole("menuitem");
+    await expect(items).toHaveCount(1);
+    await expect(items.first()).toContainText("Share inquiry form");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu", { name: "New" })).toHaveCount(0);
 

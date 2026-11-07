@@ -181,15 +181,15 @@ test.describe("contract editor checks", () => {
     await expect(page.getByLabel("Client name")).toHaveValue("Meera Iyer");
   });
 
-  test("with no client to send to, it can only be saved as a draft", async ({ page, api }) => {
+  test("with no lead or chat, a new contract points to Messages instead", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
+    // Contracts only go to a client's chat (2026-11-07), so nowhere starts one from scratch.
     await page.goto("contracts/new/?scratch=1");
-    const rail = page.getByRole("complementary", { name: "Send" });
-    await expect(rail.getByText(/Contracts go out in your client's chat/)).toBeVisible();
-    await expect(rail.getByRole("button", { name: "Send in chat" })).toHaveCount(0);
-    await expect(rail.getByRole("button", { name: "Copy link" })).toHaveCount(0);
-    await expect(rail.getByRole("button", { name: "Save as draft" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Send contracts from your client's chat" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Messages" })).toHaveAttribute("href", /\/messages\/?$/);
+    await expect(page.getByRole("link", { name: "Go to Leads" })).toHaveAttribute("href", /\/leads\/?$/);
+    await expect(page.getByRole("article", { name: "Contract document" })).toHaveCount(0);
   });
 
   test("a date another offer is holding can be sent anyway, with the client's name as the title", async ({ page, api }) => {
