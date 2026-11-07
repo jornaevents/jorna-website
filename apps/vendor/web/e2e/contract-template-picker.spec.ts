@@ -34,7 +34,7 @@ test.describe("contract template picker", () => {
         service_id: null, created_at: "2030-01-01", updated_at: "2030-01-01" },
     ]);
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?conversation=c1");
     await expect(page.getByRole("heading", { name: "Send a contract" })).toBeVisible();
     const packages = page.getByRole("region", { name: "Your packages" });
     await expect(packages.getByRole("button")).toHaveCount(2);
@@ -62,7 +62,7 @@ test.describe("contract template picker", () => {
         created_at: "2030-01-01", updated_at: "2030-01-01" },
     ]);
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?conversation=c1");
     const card = page.getByRole("region", { name: "Your packages" }).getByRole("button", { name: /Full day \(weddings\)/ });
     await expect(card).toContainText("Edited");
     // It's the package's, so it isn't listed again among the vendor's own.
@@ -75,7 +75,7 @@ test.describe("contract template picker", () => {
   test("scratch is the vendor's usual terms, no items", async ({ page, api }) => {
     await loginAs(page, api);
     mockVendor(api);
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?conversation=c1");
     await page.getByRole("button", { name: /Start from scratch/ }).click();
     await expect(page).toHaveURL(/scratch=1/);
     await expect(page.getByLabel("Item", { exact: true })).toHaveCount(0);
@@ -112,7 +112,7 @@ test.describe("contract template picker", () => {
   test("the editor's menu can switch to another package's template", async ({ page, api }) => {
     await loginAs(page, api);
     mockVendor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByRole("button", { name: "More" }).click();
     await page.getByLabel("Start from a template").selectOption({ label: "Full day" });
     await expect(page.getByLabel("Item", { exact: true })).toHaveValue("Full day");
@@ -121,7 +121,7 @@ test.describe("contract template picker", () => {
   test("Undo after a template brings back the generated title, not a blank one", async ({ page, api }) => {
     await loginAs(page, api);
     mockVendor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     const title = page.getByLabel("Agreement title");
     await expect(title).toHaveValue(/ agreement$/);
     await title.fill("");
@@ -148,7 +148,7 @@ test.describe("contract template picker", () => {
         created_at: "2030-01-01", updated_at: "2030-01-01" },
     ]);
 
-    await page.goto("contracts/new/");
+    await page.goto("contracts/new/?conversation=c1");
     await expect(page.getByRole("button", { name: /Full day · \$2,500\.00 · your edited template · 1 item · 2 payments · 1 section/ })).toBeVisible();
     await page.getByRole("button", { name: /Full day \(weddings\)/ }).click();
     await expect(page.getByText("Full day is now $2,500 — this template has $2,000.")).toBeVisible();
@@ -166,7 +166,7 @@ test.describe("contract template picker", () => {
     ]);
     api.get("/vendors/me", { ...vendor, default_overtime_rate_cents: 17500, negotiation_locks: ["prices"] });
 
-    await page.goto("contracts/new/?template=t-1");
+    await page.goto("contracts/new/?conversation=c1&template=t-1");
     await expect(page.getByLabel("Overtime rate ($/hr)")).toHaveValue("175");
     // The client can't ask to change prices, and the editor says so.
     await expect(page.getByText("· Fixed: prices")).toBeVisible();

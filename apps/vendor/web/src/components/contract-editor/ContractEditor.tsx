@@ -200,6 +200,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const packageId = params.get("package");
   const scratch = params.get("scratch") === "1";
   const choosing = !isTemplate && !editId && !templateId && !packageId && !scratch;
+  // A new contract goes to a client's chat, so it starts from a lead, a
+  // thread in Messages or a marketplace request — never from nowhere
+  // (2026-11-07, backend DECISIONS #48). Editing an existing one is fine.
+  const noClient = !isTemplate && !editId && !leadId && !conversationId && !requestId;
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -714,6 +718,24 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   if (authLoading || !user || loading) {
     return <ContractEditorSkeleton />;
+  }
+
+  if (noClient) {
+    return (
+      <div className="mx-auto w-[min(560px,100%-2rem)] py-20 text-center">
+        <h1 className="serif text-3xl text-maroon dark:text-gold">Send contracts from your client&apos;s chat</h1>
+        <p className="mt-3 text-ink-soft">
+          Every contract goes to a client on Jorna. Open their chat in Messages and use Send contract, or start one from
+          their lead.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <LinkButton href="/messages">Open Messages</LinkButton>
+          <LinkButton href="/leads" variant="ghost">
+            Go to Leads
+          </LinkButton>
+        </div>
+      </div>
+    );
   }
 
   if (loadError || !vendor) {

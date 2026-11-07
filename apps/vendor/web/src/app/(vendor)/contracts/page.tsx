@@ -9,13 +9,12 @@
 // comes from vendorPlan's contractStatus. Confirming a payment stays on
 // Bookings, which owns it.
 //
-// The gallery opens the contract editor (/contracts/new) on a package's
-// template, scratch on the vendor's usual terms, or one of their saved
-// templates (backend DECISIONS #31) — or the addendum and
-// cancellation editor (/contracts/document), which first asks which signed
-// booking the document is for.
+// New contracts aren't started here: they're sent from a lead or from
+// Messages' side panel, so every one goes to a client's chat (2026-11-07,
+// backend DECISIONS #48). Manage templates edits the templates those start
+// from, and starts addenda and cancellations (/contracts/document), which
+// first ask which signed booking the document is for.
 
-import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +35,7 @@ import { signerMatches } from "@/lib/signerName";
 import { guestBookingPreviewLink } from "@/lib/contractLink";
 import { deleteTemplate, duplicateTemplate, loadTemplates, renameTemplate } from "@/lib/contractTemplates";
 import { templateChoices, type TemplateChoice } from "@/lib/templateChoices";
-import { money, type TemplateBody } from "@jorna/shared/lib/contractDraft";
+import { type TemplateBody } from "@jorna/shared/lib/contractDraft";
 import { KIND_LABEL } from "@/lib/attachedDocuments";
 import { Button } from "@jorna/shared/components/ui";
 import { Drawer, FilterTabs, PageHeader, StatusPill, type Tone } from "@/components/vendor/ui";
@@ -146,57 +145,6 @@ function lastModified(b: VendorBooking): string | null {
   return stamps.length ? stamps.sort().at(-1)! : null;
 }
 
-// ── Gallery ──────────────────────────────────────────────────────────
-
-function DocPreview({ brand, title, foot }: { brand: string; title: string; foot: string }) {
-  return (
-    <span className="relative flex h-36 flex-col rounded-t-xl border-b border-card-edge bg-ground-2 px-4 pt-4">
-      <span className="text-[0.55rem] font-bold uppercase tracking-[0.2em] text-gold">{brand}</span>
-      <span className="serif mt-2 text-sm leading-tight text-ink">{title}</span>
-      <span className="mt-3 grid gap-1.5">
-        {[90, 75, 85, 60].map((w) => (
-          <i key={w} className="block h-1 rounded-full bg-ink/10" style={{ width: `${w}%` }} />
-        ))}
-      </span>
-      <span className="absolute bottom-3 right-4 border-t border-ink/20 pt-0.5 text-[0.55rem] text-ink-faint">{foot}</span>
-    </span>
-  );
-}
-
-function GalleryCard({
-  href,
-  disabled,
-  preview,
-  name,
-  note,
-}: {
-  href?: string;
-  disabled?: boolean;
-  preview: React.ReactNode;
-  name: string;
-  note: string;
-}) {
-  const body = (
-    <>
-      {preview}
-      <span className="grid px-4 py-3">
-        <strong className="truncate text-sm text-ink">{name}</strong>
-        <small className="truncate text-xs text-ink-faint">{note}</small>
-      </span>
-    </>
-  );
-  const cls = "flex flex-col overflow-hidden rounded-xl border border-card-edge bg-card text-left shadow-[var(--shadow-card)]";
-  return href && !disabled ? (
-    <Link href={href} className={`${cls} transition hover:-translate-y-0.5 hover:border-line`}>
-      {body}
-    </Link>
-  ) : (
-    <div aria-disabled="true" className={`${cls} opacity-60`}>
-      {body}
-    </div>
-  );
-}
-
 /** One template's row: what it is, how to use it, and how to change it. */
 function TemplateRow({
   name,
@@ -211,7 +159,7 @@ function TemplateRow({
 }: {
   name: string;
   tag?: string | null;
-  use: { href: string; label: string };
+  use?: { href: string; label: string };
   edit?: string;
   busy: boolean;
   onRename?: (name: string) => void;
@@ -256,9 +204,11 @@ function TemplateRow({
         </span>
       )}
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link href={use.href} className="text-xs font-semibold text-gold">
-          {use.label}
-        </Link>
+        {use ? (
+          <Link href={use.href} className="text-xs font-semibold text-gold">
+            {use.label}
+          </Link>
+        ) : null}
         {edit ? (
           <Link href={edit} className="text-xs font-semibold text-ink-soft hover:text-ink">
             Edit
@@ -331,7 +281,6 @@ function ManageTemplates({
                 key={p.id}
                 name={p.name}
                 tag={p.edited ? "Edited" : null}
-                use={{ href: `/contracts/new?package=${p.serviceId}`, label: "Start a contract from it" }}
                 edit={`/contracts/template?package=${p.serviceId}`}
                 busy={busy}
                 onRename={p.templateId ? (name) => onRename(p.templateId!, name) : undefined}
@@ -355,7 +304,6 @@ function ManageTemplates({
                 <TemplateRow
                   key={t.id}
                   name={t.name}
-                  use={{ href: `/contracts/new?template=${t.templateId}`, label: "Start a contract from it" }}
                   edit={`/contracts/template?id=${t.templateId}`}
                   busy={busy}
                   onRename={(name) => onRename(t.templateId!, name)}
@@ -535,11 +483,7 @@ export default function ContractsPage() {
     return <ContractsSkeleton />;
   }
 
-  const brand = vendorName(vendor, "Your business");
   const choices = templateChoices(services, templates);
-  // The first few packages here; every one is in Send a contract's list.
-  const shownPackages = choices.packages.slice(0, 2);
-  const morePackages = choices.packages.length - shownPackages.length;
   const count = (f: Filter) => (contracts ?? []).filter((b) => FILTER_TEST[f](contractStatus(b))).length;
 
   return (
@@ -548,6 +492,13 @@ export default function ContractsPage() {
         {...HEADING}
         action={
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openManaging}
+              className="inline-flex h-10 items-center rounded-[11px] border border-line px-4 text-sm font-semibold text-ink-soft transition hover:text-ink"
+            >
+              Manage templates
+            </button>
             <button
               type="button"
               onClick={() => setEditingDefaults(true)}
@@ -571,54 +522,6 @@ export default function ContractsPage() {
           }}
         />
       ) : null}
-
-      <section aria-label="Template gallery">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Template gallery</p>
-            <p className="serif mt-1 text-lg text-ink">Start a new contract</p>
-          </div>
-          <button type="button" onClick={openManaging} className="text-sm font-semibold text-gold">
-            Manage templates
-          </button>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-          <GalleryCard
-            href="/contracts/new?scratch=1"
-            preview={
-              <span className="grid h-36 place-items-center rounded-t-xl border-b border-dashed border-line bg-ground-2 text-3xl text-ink-faint">
-                +
-              </span>
-            }
-            name="Start from scratch"
-            note="Your usual terms, no items yet"
-          />
-          {shownPackages.map((p) => (
-            <GalleryCard
-              key={p.id}
-              href={`/contracts/new?package=${p.serviceId}`}
-              preview={<DocPreview brand={brand} title={p.body.title || `${p.name} agreement`} foot="Signature" />}
-              name={p.name}
-              note={p.edited ? "Your edited template" : `Package · ${money(Math.round((p.price ?? 0) * 100))}`}
-            />
-          ))}
-        </div>
-        {morePackages > 0 || choices.saved.length > 0 ? (
-          <p className="mt-2 text-xs text-ink-faint">
-            {[
-              morePackages > 0 ? `${morePackages} more package${morePackages === 1 ? "" : "s"}` : null,
-              choices.saved.length > 0 ? `${choices.saved.length} saved template${choices.saved.length === 1 ? "" : "s"}` : null,
-            ]
-              .filter(Boolean)
-              .join(" and ")}{" "}
-            in{" "}
-            <Link href="/contracts/new" className="font-semibold text-gold">
-              Send a contract
-            </Link>
-            .
-          </p>
-        ) : null}
-      </section>
 
       {notice ? <p className="mt-6 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">{notice}</p> : null}
       {error ? (
@@ -788,11 +691,16 @@ export default function ContractsPage() {
           contracts.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-ink-faint">
-                No contracts yet. Create one and send the link — your client fills in their details and signs.
+                No contracts yet. Send one from your client&apos;s chat in Messages, or from a lead.
               </p>
-              <Link href="/contracts/new" className="mt-3 inline-block text-sm font-semibold text-gold">
-                Create your first contract
-              </Link>
+              <span className="mt-3 inline-flex gap-4 text-sm font-semibold">
+                <Link href="/messages" className="text-gold">
+                  Open Messages
+                </Link>
+                <Link href="/leads" className="text-gold">
+                  Go to Leads
+                </Link>
+              </span>
             </div>
           ) : (
             <p className="py-12 text-center text-sm text-ink-faint">No contracts match.</p>

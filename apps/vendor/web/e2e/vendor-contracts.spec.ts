@@ -46,7 +46,10 @@ test.describe("vendor contracts list (/contracts)", () => {
     await page.goto("contracts/");
 
     await expect(page.getByRole("heading", { name: "Contracts", level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Start from scratch/ })).toHaveAttribute("href", /\/app\/contracts\/new\/?\?scratch=1$/);
+    // Contracts are sent from a lead or a chat, not started here (2026-11-07).
+    await expect(page.getByRole("region", { name: "Template gallery" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Start from scratch/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage templates" })).toBeVisible();
     await expect(page.getByText("Priya Shah")).not.toBeVisible();
 
     // Needs-you sorts ahead of a contract still with the client.
@@ -69,7 +72,7 @@ test.describe("vendor contracts list (/contracts)", () => {
     await expect(rows.first().getByRole("button", { name: "Copy link" })).toHaveCount(0);
   });
 
-  test("shows an empty state pointing at the new-contract form", async ({ page, api }) => {
+  test("shows an empty state pointing at Messages and Leads", async ({ page, api }) => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
     api.get("/vendors/me", vendor);
@@ -77,10 +80,9 @@ test.describe("vendor contracts list (/contracts)", () => {
 
     await page.goto("contracts/");
 
-    await expect(page.getByRole("link", { name: "Create your first contract" })).toHaveAttribute(
-      "href",
-      "/app/contracts/new/",
-    );
+    await expect(page.getByRole("link", { name: "Open Messages" })).toHaveAttribute("href", /\/messages\/?$/);
+    await expect(page.getByRole("link", { name: "Go to Leads" })).toHaveAttribute("href", /\/leads\/?$/);
+    await expect(page.getByRole("link", { name: "Create your first contract" })).toHaveCount(0);
   });
 
   // ── Batch 5 of the contract fix plan (2026-10-26 staging test) ──
