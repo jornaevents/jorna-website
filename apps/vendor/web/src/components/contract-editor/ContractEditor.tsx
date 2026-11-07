@@ -991,6 +991,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
               set({ title: e.target.value });
             }}
             maxLength={200}
+            // .serif's tight 1.14 line height (unlayered, so it beats the
+            // text-* sizes) is shorter than Avenir Next's descenders, and an
+            // input clips to its line box — "g" and "y" lost their tails.
+            style={{ lineHeight: 1.35 }}
             className="serif mt-2 w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl sm:text-3xl text-ink outline-none placeholder:text-ink-faint focus:border-gold"
           />
           {isTemplate ? null : (

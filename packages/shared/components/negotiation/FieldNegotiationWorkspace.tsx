@@ -306,7 +306,9 @@ export function FieldNegotiationWorkspace({
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-3.5">
         <div className="min-w-0">
           <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Round {state.round}</p>
-          <h2 className="serif truncate text-xl text-ink">{title}</h2>
+          {/* Truncating clips to the line box, which .serif's 1.14 makes shorter
+              than the descenders. */}
+          <h2 className="serif truncate text-xl text-ink" style={{ lineHeight: 1.35 }}>{title}</h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-panel px-3 py-1 text-xs font-semibold text-ink-soft">
