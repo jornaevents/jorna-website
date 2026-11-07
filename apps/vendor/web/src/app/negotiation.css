@@ -1,0 +1,89 @@
+.negotiation-portal {
+  --neg-paper: #fffdf9;
+  --neg-line: #e2d9cc;
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: auto;
+  color: #321c21;
+  background: #f4eee5;
+}
+
+.negotiation-portal-topbar {
+  min-height: 66px;
+  border-bottom: 1px solid var(--neg-line);
+  padding: 10px max(24px, calc((100vw - 1240px) / 2));
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(255, 253, 249, .96);
+}
+
+.negotiation-portal-brand { display: flex; align-items: center; gap: 10px; }
+.negotiation-portal-brand > span:first-child { width: 35px; height: 35px; border-radius: 10px; display: grid; place-items: center; color: #4a1725; background: #c8a34f; font-size: 19px; }
+.negotiation-portal-brand > span:last-child { display: grid; }
+.negotiation-portal-brand strong { font-family: var(--font-manrope), sans-serif; font-size: 14px; }
+.negotiation-portal-brand small { margin-top: 2px; color: #928a81; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.negotiation-portal-secure { margin: 0 0 0 auto; display: flex; align-items: center; gap: 8px; color: #8d867e; font-size: 12px; }
+.negotiation-portal-secure strong { color: #39705a; }
+.negotiation-portal-secure i, .negotiation-portal-summary > p i { width: 4px; height: 4px; border-radius: 50%; background: #b8afa5; }
+.negotiation-portal-back { border: 0; border-bottom: 1px solid #b8afa5; padding: 3px 0; color: #7d756d; background: transparent; font-size: 12px; font-weight: 600; }
+.negotiation-portal-main { width: min(1240px, calc(100% - 48px)); min-height: 0; margin: 0 auto; padding: 24px 0 20px; display: flex; flex-direction: column; }
+.negotiation-portal-intro { padding: 0 4px 18px; display: flex; justify-content: space-between; align-items: flex-end; gap: 30px; }
+.negotiation-portal-intro > div:first-child { max-width: 620px; }
+.negotiation-portal-intro h2 { margin-top: 5px; font-family: var(--font-manrope), sans-serif; font-size: 30px; font-weight: 700; letter-spacing: -.045em; }
+.negotiation-portal-intro > div:first-child > p:last-child { margin: 7px 0 0; color: #7f776f; font-size: 14px; line-height: 1.55; }
+.negotiation-portal-status { min-width: 330px; border: 1px solid var(--neg-line); border-radius: 12px; padding: 11px 12px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; background: var(--neg-paper); box-shadow: 0 6px 20px rgba(50,44,38,.04); }
+.negotiation-portal-status > span { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #8c6926; background: #f4e9bd; font-size: 18px; }
+.negotiation-portal-status > div { min-width: 0; display: grid; }
+.negotiation-portal-status small { color: #9a948c; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.negotiation-portal-status strong { margin-top: 3px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.negotiation-portal-status > b { border-radius: 20px; padding: 6px 9px; color: #7a263a; background: #f1e0e4; font-size: 11px; white-space: nowrap; }
+.negotiation-portal-summary { border: 1px solid var(--neg-line); border-radius: 12px 12px 0 0; padding: 11px 16px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr) minmax(120px, 1fr) auto; align-items: center; gap: 18px; background: var(--neg-paper); }
+.negotiation-portal-summary > div { min-width: 0; }
+.negotiation-portal-summary p { margin: 0; display: flex; align-items: center; gap: 7px; color: #81786f; font-size: 11px; white-space: nowrap; }
+.negotiation-portal-summary p i { width: 9px; height: 9px; background: #c75e58; }
+.negotiation-portal-summary p i.yours { margin-left: 5px; background: #c8a34f; }
+.negotiation-portal-workspace { flex: 1; min-height: 0; border: 1px solid var(--neg-line); border-top: 0; border-radius: 0 0 14px 14px; padding: 14px; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 14px; overflow: hidden; background: #eee7dd; }
+.negotiation-portal-document, .negotiation-portal-revise { min-height: 0; overflow-y: auto; border: 1px solid var(--neg-line); border-radius: 12px; background: var(--neg-paper); box-shadow: 0 6px 22px rgba(50,44,38,.045); }
+.negotiation-portal-toolbar { position: sticky; z-index: 1; top: 0; border-bottom: 1px solid var(--neg-line); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,253,249,.97); }
+.negotiation-portal-toolbar strong { font-size: 13px; }
+.negotiation-portal-toolbar button { border: 1px solid var(--neg-line); border-radius: 20px; padding: 6px 10px; color: #675d54; background: white; font-size: 11px; font-weight: 600; }
+.negotiation-portal-paper-wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+.negotiation-portal-paper-wrap article { min-height: 620px; border-radius: 2px; padding: 36px 40px; background: white; box-shadow: 0 5px 18px rgba(50,44,38,.13); }
+.negotiation-portal-revise { padding: 18px; }
+.negotiation-portal-footer { border-top: 1px solid var(--neg-line); padding: 10px max(24px, calc((100vw - 1240px) / 2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; color: #958d84; background: #ebe4da; }
+.negotiation-portal-footer > p { margin: 0; font-size: 12px; }
+.negotiation-portal-footer > div { flex: 1; }
+.negotiation-portal-footer > div > div { justify-content: flex-end; }
+
+@media (max-width: 1000px) {
+  .negotiation-portal-main { width: calc(100% - 32px); }
+  .negotiation-portal-intro { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .negotiation-portal-status { min-width: 0; width: 100%; }
+  .negotiation-portal-summary { grid-template-columns: 1fr 1fr; }
+  .negotiation-portal-summary > p { grid-column: 1 / -1; }
+  .negotiation-portal-workspace { grid-template-columns: 1fr; overflow: visible; }
+  .negotiation-portal-document, .negotiation-portal-revise { min-height: 0; overflow: visible; }
+  .negotiation-portal-paper-wrap article { min-height: 0; }
+}
+
+@media (max-width: 600px) {
+  .negotiation-portal-topbar { min-height: 58px; padding-inline: 14px; gap: 12px; }
+  .negotiation-portal-brand small, .negotiation-portal-secure { display: none; }
+  .negotiation-portal-back { margin-left: auto; font-size: 11px; }
+  .negotiation-portal-main { width: calc(100% - 20px); padding-top: 18px; }
+  .negotiation-portal-intro h2 { font-size: 25px; }
+  .negotiation-portal-summary { padding: 11px; gap: 12px; }
+  .negotiation-portal-summary > div:first-child { grid-column: 1 / -1; }
+  .negotiation-portal-summary p { white-space: normal; }
+  .negotiation-portal-workspace { padding: 8px; }
+  .negotiation-portal-paper-wrap { padding: 10px; }
+  .negotiation-portal-paper-wrap article { padding: 26px 20px; }
+  .negotiation-portal-revise { padding: 12px; }
+  .negotiation-portal-footer { padding: 12px 14px; align-items: stretch; flex-direction: column; }
+  .negotiation-portal-footer > div > div { align-items: stretch; flex-direction: column; }
+  .negotiation-portal-footer button { width: 100%; }
+}

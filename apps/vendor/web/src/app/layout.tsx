@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@jorna/shared/styles/globals.css";
+import "./negotiation.css";
 import { AuthProvider } from "@/lib/auth";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@jorna/shared/components/SiteFooter";

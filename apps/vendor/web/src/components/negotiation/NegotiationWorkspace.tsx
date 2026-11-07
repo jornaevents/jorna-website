@@ -622,42 +622,74 @@ export function NegotiationWorkspace({
     </div>
   );
 
-  return (
-    <section aria-label={`${other} contract negotiation`} className="flex h-full min-h-0 flex-col bg-ground">
-      <header className="flex flex-wrap items-start gap-3 border-b border-line-soft px-5 py-4 sm:px-6">
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close negotiation"
-            className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line text-lg text-ink-soft transition hover:text-ink"
-          >
-            ×
-          </button>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow">Contract negotiation</p>
-          <h2 className="serif truncate text-2xl text-ink">{other}</h2>
-          <p className="text-sm text-ink-faint">
-            {header.contractTitle} · Round {header.round}
-          </p>
+  if (perspective === "vendor") {
+    return (
+      <section aria-label={`${other} contract negotiation`} className="flex h-full min-h-0 flex-col bg-ground">
+        <header className="flex flex-wrap items-start gap-3 border-b border-line-soft px-5 py-4 sm:px-6">
+          {onClose ? <button type="button" onClick={onClose} aria-label="Close negotiation" className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line text-lg text-ink-soft transition hover:text-ink">×</button> : null}
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">Contract negotiation</p>
+            <h2 className="serif truncate text-2xl text-ink">{other}</h2>
+            <p className="text-sm text-ink-faint">{header.contractTitle} · Round {header.round}</p>
+          </div>
+          {headerActions ? <div className="flex shrink-0 gap-2 self-center">{headerActions}</div> : null}
+        </header>
+        <p className="border-b border-line-soft px-5 py-2 text-xs text-ink-soft sm:hidden">{changeCount}{header.lastEditedBy ? ` · last edited by ${header.lastEditedBy}` : ""}</p>
+        <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-4 border-b border-line-soft px-6 py-3 sm:grid">
+          <Summary label="Proposed changes" value={changeCount} wrap />
+          <Summary label="Last edited by" value={header.lastEditedBy ?? "—"} />
+          {header.updatedAt ? <Summary label="Updated" value={when(header.updatedAt)} /> : <span />}
+          <p className="flex items-center gap-2 text-xs text-ink-faint"><i className="inline-block size-2.5 rounded-full bg-rose-500/70" /> Changed by {other}<i className="ml-2 inline-block size-2.5 rounded-full bg-gold" /> Yours</p>
         </div>
-        {headerActions ? <div className="flex shrink-0 gap-2 self-center">{headerActions}</div> : null}
+        {error ? <p role="alert" className="mx-5 mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon sm:mx-6 dark:text-gold">{error}</p> : null}
+        {notice ? <p role="status" className="mx-5 mt-3 rounded-lg bg-ground-2 px-3 py-2 text-sm text-ink-soft sm:mx-6">✓ {notice}</p> : null}
+        <div className="flex gap-1 border-b border-line-soft px-5 pt-2 lg:hidden" role="tablist">
+          {(["revise", "contract"] as const).map((t) => <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`border-b-2 px-3 py-2 text-sm font-semibold ${tab === t ? "border-gold text-ink" : "border-transparent text-ink-faint"}`}>{t === "revise" ? "Review and revise" : "Contract preview"}</button>)}
+        </div>
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+          <div className={`min-h-0 overflow-y-auto bg-ground-2 px-5 py-5 sm:px-8 ${tab === "contract" ? "" : "hidden lg:block"}`}>
+            <div className="mx-auto max-w-[680px]">
+              <div className="mb-3 flex items-center justify-between"><span className="text-sm font-medium text-ink-soft">{showOriginal ? "Original agreement" : "Your version"}</span><button type="button" onClick={() => setShowOriginal((s) => !s)} className="rounded-full border border-card-edge px-3 py-1 text-xs font-semibold text-ink transition hover:border-gold">{showOriginal ? "View your version" : "View original"}</button></div>
+              <ContractPaper draft={showOriginal ? original : yours} markOf={markOf} vendorName={vendorName} clientName={clientName} title={header.contractTitle} />
+            </div>
+          </div>
+          <aside className={`min-h-0 overflow-y-auto border-line-soft px-5 py-5 lg:border-l sm:px-6 ${tab === "revise" ? "" : "hidden lg:block"}`}>{revisePanel}</aside>
+        </div>
+        <footer className="border-t border-line-soft bg-ground px-5 py-3 sm:px-6">{actions}</footer>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label={`${other} contract negotiation`} className="negotiation-portal">
+      <header className="negotiation-portal-topbar">
+        <div className="negotiation-portal-brand" aria-label="Jorna contract review">
+          <span aria-hidden="true">✦</span>
+          <span><strong>Jorna</strong><small>Contract review</small></span>
+        </div>
+        <p className="negotiation-portal-secure"><strong>Secure link</strong><i />Only you and {other} can view this agreement</p>
+        {onClose ? <button type="button" onClick={onClose} aria-label="Close negotiation" className="negotiation-portal-back">Back to contract</button> : null}
       </header>
 
-      <p className="border-b border-line-soft px-5 py-2 text-xs text-ink-soft sm:hidden">
-        {changeCount}
-        {header.lastEditedBy ? ` · last edited by ${header.lastEditedBy}` : ""}
-      </p>
-      <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-4 border-b border-line-soft px-6 py-3 sm:grid">
-        <Summary label="Proposed changes" value={changeCount} wrap />
-        <Summary label="Last edited by" value={header.lastEditedBy ?? "—"} />
-        {header.updatedAt ? <Summary label="Updated" value={when(header.updatedAt)} /> : <span />}
-        <p className="flex items-center gap-2 text-xs text-ink-faint">
-          <i className="inline-block size-2.5 rounded-full bg-rose-500/70" /> Changed by {other}
-          <i className="ml-2 inline-block size-2.5 rounded-full bg-gold" /> Yours
-        </p>
-      </div>
+      <div className="negotiation-portal-main">
+        <div className="negotiation-portal-intro">
+          <div>
+            <p className="eyebrow">Contract negotiation · Round {header.round}</p>
+            <h2>Review your agreement</h2>
+            <p>Review {other}&apos;s proposed changes, adjust any terms you&apos;d like to discuss, and send your response.</p>
+          </div>
+          <div className="negotiation-portal-status">
+            <span aria-hidden="true">▤</span><div><small>Agreement</small><strong>{header.contractTitle}</strong></div>
+            {headerActions ?? <b>{readOnly ? "Awaiting reply" : "Your review"}</b>}
+          </div>
+        </div>
+
+        <div className="negotiation-portal-summary">
+          <Summary label="Proposed changes" value={changeCount} wrap />
+          <Summary label="Sent by" value={header.lastEditedBy ?? other} />
+          <Summary label="Updated" value={header.updatedAt ? when(header.updatedAt) : "—"} />
+          <p><i /> Changes from {other} <i className="yours" /> Your edits</p>
+        </div>
 
       {error ? (
         <p role="alert" className="mx-5 mt-3 rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon sm:mx-6 dark:text-gold">
@@ -670,51 +702,23 @@ export function NegotiationWorkspace({
         </p>
       ) : null}
 
-      <div className="flex gap-1 border-b border-line-soft px-5 pt-2 lg:hidden" role="tablist">
-        {(["revise", "contract"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`border-b-2 px-3 py-2 text-sm font-semibold ${tab === t ? "border-gold text-ink" : "border-transparent text-ink-faint"}`}
-          >
-            {t === "revise" ? "Review and revise" : "Contract preview"}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
-        <div className={`min-h-0 overflow-y-auto bg-ground-2 px-5 py-5 sm:px-8 ${tab === "contract" ? "" : "hidden lg:block"}`}>
-          <div className="mx-auto max-w-[680px]">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-ink-soft">
-                {showOriginal ? "Original agreement" : "Your version"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowOriginal((s) => !s)}
-                className="rounded-full border border-card-edge px-3 py-1 text-xs font-semibold text-ink transition hover:border-gold"
-              >
-                {showOriginal ? "View your version" : "View original"}
-              </button>
+        <div className="negotiation-portal-workspace">
+          <div className="negotiation-portal-document">
+            <div className="negotiation-portal-toolbar"><strong>{showOriginal ? "Original agreement" : "Agreement preview"}</strong>
+              <button type="button" onClick={() => setShowOriginal((s) => !s)}>{showOriginal ? "View your version" : "View original"}</button>
             </div>
-            <ContractPaper
-              draft={showOriginal ? original : yours}
-              markOf={markOf}
-              vendorName={vendorName}
-              clientName={clientName}
-              title={header.contractTitle}
-            />
+            <div className="negotiation-portal-paper-wrap">
+              <ContractPaper draft={showOriginal ? original : yours} markOf={markOf} vendorName={vendorName} clientName={clientName} title={header.contractTitle} />
+            </div>
           </div>
+          <aside className="negotiation-portal-revise">{revisePanel}</aside>
         </div>
-        <aside className={`min-h-0 overflow-y-auto border-line-soft px-5 py-5 lg:border-l sm:px-6 ${tab === "revise" ? "" : "hidden lg:block"}`}>
-          {revisePanel}
-        </aside>
       </div>
 
-      <footer className="border-t border-line-soft bg-ground px-5 py-3 sm:px-6">{actions}</footer>
+      <footer className="negotiation-portal-footer">
+        <p>Questions about this agreement? Contact {vendorName} directly.</p>
+        <div>{actions}</div>
+      </footer>
     </section>
   );
 }
