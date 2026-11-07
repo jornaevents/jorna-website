@@ -32,6 +32,7 @@ import {
   createContract,
   getContract,
   getContractProposals,
+  getConversation,
   proposeFromRequest,
   updateContract,
 } from "@/lib/jorna";
@@ -73,7 +74,6 @@ import {
 import { deleteTemplate, saveEditedTemplate, saveTemplate, templatesOfKind } from "@/lib/contractTemplates";
 import { isCompleteLocation } from "@jorna/shared/lib/address";
 import { allChoices, packageChoiceId, templateChoices, type TemplateChoice } from "@/lib/templateChoices";
-import { guestBookingLink } from "@/lib/contractLink";
 import { clashWith } from "@/lib/dateClash";
 import {
   categoryLabel,
@@ -178,6 +178,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const router = useRouter();
   const params = useSearchParams();
   const leadId = params.get("lead");
+  // Send contract in Messages (backend DECISIONS #48): the thread, and so
+  // the client, this contract goes out to.
+  const conversationId = params.get("conversation");
   const editId = params.get("edit");
   // Revise (backend DECISIONS #23): the client's proposed changes, already
   // in, as the start of the vendor's next version.
@@ -212,7 +215,6 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [emailClient, setEmailClient] = useState(true);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   /** The template this started from — what Update / Save writes back to. */
   const [startedFrom, setStartedFrom] = useState<TemplateChoice | null>(null);
@@ -220,7 +222,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   /** Bumped to load again, after Reset to package. */
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [busy, setBusy] = useState<"send" | "copy" | "draft" | "save" | null>(null);
+  const [busy, setBusy] = useState<"send" | "draft" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Contract | null>(null);
   // Work in progress, kept in this browser per page (2026-10-26: leaving the
@@ -235,8 +237,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
   // A template's package prices that aren't the package's now (Batch 4).
   const [priceChanges, setPriceChanges] = useState<{ name: string; was: string; now: string }[]>([]);
-  const [heldClash, setHeldClash] = useState<{ message: string; mode: "send" | "copy" | "draft" | "save" } | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [heldClash, setHeldClash] = useState<{ message: string; mode: "send" | "draft" | "save" } | null>(null);
 
   // Whether the payment plan is still the one drafted for the vendor — see
   // usualSchedule. Any edit to the plan itself makes it theirs.
@@ -307,7 +308,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           return;
         }
         setVendor(mine);
-        const [svc, leads, tpl, existing, requests, proposals] = await Promise.all([
+        const [svc, leads, tpl, existing, requests, proposals, thread] = await Promise.all([
           myServices(mine.vendor_id).catch(() => null),
           leadId ? myLeads().catch(() => null) : Promise.resolve(null),
           contractTemplates().catch(() => [] as SavedContractTemplate[]),
@@ -318,6 +319,8 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           // a picked date would clash with.
           vendorBookings(mine.vendor_id).catch(() => null),
           editId && proposalId ? getContractProposals(editId).catch(() => null) : Promise.resolve(null),
+          // Send contract in Messages: who it's for, to fill in their name.
+          conversationId ? getConversation(conversationId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelled) return;
         // Private (hidden) packages are exactly what contracts are for;
@@ -370,6 +373,8 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           // venue check. The lead still shows what they wrote.
           if (lead.event_location && isCompleteLocation(lead.event_location)) start.location = lead.event_location;
         }
+        const other = thread?.members?.find((m) => m.user_id !== mine.user_id);
+        if (!lead && other?.name) start.clientName = other.name;
         const picked = packageId
           ? offered.find((c) => c.id === packageChoiceId(packageId))
           : templateId
@@ -406,7 +411,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     return () => {
       cancelled = true;
     };
-  }, [user, router, leadId, editId, proposalId, requestId, templateId, packageId, choosing, isTemplate, reloadKey]);
+  }, [user, router, leadId, conversationId, editId, proposalId, requestId, templateId, packageId, choosing, isTemplate, reloadKey]);
 
   // A template has no client or event yet; those are each contract's.
   const issues = useMemo(
@@ -632,16 +637,6 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   // ── Send / copy / save ──
 
-  async function copy(token: string) {
-    try {
-      await navigator.clipboard.writeText(guestBookingLink(token));
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      /* clipboard can be denied — the link is shown to select by hand */
-    }
-  }
-
   function forgetSaved() {
     dirty.current = false;
     try {
@@ -651,7 +646,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     }
   }
 
-  async function submit(mode: "send" | "copy" | "draft" | "save", allowHeld = false) {
+  async function submit(mode: "send" | "draft" | "save", allowHeld = false) {
     setHeldClash(null);
     if (mode !== "draft" && issues.length) {
       showProblems();
@@ -659,9 +654,6 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     }
     setBusy(mode);
     setError(null);
-    // Copying the link sends it too, just without the email — the hold
-    // starts and a lead moves to Negotiation either way (DECISIONS #20).
-    const email = mode === "send" && emailClient;
     try {
       const doc = { ...toDocument(draft), document_title: draft.title.trim() || (isTemplate ? null : defaultTitle) };
       const held = allowHeld ? { allow_held_clash: true } : {};
@@ -683,21 +675,19 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           cancellation_window_hours: doc.cancellation_window_hours,
           overtime_rate_cents: doc.overtime_rate_cents,
           hold_days: Number(draft.holdDays) > 0 ? Number(draft.holdDays) : null,
-          email_client: email,
         });
       } else {
         const input = {
           ...doc,
           draft: mode === "draft",
           hold_days: Number(draft.holdDays) > 0 ? Number(draft.holdDays) : null,
-          email_client: email && Boolean(doc.guest_email),
+          ...(conversationId ? { conversation_id: conversationId } : {}),
           ...held,
         };
         result = leadId ? await convertLead(leadId, input) : await createContract(input);
       }
       forgetSaved();
       setCreated(result);
-      if (mode === "copy") await copy(result.contract_token);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && /has this date held/.test(err.message)) {
         setHeldClash({ message: err.message, mode });
@@ -752,29 +742,24 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   }
 
   if (created) {
-    const link = guestBookingLink(created.contract_token);
     const isDraft = created.contract_status === "draft";
     // Only what the backend says actually happened (email_sent), never what
     // the vendor asked for.
-    const emailed = !isDraft && !linkCopied && created.email_sent === true;
-    const emailFailed = !isDraft && !linkCopied && created.email_sent === false;
+    const emailFailed = !isDraft && created.email_sent === false;
+    const who = created.guest_name || "your client";
     return (
       <div className="mx-auto w-[min(640px,100%-2rem)]">
         <div className="text-center">
           <p className="eyebrow">{isDraft ? "Draft saved" : "Contract sent"}</p>
           <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold">
-            {isDraft ? "Saved as a draft" : linkCopied ? "Link copied" : emailed ? "On its way" : "Send this link"}
+            {isDraft ? "Saved as a draft" : "Sent in your chat"}
           </h1>
           <p className="mt-3 text-ink-soft">
             {isDraft
-              ? "It isn't holding your date and the link won't open until you send it from Contracts."
-              : linkCopied
-                ? "Paste it wherever you talk to your client. They fill in their own details and sign — no account needed."
-                : emailed
-                  ? `We emailed the link to ${created.guest_email}. You can share it yourself too.`
-                  : emailFailed
-                    ? `We couldn't email ${created.guest_email ?? "your client"}. Copy the link below and send it yourself — your client fills in their details and signs, no account needed.`
-                    : "Your client opens it, fills in their own details, and signs — no account needed on their end."}
+              ? "It isn't holding your date until you send it."
+              : emailFailed
+                ? `It's in your chat with ${who}. We couldn't email them about it, so they'll see it next time they open Jorna.`
+                : `It's in your chat with ${who}, and we've emailed them to open it there. They review and sign in their Jorna account.`}
           </p>
           {!isDraft && created.hold_expires_at ? (
             <p className="mt-2 text-sm text-ink-faint">
@@ -789,12 +774,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
             </p>
           ) : null}
         </div>
-        {!isDraft ? (
-          <div className="mt-8 rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]">
-            <p className="break-all rounded-lg bg-ground-2 px-3 py-2.5 font-mono text-sm text-ink">{link}</p>
-            <Button className="mt-3 w-full" onClick={() => copy(created.contract_token)}>
-              {linkCopied ? "Copied!" : "Copy link"}
-            </Button>
+        {!isDraft && conversationId ? (
+          <div className="mt-6 flex justify-center">
+            <LinkButton href={`/messages?id=${conversationId}`}>Back to the chat</LinkButton>
           </div>
         ) : null}
         <div className="mt-6 flex flex-wrap justify-center gap-4">
@@ -839,7 +821,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     }
   }
 
-  const sendLabel = request ? "Accept & send contract" : "Send & hold date";
+  const sendLabel = request ? "Accept & send in chat" : "Send in chat";
+  // Contracts go out in the client's chat (backend DECISIONS #48), so a new
+  // one needs a client to send to: a request, a lead, or a thread.
+  const canSend = Boolean(request || leadId || conversationId);
   const holdDays = Number(draft.holdDays) > 0 ? Number(draft.holdDays) : vendor.contract_hold_days ?? 7;
   const holdDaysLabel = `${holdDays} day${holdDays === 1 ? "" : "s"}, or until the event if that's sooner`;
   const clientName = request?.client_name || draft.clientName || "Client";
@@ -847,8 +832,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     ? { label: busy === "save" ? "Saving…" : "Save template", run: () => void writeTemplate(templateName) }
     : editing
     ? { label: busy === "save" ? "Saving…" : revising ? "Send new version" : "Save changes", run: () => submit("save") }
-    : { label: busy === "send" ? "Sending…" : sendLabel, run: () => submit("send") };
-  const canEmail = request ? true : Boolean(draft.clientEmail.trim());
+    : canSend
+    ? { label: busy === "send" ? "Sending…" : sendLabel, run: () => submit("send") }
+    : { label: busy === "draft" ? "Saving…" : "Save as draft", run: () => submit("draft") };
 
   return (
     <div className="pb-24 lg:pb-0">
@@ -1121,22 +1107,21 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
               </Button>
             ) : (
               <div className="mt-4 grid gap-2">
-                {canEmail ? (
-                  <label className="flex items-center gap-2 text-sm text-ink-soft">
-                    <input type="checkbox" checked={emailClient} onChange={(e) => setEmailClient(e.target.checked)} />
-                    <span className="min-w-0 truncate">
-                      Email it to {request ? request.client_name || "your client" : draft.clientEmail.trim()}
-                    </span>
-                  </label>
+                {canSend ? (
+                  <>
+                    <Button disabled={busy !== null} onClick={() => submit("send")}>
+                      {busy === "send" ? "Sending…" : sendLabel}
+                    </Button>
+                    <p className="text-xs text-ink-faint">
+                      It goes to your chat with them, and we email them to open it there.
+                    </p>
+                  </>
                 ) : (
-                  <p className="text-xs text-ink-faint">No client email — copy the link and send it yourself.</p>
+                  <p className="text-xs text-ink-faint">
+                    Contracts go out in your client&apos;s chat. Start one from their conversation in Messages, or from
+                    their lead — or save this as a draft.
+                  </p>
                 )}
-                <Button disabled={busy !== null} onClick={() => submit("send")}>
-                  {busy === "send" ? "Sending…" : sendLabel}
-                </Button>
-                <Button variant="ghost" disabled={busy !== null} onClick={() => submit("copy")}>
-                  {busy === "copy" ? "Creating link…" : "Copy link"}
-                </Button>
                 {request ? null : (
                   <Button variant="quiet" disabled={busy !== null} onClick={() => submit("draft")}>
                     {busy === "draft" ? "Saving…" : "Save as draft"}

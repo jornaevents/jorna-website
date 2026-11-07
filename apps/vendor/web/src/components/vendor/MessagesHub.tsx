@@ -307,9 +307,34 @@ export function MessagesHub() {
     );
   }
 
+  // Contracts go out in the chat (backend DECISIONS #48): the panel offers
+  // the one already open with this client, or a new one for this thread.
+  const sendContractHref =
+    selected && relation && !relation.contractId && relation.kind !== "booking" && otherMember
+      ? relation.requestId
+        ? `/contracts/new?request=${relation.requestId}`
+        : `/contracts/new?conversation=${selected.conversation_id}${relation.leadId ? `&lead=${relation.leadId}` : ""}`
+      : null;
+
   const relationActions = (
     <>
-      {relation?.href ? (
+      {relation?.contractId && relation.kind !== "booking" ? (
+        <Link
+          href={`/contracts/view?id=${relation.contractId}`}
+          className="inline-flex items-center justify-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04]"
+        >
+          View contract
+        </Link>
+      ) : null}
+      {sendContractHref ? (
+        <Link
+          href={sendContractHref}
+          className="inline-flex items-center justify-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
+        >
+          Send contract
+        </Link>
+      ) : null}
+      {relation?.href && relation.linkLabel ? (
         <Link
           href={relation.href}
           className="inline-flex items-center justify-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04]"

@@ -30,10 +30,15 @@ export interface Relation {
   pkg: string | null;
   valueCents: number | null;
   contractId: string | null;
+  /** What Send contract starts from (backend DECISIONS #48): the open lead,
+   *  or the marketplace request, behind this thread. */
+  leadId: string | null;
+  requestId: string | null;
 }
 
 const NONE: Relation = {
-  kind: "none", label: null, href: null, linkLabel: null, date: null, venue: null, pkg: null, valueCents: null, contractId: null,
+  kind: "none", label: null, href: null, linkLabel: null, date: null, venue: null, pkg: null, valueCents: null,
+  contractId: null, leadId: null, requestId: null,
 };
 
 /** Plan group chats aren't part of Messages V1; they stay reachable by link. */
@@ -95,6 +100,8 @@ function fromBooking(b: VendorBooking, label: MessageLabel): Relation {
     pkg: b.service_name ?? null,
     valueCents: b.amount_cents ?? Math.round((b.price ?? 0) * 100),
     contractId: b.contract_token ? b.booking_id : null,
+    leadId: null,
+    requestId: null,
   };
 }
 
@@ -102,13 +109,17 @@ function fromItem(i: PipelineItem): Relation {
   return {
     kind: "lead",
     label: i.outcome ? "closed" : i.stage === "negotiation" ? "negotiation" : "inquiry",
+    // Which lead it is; the panel's button is Send or View contract, not a
+    // link here (backend DECISIONS #48), so there's no label.
     href: `/leads?open=${encodeURIComponent(i.id)}`,
-    linkLabel: "View lead",
+    linkLabel: null,
     date: i.event_date,
     venue: i.location,
     pkg: i.service_name,
     valueCents: i.estimated_value_cents,
     contractId: i.source === "contract" ? i.booking_id : null,
+    leadId: i.source === "lead" ? i.lead_id : null,
+    requestId: i.source === "request" ? i.booking_id : null,
   };
 }
 

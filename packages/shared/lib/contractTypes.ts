@@ -117,7 +117,10 @@ export interface ContractCreateInput {
   guest_count?: number | null;
   draft?: boolean;
   hold_days?: number | null;
+  /** Ignored by the backend now: contracts go out in the chat (#48). */
   email_client?: boolean;
+  /** The vendor's thread with the client it's for (backend DECISIONS #48). */
+  conversation_id?: string | null;
   /** Send over another unsigned offer's hold on the date (backend DECISIONS #37). */
   allow_held_clash?: boolean;
   deposit_percent?: number | null;

@@ -33,7 +33,7 @@ import {
 } from "@/lib/types";
 import { changesWaiting, contractNeedsVendor, contractStatus, type ContractStatus } from "@/lib/vendorPlan";
 import { signerMatches } from "@/lib/signerName";
-import { guestBookingLink, guestBookingPreviewLink } from "@/lib/contractLink";
+import { guestBookingPreviewLink } from "@/lib/contractLink";
 import { deleteTemplate, duplicateTemplate, loadTemplates, renameTemplate } from "@/lib/contractTemplates";
 import { templateChoices, type TemplateChoice } from "@/lib/templateChoices";
 import { money, type TemplateBody } from "@jorna/shared/lib/contractDraft";
@@ -434,7 +434,6 @@ export default function ContractsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmVoidId, setConfirmVoidId] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
   const [editingDefaults, setEditingDefaults] = useState(false);
@@ -488,17 +487,6 @@ export default function ContractsPage() {
 
   function replace(updated: VendorBooking) {
     setContracts((cs) => cs?.map((c) => (c.booking_id === updated.booking_id ? { ...c, ...updated } : c)) ?? cs);
-  }
-
-  async function copyLink(b: VendorBooking) {
-    if (!b.contract_token) return;
-    try {
-      await navigator.clipboard.writeText(guestBookingLink(b.contract_token));
-      setCopiedId(b.booking_id);
-      setTimeout(() => setCopiedId((id) => (id === b.booking_id ? null : id)), 2000);
-    } catch {
-      setError("Couldn't copy — open the contract and copy the link from there.");
-    }
   }
 
   async function act(b: VendorBooking, fn: () => Promise<VendorBooking | unknown>, done: string) {
@@ -746,17 +734,16 @@ export default function ContractsPage() {
                         type="button"
                         disabled={busyId === b.booking_id}
                         onClick={() =>
-                          act(b, () => sendContract(b.booking_id), s === "draft" ? "Sent — the date is held." : "Resent — the date is held again.")
+                          act(
+                            b,
+                            // In the client's chat (#48); a contract sent by link before that is resent by email.
+                            () => sendContract(b.booking_id, { emailClient: true }),
+                            s === "draft" ? "Sent in your chat — the date is held." : "Resent — the date is held again.",
+                          )
                         }
                         className="px-2 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
                       >
-                        {s === "draft" ? "Send" : "Resend & hold date"}
-                      </button>
-                    ) : null}
-                    {/* A draft's link doesn't open until it's sent (2026-10-26). */}
-                    {b.contract_token && s !== "cancelled" && s !== "declined" && s !== "draft" ? (
-                      <button type="button" onClick={() => copyLink(b)} className="px-2 py-1 text-xs font-semibold text-ink-soft hover:text-ink">
-                        {copiedId === b.booking_id ? "Copied!" : "Copy link"}
+                        {s === "draft" ? "Send in chat" : "Resend & hold date"}
                       </button>
                     ) : null}
                     {b.contract_token && s !== "draft" ? (

@@ -41,13 +41,13 @@ async function fillEvent(page: import("@playwright/test").Page, date: string) {
 }
 
 const send = (page: import("@playwright/test").Page) =>
-  page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send & hold date" }).click();
+  page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send in chat" }).click();
 
 test.describe("contract editor checks", () => {
   test("a payment counted back past today is flagged; one after the event is only noted", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, iso(250));
     const schedule = page.getByRole("article", { name: "Contract document" }).getByRole("region", { name: "Payment schedule" });
 
@@ -65,7 +65,7 @@ test.describe("contract editor checks", () => {
   test("a discount bigger than the items is the one problem, shown as a negative total", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, iso(60));
     await page.getByLabel("Discount ($)").fill("3000");
     await expect(page.getByTestId("rail-total")).toHaveText("−$500.00");
@@ -95,7 +95,7 @@ test.describe("contract editor checks", () => {
       limit: 100,
       offset: 0,
     });
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, taken);
     await expect(page.getByText(/You're already booked then: Asha Mehta/)).toBeVisible();
     await page.getByLabel("Start time").fill("08:00");
@@ -106,7 +106,7 @@ test.describe("contract editor checks", () => {
   test("Travel uses the vendor's own radius and leaves the rate to fill in", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api, { travel_radius_miles: 60 });
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, iso(60));
     await page.getByRole("button", { name: "+ Travel" }).click();
     await expect(page.getByLabel("Section text").last()).toHaveValue(/Travel within 60 miles is included\. .*\$___ per mile/);
@@ -117,7 +117,7 @@ test.describe("contract editor checks", () => {
   test("a hold out of range is said under the field instead of quietly becoming 7 days", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Hold the date for (days)").fill("-2");
     await expect(page.getByText("Hold the date for between 1 and 60 days.")).toBeVisible();
   });
@@ -125,7 +125,7 @@ test.describe("contract editor checks", () => {
   test("the package's included hours go into the contract", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Add a package").selectOption("svc-1");
     await expect(page.getByLabel("Add a package").locator("option", { hasText: "$2,500.00" })).toHaveCount(1);
     await expect(page.getByText(/5 hours included/).first()).toBeVisible();
@@ -146,7 +146,7 @@ test.describe("contract editor checks", () => {
   test("Three payments fits an event under two months away", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, iso(40));
     await page.getByRole("button", { name: "Three payments" }).click();
     await expect(page.getByText("Moved a payment so it falls before the event — check its date.")).toBeVisible();
@@ -157,7 +157,7 @@ test.describe("contract editor checks", () => {
   test("only terms sections move, and nothing goes below the signatures", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByRole("button", { name: "+ Meals" }).click();
     await page.getByRole("button", { name: "Signatures options" }).click();
     await expect(page.getByRole("menuitem", { name: /Move signatures/ })).toHaveCount(0);
@@ -172,13 +172,24 @@ test.describe("contract editor checks", () => {
   test("unsaved work is offered back after leaving the editor", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Client name").fill("Meera Iyer");
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await expect(page.getByText(/You have unsaved changes from/)).toBeVisible();
     await expect(page.getByLabel("Client name")).toHaveValue("");
     await page.getByRole("button", { name: "Restore them" }).click();
     await expect(page.getByLabel("Client name")).toHaveValue("Meera Iyer");
+  });
+
+  test("with no client to send to, it can only be saved as a draft", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    await page.goto("contracts/new/?scratch=1");
+    const rail = page.getByRole("complementary", { name: "Send" });
+    await expect(rail.getByText(/Contracts go out in your client's chat/)).toBeVisible();
+    await expect(rail.getByRole("button", { name: "Send in chat" })).toHaveCount(0);
+    await expect(rail.getByRole("button", { name: "Copy link" })).toHaveCount(0);
+    await expect(rail.getByRole("button", { name: "Save as draft" })).toBeVisible();
   });
 
   test("a date another offer is holding can be sent anyway, with the client's name as the title", async ({ page, api }) => {
@@ -197,13 +208,13 @@ test.describe("contract editor checks", () => {
       }
       return { booking_id: "c-1", contract_token: "tok-1", status: "approved", contract_status: "sent", hold_expires_at: "2030-05-08T12:00:00" };
     });
-    await page.goto("contracts/new/?scratch=1");
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
     await page.getByLabel("Client name").fill("Meera Iyer");
     await fillEvent(page, iso(90));
     await send(page);
     await expect(page.getByText(/Priya Sharma has this date held until Nov 2/)).toBeVisible();
     await page.getByRole("button", { name: "Send anyway" }).click();
-    await expect(page.getByRole("heading", { name: /Send this link|On its way/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sent in your chat" })).toBeVisible();
     const calls = api.requestsTo("POST", "/contracts");
     expect(calls[1].body).toMatchObject({ allow_held_clash: true, document_title: "Meera Iyer — Sangeet Night Coverage agreement" });
     expect(calls[0].body).not.toHaveProperty("allow_held_clash");

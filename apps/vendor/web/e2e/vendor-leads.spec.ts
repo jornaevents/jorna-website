@@ -134,29 +134,23 @@ test.describe("vendor leads (/leads)", () => {
     expect(api.requestsTo("PUT", "/bookings/b1/status")[0].body).toMatchObject({ status: "rejected" });
   });
 
-  test("copying a draft's link sends it, so it becomes a negotiation", async ({ page, api }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "clipboard", {
-        value: { writeText: (t: string) => ((window as unknown as { copied: string }).copied = t, Promise.resolve()) },
-      });
-    });
+  test("a draft is sent in the chat, and there's no link to copy", async ({ page, api }) => {
     await loginAs(page, api);
     mockLeads(api);
-    api.post("/contracts/d1/send", { booking_id: "d1", contract_status: "sent" });
+    api.post("/contracts/d1/send", { booking_id: "d1", contract_status: "sent", email_sent: true });
 
     await page.goto("leads/");
     await page.getByRole("button", { name: /Dev Patel/ }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Copy link" }).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByRole("button", { name: "Copy link" })).toHaveCount(0);
+    await expect(drawer.getByRole("button", { name: "Send by email" })).toHaveCount(0);
+    await drawer.getByRole("button", { name: "Send in chat" }).click();
 
-    await expect(page.getByText("Link copied — the date is now on hold for them.")).toBeVisible();
+    await expect(page.getByText("Sent in your chat — we emailed Dev Patel to open it there.")).toBeVisible();
     expect(api.requestsTo("POST", "/contracts/d1/send")).toHaveLength(1);
-    expect(await page.evaluate(() => (window as unknown as { copied: string }).copied)).toContain("booking-link?t=tok-d1");
   });
 
-  test("a sent contract's link is copied without resending", async ({ page, api }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() } });
-    });
+  test("a sent contract can be resent, but not copied as a link", async ({ page, api }) => {
     await loginAs(page, api);
     mockLeads(api);
 
@@ -167,10 +161,8 @@ test.describe("vendor leads (/leads)", () => {
     await page.getByRole("dialog", { name: "Contract negotiation" }).getByRole("button", { name: "Lead details" }).click();
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByRole("link", { name: "View contract" })).toBeVisible();
-    await drawer.getByRole("button", { name: "Copy link" }).click();
-
-    await expect(drawer.getByText("Link copied.")).toBeVisible();
-    expect(api.requestsTo("POST", "/contracts/c1/send")).toHaveLength(0);
+    await expect(drawer.getByRole("button", { name: "Resend" })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Copy link" })).toHaveCount(0);
   });
 
   test("a contract with proposed changes opens the negotiation, and the drawer leads back to it", async ({
@@ -310,7 +302,8 @@ test.describe("vendor leads (/leads)", () => {
     const items = page.getByRole("menu", { name: "New" }).getByRole("menuitem");
     await expect(items).toHaveCount(2);
     await expect(items.first()).toContainText("Share inquiry form");
-    await expect(items.nth(1)).toHaveAttribute("href", /\/contracts\/new\/?$/);
+    // Contracts start from the client's chat (backend DECISIONS #48).
+    await expect(items.nth(1)).toHaveAttribute("href", /\/messages\/?$/);
     await expect(page.getByRole("menuitem", { name: /Add a client/ })).toHaveCount(0);
 
     await items.first().click();

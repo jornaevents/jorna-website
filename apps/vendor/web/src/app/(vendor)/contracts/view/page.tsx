@@ -32,8 +32,7 @@ import { downloadContractPdf, downloadDocumentPdf } from "@/lib/download";
 import { describeDue, describeWhen, fromContract, money } from "@jorna/shared/lib/contractDraft";
 import { ContractPaper } from "@jorna/shared/components/negotiation/ContractPaper";
 import {
-  emailNotice,
-  guestBookingLink,
+  sendNotice,
   guestBookingPreviewLink,
   guestDocumentLink,
   guestDocumentPreviewLink,
@@ -90,9 +89,7 @@ function ContractViewInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [confirmVoid, setConfirmVoid] = useState(false);
-  const [emailOnSend, setEmailOnSend] = useState(true);
   /** What signing or declining just did (the countersign panel). */
   const [done, setDone] = useState<string | null>(null);
   /** The send went through but the client's email didn't (backend email_sent). */
@@ -146,17 +143,6 @@ function ContractViewInner() {
       setTimeout(() => setCopiedDoc((x) => (x === d.document_id ? null : x)), 2000);
     } catch {
       /* clipboard can be denied — "View as client" still opens it */
-    }
-  }
-
-  async function copyLink() {
-    if (!c) return;
-    try {
-      await navigator.clipboard.writeText(guestBookingLink(c.contract_token));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard can be denied — "View as client" still opens the link */
     }
   }
 
@@ -301,32 +287,26 @@ function ContractViewInner() {
               disabled={busy !== null}
               onClick={() =>
                 act("send", async () => {
-                  const sent = await sendContract(c.booking_id, { emailClient: emailOnSend && Boolean(c.guest_email) });
-                  if (sent.email_sent === false) setEmailWarning(emailNotice(false, c.guest_email));
+                  // In the client's chat (backend DECISIONS #48). email_client
+                  // only matters for a contract sent by link before that,
+                  // which can still be resent by email.
+                  const sent = await sendContract(c.booking_id, { emailClient: true });
+                  if (sent.email_sent === false) setEmailWarning(sendNotice(false, c.guest_name));
                 })
               }
             >
               {busy === "send"
                 ? "Sending…"
                 : status === "draft"
-                  ? "Send & hold date"
+                  ? "Send in chat"
                   : status === "expired"
-                    ? "Resend & hold date"
+                    ? "Resend in chat"
                     : "Resend & extend hold"}
             </Button>
-            {c.guest_email ? (
-              <label className="flex items-center gap-1.5 text-sm text-ink-soft">
-                <input type="checkbox" checked={emailOnSend} onChange={(e) => setEmailOnSend(e.target.checked)} />
-                Email it to {c.guest_email}
-              </label>
-            ) : null}
           </>
         ) : null}
         {status !== "draft" && !closed ? (
           <>
-            <Button variant="ghost" onClick={copyLink}>
-              {copied ? "Copied!" : "Copy link"}
-            </Button>
             <a
               href={guestBookingPreviewLink(c.contract_token)}
               target="_blank"

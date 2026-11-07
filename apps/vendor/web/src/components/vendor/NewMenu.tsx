@@ -72,9 +72,10 @@ export function NewMenu({
   }, [open]);
 
   const contract = (
-    <Link key="contract" href="/contracts/new" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+    <Link key="contract" href="/messages" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
       <span className="text-sm font-semibold text-ink">Send a contract</span>
-      <span className="text-xs text-ink-faint">Write it from your usual terms and send the link.</span>
+      {/* Contracts go out in the client's chat (backend DECISIONS #48). */}
+      <span className="text-xs text-ink-faint">Open your client&apos;s chat in Messages, then Send contract.</span>
     </Link>
   );
   // Left out until the vendor's id is known, rather than offered and dead.
