@@ -216,6 +216,13 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [titleEdited, setTitleEdited] = useState(false);
+  /** A whole new draft (a load, a template, Restore, Undo) brings its own
+   *  title, or none — so the field follows the generated title again rather
+   *  than staying blank from an edit made to the draft it replaced. */
+  const replaceDraft = (next: Draft | ((d: Draft) => Draft)) => {
+    setDraft(next);
+    setTitleEdited(false);
+  };
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   /** The template this started from — what Update / Save writes back to. */
   const [startedFrom, setStartedFrom] = useState<TemplateChoice | null>(null);
@@ -338,9 +345,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           const open = proposals?.open_proposal?.proposal_id === proposalId ? proposals?.open_proposal : null;
           if (open) {
             setRevising(open);
-            setDraft(withCancellationSection(fromContract({ ...existing, ...open.proposed })));
+            replaceDraft(withCancellationSection(fromContract({ ...existing, ...open.proposed })));
           } else {
-            setDraft(withCancellationSection(fromContract(existing)));
+            replaceDraft(withCancellationSection(fromContract(existing)));
             if (proposalId) setStaleProposal(true);
           }
           setAutoPlan(false);
@@ -395,13 +402,13 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           applied.schedule = fitSchedule(applied.schedule, applied.dateIso, todayIso());
           if (applied.schedule.length) setAutoPlan(false);
           else applied.schedule = usualSchedule(applied, usable, mine);
-          setDraft(applied);
+          replaceDraft(applied);
           setPriceChanges(templatePriceChanges(picked.body, usable));
           if (!isTemplate) setTemplateNotice(`Started from “${picked.name}”. Check the items and payments before sending.`);
         } else {
           // A request arrives with its package already in.
           start.schedule = usualSchedule(start, usable, mine);
-          setDraft(withCancellationSection(start));
+          replaceDraft(withCancellationSection(start));
         }
       })
       .catch((err) =>
@@ -574,7 +581,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     // so it can come back (2026-10-26: typed lines vanished with no undo).
     setUndoDraft(draft);
     setPriceChanges(templatePriceChanges(body, services));
-    setDraft((d) => {
+    replaceDraft((d) => {
       const applied = applyTemplate(d, body, services);
       applied.schedule = fitSchedule(applied.schedule, applied.dateIso, todayIso());
       return autoPlan && !body.schedule?.length ? { ...applied, schedule: usualSchedule(applied, services, vendor) } : applied;
@@ -925,7 +932,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 type="button"
                 className="font-semibold text-gold hover:underline"
                 onClick={() => {
-                  setDraft(restore.draft);
+                  replaceDraft(restore.draft);
                   setRestore(null);
                 }}
               >
@@ -952,7 +959,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 type="button"
                 className="font-semibold text-gold hover:underline"
                 onClick={() => {
-                  setDraft(undoDraft);
+                  replaceDraft(undoDraft);
                   setUndoDraft(null);
                   setTemplateNotice("Back to what you had.");
                 }}
