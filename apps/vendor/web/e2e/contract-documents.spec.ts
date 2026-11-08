@@ -1,5 +1,5 @@
 import { test, expect, toSigning } from "./support/fixtures";
-import { loginAs } from "./support/fixtures";
+import { loginAs, setTime } from "./support/fixtures";
 import { mockVendorBooking, mockVendorDetail } from "./support/mock-data";
 import type { HandlerArgs } from "./support/api-mock";
 
@@ -68,8 +68,8 @@ test.describe("contract editor and attached documents (step 7b)", () => {
     await doc.getByLabel("Agreement title").fill("Wedding reception DJ agreement");
     await doc.getByLabel("Client name").fill("Meera Iyer");
     await doc.getByLabel("Date", { exact: true }).fill("2030-06-01");
-    await doc.getByLabel("Start time").fill("18:00");
-    await doc.getByLabel("End time").fill("22:00");
+    await setTime(doc, "Start time", "18:00");
+    await setTime(doc, "End time", "22:00");
     await doc.getByLabel("Add a package").selectOption("svc-1");
 
     // The plan is drafted on the usual deposit and follows the total.

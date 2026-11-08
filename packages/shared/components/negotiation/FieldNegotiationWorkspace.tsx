@@ -32,7 +32,7 @@ import {
   valueProblem,
   waitingOn,
 } from "../../lib/fieldNegotiation";
-import { Button } from "../ui";
+import { Button, TimeField } from "../ui";
 import { ContractPaper, type Mark } from "./ContractPaper";
 
 
@@ -71,11 +71,11 @@ function ValueInput({ field, value, onChange }: { field: NegotiationFieldView; v
   if (k === "time") {
     const v = (value ?? {}) as { time_start?: string; time_end?: string };
     return (
-      <div className="grid grid-cols-2 gap-2">
-        <input aria-label={`${field.label}: start`} type="time" className={inputClass} value={v.time_start ?? ""}
-          onChange={(e) => onChange({ time_start: e.target.value, time_end: v.time_end ?? "" })} />
-        <input aria-label={`${field.label}: end`} type="time" className={inputClass} value={v.time_end ?? ""}
-          onChange={(e) => onChange({ time_start: v.time_start ?? "", time_end: e.target.value })} />
+      <div className="grid gap-2">
+        <TimeField name={`${field.label}: start`} value={v.time_start ?? ""}
+          onChange={(t) => onChange({ time_start: t, time_end: v.time_end ?? "" })} />
+        <TimeField name={`${field.label}: end`} value={v.time_end ?? ""}
+          onChange={(t) => onChange({ time_start: v.time_start ?? "", time_end: t })} />
       </div>
     );
   }

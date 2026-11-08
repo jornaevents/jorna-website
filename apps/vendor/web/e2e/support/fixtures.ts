@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { ApiMock } from "./api-mock";
 import { mockTokenPair, mockUser } from "./mock-data";
 
@@ -45,4 +45,16 @@ export async function pastLinkSteps(page: Page, token: string) {
 /** From the contract step to the signature, whichever way the button reads. */
 export async function toSigning(page: Page) {
   await page.getByRole("button", { name: /^(Looks good — sign it|Sign it as it is)$/ }).click();
+}
+
+/** Sets a TimeField (hour, minute, AM/PM) to a 24-hour "HH:MM". */
+export async function setTime(scope: Page | Locator, label: string, hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  await scope.getByLabel(`${label} — hour`).selectOption(String(h % 12 === 0 ? 12 : h % 12));
+  await scope.getByLabel(`${label} — minute`).selectOption(String(m).padStart(2, "0"));
+  await scope
+    .getByLabel(`${label} — hour`)
+    .locator("xpath=ancestor::div[1]")
+    .getByRole("button", { name: h >= 12 ? "PM" : "AM", exact: true })
+    .click();
 }

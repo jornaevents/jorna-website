@@ -15,6 +15,7 @@
 // keeps the working version and calls back with it.
 
 import { AddressStringFields } from "../AddressFields";
+import { TimeField } from "../ui";
 import { useMemo, useState, type ReactNode } from "react";
 import { wordDiff } from "../../lib/contractDiff";
 import type { Draft } from "../../lib/contractDraft";
@@ -94,7 +95,7 @@ function ValueInput({
     case "date":
       return <input {...common} type="date" onChange={(e) => onChange(e.target.value)} />;
     case "time":
-      return <input {...common} type="time" onChange={(e) => onChange(e.target.value)} />;
+      return <TimeField name={common["aria-label"]} value={value} onChange={onChange} />;
     case "count":
     case "days":
       return <input {...common} type="number" min={0} onChange={(e) => onChange(e.target.value)} />;
