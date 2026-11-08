@@ -79,6 +79,19 @@ export function Card({
   );
 }
 
+/** The native calendar button is hidden (globals.css), so a date input opens
+ *  its picker when clicked. showPicker() needs the click's user gesture;
+ *  typing still works where it's unsupported. For date inputs that aren't a
+ *  Field. */
+export function openPicker(e: { currentTarget: EventTarget }) {
+  const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
+  try {
+    el.showPicker?.();
+  } catch {
+    /* not supported / not allowed — typing still works */
+  }
+}
+
 export function Field({
   label,
   hint,
@@ -119,14 +132,7 @@ export function Field({
           }`}
           {...rest}
           onClick={(e) => {
-            if (dateLike) {
-              const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
-              try {
-                el.showPicker?.();
-              } catch {
-                /* not supported / not allowed — typing still works */
-              }
-            }
+            if (dateLike) openPicker(e);
             rest.onClick?.(e);
           }}
         />

@@ -44,6 +44,26 @@ const send = (page: import("@playwright/test").Page) =>
   page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send in chat" }).click();
 
 test.describe("contract editor checks", () => {
+  test("a payment is due when they sign, days before, or on a specific date, picked from a calendar", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    // The native calendar button is hidden, so clicking the box has to open it.
+    await page.addInitScript(() => {
+      HTMLInputElement.prototype.showPicker = function () {
+        (window as unknown as { picked?: string }).picked = this.getAttribute("aria-label") ?? "";
+      };
+    });
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
+    await fillEvent(page, iso(250));
+    const schedule = page.getByRole("article", { name: "Contract document" }).getByRole("region", { name: "Payment schedule" });
+    const due = schedule.getByLabel("Due").last();
+    await expect(due.locator("option")).toHaveText(["When they sign", "Days before the event", "On a specific date"]);
+
+    await due.selectOption("date");
+    await schedule.getByLabel("Due date").click();
+    expect(await page.evaluate(() => (window as unknown as { picked?: string }).picked)).toBe("Due date");
+  });
+
   test("times start unset and are picked as hour, minute and AM/PM, not the clock's minute", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
