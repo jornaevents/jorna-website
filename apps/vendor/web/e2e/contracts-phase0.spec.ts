@@ -1,5 +1,5 @@
 import { test, expect } from "./support/fixtures";
-import { loginAs } from "./support/fixtures";
+import { loginAs, setTime } from "./support/fixtures";
 import { mockLead, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
 
 // Contract fixes from the booking-flow audit's Phase 0: per-unit packages
@@ -38,8 +38,8 @@ test.describe("contracts — Phase 0", () => {
     await page.getByLabel("Client name").fill("Meera Iyer");
     await page.getByLabel("Client email").fill("meera@example.com");
     await page.getByLabel("Date", { exact: true }).fill("2030-06-01");
-    await page.getByLabel("Start time").fill("18:00");
-    await page.getByLabel("End time").fill("22:00");
+    await setTime(page, "Start time", "18:00");
+    await setTime(page, "End time", "22:00");
     await page.getByLabel("Street address").fill("12 Maple Ave");
     await page.getByLabel("City", { exact: true }).fill("Evanston");
     await page.getByLabel("State", { exact: true }).selectOption("IL");
@@ -96,8 +96,8 @@ test.describe("contracts — Phase 0", () => {
     await expect(page.getByLabel("Client email")).toHaveValue("rohan@example.com");
 
     await page.getByLabel("Date", { exact: true }).fill("2030-07-01");
-    await page.getByLabel("Start time").fill("18:00");
-    await page.getByLabel("End time").fill("22:00");
+    await setTime(page, "Start time", "18:00");
+    await setTime(page, "End time", "22:00");
     // Adding the package drafts the usual payment plan — nothing more to set.
     await page.getByLabel("Add a package").selectOption("svc-flat");
     await page.getByRole("button", { name: "Send in chat" }).click();
@@ -135,8 +135,8 @@ test.describe("contracts — Phase 0", () => {
     await expect(page.getByLabel("Client email")).toHaveValue("rohan@example.com");
 
     await page.getByLabel("Date", { exact: true }).fill("2030-07-01");
-    await page.getByLabel("Start time").fill("18:00");
-    await page.getByLabel("End time").fill("22:00");
+    await setTime(page, "Start time", "18:00");
+    await setTime(page, "End time", "22:00");
     // Adding the package drafts the usual payment plan — nothing more to set.
     await page.getByLabel("Add a package").selectOption("svc-flat");
     await page.getByRole("button", { name: "Send in chat" }).click();

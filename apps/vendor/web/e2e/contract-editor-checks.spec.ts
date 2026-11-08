@@ -1,4 +1,4 @@
-import { test, expect, loginAs } from "./support/fixtures";
+import { test, expect, loginAs, setTime } from "./support/fixtures";
 import { mockLead, mockVendorDetail } from "./support/mock-data";
 import type { ApiMock, HandlerArgs } from "./support/api-mock";
 
@@ -35,8 +35,8 @@ function mockEditor(api: ApiMock, vendorOver: Record<string, unknown> = {}) {
 
 async function fillEvent(page: import("@playwright/test").Page, date: string) {
   await page.getByLabel("Date", { exact: true }).fill(date);
-  await page.getByLabel("Start time").fill("18:00");
-  await page.getByLabel("End time").fill("23:00");
+  await setTime(page, "Start time", "18:00");
+  await setTime(page, "End time", "23:00");
   await page.getByLabel("Add a package").selectOption("svc-1");
 }
 
@@ -44,6 +44,18 @@ const send = (page: import("@playwright/test").Page) =>
   page.getByRole("complementary", { name: "Send" }).getByRole("button", { name: "Send in chat" }).click();
 
 test.describe("contract editor checks", () => {
+  test("times start unset and are picked as hour, minute and AM/PM, not the clock's minute", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api);
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
+    await expect(page.getByLabel("Start time — hour")).toHaveValue("");
+    await expect(page.getByLabel("Start time — minute")).toHaveValue("");
+    await page.getByLabel("Start time — hour").selectOption("6");
+    // A first pick lands on the hour, in the evening.
+    await expect(page.getByLabel("Start time — minute")).toHaveValue("00");
+    await expect(page.getByRole("button", { name: "PM", pressed: true })).toHaveCount(1);
+  });
+
   test("a payment counted back past today is flagged; one after the event is only noted", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
@@ -98,8 +110,8 @@ test.describe("contract editor checks", () => {
     await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, taken);
     await expect(page.getByText(/You're already booked then: Asha Mehta/)).toBeVisible();
-    await page.getByLabel("Start time").fill("08:00");
-    await page.getByLabel("End time").fill("12:00");
+    await setTime(page, "Start time", "08:00");
+    await setTime(page, "End time", "12:00");
     await expect(page.getByText(/You're already booked then/)).toHaveCount(0);
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Field } from "@jorna/shared/components/ui";
+import { Field, TimeField } from "@jorna/shared/components/ui";
 import { AddressStringFields } from "@jorna/shared/components/AddressFields";
 import { describeWhen, type Draft } from "@jorna/shared/lib/contractDraft";
 import type { VendorBooking } from "@/lib/types";
@@ -58,8 +58,8 @@ export function EventBlock({
           Runs over more than one day
         </label>
       )}
-      <Field label="Start time" type="time" value={draft.timeStart} onChange={(e) => set({ timeStart: e.target.value })} />
-      <Field label="End time" type="time" value={draft.timeEnd} onChange={(e) => set({ timeEnd: e.target.value })} />
+      <TimeField label="Start time" value={draft.timeStart} onChange={(timeStart) => set({ timeStart })} />
+      <TimeField label="End time" value={draft.timeEnd} onChange={(timeEnd) => set({ timeEnd })} />
       {draft.multiDay ? (
         <p className="text-xs text-ink-faint sm:col-span-2">The times are for each day of the event.</p>
       ) : null}

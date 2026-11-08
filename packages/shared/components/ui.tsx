@@ -265,13 +265,17 @@ function formatTime(hour12: number, minute: string, meridiem: Meridiem): string 
  */
 export function TimeField({
   label,
+  name,
   value,
   onChange,
 }: {
   label?: string;
+  /** What the controls are called when there's no visible label. */
+  name?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
+  const called = label ?? name;
   const { hour12, minute, meridiem } = parseTime(value);
   // An unset time reads as unset — "--", no AM/PM chosen — not as midnight,
   // which looked like an answer (web #164).
@@ -286,7 +290,7 @@ export function TimeField({
       ) : null}
       <div className="flex items-center gap-1.5">
         <select
-          aria-label={label ? `${label} — hour` : "Hour"}
+          aria-label={called ? `${called} — hour` : "Hour"}
           value={empty ? "" : hour12}
           onChange={(e) => onChange(formatTime(Number(e.target.value), minute, meridiem))}
           className={`${selectClass} pl-3 pr-1.5`}
@@ -304,7 +308,7 @@ export function TimeField({
         </select>
         <span className="text-ink-faint">:</span>
         <select
-          aria-label={label ? `${label} — minute` : "Minute"}
+          aria-label={called ? `${called} — minute` : "Minute"}
           value={empty ? "" : minute}
           onChange={(e) => onChange(formatTime(hour12, e.target.value, meridiem))}
           className={`${selectClass} pl-3 pr-1.5`}
