@@ -32,7 +32,7 @@ import {
   valueProblem,
   waitingOn,
 } from "../../lib/fieldNegotiation";
-import { Button, TimeField } from "../ui";
+import { Button, openPicker, TimeField } from "../ui";
 import { ContractPaper, type Mark } from "./ContractPaper";
 
 
@@ -61,9 +61,9 @@ function ValueInput({ field, value, onChange }: { field: NegotiationFieldView; v
     const v = (value ?? {}) as { date_iso?: string; date_end?: string | null };
     return (
       <div className="grid grid-cols-2 gap-2">
-        <input aria-label={`${field.label}: start`} type="date" className={inputClass} value={v.date_iso ?? ""}
+        <input aria-label={`${field.label}: start`} type="date" className={inputClass} onClick={openPicker} value={v.date_iso ?? ""}
           onChange={(e) => onChange({ date_iso: e.target.value, date_end: v.date_end ?? null })} />
-        <input aria-label={`${field.label}: last day (optional)`} type="date" className={inputClass} value={v.date_end ?? ""}
+        <input aria-label={`${field.label}: last day (optional)`} type="date" className={inputClass} onClick={openPicker} value={v.date_end ?? ""}
           onChange={(e) => onChange({ date_iso: v.date_iso ?? "", date_end: e.target.value || null })} />
       </div>
     );
