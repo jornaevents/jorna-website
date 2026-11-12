@@ -1,0 +1,70 @@
+name: Staging checks
+
+# The real stack: a contract sent, opened, negotiated (when staging negotiates
+# field by field) and signed, on the staging vendor site against the staging
+# backend and its database. Two test accounts are made on the first run from
+# the STAGING_E2E_* secrets.
+#
+# Two callers, and production waits on both:
+#   - app.yml, after each vendor deploy to staging (workflow_call).
+#   - jorna-backend's CI, after each backend deploy to staging
+#     (workflow_dispatch, with WEBSITE_ACTIONS_TOKEN). `reason` names that
+#     backend run, so it can find this run and wait for it.
+
+run-name: Staging checks — ${{ inputs.reason || 'started by hand' }}
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: What this run is checking (the backend's CI fills this in)
+        required: false
+        type: string
+
+jobs:
+  staging-checks:
+    name: Staging checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The specs share two real accounts and walk one contract through its
+    # life, so a backend run and a website run must never overlap. Only one
+    # run can wait here: a third cancels the one waiting, and both callers
+    # treat a cancelled run as not passed (re-run it).
+    concurrency:
+      group: staging-e2e
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: apps/vendor
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+        working-directory: .
+
+      - name: Work around Google Chrome apt repo outages
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
+
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npm run test:e2e:staging
+        env:
+          STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+          STAGING_VENDOR_URL: https://staging.jorna-vendor.pages.dev
+          STAGING_E2E_VENDOR_PASSWORD: ${{ secrets.STAGING_E2E_VENDOR_PASSWORD }}
+          STAGING_E2E_CLIENT_PASSWORD: ${{ secrets.STAGING_E2E_CLIENT_PASSWORD }}
+          STAGING_E2E_SIGNING_CODE: ${{ secrets.STAGING_E2E_SIGNING_CODE }}
+
+      - name: Upload the staging report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-staging
+          path: apps/vendor/web/playwright-report-staging/
+          retention-days: 14
