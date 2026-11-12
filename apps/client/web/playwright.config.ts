@@ -8,6 +8,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Playwright defaults to half the CPUs: 2 on the 4-core runners GitHub
+  // gives public repos, where all 4 are free to use.
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
 
   use: {

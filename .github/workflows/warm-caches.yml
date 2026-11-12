@@ -1,0 +1,86 @@
+name: Warm CI caches
+
+# app.yml's E2E job caches node_modules and Playwright's Chromium, but it only
+# runs on pull requests, and a PR can only read caches saved by its own
+# branch or main. So every PR missed, ran a full `npm ci` (~55s), and saved
+# its own ~480 MB copy that no other PR could use — 20-odd of them filled the
+# repo's 10 GB cache limit. This saves both on main, under the exact keys and
+# paths the E2E job restores (keep them in step with app.yml), so every PR
+# can restore them.
+#
+# Runs when the lockfile changes on main, daily (a Node 22 patch release
+# changes the node_modules key too), and by hand. When both caches already
+# exist it only looks them up and stops.
+
+on:
+  push:
+    branches: [main]
+    paths: [package-lock.json]
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-caches
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: Save node_modules and Playwright caches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - id: modules
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            node_modules
+            apps/*/web/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+          lookup-only: true
+
+      - id: playwright
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          lookup-only: true
+
+      # Playwright's install needs the workspace's playwright package, so a
+      # miss on either cache installs node_modules.
+      - if: steps.modules.outputs.cache-hit != 'true' || steps.playwright.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - if: steps.modules.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            node_modules
+            apps/*/web/node_modules
+            packages/*/node_modules
+          key: ${{ steps.modules.outputs.cache-primary-key }}
+
+      # The browser only: the E2E job still installs the system packages it
+      # needs (`--with-deps`), which live outside this cache.
+      - if: steps.playwright.outputs.cache-hit != 'true'
+        working-directory: apps/vendor/web
+        run: npx --no-install playwright install chromium
+
+      - if: steps.playwright.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright.outputs.cache-primary-key }}
