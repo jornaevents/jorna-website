@@ -75,6 +75,8 @@ jobs:
         with:
           node-version: "22"
 
+      # warm-caches.yml saves this and the Playwright cache below on main,
+      # where every PR can read them — keep the keys and paths in step.
       # The installed node_modules, keyed on the lockfile and Node version:
       # restoring them takes seconds where `npm ci` took about a minute, so
       # it only runs when the lockfile changed.
