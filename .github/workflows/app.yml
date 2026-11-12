@@ -271,8 +271,9 @@ jobs:
   # The real stack, after each vendor deploy to staging: a contract sent,
   # opened, negotiated (when staging negotiates field by field) and signed,
   # against the staging backend and its database. Two test accounts are made
-  # on the first run from the STAGING_E2E_* secrets. Not a gate on production
-  # yet — it reports, and production still waits for a person's approval.
+  # on the first run from the STAGING_E2E_* secrets. Production (below) waits
+  # for this to pass: three merges in early November reached production with
+  # it failing, one of them approved while it was still running.
   staging-checks:
     name: Staging checks
     needs: [deploy-staging]
@@ -318,7 +319,11 @@ jobs:
 
   deploy:
     name: Deploy to Cloudflare Pages
-    needs: [deploy-staging]
+    # Waits for the staging checks, so a failed (or still-running) staging run
+    # keeps production where it is; the approval prompt only appears once
+    # they've passed. The client app has no staging checks — that job is
+    # skipped for it, which !failure() lets through.
+    needs: [deploy-staging, staging-checks]
     # Same guard as staging-checks: without it, skipped checks after a merge
     # skip production too.
     if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
