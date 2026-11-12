@@ -270,12 +270,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # The real stack, after each vendor deploy to staging: a contract sent,
-  # opened, negotiated (when staging negotiates field by field) and signed,
-  # against the staging backend and its database. Two test accounts are made
-  # on the first run from the STAGING_E2E_* secrets. Production (below) waits
-  # for this to pass: three merges in early November reached production with
-  # it failing, one of them approved while it was still running.
+  # The real stack against staging, after each vendor deploy there — see
+  # staging-e2e.yml, which jorna-backend's CI also starts after each backend
+  # deploy to staging. Production (below) waits for this to pass: three
+  # merges in early November reached production with it failing, one of them
+  # approved while it was still running.
   staging-checks:
     name: Staging checks
     needs: [deploy-staging]
@@ -283,52 +282,21 @@ jobs:
     # (skip_checks), and a skipped ancestor skips every job after it unless
     # the condition says otherwise.
     if: ${{ !cancelled() && !failure() && inputs.app == 'vendor' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/${{ inputs.app }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - run: npm ci
-        working-directory: .
-
-      - name: Work around Google Chrome apt repo outages
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
-
-      - run: npx --no-install playwright install --with-deps chromium
-      - run: npm run test:e2e:staging
-        env:
-          STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
-          STAGING_VENDOR_URL: https://staging.${{ inputs.pages_project }}.pages.dev
-          STAGING_E2E_VENDOR_PASSWORD: ${{ secrets.STAGING_E2E_VENDOR_PASSWORD }}
-          STAGING_E2E_CLIENT_PASSWORD: ${{ secrets.STAGING_E2E_CLIENT_PASSWORD }}
-          STAGING_E2E_SIGNING_CODE: ${{ secrets.STAGING_E2E_SIGNING_CODE }}
-
-      - name: Upload the staging report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report-staging
-          path: apps/${{ inputs.app }}/web/playwright-report-staging/
-          retention-days: 14
+    uses: ./.github/workflows/staging-e2e.yml
+    secrets: inherit
 
   deploy:
     name: Deploy to Cloudflare Pages
     # Waits for the staging checks, so a failed (or still-running) staging run
     # keeps production where it is; the approval prompt only appears once
     # they've passed. The client app has no staging checks — that job is
-    # skipped for it, which !failure() lets through.
+    # skipped for it. A cancelled one (staging-e2e.yml's queue can cancel a
+    # waiting run) doesn't count as failed to !failure(), hence the explicit
+    # result check.
     needs: [deploy-staging, staging-checks]
     # Same guard as staging-checks: without it, skipped checks after a merge
     # skip production too.
-    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: ${{ !cancelled() && !failure() && contains(fromJSON('["success","skipped"]'), needs.staging-checks.result) && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     # Requires a reviewer's approval (repo Settings → Environments →
     # production): check staging, then approve in the Actions tab.
