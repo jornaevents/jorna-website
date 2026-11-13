@@ -28,7 +28,7 @@ export function MobileNavMenu() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="relative flex size-11 items-center justify-center text-ink-soft transition hover:text-ink md:hidden"
+        className="relative flex size-11 items-center justify-center text-ink-soft transition hover:text-ink desk:hidden"
         aria-label="Menu"
         aria-expanded={open}
       >
@@ -60,7 +60,7 @@ export function MobileNavMenu() {
             // pinning it near the top of the screen with only its last row
             // (Profile) inside the visible area.
             <div
-              className="fixed inset-0 z-50 flex items-end bg-black/40 md:hidden"
+              className="fixed inset-0 z-50 flex items-end bg-black/40 desk:hidden"
               onClick={() => setOpen(false)}
             >
               {/* Stops the backdrop's close-on-click from also firing for

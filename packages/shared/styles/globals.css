@@ -61,6 +61,38 @@
    * those would be churn pointed the wrong way. */
   --container-wide: 78rem; /* 1248px — dashboards, grids, calendars, listings */
   --container-page: 60rem; /* 960px — reading, lists, a booking form */
+
+  /* Tailwind's own sizes, in px rather than its default rem. A rem breakpoint
+     moves with the browser's font-size setting: at Chrome's "Very large",
+     lg needs a 1536px window, and a MacBook got the phone layout. Window
+     width is what these are meant to measure. */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* desk: the desktop version — the vendor sidebar and the full site header
+   instead of the phone's menu button. Every laptop gets it: 768px wide with a
+   mouse or trackpad (a laptop has to be zoomed past ~190% to fall under), or
+   1024px whatever the pointer. A phone, even turned sideways (under 1000px,
+   touch only), keeps the phone version, as does an upright iPad. Page content
+   still lays out by its own sm/md/lg widths inside. */
+@custom-variant desk {
+  @media (min-width: 768px) and (any-pointer: fine), (min-width: 1024px) {
+    @slot;
+  }
+}
+
+/* rail: the desktop version in a window under 1024px — a zoomed laptop. The
+   vendor sidebar shrinks to its icons there, so pages keep the width their
+   own md layouts were drawn for. Declared after desk so it wins where both
+   apply. */
+@custom-variant rail {
+  @media (min-width: 768px) and (max-width: 1023.98px) and (any-pointer: fine) {
+    @slot;
+  }
 }
 
 :root {

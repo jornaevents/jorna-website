@@ -530,9 +530,12 @@ export default function ContractsPage() {
         </p>
       ) : null}
 
+      {/* The table's columns need ~640px, so it lays out by this card's width
+          (@3xl), not the window's: beside the sidebar, a window md calls wide
+          can leave the card too narrow for them. */}
       <section
         aria-label="Document library"
-        className="mt-6 rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]"
+        className="@container mt-6 rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]"
       >
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -567,7 +570,7 @@ export default function ContractsPage() {
 
         <div
           aria-hidden="true"
-          className="mt-4 hidden grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,1fr)_8rem_7rem_17rem] gap-3.5 px-3 pb-2 text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-ink-faint md:grid"
+          className="mt-4 hidden grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,1fr)_8rem_7rem_17rem] gap-3.5 px-3 pb-2 text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-ink-faint @3xl:grid"
         >
           <span />
           <span>Name</span>
@@ -594,7 +597,7 @@ export default function ContractsPage() {
                 onFocusCapture={ahead}
                 onTouchStart={ahead}
               >
-                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3.5 px-3 py-3 md:grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,1fr)_8rem_7rem_17rem]">
+                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3.5 px-3 py-3 @3xl:grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,1fr)_8rem_7rem_17rem]">
                   <span className="grid size-8 place-items-center rounded-lg bg-gold-bright/15 text-gold">
                     <Icon name="contract" size={17} />
                   </span>
@@ -602,20 +605,20 @@ export default function ContractsPage() {
                     <strong className="truncate text-sm text-ink hover:underline">{titleOf(b)}</strong>
                     <small className="truncate text-xs text-ink-faint">
                       {offerLine(b, s) ?? (b.date_iso ? `Event ${prettyDate(b.date_iso)}` : "Contract document")}
-                      <span className="md:hidden"> · {clientOf(b)}</span>
+                      <span className="@3xl:hidden"> · {clientOf(b)}</span>
                     </small>
                   </Link>
-                  <span className="hidden min-w-0 items-center gap-2 text-sm text-ink-soft md:flex">
+                  <span className="hidden min-w-0 items-center gap-2 text-sm text-ink-soft @3xl:flex">
                     <span className="grid size-7 shrink-0 place-items-center rounded-full bg-maroon/10 text-[0.65rem] font-bold text-maroon dark:bg-gold/15 dark:text-gold">
                       {initials(clientOf(b))}
                     </span>
                     <span className="truncate">{clientOf(b)}</span>
                   </span>
-                  <span className="justify-self-end md:justify-self-start">
+                  <span className="justify-self-end @3xl:justify-self-start">
                     <StatusPill tone={st.tone}>{st.label}</StatusPill>
                   </span>
-                  <span className="hidden text-xs text-ink-faint md:block">{prettyDate(lastModified(b))}</span>
-                  <span className="col-span-3 flex flex-wrap items-center justify-end gap-1 md:col-span-1">
+                  <span className="hidden text-xs text-ink-faint @3xl:block">{prettyDate(lastModified(b))}</span>
+                  <span className="col-span-3 flex flex-wrap items-center justify-end gap-1 @3xl:col-span-1">
                     {s === "changes_waiting" ? (
                       <Link href={`/contracts/changes?id=${b.booking_id}`} className="px-2 py-1 text-xs font-semibold text-gold">
                         Answer
