@@ -8,6 +8,7 @@ import {
   categoryLabel,
   type AddOn,
   type PackageAttributeValue,
+  type PackageVibe,
   type ServiceItem,
   type TaxonomyCategory,
 } from "@/lib/types";
@@ -32,6 +33,20 @@ export function bestFor(s: ServiceItem, categories: TaxonomyCategory[], taxonomy
   const cat = categories.find((c) => c.value === s.category);
   const sub = cat?.subcategories?.find((x) => x.value === s.subcategory);
   return sub?.label ?? cat?.label ?? (s.category ? categoryLabel(s.subcategory || s.category) : "Any event");
+}
+
+/** In the order the picker shows them. */
+export const PACKAGE_VIBES: { value: PackageVibe; label: string }[] = [
+  { value: "elegant", label: "Elegant" },
+  { value: "traditional", label: "Traditional" },
+  { value: "modern", label: "Modern" },
+  { value: "fusion", label: "Fusion" },
+  { value: "playful", label: "Playful" },
+  { value: "minimal", label: "Minimal" },
+];
+
+export function vibeLabel(v: PackageVibe | null | undefined): string {
+  return PACKAGE_VIBES.find((x) => x.value === v)?.label ?? "Not set";
 }
 
 // The rate's multiplier. "event" is a flat price — everything else needs a
@@ -100,6 +115,7 @@ export const blank: FormState = {
   require_guest_count: false,
   require_performer_count: false,
   is_popular: false,
+  vibe: null,
   status: "active",
   included_hours: "",
   inclusionsText: "",
@@ -125,6 +141,7 @@ export function formFrom(s: ServiceItem): FormState {
     require_guest_count: Boolean(s.require_guest_count),
     require_performer_count: Boolean(s.require_performer_count),
     is_popular: Boolean(s.is_popular),
+    vibe: s.vibe ?? null,
     location: s.location ?? "",
     venue_latitude: s.venue_latitude ?? null,
     venue_longitude: s.venue_longitude ?? null,

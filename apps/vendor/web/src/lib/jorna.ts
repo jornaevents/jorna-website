@@ -48,6 +48,7 @@ import type {
   ServiceItem,
   AddOn,
   PackageStatus,
+  PackageVibe,
   VendorDetail,
   VendorSearchItem,
   VendorSearchParams,
@@ -471,6 +472,8 @@ export interface ServiceInput {
   sort_order?: number | null;
   /** Marking one clears it from the vendor's other packages. */
   is_popular?: boolean;
+  /** Null clears it. */
+  vibe?: PackageVibe | null;
 }
 
 export function createService(input: ServiceInput): Promise<ServiceItem> {

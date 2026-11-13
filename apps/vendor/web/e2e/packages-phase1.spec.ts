@@ -76,6 +76,11 @@ test.describe("packages — Phase 1", () => {
     await expect(page.getByLabel("Deposit (%)").first()).toHaveAttribute("placeholder", "25");
     await page.getByLabel("Cancellation window (days)").first().fill("30");
 
+    // Vibe: picking the chosen one again clears it.
+    await page.getByRole("button", { name: "Modern" }).click();
+    await page.getByRole("button", { name: "Modern" }).click();
+    await page.getByRole("button", { name: "Playful" }).click();
+
     await page.getByRole("button", { name: "Private" }).click();
     await save.click();
 
@@ -91,6 +96,7 @@ test.describe("packages — Phase 1", () => {
       deposit_percent: null,
       cancellation_window_hours: 720,
       status: "hidden",
+      vibe: "playful",
     });
     expect(call.body).not.toHaveProperty("experience");
   });
@@ -100,13 +106,15 @@ test.describe("packages — Phase 1", () => {
     api,
   }) => {
     await openProfile(page, api, () => [
-      pkg({ included_hours: 5, inclusions: ["Sound system", "MC for the night"], negotiable: true }),
+      pkg({ included_hours: 5, inclusions: ["Sound system", "MC for the night"], negotiable: true, vibe: "elegant" }),
     ]);
 
     const row = page.getByRole("button", { name: /Reception set/ });
     await expect(row).toContainText("5 hours");
     await row.click();
     await expect(page.getByText("MC for the night")).toBeVisible();
+    const vibe = page.locator("dl div").filter({ hasText: "Vibe" });
+    await expect(vibe.locator("dd")).toHaveText("Elegant");
     // Price haggling is retired (2026-10-14): no "open to offers" anywhere.
     await expect(page.getByText(/open to offers/i)).toHaveCount(0);
 
