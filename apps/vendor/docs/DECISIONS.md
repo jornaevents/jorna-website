@@ -1312,3 +1312,21 @@ are a lead (Leads → Create contract) and Messages' right panel (Send contract)
   client's chat" with links to Messages and Leads, instead of the editor. Editing an existing contract
   (`?edit=`) and template mode are unchanged.
 - A declined contract's **Start a new contract** keeps its lead (or failing that its chat).
+
+## Decision: every laptop gets the desktop version; only phones get the menu button (2026-11-13)
+
+A vendor on a Mac in Chrome got the phone layout. A larger Chrome font size or zoom made the window
+read as under 64rem, the old switch. Window size can't say "laptop", so the switch is now:
+
+- **`desk:`** (`packages/shared/styles/globals.css`): 768px wide with a mouse or trackpad, or 1024px
+  whatever the pointer. The vendor sidebar, both apps' site header links and their menu buttons
+  switch on it. A sideways phone (touch only, under 1024px) and an upright iPad keep the phone
+  version. Use `desk:` for any new desktop-vs-phone chrome, not `md:`/`lg:`.
+- **`rail:`**: `desk:` under 1024px. The vendor sidebar shrinks to icons there (names stay for screen
+  readers and as hover titles), so pages keep roughly the width their `md:` layouts were drawn for.
+- **Breakpoints are px, not rem.** Same values as Tailwind's defaults, so nothing moves at the default
+  font size; a bigger font size no longer pushes a page into its phone layout.
+- **The page sits beside the sidebar** rather than centred in the space after it, so a wide window
+  doesn't leave a gap between them.
+- A layout whose fixed columns need a set width lays out by its own box: the Contracts library table
+  uses `@container` / `@3xl:` instead of `md:`.

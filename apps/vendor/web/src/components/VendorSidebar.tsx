@@ -88,19 +88,20 @@ function NavLink({
       onFocus={() => prefetchFor(item.href)}
       onTouchStart={() => prefetchFor(item.href)}
       aria-current={active ? "page" : undefined}
+      title={item.label}
       style={{
         color: active ? "white" : "var(--rail-ink)",
         background: active ? "var(--rail-active)" : undefined,
         boxShadow: active ? "inset 3px 0 var(--rail-gold)" : undefined,
       }}
-      className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition hover:bg-[var(--rail-hover)] hover:text-white"
+      className="relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition hover:bg-[var(--rail-hover)] hover:text-white rail:justify-center rail:px-0"
     >
       <Icon name={item.icon} />
-      <span>{item.label}</span>
+      <span className="rail:sr-only">{item.label}</span>
       {badge > 0 ? (
         <span
           style={{ background: "#d5b768", color: "var(--rail-bg)" }}
-          className="ml-auto grid h-[21px] min-w-[21px] place-items-center rounded-[7px] px-1 text-[0.68rem] font-bold"
+          className="ml-auto grid h-[21px] min-w-[21px] place-items-center rounded-[7px] px-1 text-[0.68rem] font-bold rail:absolute rail:-right-1 rail:-top-1 rail:h-[18px] rail:min-w-[18px] rail:text-[0.6rem]"
         >
           <span className="sr-only">, </span>
           {badge > 99 ? "99+" : badge}
@@ -124,7 +125,7 @@ function Brand({ link = true }: { link?: boolean }) {
       <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-white">
         <JornaMark className="h-[24px]" />
       </span>
-      <span className="serif text-[1.05rem] font-bold tracking-[-0.02em]">Jorna</span>
+      <span className="serif text-[1.05rem] font-bold tracking-[-0.02em] rail:sr-only">Jorna</span>
     </Root>
   );
 }
@@ -140,17 +141,17 @@ export function VendorShellSkeleton() {
   return (
     <div
       inert
-      className={`vendor-shell ${dmSans.variable} ${manrope.variable} lg:grid lg:grid-cols-[236px_minmax(0,1fr)]`}
+      className={`vendor-shell ${dmSans.variable} ${manrope.variable} desk:grid desk:grid-cols-[236px_minmax(0,1fr)] rail:grid-cols-[76px_minmax(0,1fr)]`}
     >
       <aside
         style={{ background: "var(--rail-bg)" }}
-        className="sticky top-0 hidden h-screen flex-col justify-between overflow-hidden px-[18px] pb-5 pt-[31px] lg:flex"
+        className="sticky top-0 hidden h-screen flex-col justify-between overflow-hidden px-[18px] pb-5 pt-[31px] desk:flex rail:px-3"
       >
         <div>
-          <div className="px-2.5 pb-9">
+          <div className="px-2.5 pb-9 rail:px-1">
             <Brand link={false} />
           </div>
-          <p style={{ color: "var(--rail-ink-soft)" }} className="px-3 pb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.14em]">
+          <p style={{ color: "var(--rail-ink-soft)" }} className="px-3 pb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.14em] rail:sr-only">
             Workspace
           </p>
           <div className="grid gap-1">
@@ -163,21 +164,21 @@ export function VendorShellSkeleton() {
           <NavLink item={SETTINGS} active={false} badge={0} />
           <div
             style={{ background: "var(--rail-hover)", borderColor: "var(--rail-edge)" }}
-            className="flex items-center gap-2.5 rounded-xl border p-2.5"
+            className="flex items-center gap-2.5 rounded-xl border p-2.5 rail:justify-center rail:p-1.5"
           >
             <span style={{ background: "var(--rail-edge)" }} className="size-9 shrink-0 rounded-full" />
-            <span style={{ background: "var(--rail-edge)" }} className="h-3 w-24 rounded-full" />
+            <span style={{ background: "var(--rail-edge)" }} className="h-3 w-24 rounded-full rail:hidden" />
           </div>
         </div>
       </aside>
-      <div style={{ background: "var(--rail-bg)" }} className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 lg:hidden">
+      <div style={{ background: "var(--rail-bg)" }} className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 desk:hidden">
         <Brand link={false} />
         <span style={{ color: "var(--rail-ink)" }} className="grid size-11 place-items-center">
           <Icon name="menu" size={22} />
         </span>
       </div>
       <div className="min-w-0">
-        <div className="mx-auto w-full max-w-[var(--container-wide)] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
+        <div className="mx-auto w-full max-w-[var(--container-wide)] desk:mx-0 px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
           <OverviewSkeleton />
         </div>
       </div>
@@ -291,7 +292,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
 
   const mainNav = (onNavigate?: () => void) => (
     <div>
-      <p style={{ color: "var(--rail-ink-soft)" }} className="px-3 pb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.14em]">
+      <p style={{ color: "var(--rail-ink-soft)" }} className="px-3 pb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.14em] rail:sr-only">
         Workspace
       </p>
       <nav aria-label="Vendor" className="grid gap-1">
@@ -320,10 +321,10 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
           background: "var(--rail-hover)",
           borderColor: onProfile(pathname) ? "var(--rail-gold)" : "var(--rail-edge)",
         }}
-        className="flex items-center gap-2.5 rounded-xl border p-2.5 text-white transition hover:brightness-110"
+        className="flex items-center gap-2.5 rounded-xl border p-2.5 text-white transition hover:brightness-110 rail:justify-center rail:p-1.5"
       >
         <Avatar src={vendor?.pfp_url} name={name} size={36} />
-        <span className="grid min-w-0">
+        <span className="grid min-w-0 rail:sr-only">
           <strong className="truncate text-[0.8rem]">{name || "Your business"}</strong>
           {category ? (
             <small style={{ color: "var(--rail-ink-soft)" }} className="mt-0.5 truncate text-[0.7rem]">
@@ -336,22 +337,23 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
         type="button"
         onClick={() => logout()}
         style={{ color: "var(--rail-ink-soft)" }}
-        className="flex items-center gap-2.5 px-3 py-2 text-xs transition hover:text-white"
+        title="Sign out"
+        className="flex items-center gap-2.5 px-3 py-2 text-xs transition hover:text-white rail:justify-center rail:px-0"
       >
         <Icon name="logout" size={16} />
-        Sign out
+        <span className="rail:sr-only">Sign out</span>
       </button>
     </div>
   );
 
   return (
-    <div className={`vendor-shell ${dmSans.variable} ${manrope.variable} lg:grid lg:grid-cols-[236px_minmax(0,1fr)]`}>
+    <div className={`vendor-shell ${dmSans.variable} ${manrope.variable} desk:grid desk:grid-cols-[236px_minmax(0,1fr)] rail:grid-cols-[76px_minmax(0,1fr)]`}>
       <aside
         style={{ background: "var(--rail-bg)" }}
-        className="sticky top-0 hidden h-screen flex-col justify-between overflow-y-auto px-[18px] pb-5 pt-[31px] lg:flex"
+        className="sticky top-0 hidden h-screen flex-col justify-between overflow-y-auto px-[18px] pb-5 pt-[31px] desk:flex rail:px-3"
       >
         <div>
-          <div className="px-2.5 pb-9">
+          <div className="px-2.5 pb-9 rail:px-1">
             <Brand />
           </div>
           {mainNav()}
@@ -362,7 +364,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
       {/* Phones and tablets: a top bar, and the same nav as a full-screen sheet. */}
       <div
         style={{ background: "var(--rail-bg)" }}
-        className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 lg:hidden"
+        className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 desk:hidden"
       >
         <Brand />
         <button
@@ -390,7 +392,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
           aria-modal="true"
           aria-label="Menu"
           style={{ background: "var(--rail-bg)" }}
-          className="fixed inset-0 z-50 flex flex-col overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 lg:hidden"
+          className="fixed inset-0 z-50 flex flex-col overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 desk:hidden"
         >
           <div className="flex items-center justify-between pb-6">
             <Brand />
@@ -410,7 +412,7 @@ export function VendorSidebar({ children }: { children: React.ReactNode }) {
       ) : null}
 
       <div className="min-w-0">
-        <div className="mx-auto w-full max-w-[var(--container-wide)] px-4 py-7 sm:px-6 lg:px-10 lg:py-9">{children}</div>
+        <div className="mx-auto w-full max-w-[var(--container-wide)] desk:mx-0 px-4 py-7 sm:px-6 lg:px-10 lg:py-9">{children}</div>
       </div>
     </div>
   );

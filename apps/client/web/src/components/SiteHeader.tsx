@@ -36,7 +36,7 @@ export function SiteHeader() {
             marketplace is public, and the rest are sections of the home page. */}
         {!items && !loading ? (
           <nav
-            className="hidden min-w-0 flex-1 items-center justify-end gap-5 md:flex lg:gap-6"
+            className="hidden min-w-0 flex-1 items-center justify-end gap-5 desk:flex lg:gap-6"
             aria-label="About Jorna"
           >
             {[
@@ -60,7 +60,7 @@ export function SiteHeader() {
             // gap-x tightens and the row is allowed to wrap: a vendor gets
             // nine links here, and a header that overflows would put the
             // last of them off the side of the page.
-            className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1 md:flex lg:gap-x-5"
+            className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1 desk:flex lg:gap-x-5"
             aria-label="Primary"
           >
             {items.map((item) => {
