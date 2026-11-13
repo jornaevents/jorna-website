@@ -142,6 +142,15 @@ function NewMessagePicker({
   );
 }
 
+/** The row's last line. A contract card's text is written to the client
+ *  ("… sent you a contract"), so the vendor's own reads in their words. */
+function inboxPreview(c: ConversationSummary, myUserId: string | undefined): string {
+  const last = c.last_message;
+  if (!last?.content) return "No messages yet";
+  if (last.kind === "contract") return last.sender_id === myUserId ? "📄 You sent a contract" : `📄 ${last.content}`;
+  return last.content;
+}
+
 export function MessagesHub() {
   const { user } = useAuth();
   const router = useRouter();
@@ -441,7 +450,7 @@ export function MessagesHub() {
                           {r.pkg ? <span className="truncate text-[0.68rem] text-ink-faint">{r.pkg}</span> : null}
                         </span>
                       ) : null}
-                      <span className="truncate text-xs text-ink-faint">{c.last_message?.content || "No messages yet"}</span>
+                      <span className="truncate text-xs text-ink-faint">{inboxPreview(c, user?.user_id)}</span>
                     </span>
                     {unread > 0 ? (
                       <span className="grid h-5 min-w-5 place-items-center rounded-[6px] bg-gold-bright px-1 text-[0.65rem] font-bold text-[#2a0c19]">

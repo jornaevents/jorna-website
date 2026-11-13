@@ -427,4 +427,35 @@ test.describe("vendor messages labels and tabs", () => {
     await expect(row(page, "Riya Kapoor")).toContainText("Negotiation");
     await expect(row(page, "Meera Shah")).toContainText("Booked");
   });
+
+  // A contract sent in the chat (backend DECISIONS #48) shows on the vendor's
+  // side too: a card in their words that opens the contract as it is now.
+  test("a contract the vendor sent shows as a card that opens it", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockHub(api);
+    api.get("/conversations", [
+      conv("c-lead", "Riya Kapoor", {
+        last_message: { content: "Your business sent you a contract to review and sign.", kind: "contract", sender_id: "user-1", created_at: now },
+      }),
+    ]);
+    api.get("/conversations/c-lead/messages", {
+      items: [
+        {
+          message_id: "m-c", conversation_id: "c-lead", sender_id: "user-1", sender_name: "Your business",
+          content: "Your business sent you a contract to review and sign.", created_at: now, kind: "contract",
+          meta: { booking_id: "bk9", contract_status: "sent" },
+        },
+      ],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("messages/?id=c-lead");
+
+    const list = page.getByRole("complementary", { name: "Conversations" });
+    await expect(list.getByText("📄 You sent a contract")).toBeVisible();
+    const card = page.getByRole("link", { name: /You sent a contract\./ });
+    await expect(card).toContainText("Open contract");
+    await expect(card).toHaveAttribute("href", /\/contracts\/view\/?\?id=bk9$/);
+  });
 });
+

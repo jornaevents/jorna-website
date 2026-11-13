@@ -21,9 +21,12 @@ export function contractProposeUrl(token: string): string {
   return `/contract?t=${encodeURIComponent(token)}&propose=1`;
 }
 
-/** A contract sent in the chat, by its booking (backend DECISIONS #48). */
+/** A contract sent in the chat, by its booking (backend DECISIONS #48).
+ *  Not straight into signing: every card for a booking opens the contract as
+ *  it stands now — an older card after a revision included — and the page
+ *  offers Review & sign only while it's waiting on the client. */
 export function contractInChatPath(bookingId: string): string {
-  return `/contract?id=${encodeURIComponent(bookingId)}&sign=1`;
+  return `/contract?id=${encodeURIComponent(bookingId)}`;
 }
 
 /** This app's own read-only page for a contract. */

@@ -316,7 +316,7 @@ function ConversationInner() {
                   {m.kind === "offer" ? (
                     <OfferCard message={m} mine={mine} conversation={meta} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
-                    <ContractCard text={m.content} bookingId={m.meta.booking_id} />
+                    <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
                   ) : (
                     <div
                       className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${
@@ -396,19 +396,20 @@ export default function ConversationPage() {
   );
 }
 
-/** A contract sent in the chat (backend DECISIONS #48): opens in this app,
- *  at its review-and-sign steps. */
-function ContractCard({ text, bookingId }: { text: string; bookingId: string }) {
+/** A contract sent in the chat (backend DECISIONS #48). The whole card is
+ *  the link, and it opens the contract as it stands now, not as it was when
+ *  this message was sent. */
+function ContractCard({ text, bookingId, mine }: { text: string; bookingId: string; mine: boolean }) {
   return (
-    <div className="w-[min(320px,85vw)] rounded-2xl border border-card-edge bg-card p-4">
+    <Link
+      href={contractInChatPath(bookingId)}
+      className="group block w-[min(320px,85vw)] rounded-2xl border border-card-edge bg-card p-4 transition hover:border-gold"
+    >
       <p className="eyebrow">Contract</p>
-      <p className="mt-1.5 text-sm text-ink">{text}</p>
-      <Link
-        href={contractInChatPath(bookingId)}
-        className="mt-3 inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
-      >
-        Review &amp; sign
-      </Link>
-    </div>
+      <p className="mt-1.5 text-sm text-ink">{mine ? "You sent a contract." : text}</p>
+      <span className="mt-3 inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground group-hover:brightness-110">
+        Open contract
+      </span>
+    </Link>
   );
 }

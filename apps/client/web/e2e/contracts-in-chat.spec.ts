@@ -59,11 +59,23 @@ test.describe("contracts in the chat", () => {
     });
 
     await page.goto("conversation/?id=c1");
-    await expect(page.getByText("Lens and Light Studio sent you a contract to review and sign.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Review & sign" })).toHaveAttribute(
-      "href",
-      /\/contract\/?\?id=b9&sign=1$/,
-    );
+    // The whole card is the button, and it opens the contract by its booking —
+    // the current version, not the one this message was sent with.
+    const card = page.getByRole("link", { name: /sent you a contract to review and sign/ });
+    await expect(card).toContainText("Open contract");
+    await expect(card).toHaveAttribute("href", /\/contract\/?\?id=b9$/);
+  });
+
+  test("the card opens the latest version, with Review & sign while it waits on the client", async ({ page, api }) => {
+    await loginAs(page, api);
+    // Revised since the first card was sent: the booking now points at revision 3.
+    api.get("/bookings/b9", { booking_id: "b9", contract_token: "tok-9" });
+    api.get("/guest-bookings/tok-9", { ...CONTRACT, revision: 3, amount_cents: 720000 });
+
+    await page.goto("contract/?id=b9");
+
+    await expect(page.getByText("$7,200").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Review & sign" })).toHaveAttribute("href", /contract\/?\?t=tok-9&sign=1$/);
   });
 
   test("opened from the chat, it starts at the contract — no email step, no link message box", async ({ page, api }) => {
