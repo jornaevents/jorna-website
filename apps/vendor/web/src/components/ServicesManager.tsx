@@ -50,6 +50,7 @@ import { PackageServiceField } from "@/components/packages/PackageServiceField";
 import { AttributeFields } from "@/components/packages/AttributeFields";
 import { useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import {
+  PACKAGE_VIBES,
   PRICE_UNITS,
   bestFor,
   blank,
@@ -57,6 +58,7 @@ import {
   formFrom,
   hasCustomTerms,
   money,
+  vibeLabel,
   type FormState,
 } from "@/components/packages/packageForm";
 
@@ -352,6 +354,7 @@ export function ServicesManager({
         require_guest_count: form.require_guest_count,
         require_performer_count: form.require_performer_count,
         is_popular: form.is_popular,
+        vibe: form.vibe ?? null,
         location: form.location || null,
         venue_latitude: form.venue_latitude,
         venue_longitude: form.venue_longitude,
@@ -814,6 +817,23 @@ export function ServicesManager({
               </div>
             ) : null}
 
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-ink-soft">Vibe</p>
+              <div role="radiogroup" aria-label="Vibe" className="flex flex-wrap gap-2">
+                {PACKAGE_VIBES.map((v) => (
+                  <Chip
+                    key={v.value}
+                    active={form.vibe === v.value}
+                    // Picking the chosen one again clears it — a vibe is optional.
+                    onClick={() => setForm({ ...form, vibe: form.vibe === v.value ? null : v.value })}
+                  >
+                    {v.label}
+                  </Chip>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-ink-faint">The feel of this package, so clients can find the right fit.</p>
+            </div>
+
             <label className="flex items-start gap-2.5">
               <input
                 type="checkbox"
@@ -1067,6 +1087,7 @@ export function ServicesManager({
                       [s.price_unit === "event" || !s.price_unit ? "Price" : "Starting price", `${money(s.price)} ${unit}`.trim()],
                       ["Add-ons", s.add_ons?.length ? s.add_ons.map((a) => a.name).join(", ") : "None"],
                       ["Listing", s.status === "hidden" ? "Private" : "Public"],
+                      ["Vibe", vibeLabel(s.vibe)],
                     ].map(([label, value]) => (
                       <div key={label} className="min-w-0 border-b border-r border-line-soft px-3 py-2.5 [&:nth-child(2n)]:border-r-0">
                         <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-ink-faint">{label}</dt>

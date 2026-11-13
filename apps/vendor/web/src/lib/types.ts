@@ -398,7 +398,12 @@ export interface ServiceItem {
   sort_order?: number | null;
   /** "Most popular" badge on the public listing; at most one per vendor (backend 0071). */
   is_popular?: boolean;
+  /** The package's feel, picked by the vendor; null until they pick (backend 0086). */
+  vibe?: PackageVibe | null;
 }
+
+/** The six the backend accepts (routers/services.py PACKAGE_VIBES). */
+export type PackageVibe = "elegant" | "traditional" | "modern" | "fusion" | "playful" | "minimal";
 
 export type PackageStatus = "active" | "hidden" | "archived";
 

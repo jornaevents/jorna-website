@@ -318,6 +318,8 @@ export interface ServiceItem {
   vendor_pfp_url?: string | null;
   /** "Most popular" badge, set by the vendor (backend 0071). */
   is_popular?: boolean;
+  /** The package's feel, picked by the vendor; null until they pick (backend 0086). */
+  vibe?: "elegant" | "traditional" | "modern" | "fusion" | "playful" | "minimal" | null;
 }
 
 export interface Review {
