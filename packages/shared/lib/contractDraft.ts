@@ -763,11 +763,13 @@ export function fromContract(c: ContractTermsSource): Draft {
     clientName: c.guest_name ?? "",
     clientEmail: c.guest_email ?? "",
     clientPhone: c.guest_phone ?? "",
-    dateIso: c.date_iso,
+    // A draft saved before these were decided keeps "TBD" (backend
+    // DECISIONS #49); the editor shows that as a field still to fill.
+    dateIso: c.date_iso === "TBD" ? "" : c.date_iso,
     multiDay: Boolean(c.date_end && c.date_end !== c.date_iso),
     dateEnd: c.date_end ?? "",
-    timeStart: c.time_start,
-    timeEnd: c.time_end,
+    timeStart: c.time_start === "TBD" ? "" : c.time_start,
+    timeEnd: c.time_end === "TBD" ? "" : c.time_end,
     location: c.location === "TBD" ? "" : c.location,
     guestCount: c.guest_count ? String(c.guest_count) : "",
     lines,

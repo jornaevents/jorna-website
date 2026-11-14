@@ -15,8 +15,13 @@
 //
 // ?lead=<id> starts from a lead and converts it on send (or copy — either
 // moves it to Negotiation). ?edit=<booking_id> reopens an unsigned contract;
-// saving bumps its revision, so a client who had the old one open has to
-// review the new one before signing. ?request=<booking_id> accepts a
+// saving a sent one bumps its revision, so a client who had the old one open
+// has to review the new one before signing.
+//
+// A draft saves itself (2026-11-14, backend DECISIONS #49): see "Autosave"
+// below. The first save turns a lead into the draft and moves the address to
+// ?edit=<id>, so it's never lost and reopens from Leads, Messages, Contracts
+// or a reload. ?request=<booking_id> accepts a
 // signed-in client's marketplace request with this proposal (backend
 // DECISIONS #17): when and where are the client's, so those blocks only
 // show them. ?template=<id> starts from a saved template.
@@ -34,6 +39,7 @@ import {
   getContractProposals,
   getConversation,
   proposeFromRequest,
+  sendContract,
   updateContract,
 } from "@/lib/jorna";
 import { contractTemplates, myLeads, myServices, myVendor, vendorBookings } from "@/lib/vendorData";
@@ -157,6 +163,32 @@ const LOCK_LABEL: Partial<Record<string, { group: "prices" | "event" | "policies
   terms: { group: "clauses", text: "this section stays in" },
 };
 
+type SaveState =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved"; at: string }
+  | { kind: "error"; message: string }
+  | { kind: "needs_package" };
+
+/** Where the draft's autosave stands, under the rail's buttons. */
+function SaveStatus({ state }: { state: SaveState }) {
+  const text =
+    state.kind === "saving"
+      ? "Saving…"
+      : state.kind === "saved"
+        ? `Draft saved · ${new Date(state.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+        : state.kind === "error"
+          ? `Couldn't save the draft — trying again. ${state.message}`
+          : state.kind === "needs_package"
+            ? "Add a package and this draft saves itself."
+            : "This saves as a draft as you go.";
+  return (
+    <p aria-live="polite" className={`text-xs ${state.kind === "error" ? "text-maroon" : "text-ink-faint"}`}>
+      {text}
+    </p>
+  );
+}
+
 function readSaved(key: string): { draft: Draft; at: string } | null {
   try {
     const raw = localStorage.getItem(key);
@@ -244,6 +276,23 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [restore, setRestore] = useState<{ draft: Draft; at: string } | null>(() => readSaved(storageKey));
   const baseline = useRef<string | null>(null);
   const dirty = useRef(false);
+
+  // ── Autosave ──
+  // A contract draft saves to the vendor's account as they work: a draft
+  // that only lived in this browser was lost to another device, a closed
+  // tab, or an early Save as draft the backend refused (no date yet). The
+  // first save creates it — a lead turns into it — and moves the address to
+  // ?edit=<id> without reloading. A sent contract isn't autosaved: the
+  // client may be reading it, so its edits wait for Save changes.
+  const [serverDraft, setServerDraft] = useState<Contract | null>(null);
+  const serverDraftRef = useRef<Contract | null>(null);
+  /** The ?edit= this page moved itself to — not a reason to load again. */
+  const adoptedId = useRef<string | null>(null);
+  const inflight = useRef<Promise<Contract | null> | null>(null);
+  /** The draft and its title as of the last render, for saves that fire later. */
+  const latest = useRef<{ draft: Draft; title: string } | null>(null);
+  const saveNow = useRef<(() => void) | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   // Another unsigned offer holds the date: the backend's words, and a way to
   // send anyway (decision C).
   const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
@@ -311,6 +360,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   useEffect(() => {
     if (!user) return;
+    if (editId && editId === adoptedId.current) return;
     let cancelled = false;
     myVendor()
       .then(async (mine) => {
@@ -346,6 +396,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
         if (existing) {
           setEditing(existing);
+          if (existing.contract_status === "draft") {
+            serverDraftRef.current = existing;
+            setServerDraft(existing);
+          }
           const open = proposals?.open_proposal?.proposal_id === proposalId ? proposals?.open_proposal : null;
           if (open) {
             setRevising(open);
@@ -486,6 +540,87 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // they type; after that an emptied field stays empty (and saves as the
   // generated title).
   const shownTitle = titleEdited || draft.title ? draft.title : defaultTitle;
+
+  const draftEdit = editing?.contract_status === "draft";
+  // A marketplace request becomes a proposal on send and has no draft of its
+  // own; a sent contract and a template save when told to.
+  const autosaveOn = !isTemplate && !requestId && !revising && (editing ? draftEdit : !choosing);
+
+  async function persist(): Promise<Contract | null> {
+    while (inflight.current) await inflight.current.catch(() => null);
+    const now = latest.current;
+    if (!now) return serverDraftRef.current;
+    // Booking.service_id can't be empty: a draft needs one of the vendor's
+    // packages before the server will keep it (backend DECISIONS #49).
+    if (!now.draft.lines.some((l) => l.kind === "package" && l.serviceId)) {
+      setSaveState({ kind: "needs_package" });
+      return serverDraftRef.current;
+    }
+    const snapshot = JSON.stringify(now.draft);
+    if (serverDraftRef.current && snapshot === baseline.current) return serverDraftRef.current;
+    const body = { ...toDocument(now.draft), document_title: now.title };
+    const run = (async () => {
+      setSaveState({ kind: "saving" });
+      const existing = serverDraftRef.current;
+      let result: Contract;
+      if (existing) {
+        result = await updateContract(existing.booking_id, body);
+      } else {
+        const input = {
+          ...body,
+          draft: true,
+          hold_days: Number(now.draft.holdDays) > 0 ? Number(now.draft.holdDays) : null,
+          ...(conversationId ? { conversation_id: conversationId } : {}),
+        };
+        result = leadId ? await convertLead(leadId, input) : await createContract(input);
+        adoptedId.current = result.booking_id;
+        forgetSaved();
+        window.history.replaceState(null, "", `?edit=${encodeURIComponent(result.booking_id)}`);
+      }
+      serverDraftRef.current = result;
+      setServerDraft(result);
+      baseline.current = snapshot;
+      dirty.current = JSON.stringify(latest.current?.draft) !== snapshot;
+      if (!dirty.current) forgetSaved();
+      setSaveState({ kind: "saved", at: new Date().toISOString() });
+      return result;
+    })();
+    inflight.current = run;
+    try {
+      return await run;
+    } catch (err) {
+      setSaveState({ kind: "error", message: err instanceof ApiError ? err.message : "" });
+      throw err;
+    } finally {
+      if (inflight.current === run) inflight.current = null;
+    }
+  }
+
+  // Kept current after every render, for timers and the unmount below.
+  useEffect(() => {
+    latest.current = { draft, title: draft.title.trim() || defaultTitle };
+    saveNow.current = autosaveOn && !created ? () => void persist().catch(() => {}) : null;
+  });
+  // A second and a half after the vendor stops — not before they've changed
+  // anything, so opening the editor to look doesn't leave a draft behind.
+  useEffect(() => {
+    if (!autosaveOn || loading || created || baseline.current === null) return;
+    if (JSON.stringify(draft) === baseline.current) return;
+    const t = setTimeout(() => saveNow.current?.(), 1500);
+    return () => clearTimeout(t);
+  }, [draft, autosaveOn, loading, created]);
+  useEffect(() => {
+    if (saveState.kind !== "error") return;
+    const t = setTimeout(() => saveNow.current?.(), 10_000);
+    return () => clearTimeout(t);
+  }, [saveState]);
+  // Leaving for another page in the app: whatever's waiting goes now.
+  useEffect(
+    () => () => {
+      if (dirty.current) saveNow.current?.();
+    },
+    [],
+  );
   const businessName = vendorName(vendor, "Your business");
 
   /** This block's problems. A terms problem belongs only to the section it's
@@ -681,7 +816,22 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         return;
       }
       let result: Contract;
-      if (request) {
+      if (autosaveOn && (mode === "draft" || serverDraftRef.current)) {
+        // The draft that's already saved is the one sent, or kept — never a
+        // second contract beside it.
+        const saved = await persist();
+        if (!saved) {
+          setError("Add a package — a draft saves once it has one.");
+          return;
+        }
+        result =
+          mode === "draft"
+            ? saved
+            : await sendContract(saved.booking_id, {
+                holdDays: Number(draft.holdDays) > 0 ? Number(draft.holdDays) : undefined,
+                allowHeldClash: allowHeld,
+              });
+      } else if (request) {
         result = await proposeFromRequest(request.booking_id, {
           line_items: doc.line_items,
           discount_cents: doc.discount_cents,
@@ -859,13 +1009,13 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const sendLabel = request ? "Accept & send in chat" : "Send in chat";
   // Contracts go out in the client's chat (backend DECISIONS #48), so a new
   // one needs a client to send to: a request, a lead, or a thread.
-  const canSend = Boolean(request || leadId || conversationId);
+  const canSend = Boolean(request || leadId || conversationId || serverDraft);
   const holdDays = Number(draft.holdDays) > 0 ? Number(draft.holdDays) : vendor.contract_hold_days ?? 7;
   const holdDaysLabel = `${holdDays} day${holdDays === 1 ? "" : "s"}, or until the event if that's sooner`;
   const clientName = request?.client_name || draft.clientName || "Client";
   const primary = isTemplate
     ? { label: busy === "save" ? "Saving…" : "Save template", run: () => void writeTemplate(templateName) }
-    : editing
+    : editing && !draftEdit
     ? { label: busy === "save" ? "Saving…" : revising ? "Send new version" : "Save changes", run: () => submit("save") }
     : canSend
     ? { label: busy === "send" ? "Sending…" : sendLabel, run: () => submit("send") }
@@ -882,7 +1032,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="serif text-3xl text-maroon dark:text-gold">
-            {isTemplate ? "Edit template" : revising ? "Revise the contract" : editing ? "Edit contract" : request ? `Accept ${request.client_name ? `${request.client_name}'s` : "this"} request` : "New contract"}
+            {isTemplate ? "Edit template" : revising ? "Revise the contract" : draftEdit ? "Edit draft" : editing ? "Edit contract" : request ? `Accept ${request.client_name ? `${request.client_name}'s` : "this"} request` : "New contract"}
           </h1>
           <div className="flex items-center gap-2">
             <Button type="button" variant="ghost" onClick={() => setPreviewing(true)}>
@@ -1143,7 +1293,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 />
                 {holdIssue ? <p className="-mt-1 text-xs text-maroon dark:text-gold">{holdIssue}</p> : null}
               </div>
-            ) : editing ? (
+            ) : editing && !draftEdit ? (
               <Button className="mt-4 w-full" disabled={busy !== null} onClick={() => submit("save")}>
                 {busy === "save" ? "Saving…" : revising ? "Send new version" : "Save changes"}
               </Button>
@@ -1166,9 +1316,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 )}
                 {request ? null : (
                   <Button variant="quiet" disabled={busy !== null} onClick={() => submit("draft")}>
-                    {busy === "draft" ? "Saving…" : "Save as draft"}
+                    {busy === "draft" ? "Saving…" : serverDraft ? "Save and close" : "Save as draft"}
                   </Button>
                 )}
+                {autosaveOn ? <SaveStatus state={saveState} /> : null}
                 <Field
                   label="Hold the date for (days)"
                   type="number"
