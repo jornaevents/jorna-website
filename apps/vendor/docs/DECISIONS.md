@@ -1344,3 +1344,26 @@ The site shows its light look everywhere by default. Dark mode is kept, not dele
   when it's on, and every dark rule (the palettes, the `dark:` variant, `color-scheme`) requires
   it. Gating only the picker wasn't enough: the CSS also follows the device's own setting.
 - The static `/help` and 404 pages are light only either way; they aren't built by Next.
+
+## Decision: contract drafts save themselves; the chat reaches them (2026-11-14)
+
+Drafts were being lost. An early **Save as draft** was refused by the backend (no date yet, a line
+not named), and work never saved lived only in that browser's backup, keyed to the page's exact
+address, so coming back from Leads instead of the chat didn't offer it. Leaving inside the app
+gave no warning.
+
+- **Autosave** (`components/contract-editor/ContractEditor.tsx`): a contract draft saves to the
+  server 1.5s after the vendor stops, once it has a package (backend DECISIONS #49 requires one).
+  The first save creates it — a lead turns into it — and the address moves to `?edit=<id>`
+  without reloading, so a reload or coming back reopens it. Later saves update it. A status line
+  under the rail's buttons says Saving / Draft saved / what's missing. Leaving the page saves
+  what's pending; a failed save retries.
+- **Send sends that draft** (`POST /contracts/{id}/send`), never a second contract. **Save as
+  draft** becomes **Save and close** once it's saved.
+- **A reopened draft** is "Edit draft" with Send, not "Edit contract" with only Save changes.
+- **Not autosaved:** a sent contract (the client may be reading it — edits still wait for Save
+  changes), a marketplace request's proposal, a revision, and templates.
+- **The chat panel** (`lib/messageLabels.ts` `openContractFor`) finds the client's open contract
+  whatever the thread's label: **Edit draft** (into the editor) for a draft, **View contract**
+  otherwise. A client with an event already booked used to hide both their next draft and Send
+  contract; Send contract now shows for them when nothing is open.

@@ -170,6 +170,26 @@ export function relationFor(
   return NONE;
 }
 
+/**
+ * The unsigned contract open with this thread's client — a draft, or one
+ * sent and not signed yet — whatever the thread's label says. A client
+ * with one event already booked can be getting a contract for the next, and
+ * the booking hid it: no way back to the draft from the chat, and no Send
+ * contract either (2026-11-14). Found the way the label's lead is.
+ */
+export function openContractFor(
+  c: ConversationSummary,
+  bookings: VendorBooking[],
+  pipeline: Pipeline | null,
+  vendorUserId?: string | null,
+): { bookingId: string; draft: boolean } | null {
+  const related = bookingsFor(c, bookings, clientIdOf(c, vendorUserId));
+  const open = itemsFor(c, pipeline?.items ?? [], related).find(
+    (i) => i.source === "contract" && !i.outcome && i.booking_id,
+  );
+  return open?.booking_id ? { bookingId: open.booking_id, draft: open.contract_status === "draft" } : null;
+}
+
 /** Questions until the client has a lead or booking with the vendor; then
  *  Leads & bookings, whatever its label. */
 export function tabFor(relation: Relation): MessageTab {

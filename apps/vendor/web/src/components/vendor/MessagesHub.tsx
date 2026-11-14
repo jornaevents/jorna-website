@@ -23,7 +23,7 @@ import {
 } from "@/lib/jorna";
 import { centsToMoney } from "@/lib/vendorPlan";
 import { myVendor } from "@/lib/vendorData";
-import { LABEL_TEXT, LABEL_TONE, relationFor, showInInbox, tabFor, type Relation } from "@/lib/messageLabels";
+import { LABEL_TEXT, LABEL_TONE, openContractFor, relationFor, showInInbox, tabFor, type Relation } from "@/lib/messageLabels";
 import type { ConversationSummary, Pipeline, VendorBooking } from "@/lib/types";
 import { Button } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
@@ -270,6 +270,7 @@ export function MessagesHub() {
       ? selected.members.find((m) => m.user_id !== user?.user_id)
       : undefined;
   const canAddLead = Boolean(selected && relation?.kind === "none" && otherMember);
+  const openContract = selected ? openContractFor(selected, bookings, pipeline, user?.user_id) : null;
 
   const vendorOfferLink: OfferLink = ({ bookingId }) => ({
     href: bookingId ? `/leads?open=${encodeURIComponent(`booking:${bookingId}`)}` : "/leads",
@@ -317,9 +318,10 @@ export function MessagesHub() {
   }
 
   // Contracts go out in the chat (backend DECISIONS #48): the panel offers
-  // the one already open with this client, or a new one for this thread.
+  // the one already open with this client, or a new one for this thread —
+  // also when they've booked before, for their next event.
   const sendContractHref =
-    selected && relation && !relation.contractId && relation.kind !== "booking" && otherMember
+    selected && relation && !openContract && otherMember
       ? relation.requestId
         ? `/contracts/new?request=${relation.requestId}`
         : `/contracts/new?conversation=${selected.conversation_id}${relation.leadId ? `&lead=${relation.leadId}` : ""}`
@@ -327,12 +329,16 @@ export function MessagesHub() {
 
   const relationActions = (
     <>
-      {relation?.contractId && relation.kind !== "booking" ? (
+      {openContract ? (
         <Link
-          href={`/contracts/view?id=${relation.contractId}`}
+          href={
+            openContract.draft
+              ? `/contracts/new?edit=${encodeURIComponent(openContract.bookingId)}`
+              : `/contracts/view?id=${encodeURIComponent(openContract.bookingId)}`
+          }
           className="inline-flex items-center justify-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/[0.04]"
         >
-          View contract
+          {openContract.draft ? "Edit draft" : "View contract"}
         </Link>
       ) : null}
       {sendContractHref ? (

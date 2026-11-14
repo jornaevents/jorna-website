@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LABEL_TEXT, relationFor, showInInbox, tabFor } from "./messageLabels";
+import { LABEL_TEXT, openContractFor, relationFor, showInInbox, tabFor } from "./messageLabels";
 import { bookingTab } from "./vendorPlan";
 import type { ConversationSummary, Pipeline, PipelineItem, VendorBooking } from "./types";
 
@@ -379,5 +379,34 @@ describe("tabFor", () => {
     for (const label of ["inquiry", "negotiation", "booked", "closed"] as const) {
       expect(tabFor({ ...base, label })).toBe("bookings");
     }
+  });
+});
+
+describe("openContractFor", () => {
+  const draftFor = (id: string) =>
+    item({ id: `booking:${id}`, source: "contract", booking_id: id, contract_status: "draft", stage: "negotiation" });
+
+  it("finds a draft with a client who already has an event booked", () => {
+    // Their first event is signed; the vendor's drafting the next one.
+    const bookings = [signed(), booking({ booking_id: "b2", contract_token: "t2", contract_status: "draft" } as Partial<VendorBooking>)];
+    const c = conv();
+    expect(relationFor(c, bookings, pipeline(draftFor("b2")), VENDOR).label).toBe("booked");
+    expect(openContractFor(c, bookings, pipeline(draftFor("b2")), VENDOR)).toEqual({ bookingId: "b2", draft: true });
+  });
+
+  it("finds a sent contract too, as not a draft", () => {
+    const sent = item({ source: "contract", booking_id: "b1", contract_status: "sent", stage: "negotiation" });
+    expect(openContractFor(conv(), [booking()], pipeline(sent), VENDOR)).toEqual({ bookingId: "b1", draft: false });
+  });
+
+  it("finds a draft from a lead with no account, by the thread the lead came from", () => {
+    const fromLead = item({ ...draftFor("b9"), conversation_id: "c1" });
+    expect(openContractFor(conv(), [], pipeline(fromLead), VENDOR)).toEqual({ bookingId: "b9", draft: true });
+  });
+
+  it("is nothing once the contract has ended, or when there's only a request", () => {
+    const ended = item({ ...draftFor("b1"), outcome: "contract_declined" });
+    expect(openContractFor(conv(), [booking()], pipeline(ended), VENDOR)).toBeNull();
+    expect(openContractFor(conv(), [booking()], pipeline(item()), VENDOR)).toBeNull();
   });
 });
