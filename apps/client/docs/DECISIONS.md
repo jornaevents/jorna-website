@@ -383,3 +383,13 @@ Builder · Market · Dashboard · Needs you · Messages · Profile.
 - **Dark mode:** the design's moon/sun toggle renders only when `NEXT_PUBLIC_DARK_MODE_ENABLED` is on.
   The theme code moved to `packages/shared/lib/theme.ts` / `themeBoot.ts` so both apps share one
   stored choice.
+
+## Decision: My Events is the home (2026-11-14)
+
+Client redesign PR 2. `/bundles` (the My Events tab) is the Jorna-Client home: a greeting, three
+tiles — active events, vendors booked (with how many are left to find), needs your attention (opens
+Needs you) — and a card per celebration with "X of Y vendors booked". "Booked" is a vendor agreed
+with (accepted, paid or done in `lib/planning`'s progress stages); slots are everything the
+celebration needs. The join of events and plans moved to `lib/myEvents.ts` for the event pages to
+share. The money and task detail the old card carried stay on the plan the card opens. A new client
+sees the welcome with "Plan your first event".
