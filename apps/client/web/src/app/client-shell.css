@@ -1,0 +1,11 @@
+/*
+  The client app's type, from the Jorna-Client design (client redesign plan,
+  PR 1): DM Sans for text, Manrope for headings — the faces the vendor app
+  already uses (packages/shared/lib/fonts, read the same way in
+  vendor-shell.css). On html so every page, header and drawer takes them.
+  html.client-app outranks the :root that @theme writes the defaults to.
+*/
+html.client-app {
+  --font-sans: var(--font-dm-sans), "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-manrope), "Manrope", var(--font-sans);
+}

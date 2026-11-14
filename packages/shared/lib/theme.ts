@@ -3,10 +3,10 @@
 // globals.css implements both palettes behind a `data-theme="light"|"dark"`
 // attribute on <html>, falling back to `prefers-color-scheme` when it's unset.
 // This is where that attribute is flipped and the choice remembered.
-// lib/themeBoot.ts re-applies a stored choice before first paint; without it
+// themeBoot.ts re-applies a stored choice before first paint; without it
 // a reload fell back to the system theme.
 
-import { THEME_KEY as KEY } from "@/lib/themeBoot";
+import { THEME_KEY as KEY } from "./themeBoot";
 
 export type Theme = "light" | "dark";
 /** What Settings offers: an explicit theme, or follow the device. */

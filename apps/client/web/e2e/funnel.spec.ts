@@ -85,11 +85,11 @@ test.describe("request form (/book)", () => {
     await expect(addTo.locator("option")).toHaveText(["A new plan", "Mehndi", "Reception (sent to vendors)", "Wedding (booked)"]);
   });
 
-  test("the nav puts the form under Market, where the package is", async ({ page, api }) => {
+  test("the nav puts the form under Explore, where the package is", async ({ page, api }) => {
     await loginAs(page, api);
     mockForm(api);
     await page.goto("book/?service=svc-1");
-    await expect(page.getByRole("link", { name: "Market" }).first()).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("link", { name: "Explore" }).first()).toHaveAttribute("aria-current", "page");
   });
 });
 

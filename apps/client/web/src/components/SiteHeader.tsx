@@ -2,31 +2,31 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { MobileNavMenu } from "./MobileNavMenu";
-import { MESSAGES, NavBadge, NEEDS_YOU, useAppNav } from "./nav";
-import { Button, LinkButton } from "@jorna/shared/components/ui";
+import { DESKTOP_TABS, NavBadge, ACCOUNT, useAppNav } from "./nav";
+import { JornaMark } from "./JornaMark";
+import { ThemeToggle } from "./ThemeToggle";
+import { LinkButton } from "@jorna/shared/components/ui";
+import { DARK_MODE_ENABLED } from "@jorna/shared/lib/flags";
 import { signInUrl } from "@/lib/vendorSite";
 
-// The top bar: wordmark, then the primary navigation, then the auth action.
+// The top bar, from the Jorna-Client design (client redesign plan, PR 1):
+// the wordmark, then — signed in — Explore, My Events and Messages as tabs
+// with the current one underlined, and the account's initials, which open
+// Account. On a phone the tabs move to MobileTabBar along the bottom and the
+// bar keeps only the wordmark.
 //
-// A row of links beside the wordmark is what a website looks like, so that's
-// what desktop gets. Phones get MobileNavMenu's hamburger button instead,
-// grouped with the auth action below — both read components/nav, so the two
-// can't drift.
-//
-// Text-only, no icons, on the desktop row: next to text they'd just read as
-// clutter. MobileNavMenu's sheet has the room to show them.
+// Sign out moved off the bar: it's on Account (today the profile hub), as in
+// the design.
 export function SiteHeader() {
-  const { user, loading, logout } = useAuth();
-  const { items, attention, messagesUnread, home, isActive } = useAppNav();
+  const { user, loading } = useAuth();
+  const { items, home, isActive, badgeFor } = useAppNav();
+  const account = isActive(ACCOUNT);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line-soft bg-ground/85 backdrop-blur">
-      <div className="mx-auto flex w-[min(var(--container-wide),100%-2rem)] items-center justify-between gap-3 py-3 md:gap-6">
-        {/* The wordmark goes Home — the ordinary thing a logo does. It points at
-            /home rather than "/", which is the app entry that only redirects
-            here anyway. */}
-        <Link href={home} className="serif shrink-0 text-2xl text-maroon dark:text-gold">
+    <header className="sticky top-0 z-30 border-b border-line bg-ground/90 backdrop-blur-md">
+      <div className="mx-auto flex h-[60px] w-[min(1280px,100%-2rem)] items-center justify-between gap-3 desk:h-[76px] desk:gap-6">
+        <Link href={home} className="flex shrink-0 items-center gap-2.5 font-serif text-[1.3rem] font-bold tracking-[-0.04em] text-ink">
+          <JornaMark className="h-8" />
           Jorna
         </Link>
 
@@ -56,33 +56,22 @@ export function SiteHeader() {
         ) : null}
 
         {items ? (
-          <nav
-            // gap-x tightens and the row is allowed to wrap: a vendor gets
-            // nine links here, and a header that overflows would put the
-            // last of them off the side of the page.
-            className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-1 desk:flex lg:gap-x-5"
-            aria-label="Primary"
-          >
-            {items.map((item) => {
+          <nav className="hidden self-stretch desk:flex" aria-label="Primary">
+            {DESKTOP_TABS.map((item) => {
               const active = isActive(item);
-              const badge =
-                item.href === NEEDS_YOU.href
-                  ? attention
-                  : item.href === MESSAGES.href
-                    ? messagesUnread
-                    : 0;
+              const badge = badgeFor(item);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   aria-label={
-                    badge > 0
-                      ? `${item.label}, ${badge} ${item.href === MESSAGES.href ? "unread" : "waiting"}`
-                      : undefined
+                    badge > 0 ? `${item.label}, ${badge} ${item.label === "Messages" ? "unread" : "waiting"}` : undefined
                   }
-                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium transition ${
-                    active ? "text-gold" : "text-ink-soft hover:text-ink"
+                  className={`flex items-center gap-1.5 border-b-2 px-2.5 text-sm font-semibold whitespace-nowrap transition lg:px-[18px] ${
+                    active
+                      ? "border-maroon text-maroon dark:border-gold dark:text-gold"
+                      : "border-transparent text-ink-soft hover:text-ink"
                   }`}
                 >
                   {item.label}
@@ -93,27 +82,39 @@ export function SiteHeader() {
           </nav>
         ) : null}
 
-        <nav className="flex shrink-0 items-center gap-2">
-          <MobileNavMenu />
+        <div className="flex shrink-0 items-center gap-3">
+          {DARK_MODE_ENABLED ? <ThemeToggle /> : null}
           {loading ? null : user ? (
-            <Button variant="ghost" onClick={() => logout()}>
-              Sign out
-            </Button>
+            <Link
+              href={ACCOUNT.href}
+              aria-label="Account"
+              aria-current={account ? "page" : undefined}
+              className={`hidden size-9 place-items-center rounded-full border-2 bg-ink text-[0.78rem] font-bold text-ground desk:grid ${
+                account ? "border-gold ring-[3px] ring-gold/15" : "border-transparent"
+              }`}
+            >
+              {initials(user)}
+            </Link>
           ) : (
             <>
               <LinkButton href={signInUrl()} variant="ghost">
                 Sign in
               </LinkButton>
-              {/* Paired with "Sign in", so it says what it does. It used to read
-                  "Try it now" and point at /plan — but /plan turns a guest away
-                  to sign in, so the invitation was answered by a login wall.
-                  ?mode=register opens the form it advertises; the post-auth
-                  landing is unchanged (login defaults `next` to /plan). */}
+              {/* Paired with "Sign in", so it says what it does. ?mode=register
+                  opens the form it advertises; the post-auth landing is
+                  unchanged (login defaults `next` to /plan). */}
               <LinkButton href="/login?mode=register">Get started</LinkButton>
             </>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   );
+}
+
+/** "PS" for Priya Shah; the email's first letter when there's no name. */
+function initials(user: { f_name?: string | null; l_name?: string | null; email?: string | null }): string {
+  const first = (user.f_name ?? "").trim().charAt(0);
+  const last = (user.l_name ?? "").trim().charAt(0);
+  return (first + last).toUpperCase() || (user.email ?? "?").charAt(0).toUpperCase();
 }

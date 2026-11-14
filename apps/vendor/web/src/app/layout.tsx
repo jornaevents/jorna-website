@@ -6,7 +6,7 @@ import { SiteFooter } from "@jorna/shared/components/SiteFooter";
 import { PushRuntime } from "@/components/PushRuntime";
 import { SentryRuntime } from "@jorna/shared/components/SentryRuntime";
 import { ChromeGate } from "@/components/ChromeGate";
-import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
+import { THEME_BOOT_SCRIPT } from "@jorna/shared/lib/themeBoot";
 import { WELCOME_BOOT_SCRIPT } from "@/lib/welcomeBoot";
 import { VENDORISH_BOOT_SCRIPT } from "@/lib/vendorishBoot";
 import { DARK_MODE_ENABLED } from "@jorna/shared/lib/flags";
