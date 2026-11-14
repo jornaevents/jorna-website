@@ -4,6 +4,15 @@
 // if the backend contract drifts, that shows up as a rendering assertion
 // failing, which is the point of an E2E test.
 
+// The mock event is always ~two months out. It was a fixed "2026-11-14",
+// which broke every test that cancels or edits it once that day came (event
+// day ends cancelling) — a date relative to now can't run out.
+const EVENT_DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 60);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+})();
+
 export const ACCESS_TOKEN = "e2e-mock-access-token";
 export const REFRESH_TOKEN = "e2e-mock-refresh-token";
 
@@ -99,7 +108,7 @@ export function mockBundleBooking(overrides: Record<string, unknown> = {}) {
     booking_id: "booking-1",
     status: "approved",
     payment_status: "unpaid",
-    date_iso: "2026-11-14",
+    date_iso: EVENT_DATE,
     time_start: "17:00",
     time_end: "23:00",
     location: "Chicago, IL",
@@ -236,7 +245,7 @@ export function mockVendorBooking(overrides: Record<string, unknown> = {}) {
     price_pending_quantity: false,
     guest_count: 150,
     event_name: "Priya's Wedding",
-    date_iso: "2026-11-14",
+    date_iso: EVENT_DATE,
     time_start: "17:00",
     time_end: "23:00",
     location: "Chicago, IL",
