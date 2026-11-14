@@ -7,6 +7,7 @@ import { SiteFooter } from "@jorna/shared/components/SiteFooter";
 import { PushRuntime } from "@/components/PushRuntime";
 import { SentryRuntime } from "@jorna/shared/components/SentryRuntime";
 import { VendorAccountGate } from "@/components/VendorAccountGate";
+import { DARK_MODE_ENABLED } from "@jorna/shared/lib/flags";
 
 export const metadata: Metadata = {
   title: "Jorna — Plan your celebration",
@@ -27,7 +28,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    // data-dark-mode: dark mode is behind a build flag (lib/flags.ts); without
+    // the mark, globals.css stays light whatever the device's setting.
+    <html lang="en" className="h-full antialiased" data-dark-mode={DARK_MODE_ENABLED ? "" : undefined}>
       <body className="flex min-h-full flex-col">
         <SentryRuntime />
         <AuthProvider>

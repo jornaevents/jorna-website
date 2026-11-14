@@ -138,6 +138,12 @@ source — nothing to hand-sync anymore. `public/help/index.html` is the one
 remaining no-build-step static file, and does not currently share these
 tokens.
 
+**Dark mode is behind a build flag (2026-11-13):** `NEXT_PUBLIC_DARK_MODE_ENABLED`
+(`packages/shared/lib/flags.ts`), off unless `"true"`. Off, the site is light only: the layouts don't
+mark `<html data-dark-mode>`, every dark rule in `globals.css` / `vendor-shell.css` requires that
+mark, and the vendor theme picker and theme boot script aren't rendered. On, it's the mechanism
+below, unchanged. The static `/help` and 404 pages aren't built by Next and are light only.
+
 **Light/dark mechanism:** a `data-theme="light"|"dark"` attribute on the root
 element is the primary switch (set by a small inline theme script so there's
 no flash-of-wrong-theme); `@media (prefers-color-scheme: dark)` is only a

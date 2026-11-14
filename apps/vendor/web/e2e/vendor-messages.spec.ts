@@ -327,14 +327,15 @@ test.describe("vendor messages labels and tabs", () => {
     await expect(row(page, "Sharma Wedding")).toHaveCount(0);
   });
 
-  // The pill colours moved from vendor-shell.css to @jorna/shared's
-  // globals.css, so the client app can use them; the vendor's pills look
-  // exactly as before under every theme setting.
+  // The pill colours live in @jorna/shared's globals.css. Dark mode is behind
+  // NEXT_PUBLIC_DARK_MODE_ENABLED, unset here as in production, so every
+  // device and any theme stored from before gets the light pills.
+  const LIGHT = { booked: ["rgb(62, 109, 85)", "rgb(226, 238, 230)"], negotiation: ["rgb(122, 38, 58)", "rgb(243, 223, 227)"] };
   for (const [setting, scheme, expected] of [
-    ["system light", "light", { booked: ["rgb(62, 109, 85)", "rgb(226, 238, 230)"], negotiation: ["rgb(122, 38, 58)", "rgb(243, 223, 227)"] }],
-    ["system dark", "dark", { booked: ["rgb(159, 208, 173)", "rgba(127, 180, 142, 0.16)"], negotiation: ["rgb(244, 179, 194)", "rgba(244, 179, 194, 0.13)"] }],
-    ["Dark on a light system", "light", { booked: ["rgb(159, 208, 173)", "rgba(127, 180, 142, 0.16)"], negotiation: ["rgb(244, 179, 194)", "rgba(244, 179, 194, 0.13)"] }],
-    ["Light on a dark system", "dark", { booked: ["rgb(62, 109, 85)", "rgb(226, 238, 230)"], negotiation: ["rgb(122, 38, 58)", "rgb(243, 223, 227)"] }],
+    ["system light", "light", LIGHT],
+    ["system dark", "dark", LIGHT],
+    ["Dark on a light system", "light", LIGHT],
+    ["Light on a dark system", "dark", LIGHT],
   ] as const) {
     test(`label pills keep their colours: ${setting}`, async ({ page, api }) => {
       await loginAs(page, api);

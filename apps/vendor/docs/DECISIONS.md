@@ -1330,3 +1330,17 @@ read as under 64rem, the old switch. Window size can't say "laptop", so the swit
   doesn't leave a gap between them.
 - A layout whose fixed columns need a set width lays out by its own box: the Contracts library table
   uses `@container` / `@3xl:` instead of `md:`.
+
+## Decision: light mode only, dark mode behind a flag (2026-11-13)
+
+The site shows its light look everywhere by default. Dark mode is kept, not deleted, behind
+`NEXT_PUBLIC_DARK_MODE_ENABLED` (`packages/shared/lib/flags.ts`), off unless `"true"`.
+
+- **Off (production):** light only, whatever the device's setting. No Theme row in vendor Settings,
+  no theme boot script, and a theme a vendor stored before is ignored.
+- **On:** the light/dark switch as before: the Settings picker (Light / Dark / Match device),
+  following the device by default.
+- **How it's gated:** CSS can't read the variable, so the layouts put `data-dark-mode` on `<html>`
+  when it's on, and every dark rule (the palettes, the `dark:` variant, `color-scheme`) requires
+  it. Gating only the picker wasn't enough: the CSS also follows the device's own setting.
+- The static `/help` and 404 pages are light only either way; they aren't built by Next.

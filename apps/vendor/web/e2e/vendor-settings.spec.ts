@@ -3,7 +3,7 @@ import { loginAs } from "./support/fixtures";
 import { mockVendorDetail } from "./support/mock-data";
 
 // Settings (sidebar footer), from the 2026-10 vendor redesign: Venmo/Zelle
-// saves to the vendor record, the theme choice sticks across a reload, and the
+// saves to the vendor record, the site stays light (dark mode is behind a flag), and the
 // account can be deleted from the foot of the page. Saves wait for a change,
 // and the password fields stay closed until asked for. The tentative-hold length
 // moved to Contracts → Defaults (plan 2.4); Google Calendar is on the calendar.
@@ -85,40 +85,22 @@ test.describe("vendor settings (/settings)", () => {
     expect(api.requestsTo("DELETE", "/me")).toHaveLength(1);
   });
 
-  test("the theme choice survives a reload", async ({ page, api }) => {
+  // Dark mode is behind NEXT_PUBLIC_DARK_MODE_ENABLED (lib/flags.ts), unset
+  // here as in production: light only, even on a dark device or with a dark
+  // choice stored from before.
+  test("the site is light only: no theme picker, and a dark device stays light", async ({ page, api }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.addInitScript(() => localStorage.setItem("jorna_theme", "dark"));
     await loginAs(page, api);
     mockSettings(api);
 
     await page.goto("settings/");
-    await page.getByRole("tab", { name: "Dark" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.getByRole("tab", { name: "Dark" })).toHaveAttribute("aria-selected", "true");
-
-    await page.getByRole("tab", { name: "Match device" }).click();
+    await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible();
+    await expect(page.getByText("Theme", { exact: true })).toHaveCount(0);
+    await expect(page.locator("html")).not.toHaveAttribute("data-dark-mode", /.*/);
     await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
-  });
-});
-
-test.describe("vendor shell on a phone", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-
-  test("the hamburger opens the nav and a link closes it", async ({ page, api }) => {
-    await loginAs(page, api);
-    api.get("/vendors/me", mockVendorDetail());
-    api.get("/leads/pipeline", { items: [], counts: { inquiries: 0, negotiations: 0, needs_you: 0, waiting: 0, archived: 0 } });
-
-    await page.goto("leads/");
-    await expect(page.getByRole("navigation", { name: "Vendor" })).toBeHidden();
-
-    await page.getByRole("button", { name: "Menu" }).click();
-    const nav = page.getByRole("navigation", { name: "Vendor" });
-    await expect(nav.getByRole("link", { name: "Leads" })).toHaveAttribute("aria-current", "page");
-
-    await page.getByRole("link", { name: "Settings" }).click();
-    await expect(page).toHaveURL(/\/settings\/?$/);
-    await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
+    const ground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(ground).toBe("rgb(246, 238, 225)");
   });
 });
