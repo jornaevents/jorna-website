@@ -28,7 +28,7 @@ import { displayName, usePasswordForm, useProfileForm } from "@/components/Accou
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { VendorPaymentFields } from "@/components/VendorProfileFields";
 import { FilterTabs, PageHeader } from "@/components/vendor/ui";
-import { getThemeChoice, setThemeChoice, type ThemeChoice } from "@/lib/theme";
+import { getThemeChoice, setThemeChoice, type ThemeChoice } from "@jorna/shared/lib/theme";
 
 function SettingsCard({ id, title, hint, children }: { id: string; title: string; hint?: string; children: ReactNode }) {
   return (

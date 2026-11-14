@@ -363,3 +363,23 @@ Backend DECISIONS #48: a vendor sends a contract in the client's chat, and the c
 - **`/contract`** opens by booking (`?id=`, the token comes from the client's own booking) or by token (`?t=`, the plan). `?sign=1` / `?propose=1` show the steps themselves: the shared `ContractLink` (packages/shared/components/contract-link), the same component the vendor app's link page uses, with `inApp` — no email step (it's the account's) and no link message box (the chat is here). Same email code, consent and signed record.
 - The plan's **Review & sign / Propose changes** open those in-app routes instead of a new tab on another site.
 
+
+## Decision: four tabs, from the Jorna-Client design (2026-11-14)
+
+First PR of the client redesign (build plan: https://claude.ai/artifact/XKAsreLS9WQP7CjDgrzgwo).
+The navigation is **My Events · Explore · Messages · Account** (`components/nav.tsx`), replacing
+Builder · Market · Dashboard · Needs you · Messages · Profile.
+
+- **Laptop:** Explore, My Events and Messages in the top bar, the current one underlined; the
+  account's initials open Account (`components/SiteHeader.tsx`). **Phone:** the four tabs along the
+  bottom (`components/MobileTabBar.tsx`), replacing the hamburger sheet — four fit one row.
+- **Old pages stay, under their tab:** Builder and Needs you open under My Events (which carries the
+  Needs you count as its badge), the marketplace and booking form under Explore, the profile hub
+  under Account. Each is redirected only by the PR that redesigns it, so nothing disappears before
+  its replacement exists.
+- **Sign out** moved off the top bar to Account, as in the design.
+- **Type:** DM Sans text and Manrope headings across the client (`app/client-shell.css`), the faces
+  the vendor app uses. The colours were already the design's.
+- **Dark mode:** the design's moon/sun toggle renders only when `NEXT_PUBLIC_DARK_MODE_ENABLED` is on.
+  The theme code moved to `packages/shared/lib/theme.ts` / `themeBoot.ts` so both apps share one
+  stored choice.

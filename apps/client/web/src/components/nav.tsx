@@ -1,20 +1,25 @@
 "use client";
 
-// The app's primary navigation, defined once and rendered twice: as links in
-// the header on desktop (SiteHeader), and as a hamburger-triggered menu on
-// phones (MobileNavMenu). Only one is visible at a time — the split is CSS,
-// so both mount.
+// The app's primary navigation, defined once and rendered twice: as tabs in
+// the top bar on desktop (SiteHeader), and as a tab bar along the bottom on
+// phones (MobileTabBar). Only one is visible at a time — the split is CSS
+// (desk:), so both mount.
 //
-//   Home · Builder · Market · Dashboard · Needs you · Messages · Profile
+//   My Events · Explore · Messages · Account
+//
+// Four tabs, from the Jorna-Client design (client redesign plan, PR 1,
+// 2026-11-14). They replace Builder · Market · Dashboard · Needs you ·
+// Messages · Profile: the old pages still open under the tab they belong to
+// until the PR that redesigns each one replaces it.
 //
 // Clients only: vendors work on jornaevents.com, and a vendor account signed
 // in here sees VendorAccountGate instead of the app. Shown only to a
 // signed-in user; the whole app lives under basePath "/client", which next/link
 // applies to these hrefs.
 //
-// Two independent badges: Needs You counts exactly what /activity lists (both
-// read lib/attention, whose short TTL cache means navigating around doesn't
-// re-derive it each time); Messages counts unread messages, straight from
+// Two independent badges: My Events counts exactly what /activity (Needs you)
+// lists (both read lib/attention, whose short TTL cache means navigating
+// around doesn't re-derive it each time); Messages counts unread messages, straight from
 // /conversations/unread-count — a new message isn't a task the way the
 // Needs-You items are, so it gets its own number rather than folding in.
 
@@ -32,20 +37,33 @@ export interface NavItem {
   match: string[];
 }
 
-const I = {
-  home: <path d="M3 11.5 12 4l9 7.5M5.5 10v9.5h13V10" />,
-  build: (
-    <path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3ZM18 14l.9 2.1 2.1.9-2.1.9L18 20l-.9-2.1L15 17l2.1-.9L18 14Z" />
+export const I = {
+  events: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+    </>
   ),
-  marketplace: (
-    <path d="M4 9.5 5.5 4h13L20 9.5M4 9.5v9.5h16V9.5M4 9.5a2.5 2.5 0 0 0 5 0M9 9.5a2.5 2.5 0 0 0 5 0M14 9.5a2.5 2.5 0 0 0 5 0" />
+  explore: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </>
   ),
-  dashboard: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 0v18M4 7.5l8 4.5 8-4.5" />,
-  messages: <path d="M4 5h16v11H9l-5 4V5Z" />,
-  profile: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0" />,
-  needsYou: (
-    <path d="M12 3a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6ZM10 19a2 2 0 0 0 4 0" />
+  messages: <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />,
+  account: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
   ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
+  moon: <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />,
 };
 
 export const icon = (d: React.ReactNode, className = "size-6") => (
@@ -63,41 +81,44 @@ export const icon = (d: React.ReactNode, className = "size-6") => (
   </svg>
 );
 
-export const NEEDS_YOU: NavItem = {
-  href: "/activity",
-  label: "Needs you",
-  icon: icon(I.needsYou),
-  match: ["/activity"],
+// Everything about a celebration: its plans, building one (Builder), the
+// guest list, and what's waiting on the client (Needs you) — which is why
+// this tab carries that count.
+export const MY_EVENTS: NavItem = {
+  href: "/bundles",
+  label: "My Events",
+  icon: icon(I.events),
+  match: ["/bundles", "/bundle", "/events", "/event", "/plan", "/activity", "/guests"],
+};
+
+export const EXPLORE: NavItem = {
+  href: "/marketplace",
+  label: "Explore",
+  icon: icon(I.explore),
+  // A package and the form that adds it to a plan are both still shopping.
+  match: ["/marketplace", "/browse", "/vendor", "/service", "/book"],
 };
 
 export const MESSAGES: NavItem = {
   href: "/messages",
   label: "Messages",
   icon: icon(I.messages),
-  match: ["/messages"],
+  match: ["/messages", "/conversation"],
 };
 
-export const CLIENT_TABS: NavItem[] = [
-  // No "Home" tab: the client root sends a signed-in client to the
-  // Dashboard below (app/home, 2026-10-29), so it would be a second Dashboard.
-  { href: "/plan", label: "Builder", icon: icon(I.build), match: ["/plan"] },
-  {
-    href: "/marketplace",
-    label: "Market",
-    icon: icon(I.marketplace),
-    // A package and the form that adds it to a plan are both still shopping.
-    match: ["/marketplace", "/vendor", "/service", "/book"],
-  },
-  {
-    href: "/bundles",
-    label: "Dashboard",
-    icon: icon(I.dashboard),
-    match: ["/bundles", "/bundle", "/events", "/event"],
-  },
-  NEEDS_YOU,
-  MESSAGES,
-  { href: "/profile", label: "Profile", icon: icon(I.profile), match: ["/profile"] },
-];
+// The profile hub for now: it holds Settings, Blocked, Sign out and the link
+// to Needs you until the redesigned Account page (plan PR 8).
+export const ACCOUNT: NavItem = {
+  href: "/profile",
+  label: "Account",
+  icon: icon(I.account),
+  match: ["/profile", "/account", "/blocked"],
+};
+
+/** The phone's tab bar, left to right. */
+export const CLIENT_TABS: NavItem[] = [MY_EVENTS, EXPLORE, MESSAGES, ACCOUNT];
+/** The desktop top bar, as the design orders it; Account is the avatar beside it. */
+export const DESKTOP_TABS: NavItem[] = [EXPLORE, MY_EVENTS, MESSAGES];
 
 /**
  * The items to show, the badge count, and which one is current.
@@ -109,6 +130,7 @@ export function useAppNav(): {
   messagesUnread: number;
   home: string;
   isActive: (item: NavItem) => boolean;
+  badgeFor: (item: NavItem) => number;
 } {
   const { user, loading } = useAuth();
   const pathname = usePathname() ?? "";
@@ -159,16 +181,18 @@ export function useAppNav(): {
     home: signedOut ? vendorSiteUrl("/for-clients") : "/bundles",
     isActive: (item) =>
       item.match.some((m) => pathname === m || pathname.startsWith(`${m}/`)),
+    badgeFor: (item) =>
+      item === MY_EVENTS ? mine(attention, 0) : item === MESSAGES ? mine(messagesUnread, 0) : 0,
   };
 }
 
-/** The count bubble on Needs you or Messages. Nothing when there's nothing waiting. */
+/** The count bubble on My Events or Messages. Nothing when there's nothing waiting. */
 export function NavBadge({ count, className = "" }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
     <span
       aria-hidden="true"
-      className={`min-w-[1.05rem] rounded-full bg-maroon px-1 text-center text-[0.6rem] font-bold leading-[1.05rem] text-ground dark:bg-gold ${className}`}
+      className={`grid h-[18px] min-w-[18px] place-items-center rounded-full bg-gold-bright px-1 text-[0.68rem] font-bold text-[#35101b] ${className}`}
     >
       {count > 9 ? "9+" : count}
     </span>

@@ -25,7 +25,7 @@ test.describe("client root", () => {
     await expect(page).toHaveURL(/\/client\/bundles\/?$/);
   });
 
-  test("the client tabs have no Home beside the Dashboard", async ({ page, api }) => {
+  test("the client tabs have no Home beside My Events", async ({ page, api }) => {
     await loginAs(page, api);
     api.error("GET", "/vendors/me", 404, "Not a vendor");
     api.get("/bundles", []);
@@ -35,7 +35,7 @@ test.describe("client root", () => {
     await page.goto("marketplace/");
 
     const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "My Events" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Home", exact: true })).toHaveCount(0);
   });
 });
