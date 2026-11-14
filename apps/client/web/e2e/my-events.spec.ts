@@ -61,5 +61,5 @@ test("a new client is welcomed and can plan a first event", async ({ page, api }
 
   await expect(page.getByRole("heading", { name: "Your celebrations start here" })).toBeVisible();
   await page.getByRole("button", { name: "Plan your first event" }).click();
-  await expect(page.getByRole("heading", { name: "Plan a new event" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "What are you celebrating?" })).toBeVisible();
 });
