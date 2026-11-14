@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { ESCROW_ENABLED, PUSH_ENABLED } from "@jorna/shared/lib/flags";
+import { DARK_MODE_ENABLED, ESCROW_ENABLED, PUSH_ENABLED } from "@jorna/shared/lib/flags";
 import { getMyVendor, updateMyVendor } from "@/lib/jorna";
 import { PageSkeleton, SkeletonBody, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
 import type { VendorDetail } from "@/lib/types";
@@ -378,9 +378,11 @@ export default function SettingsPage() {
 
           <SettingsCard id="settings-preferences" title="Preferences">
             <div className="divide-y divide-line-soft">
-              <Row label="Theme" hint="How Jorna looks on this device.">
-                <ThemePicker />
-              </Row>
+              {DARK_MODE_ENABLED ? (
+                <Row label="Theme" hint="How Jorna looks on this device.">
+                  <ThemePicker />
+                </Row>
+              ) : null}
               <Row label="Blocked people" hint="You won't see their messages or reviews.">
                 <Link href="/blocked" className="text-sm font-semibold text-gold hover:underline">
                   Manage ›

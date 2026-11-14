@@ -92,7 +92,9 @@ test.describe("labels on the client's chats (/messages)", () => {
     await expect(row(page, "Floral Co").getByText("Mandap Flowers")).toHaveCount(0);
   });
 
-  test("the labels use the pill colours, in light and in dark", async ({ page, api }) => {
+  // Dark mode is behind NEXT_PUBLIC_DARK_MODE_ENABLED, unset here as in
+  // production, so a dark device gets the same light pills.
+  test("the labels use the pill colours, light even on a dark device", async ({ page, api }) => {
     await loginAs(page, api);
     mockInbox(api);
 
@@ -111,8 +113,7 @@ test.describe("labels on the client's chats (/messages)", () => {
     expect(light).toEqual({ ink: "rgb(62, 109, 85)", bg: "rgb(226, 238, 230)" });
 
     await page.emulateMedia({ colorScheme: "dark" });
-    const dark = await colours();
-    expect(dark).toEqual({ ink: "rgb(159, 208, 173)", bg: "rgba(127, 180, 142, 0.16)" });
+    expect(await colours()).toEqual(light);
   });
 
   test("the list keeps its filters; labels add no tabs", async ({ page, api }) => {

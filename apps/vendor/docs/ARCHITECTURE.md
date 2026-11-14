@@ -167,6 +167,12 @@ scoped under `.landing`, light in every theme. Those pages draw their own
 header and footer (`web/src/components/landing/ui.tsx`), so `ChromeGate`
 hides the shared ones there.
 
+**Dark mode is behind a build flag (2026-11-13):** `NEXT_PUBLIC_DARK_MODE_ENABLED`
+(`packages/shared/lib/flags.ts`), off unless `"true"`. Off, the site is light only: the layouts don't
+mark `<html data-dark-mode>`, every dark rule in `globals.css` / `vendor-shell.css` requires that
+mark, and the vendor theme picker and theme boot script aren't rendered. On, it's the mechanism
+below, unchanged. The static `/help` and 404 pages aren't built by Next and are light only.
+
 **Light/dark mechanism:** a `data-theme="light"|"dark"` attribute on the root
 element is the primary switch, re-applied from localStorage before first
 paint by the inline script in `web/src/lib/themeBoot.ts` (root layout); the

@@ -9,6 +9,7 @@ import { ChromeGate } from "@/components/ChromeGate";
 import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
 import { WELCOME_BOOT_SCRIPT } from "@/lib/welcomeBoot";
 import { VENDORISH_BOOT_SCRIPT } from "@/lib/vendorishBoot";
+import { DARK_MODE_ENABLED } from "@jorna/shared/lib/flags";
 
 export const metadata: Metadata = {
   title: "Jorna — Plan your celebration",
@@ -31,9 +32,14 @@ export default function RootLayout({
   return (
     // suppressHydrationWarning: THEME_BOOT_SCRIPT sets data-theme on <html>
     // before React hydrates, which React would otherwise report as a mismatch.
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className="h-full antialiased"
+      data-dark-mode={DARK_MODE_ENABLED ? "" : undefined}
+      suppressHydrationWarning
+    >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        {DARK_MODE_ENABLED ? <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: WELCOME_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: VENDORISH_BOOT_SCRIPT }} />
       </head>

@@ -57,7 +57,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .vendor-shell {
+  :root[data-dark-mode]:not([data-theme]) .vendor-shell {
     --color-ground: #1c0610;
     --color-ground-2: #250a16;
     --color-panel: #2a0c19;

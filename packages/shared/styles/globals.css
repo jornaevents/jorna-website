@@ -9,8 +9,11 @@
 /*
   Jorna design system — ported from the marketing site (jornaevents.com).
   Palette is defined once here; Tailwind v4 exposes each --color-* token as a
-  utility (bg-maroon, text-gold, border-line, …). Light + dark via a data-theme
-  attribute (set by the theme script) with a prefers-color-scheme fallback.
+  utility (bg-maroon, text-gold, border-line, …). Light only unless the build
+  turns dark mode on (DARK_MODE_ENABLED in lib/flags.ts), which marks
+  <html data-dark-mode>; every dark rule below requires that mark. Then it's
+  light + dark via a data-theme attribute (set by the theme script) with a
+  prefers-color-scheme fallback.
 */
 
 @theme {
@@ -96,7 +99,7 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* Status pills (StatusPill in components/ui): ink on a tinted ground, per
      tone. Plain custom properties rather than @theme colours, since nothing
@@ -118,19 +121,20 @@
    at Tailwind's default they followed the system only, so a vendor who chose
    Dark in Settings on a light machine got dark surfaces with light-mode
    accents. An app that never sets data-theme (the client app today) sees no
-   change. */
+   change. All of it only under html[data-dark-mode] — see the top of this
+   file. */
 @custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *) {
+  &:where([data-dark-mode][data-theme="dark"], [data-dark-mode][data-theme="dark"] *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+    &:where(:root[data-dark-mode]:not([data-theme]), :root[data-dark-mode]:not([data-theme]) *) {
       @slot;
     }
   }
 }
 
-[data-theme="dark"] {
+[data-dark-mode][data-theme="dark"] {
   --color-ground: #1c0610;
   --color-ground-2: #250a16;
   --color-panel: #2a0c19;
@@ -160,7 +164,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-dark-mode]:not([data-theme="light"]) {
     --color-ground: #1c0610;
     --color-ground-2: #250a16;
     --color-panel: #2a0c19;
@@ -225,10 +229,13 @@ h3,
 /* Native controls (date pickers, scrollbars) follow the app's chosen theme,
    not just the OS — otherwise a light OS with the app toggled dark renders a
    harsh white date popup and a stark black picker button. */
+:root[data-dark-mode] {
+  color-scheme: light dark;
+}
 [data-theme="light"] {
   color-scheme: light;
 }
-[data-theme="dark"] {
+[data-dark-mode][data-theme="dark"] {
   color-scheme: dark;
 }
 
