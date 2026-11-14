@@ -24,6 +24,26 @@ function money(cents?: number | null): string | null {
   return cents == null ? null : `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
+/** A contract sent in the chat (backend DECISIONS #48), on the vendor's side
+ *  of the thread. Its `content` is written to the client ("… sent you a
+ *  contract"), so the sender's own copy says so in their words. The card
+ *  opens the contract as it stands now — after a revision, an older card
+ *  goes to the same, latest version. */
+function ContractCard({ text, bookingId, mine }: { text: string; bookingId: string; mine: boolean }) {
+  return (
+    <Link
+      href={`/contracts/view?id=${encodeURIComponent(bookingId)}`}
+      className="group block w-[min(320px,85vw)] rounded-2xl border border-card-edge bg-card p-4 transition hover:border-gold"
+    >
+      <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">Contract</p>
+      <p className="mt-1.5 text-sm text-ink">{mine ? "You sent a contract." : text}</p>
+      <span className="mt-3 inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-white group-hover:brightness-110 dark:bg-gold dark:text-[#2A0C19]">
+        Open contract
+      </span>
+    </Link>
+  );
+}
+
 /** Where "answer this offer" goes: the client's booking on their app, or the
  *  vendor's Leads drawer — never a button in the chat, because accepting a
  *  price changes what's owed and the chat is the wrong place to hold money. */
@@ -198,6 +218,8 @@ export function ConversationThread({
                   ) : null}
                   {m.kind === "offer" ? (
                     <OfferCard message={m} mine={mine} conversation={conversation} offerLink={offerLink} />
+                  ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
+                    <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
                   ) : (
                     <div
                       className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${
