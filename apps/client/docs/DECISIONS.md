@@ -393,3 +393,31 @@ with (accepted, paid or done in `lib/planning`'s progress stages); slots are eve
 celebration needs. The join of events and plans moved to `lib/myEvents.ts` for the event pages to
 share. The money and task detail the old card carried stay on the plan the card opens. A new client
 sees the welcome with "Plan your first event".
+
+## Decision: events are planned in a four-step builder (2026-11-14)
+
+Client redesign PR 3. "Plan a new event" opens `components/EventBuilder.tsx`: type and name, date
+and city (an end date only for a multi-day event; backend 0087), guests and budget, vendor
+categories. Nothing is saved until the last step. **Create event** returns to My Events;
+**Create and suggest vendors** goes to the bundle builder for the new event until the suggestions
+step (PR 5) takes over. It replaces the one-screen form the dashboard had.
+
+## Decision: each event has a workspace; the plan stays the place to manage bookings (2026-11-14)
+
+Client redesign PR 4. `/event?id=` (a redirect to the plan before) is the event's workspace, and My
+Events cards open it. Its Overview shows four tiles (vendors booked, contracts, payments, planning),
+each vendor with **one status and one next step**, what's still to find, what needs the client, and
+the budget.
+
+- The status and step come from `lib/eventOverview.ts`, over `lib/contract`'s `bookingStage` and
+  payment rows — the lifecycle the vendor's app names — so both sides describe a booking the same
+  way: Ready to send → Requested → Contract ready / Changes received → Signed / Booked → Done.
+- **Review** opens the contract; **Pay now** and **View** open the vendor drawer (progress line,
+  payment schedule with "I sent this", the vendor's Venmo/Zelle from the contract).
+- **The plan (`/bundle`) still does the managing** — sending requests, swapping, date changes,
+  cancelling. The workspace links to it rather than rebuilding those flows; they move over when
+  their own redesign does.
+- **Edit event** saves the event's facts and categories. Delete shows the backend's refusal when
+  plans still hang on the event.
+- Guest List in the sidebar opens the existing guests page; Registry, Budget and Day-of arrive as
+  tabs with their PRs (9, 10).

@@ -16,7 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { createEvent, listBundles, listEvents } from "@/lib/jorna";
+import { listBundles, listEvents } from "@/lib/jorna";
 import {
   bookedOf,
   celebrationHref,
@@ -25,10 +25,10 @@ import {
   toCelebrations,
   type Celebration,
 } from "@/lib/myEvents";
-import { CATEGORY_LABELS, categoryLabel, type EventItem } from "@/lib/types";
-import { Button, Card, Chip, Field } from "@jorna/shared/components/ui";
+import type { EventItem } from "@/lib/types";
+import { Button } from "@jorna/shared/components/ui";
 import { Badge, MiniProgress } from "@/components/kit";
-import { CityCombobox } from "@jorna/shared/components/CityCombobox";
+import { EventBuilder } from "@/components/EventBuilder";
 import { signInUrl } from "@/lib/vendorSite";
 
 function countdown(iso?: string | null): string | null {
@@ -115,13 +115,6 @@ function DashboardInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [dateIso, setDateIso] = useState("");
-  const [location, setLocation] = useState("");
-  const [guests, setGuests] = useState("");
-  const [budget, setBudget] = useState("");
-  const [needed, setNeeded] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
   const eventsRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -149,38 +142,6 @@ function DashboardInner() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await createEvent({
-        name: name.trim(),
-        date_iso: dateIso,
-        location: location.trim(),
-        guest_count: guests ? Number(guests) : null,
-        budget: budget ? Number(budget) : null,
-        // Without this the "Still to book" hint never fires for a celebration
-        // made here: missingCategories compares against services_needed, and
-        // only the builder was ever setting it. A hand-made celebration got no
-        // checklist at all.
-        services_needed: needed.length > 0 ? needed : null,
-      });
-      setCreating(false);
-      setName("");
-      setDateIso("");
-      setLocation("");
-      setGuests("");
-      setBudget("");
-      setNeeded([]);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't create that celebration.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   if (authLoading || !user) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
@@ -240,92 +201,23 @@ function DashboardInner() {
       ) : null}
 
       {creating ? (
-        <Card className="mb-6 p-6">
-          <h2 className="serif text-xl text-ink">Plan a new event</h2>
-          <form onSubmit={submit} className="mt-4 grid gap-4">
-            <Field
-              label="Name"
-              placeholder="Priya & Arjun's Wedding"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field
-                label="Date"
-                type="date"
-                required
-                value={dateIso}
-                onChange={(e) => setDateIso(e.target.value)}
-              />
-              <CityCombobox
-                label="Location"
-                placeholder="Start typing a city…"
-                required
-                value={location}
-                onChange={(v) => setLocation(v)}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field
-                label="Guests (optional)"
-                type="number"
-                min={1}
-                value={guests}
-                onChange={(e) => setGuests(e.target.value)}
-              />
-              <Field
-                label="Budget (optional)"
-                type="number"
-                min={0}
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
-
-            {/* What the "Still to book" hint compares against. Only the builder
-                was setting this, so a celebration created here never got a
-                checklist — the one thing that tells a host what they haven't
-                arranged yet. */}
-            <div>
-              <p className="mb-2 text-sm font-medium text-ink-soft">
-                What you&apos;ll need{" "}
-                <span className="text-ink-faint">
-                  (optional · we&apos;ll remind you what&apos;s still unbooked)
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {Object.keys(CATEGORY_LABELS).map((c) => (
-                  <Chip
-                    key={c}
-                    active={needed.includes(c)}
-                    onClick={() =>
-                      setNeeded((list) =>
-                        list.includes(c) ? list.filter((v) => v !== c) : [...list, c],
-                      )
-                    }
-                  >
-                    {categoryLabel(c)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-
-            {error ? (
-              <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon">
-                {error}
-              </p>
-            ) : null}
-            <div className="flex gap-2">
-              <Button type="submit" disabled={busy}>
-                {busy ? "Creating…" : "Create event"}
-              </Button>
-              <Button variant="ghost" type="button" onClick={() => setCreating(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Card>
+        <EventBuilder
+          onClose={() => setCreating(false)}
+          onCreated={(event, suggest) => {
+            setCreating(false);
+            if (suggest) {
+              // The builder for this event, so the plan joins it (PR 5 makes
+              // this the suggestions step).
+              const q = new URLSearchParams({ event_id: event.event_id });
+              if (event.date_iso) q.set("date", event.date_iso);
+              if (event.location) q.set("city", event.location);
+              if (event.guest_count != null) q.set("guests", String(event.guest_count));
+              router.push(`/plan?${q}`);
+            } else {
+              void load();
+            }
+          }}
+        />
       ) : null}
 
       {error && !creating ? (

@@ -33,11 +33,10 @@ test("counts events, booked vendors and what's left to find", async ({ page, api
 
   const wedding = page.getByRole("link", { name: /Priya's Wedding/ });
   await expect(wedding).toContainText("1 of 3 vendors booked");
-  await expect(wedding).toHaveAttribute("href", /\/bundle\/?\?id=bundle-1$/);
-  // No plan yet: the card starts one for this event, not a second event.
+  await expect(wedding).toHaveAttribute("href", /\/event\/?\?id=event-1$/);
   const birthday = page.getByRole("link", { name: /Anaya's Birthday/ });
   await expect(birthday).toContainText("0 of 1 vendors booked");
-  await expect(birthday).toHaveAttribute("href", /\/plan\/?\?event_id=event-2/);
+  await expect(birthday).toHaveAttribute("href", /\/event\/?\?id=event-2$/);
 });
 
 test("the attention tile opens everything waiting on the client", async ({ page, api }) => {
@@ -61,5 +60,5 @@ test("a new client is welcomed and can plan a first event", async ({ page, api }
 
   await expect(page.getByRole("heading", { name: "Your celebrations start here" })).toBeVisible();
   await page.getByRole("button", { name: "Plan your first event" }).click();
-  await expect(page.getByRole("heading", { name: "Plan a new event" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "What are you celebrating?" })).toBeVisible();
 });
