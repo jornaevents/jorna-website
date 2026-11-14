@@ -161,16 +161,11 @@ export function bookedOf(c: Celebration): { booked: number; total: number; toFin
   return { booked: s.accepted + s.paid + s.done, total: c.progress.total, toFind: s.toBook };
 }
 
-/** Where a celebration's card goes: its plan, or the builder to start one,
- *  carrying the celebration so the plan built there joins it rather than
- *  starting a second card for the same event. */
+/** Where a celebration's card goes: the event's workspace (/event). A plan
+ *  with no event of its own opens as the plan; and the builder is only for a
+ *  celebration with neither. */
 export function celebrationHref(c: Celebration): string {
+  if (c.event) return `/event?id=${c.event.event_id}`;
   if (c.bundles.length > 0) return `/bundle?id=${c.bundles[0].bundle_id}`;
-  const q = new URLSearchParams();
-  if (c.event) q.set("event_id", c.event.event_id);
-  if (c.dateIso && c.dateIso !== "TBD") q.set("date", c.dateIso);
-  if (c.location) q.set("city", c.location);
-  if (c.guestCount != null) q.set("guests", String(c.guestCount));
-  const s = q.toString();
-  return `/plan${s ? `?${s}` : ""}`;
+  return "/plan";
 }
