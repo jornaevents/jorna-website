@@ -3,12 +3,35 @@
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
-import { categoryLabel, priceUnitLabel, type VendorSearchItem } from "@/lib/types";
+import {
+  categoryLabel,
+  priceUnitKind,
+  priceUnitLabel,
+  type PriceUnitKind,
+  type VendorSearchItem,
+} from "@/lib/types";
+import { quantityKey, type Quantity } from "@jorna/shared/lib/pricing";
 import { Card } from "@jorna/shared/components/ui";
 
 function money(n?: number | null) {
   if (n == null) return null;
   return `$${Math.round(n).toLocaleString()}`;
+}
+
+const QUANTITY_NOUN: Record<Exclude<PriceUnitKind, "event">, [string, string]> = {
+  person: ["guest", "guests"],
+  day: ["day", "days"],
+  hour: ["hour", "hours"],
+  performer: ["performer", "performers"],
+};
+
+/** "200 guests" — the quantity a rate was multiplied by, or null if none was. */
+function quantityText(kind: PriceUnitKind, quantity?: Quantity): string | null {
+  const key = quantityKey(kind);
+  const n = key ? quantity?.[key] : null;
+  if (kind === "event" || !n) return null;
+  const [one, many] = QUANTITY_NOUN[kind];
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
 
 /**
@@ -20,8 +43,11 @@ export function VendorCard({
   item,
   saved,
   onToggleSave,
+  quantity,
 }: {
   item: VendorSearchItem;
+  /** The event the search was estimated for — names what the total assumed. */
+  quantity?: Quantity;
   /** Whether this vendor is on the client's shortlist. Omit `onToggleSave`
    *  (a signed-out visitor) and the card has no heart. */
   saved?: boolean;
@@ -36,6 +62,11 @@ export function VendorCard({
   const price = money(item.service_price);
   const unit = priceUnitLabel(item.service_price_unit);
   const flat = item.service_price_unit != null && !unit;
+  const kind = priceUnitKind(item.service_price_unit);
+  // A total only for a rate the search could multiply out. A flat price's
+  // "total" is just its price, which the flat line already says.
+  const total = kind !== "event" && item.estimated_total != null ? money(item.estimated_total) : null;
+  const times = quantityText(kind, quantity);
   const monogram = (name || item.service_name || "·").charAt(0).toUpperCase();
   // The listing's own photo first — the card leads with the service, so that's
   // what a client is scrolling past photos of. Falls back to the vendor's
@@ -99,12 +130,26 @@ export function VendorCard({
         {item.location || distance ? (
           <span className="truncate text-xs text-ink-faint">{[item.location, distance].filter(Boolean).join(" · ")}</span>
         ) : null}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-sm">
+        <div className="mt-auto flex items-end justify-between gap-2 pt-3 text-sm">
           {/* The rate and what it's per: "$62 per person" beside an $8,500
               venue reads as what it is. A flat price says so; the total for a
               per-unit one depends on the event, so it's "From" — as is a row
               that arrives with no unit at all, which can't be called flat. */}
-          {price ? (
+          {/* With the event's numbers filled in, the total leads — it's what
+              the client compares and what Price sorts by — and the rate stays
+              beneath it with what it was multiplied by, so the figure is
+              checkable rather than a number from nowhere. */}
+          {price && total ? (
+            <span className="grid text-ink">
+              <span>
+                <strong>{total}</strong> <span className="text-ink-soft">est. total</span>
+              </span>
+              <span className="text-xs text-ink-soft">
+                {price} {unit}
+                {times ? ` × ${times}` : ""}
+              </span>
+            </span>
+          ) : price ? (
             <span className="text-ink">
               <strong>{flat ? price : `From ${price}`}</strong>
               {unit || flat ? <span className="text-ink-soft"> {unit || "flat"}</span> : null}
