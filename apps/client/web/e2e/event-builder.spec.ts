@@ -57,7 +57,7 @@ test("each step waits for what it needs, and the event is created with its categ
   });
 });
 
-test("Create and suggest vendors goes on to the builder for that event", async ({ page }) => {
+test("Create and suggest vendors goes on to suggestions for that event", async ({ page }) => {
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Event type").selectOption("Birthday");
   await dialog.getByLabel("Event name").fill("Anaya's 1st Birthday");
@@ -69,7 +69,7 @@ test("Create and suggest vendors goes on to the builder for that event", async (
   await dialog.getByRole("button", { name: "Floral & Decor" }).click();
   await dialog.getByRole("button", { name: "Create and suggest vendors" }).click();
 
-  await expect(page).toHaveURL(/\/plan\/?\?event_id=event-9&date=2099-12-12/);
+  await expect(page).toHaveURL(/\/suggest\/?\?event=event-9$/);
 });
 
 test("closing it saves nothing", async ({ page, api }) => {

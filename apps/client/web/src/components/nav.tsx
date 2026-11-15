@@ -88,7 +88,7 @@ export const MY_EVENTS: NavItem = {
   href: "/bundles",
   label: "My Events",
   icon: icon(I.events),
-  match: ["/bundles", "/bundle", "/events", "/event", "/plan", "/activity", "/guests"],
+  match: ["/bundles", "/bundle", "/events", "/event", "/plan", "/suggest", "/activity", "/guests"],
 };
 
 export const EXPLORE: NavItem = {
