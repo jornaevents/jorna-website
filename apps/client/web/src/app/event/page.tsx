@@ -11,7 +11,7 @@
 // the plan (/bundle) the vendor rows link to, and a contract opens on
 // /contract. /event was a redirect to the plan before this.
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -26,6 +26,7 @@ import { categoryLabel } from "@/lib/types";
 import { Badge, MiniProgress, type Tone } from "@/components/kit";
 import { VendorDrawer } from "@/components/VendorDrawer";
 import { EditEventDrawer } from "@/components/EditEventDrawer";
+import { RegistryTab } from "@/components/RegistryTab";
 import { signInUrl } from "@/lib/vendorSite";
 
 const dollars = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -64,10 +65,19 @@ function Tile({ label, value, badge, tone, note, children }: { label: string; va
   );
 }
 
+// The event's sections. Guest List is the existing guests page, linked from
+// the sidebar; the rest are tabs here, kept in the address (?tab=).
+const TABS: [string, string][] = [
+  ["overview", "Overview"],
+  ["registry", "Registry"],
+];
+
 function Workspace() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const eventId = useSearchParams().get("id") ?? "";
+  const params = useSearchParams();
+  const eventId = params.get("id") ?? "";
+  const tab = TABS.some(([key]) => key === params.get("tab")) ? (params.get("tab") as string) : "overview";
   const [celebrations, setCelebrations] = useState<Celebration[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openVendor, setOpenVendor] = useState<string | null>(null);
@@ -142,16 +152,29 @@ function Workspace() {
       <div className="mt-7 grid gap-6 desk:grid-cols-[200px_minmax(0,1fr)]">
         <aside aria-label="Event sections">
           <nav className="flex gap-1 overflow-x-auto desk:grid">
-            <span aria-current="page" className="shrink-0 rounded-xl bg-card px-3.5 py-2.5 text-sm font-semibold text-ink">
-              Overview
-            </span>
-            <Link href={`/guests?event=${c.event.event_id}`} className="shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-soft hover:bg-card">
-              Guest List
-            </Link>
+            {TABS.map(([key, label], i) => (
+              <Fragment key={key}>
+                <Link
+                  href={`/event?id=${c.event!.event_id}${key === "overview" ? "" : `&tab=${key}`}`}
+                  aria-current={tab === key ? "page" : undefined}
+                  className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-card text-ink" : "text-ink-soft hover:bg-card"}`}
+                >
+                  {label}
+                </Link>
+                {i === 0 ? (
+                  <Link href={`/guests?event=${c.event!.event_id}`} className="shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-soft hover:bg-card">
+                    Guest List
+                  </Link>
+                ) : null}
+              </Fragment>
+            ))}
           </nav>
         </aside>
 
         <section className="min-w-0">
+          {tab === "registry" ? <RegistryTab eventId={c.event.event_id} /> : null}
+          {tab === "overview" ? (
+            <>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="eyebrow">Overview</p>
@@ -328,6 +351,8 @@ function Workspace() {
               ) : null}
             </div>
           </div>
+            </>
+          ) : null}
         </section>
       </div>
 
