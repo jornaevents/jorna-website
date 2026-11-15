@@ -443,3 +443,12 @@ restyle and relabel: the Explore heading, the vendor card (category, vendor, pac
 the listing's own rating), **Get quote** for the inquiry, and **Add to my event** for adding a
 package. The design's five-field search panel isn't built: the existing search box and Filters
 cover the same ground with real availability behind them.
+
+## Decision: saved vendors live on the account; Compare shows what's recorded (2026-11-14)
+
+Client redesign PR 7 (backend 0088). A signed-in client hearts a vendor on its Explore card
+(`lib/savedVendors.ts` — the heart flips at once, then the server's list is re-read); a bar under
+the results says how many are selected and leads to `/compare`. Compare lays them side by side:
+rating (or "New" with no reviews), reviews, starting price ("Ask for a quote" with none listed),
+years in business, where they're based, then View vendor / Remove. The design's "Typical response"
+and "Travel fee" rows are left out — nothing records them. Signed-out visitors see no hearts.

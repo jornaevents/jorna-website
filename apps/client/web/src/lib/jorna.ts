@@ -1250,3 +1250,33 @@ export function checkInWithToken(
     auth: false,
   });
 }
+
+// ── Saved vendors (backend 0088) ─────────────────────────────────────
+
+/** A vendor the client hearted in Explore, with what Compare shows. */
+export interface SavedVendor {
+  vendor_id: string;
+  name: string;
+  category?: string | null;
+  subcategory?: string | null;
+  pfp_url?: string | null;
+  location?: string | null;
+  rating?: number | null;
+  num_reviews?: number | null;
+  years_experience?: number | null;
+  /** The cheapest listed package's rate — a "from" price. */
+  starting_price?: number | null;
+  saved_at: string;
+}
+
+export function listSavedVendors(): Promise<{ items: SavedVendor[] }> {
+  return apiFetch<{ items: SavedVendor[] }>("/saved-vendors");
+}
+
+export function saveVendor(vendorId: string): Promise<void> {
+  return apiFetch<void>(`/saved-vendors/${encodeURIComponent(vendorId)}`, { method: "PUT" });
+}
+
+export function unsaveVendor(vendorId: string): Promise<void> {
+  return apiFetch<void>(`/saved-vendors/${encodeURIComponent(vendorId)}`, { method: "DELETE" });
+}

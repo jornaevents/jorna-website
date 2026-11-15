@@ -16,7 +16,17 @@ function money(n?: number | null) {
  * so a vendor with several services appears once per service — the card leads
  * with the service and attributes it to the vendor.
  */
-export function VendorCard({ item }: { item: VendorSearchItem }) {
+export function VendorCard({
+  item,
+  saved,
+  onToggleSave,
+}: {
+  item: VendorSearchItem;
+  /** Whether this vendor is on the client's shortlist. Omit `onToggleSave`
+   *  (a signed-out visitor) and the card has no heart. */
+  saved?: boolean;
+  onToggleSave?: () => void;
+}) {
   // Some vendor photos are external links (e.g. imported from Instagram)
   // rather than files this app hosts itself — those can 404 or expire on
   // their own schedule with nothing wrong on this end. Falling back to the
@@ -33,6 +43,20 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
     item.distance_miles != null ? `${Math.round(item.distance_miles)} mi away` : null;
 
   return (
+    <article className="relative">
+      {onToggleSave ? (
+        <button
+          type="button"
+          onClick={onToggleSave}
+          aria-pressed={Boolean(saved)}
+          aria-label={`${saved ? "Remove" : "Save"} ${name}`}
+          className={`absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-ground/90 backdrop-blur transition ${saved ? "text-maroon" : "text-ink-soft hover:text-ink"}`}
+        >
+          <svg viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
+            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+          </svg>
+        </button>
+      ) : null}
     <Link
       // The card leads with the service name and its price, so the service is
       // what a click is asking about. Falls back to the vendor's profile for a
@@ -43,7 +67,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
           ? `/service?id=${item.service_id}`
           : `/vendor?id=${item.vendor_id}`
       }
-      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card transition hover:border-gold"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition hover:border-gold"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-panel">
         {photo ? (
@@ -85,6 +109,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
         </div>
       </div>
     </Link>
+    </article>
   );
 }
 
