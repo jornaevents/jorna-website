@@ -10,6 +10,7 @@ import {
   describePayment,
   nextPayment,
   paymentRows,
+  type PaymentState,
 } from "@/lib/contract";
 import { isDeadBooking, isDraftBundle } from "@/lib/planning";
 import type { Celebration } from "@/lib/myEvents";
@@ -126,4 +127,57 @@ export function overviewTotals(rows: VendorRow[]): OverviewTotals {
     }
   }
   return t;
+}
+
+export interface LedgerRow {
+  bookingId: string;
+  vendor: string;
+  label: string;
+  amountCents: number;
+  /** "YYYY-MM-DD", or null for a payment with no date of its own. */
+  due: string | null;
+  state: PaymentState;
+}
+
+export interface LedgerMonth {
+  /** "YYYY-MM", or "" for payments with no date. */
+  month: string;
+  rows: LedgerRow[];
+}
+
+/** Every payment on the event's signed contracts, by the month it falls in,
+ *  earliest first; undated ones last. For the Budget tab. */
+export function paymentsByMonth(rows: VendorRow[]): LedgerMonth[] {
+  const all: LedgerRow[] = rows.flatMap(({ booking }) =>
+    paymentRows(booking).map((r) => ({
+      bookingId: booking.booking_id,
+      vendor: booking.vendor_name ?? "Vendor",
+      label: r.installment.label,
+      amountCents: r.installment.amount_cents,
+      due: r.due,
+      state: r.state,
+    })),
+  );
+  const months = new Map<string, LedgerRow[]>();
+  for (const row of all) {
+    const key = row.due ? row.due.slice(0, 7) : "";
+    months.set(key, [...(months.get(key) ?? []), row]);
+  }
+  return [...months.entries()]
+    .sort(([a], [b]) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)))
+    .map(([month, list]) => ({ month, rows: list.sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "")) }));
+}
+
+/** What the signed contracts add up to, in cents. */
+export function signedCents(rows: VendorRow[]): number {
+  return rows.reduce((n, { booking }) => n + (booking.signed_at ? (booking.amount_cents ?? Math.round((booking.price ?? 0) * 100)) : 0), 0);
+}
+
+/** Contracts sent but not signed: named, and not counted until they are. */
+export function pendingContracts(rows: VendorRow[]): { vendors: string[]; cents: number } {
+  const pending = rows.filter(({ booking }) => !booking.signed_at && contractStep(booking) === "sign");
+  return {
+    vendors: pending.map(({ booking }) => booking.vendor_name ?? "Vendor"),
+    cents: pending.reduce((n, { booking }) => n + (booking.amount_cents ?? Math.round((booking.price ?? 0) * 100)), 0),
+  };
 }
