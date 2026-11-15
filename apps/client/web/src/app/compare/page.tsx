@@ -1,31 +1,82 @@
 "use client";
 
-// Compare the vendors a client saved in Explore, side by side (Jorna-Client
-// design; client redesign PR 7): the numbers a shortlist is decided on.
+// Compare the packages a client saved in Explore, side by side (Jorna-Client
+// design; client redesign PR 7). Packages, not vendors: one vendor's $38-a-head
+// dinner and $8,000 buffet are different decisions, and comparing "the vendor"
+// could only ever show a starting price. Every row here is the package's own
+// terms, with who sells it and their track record underneath.
 // "Typical response" and "Travel fee" from the design aren't here — nothing
 // records them yet.
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { LinkButton } from "@jorna/shared/components/ui";
-import { useSavedVendors } from "@/lib/savedVendors";
-import { categoryLabel } from "@/lib/types";
-import type { SavedVendor } from "@/lib/jorna";
+import { useSavedPackages } from "@/lib/savedPackages";
+import { categoryLabel, priceUnitLabel } from "@/lib/types";
+import type { SavedPackage } from "@/lib/jorna";
 import { Badge } from "@/components/kit";
 import { signInUrl } from "@/lib/vendorSite";
 
-const ROWS: [string, (v: SavedVendor) => string][] = [
-  ["Rating", (v) => (v.num_reviews && v.rating ? `★ ${v.rating.toFixed(1)}` : "New")],
-  ["Reviews", (v) => String(v.num_reviews ?? 0)],
-  ["Starting price", (v) => (v.starting_price != null ? `From $${Math.round(v.starting_price).toLocaleString()}` : "Ask for a quote")],
-  ["Years in business", (v) => (v.years_experience != null ? String(v.years_experience) : "—")],
-  ["Based in", (v) => v.location || "—"],
+function money(n: number) {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
+/** "$38 per person", "$2,400 flat"; a package with no unit is priced flat. */
+function price(p: SavedPackage): string {
+  if (!p.price) return "Ask for a quote";
+  const unit = priceUnitLabel(p.price_unit);
+  return `${money(p.price)} ${unit || "flat"}`;
+}
+
+function plural(n: number, one: string, many: string) {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+const ROWS: [string, (p: SavedPackage) => ReactNode][] = [
+  ["Price", price],
+  ["Hours included", (p) => (p.included_hours ? plural(p.included_hours, "hour", "hours") : "—")],
+  [
+    "What's included",
+    (p) =>
+      p.inclusions.length ? (
+        <ul className="list-disc space-y-0.5 pl-4">
+          {p.inclusions.map((i) => (
+            <li key={i}>{i}</li>
+          ))}
+        </ul>
+      ) : (
+        "—"
+      ),
+  ],
+  ["Add-ons", (p) => (p.add_ons.length ? p.add_ons.join(", ") : "None")],
+  ["Deposit", (p) => (p.deposit_percent != null ? `${p.deposit_percent}% to book` : "—")],
+  [
+    "Cancellation",
+    // Vendors set this in days (ServicesManager), stored as hours.
+    (p) =>
+      p.cancellation_window_hours != null
+        ? `Up to ${plural(Math.round(p.cancellation_window_hours / 24), "day", "days")} before the event`
+        : "—",
+  ],
+  ["Price negotiable", (p) => (p.negotiable ? "Yes" : "No")],
+  // The package's own reviews; an unreviewed one reads as new, not zero stars.
+  ["Rating", (p) => (p.num_reviews && p.rating ? `★ ${p.rating.toFixed(1)} (${p.num_reviews})` : "New")],
+  [
+    "Vendor",
+    (p) => (
+      <Link href={`/vendor?id=${p.vendor_id}`} className="font-semibold text-ink hover:text-gold">
+        {p.vendor_name || "Vendor"}
+      </Link>
+    ),
+  ],
+  ["Based in", (p) => p.vendor_location || "—"],
+  ["Years in business", (p) => (p.years_experience != null ? String(p.years_experience) : "—")],
 ];
 
 export default function ComparePage() {
   const { user, loading } = useAuth();
-  const { saved, toggle } = useSavedVendors();
+  const { saved, toggle } = useSavedPackages();
 
   useEffect(() => {
     if (!loading && !user) window.location.replace(signInUrl("/compare"));
@@ -42,19 +93,19 @@ export default function ComparePage() {
         <div>
           <p className="eyebrow">Your shortlist</p>
           <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[2.8rem]">
-            Compare your selected vendors
+            Compare your selected packages
           </h1>
-          <p className="mt-2 text-ink-soft">Numbers side by side, so the tradeoffs are easy to see.</p>
+          <p className="mt-2 text-ink-soft">What each one costs and includes, side by side.</p>
         </div>
         <Badge tone="neutral">{saved.length} selected</Badge>
       </div>
 
       {saved.length === 0 ? (
         <div className="mx-auto mt-16 max-w-[420px] text-center">
-          <h2 className="font-serif text-xl font-bold text-ink">No vendors selected</h2>
-          <p className="mt-2 text-ink-soft">Heart vendors in Explore to build a side-by-side comparison.</p>
+          <h2 className="font-serif text-xl font-bold text-ink">No packages selected</h2>
+          <p className="mt-2 text-ink-soft">Heart packages in Explore to build a side-by-side comparison.</p>
           <LinkButton href="/marketplace" className="mt-5">
-            Explore vendors
+            Explore packages
           </LinkButton>
         </div>
       ) : (
@@ -65,10 +116,24 @@ export default function ComparePage() {
                 <th scope="col" className="w-36 p-4 text-left text-[0.72rem] font-semibold text-ink-soft">
                   Compare
                 </th>
-                {saved.map((v) => (
-                  <th key={v.vendor_id} scope="col" className="min-w-[170px] p-4 text-left align-top">
-                    <span className="block text-[0.7rem] font-bold uppercase tracking-[0.1em] text-gold">{categoryLabel(v.category ?? "")}</span>
-                    <strong className="font-serif text-base text-ink">{v.name || "Vendor"}</strong>
+                {saved.map((p) => (
+                  <th key={p.service_id} scope="col" className="min-w-[190px] p-4 text-left align-top">
+                    {p.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.photo_url} alt="" loading="lazy" className="mb-3 aspect-[4/3] w-full rounded-lg object-cover" />
+                    ) : null}
+                    <span className="block text-[0.7rem] font-bold uppercase tracking-[0.1em] text-gold">
+                      {categoryLabel(p.category ?? "")}
+                    </span>
+                    <strong className="block font-serif text-base text-ink">{p.name || "Package"}</strong>
+                    <span className="block text-xs font-normal text-ink-soft">{p.vendor_name}</span>
+                    {/* Hidden or archived since it was saved — kept so it doesn't
+                        just disappear, but it can't be booked. */}
+                    {!p.available ? (
+                      <span className="mt-2 block">
+                        <Badge tone="neutral">No longer offered</Badge>
+                      </span>
+                    ) : null}
                   </th>
                 ))}
               </tr>
@@ -76,12 +141,12 @@ export default function ComparePage() {
             <tbody>
               {ROWS.map(([label, value]) => (
                 <tr key={label} className="border-b border-line-soft">
-                  <th scope="row" className="p-4 text-left text-[0.8rem] font-semibold text-ink-soft">
+                  <th scope="row" className="p-4 text-left align-top text-[0.8rem] font-semibold text-ink-soft">
                     {label}
                   </th>
-                  {saved.map((v) => (
-                    <td key={v.vendor_id} className="p-4 text-ink">
-                      {value(v)}
+                  {saved.map((p) => (
+                    <td key={p.service_id} className="p-4 align-top text-ink">
+                      {value(p)}
                     </td>
                   ))}
                 </tr>
@@ -90,13 +155,15 @@ export default function ComparePage() {
                 <th scope="row" className="p-4 text-left text-[0.8rem] font-semibold text-ink-soft">
                   Next step
                 </th>
-                {saved.map((v) => (
-                  <td key={v.vendor_id} className="p-4">
-                    <LinkButton size="md" variant="ghost" href={`/vendor?id=${v.vendor_id}`}>
-                      View vendor
-                    </LinkButton>
-                    <button type="button" onClick={() => toggle(v.vendor_id)} className="mt-2 block text-xs font-semibold text-ink-soft hover:text-maroon">
-                      Remove<span className="sr-only"> {v.name}</span>
+                {saved.map((p) => (
+                  <td key={p.service_id} className="p-4">
+                    {p.available ? (
+                      <LinkButton size="md" variant="ghost" href={`/service?id=${p.service_id}`}>
+                        View package
+                      </LinkButton>
+                    ) : null}
+                    <button type="button" onClick={() => toggle(p.service_id)} className="mt-2 block text-xs font-semibold text-ink-soft hover:text-maroon">
+                      Remove<span className="sr-only"> {p.name}</span>
                     </button>
                   </td>
                 ))}

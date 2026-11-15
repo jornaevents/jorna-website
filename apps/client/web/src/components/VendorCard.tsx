@@ -48,7 +48,7 @@ export function VendorCard({
   item: VendorSearchItem;
   /** The event the search was estimated for — names what the total assumed. */
   quantity?: Quantity;
-  /** Whether this vendor is on the client's shortlist. Omit `onToggleSave`
+  /** Whether this package is on the client's shortlist. Omit `onToggleSave`
    *  (a signed-out visitor) and the card has no heart. */
   saved?: boolean;
   onToggleSave?: () => void;
@@ -82,7 +82,7 @@ export function VendorCard({
           type="button"
           onClick={onToggleSave}
           aria-pressed={Boolean(saved)}
-          aria-label={`${saved ? "Remove" : "Save"} ${name}`}
+          aria-label={`${saved ? "Remove" : "Save"} ${item.service_name || name}`}
           className={`absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-ground/90 backdrop-blur transition ${saved ? "text-maroon" : "text-ink-soft hover:text-ink"}`}
         >
           <svg viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
