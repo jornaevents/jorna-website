@@ -421,3 +421,16 @@ the budget.
   plans still hang on the event.
 - Guest List in the sidebar opens the existing guests page; Registry, Budget and Day-of arrive as
   tabs with their PRs (9, 10).
+
+## Decision: Suggest vendors runs inside an event, on the builder's API (2026-11-14)
+
+Client redesign PR 5. `/suggest?event=` asks the budget and the feel (the six package vibes), then
+shows one suggested vendor per open slot in three plans — Best value, Balanced, Top rated — which
+are the bundle builder's Budget / Balanced / Top Rated options (`POST /chatbot/bundles`, attached
+to the event). **Add to my event** keeps the chosen plan as drafts (Ready to send in the workspace)
+and deletes the other two, as `/plan` does; nothing is sent to a vendor here. A slot nothing fits
+points to Explore for that category.
+
+Not asked, because the matching engine doesn't read them yet: per-category budget weighting, "open
+to out-of-state vendors" and free-text notes. Swapping or skipping a suggestion happens on the plan
+after adding. `/plan` stays for building without an event.

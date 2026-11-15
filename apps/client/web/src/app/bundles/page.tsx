@@ -206,13 +206,7 @@ function DashboardInner() {
           onCreated={(event, suggest) => {
             setCreating(false);
             if (suggest) {
-              // The builder for this event, so the plan joins it (PR 5 makes
-              // this the suggestions step).
-              const q = new URLSearchParams({ event_id: event.event_id });
-              if (event.date_iso) q.set("date", event.date_iso);
-              if (event.location) q.set("city", event.location);
-              if (event.guest_count != null) q.set("guests", String(event.guest_count));
-              router.push(`/plan?${q}`);
+              router.push(`/suggest?event=${event.event_id}`);
             } else {
               void load();
             }

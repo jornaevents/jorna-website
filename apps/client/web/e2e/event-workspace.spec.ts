@@ -104,5 +104,5 @@ test("an event with nothing on it yet offers suggestions for its open slots", as
   await page.goto("event/?id=event-1");
 
   await expect(page.getByText("No vendors added yet")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Suggest vendors" })).toHaveAttribute("href", /plan\/?\?event_id=event-1/);
+  await expect(page.getByRole("link", { name: "Suggest vendors" })).toHaveAttribute("href", /suggest\/?\?event=event-1$/);
 });

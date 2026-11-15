@@ -114,12 +114,7 @@ function Workspace() {
   const open = rows.find((r) => r.booking.booking_id === openVendor) ?? null;
   const budget = c.budget;
   const committed = c.money.committed;
-  const builderHref = `/plan?${new URLSearchParams({
-    event_id: c.event.event_id,
-    ...(c.dateIso && c.dateIso !== "TBD" ? { date: c.dateIso } : {}),
-    ...(c.location ? { city: c.location } : {}),
-    ...(c.guestCount != null ? { guests: String(c.guestCount) } : {}),
-  })}`;
+  const builderHref = `/suggest?event=${c.event.event_id}`;
 
   const act = (row: VendorRow) => {
     if (row.target === "drawer") setOpenVendor(row.booking.booking_id);
