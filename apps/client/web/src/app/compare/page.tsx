@@ -7,13 +7,27 @@
 // terms, with who sells it and their track record underneath.
 // "Typical response" and "Travel fee" from the design aren't here — nothing
 // records them yet.
+//
+// The "Your event" bar arrives filled from Explore's (via the URL) and turns
+// each rate into an estimated total with the same estimateTotal the service
+// page uses — locally, since the saved list is already here.
 
-import { useEffect, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { estimateTotal, type Quantity } from "@jorna/shared/lib/pricing";
+import {
+  inputsFromParams,
+  quantityFrom,
+  quantityNoun,
+  quantityQuery,
+  quantityText,
+} from "@/lib/eventQuantity";
+import { EventQuantityBar } from "@/components/EventQuantityBar";
 import { useAuth } from "@/lib/auth";
 import { LinkButton } from "@jorna/shared/components/ui";
 import { useSavedPackages } from "@/lib/savedPackages";
-import { categoryLabel, priceUnitLabel } from "@/lib/types";
+import { categoryLabel, priceUnitKind, priceUnitLabel } from "@/lib/types";
 import type { SavedPackage } from "@/lib/jorna";
 import { Badge } from "@/components/kit";
 import { signInUrl } from "@/lib/vendorSite";
@@ -33,8 +47,37 @@ function plural(n: number, one: string, many: string) {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
 
-const ROWS: [string, (p: SavedPackage) => ReactNode][] = [
+/** The package's total for this event, or null when it can't be worked out yet. */
+function total(p: SavedPackage, quantity: Quantity): number | null {
+  return p.price ? estimateTotal(p, quantity) : null;
+}
+
+const ROWS: [string, (p: SavedPackage, quantity: Quantity, lowest: number | null) => ReactNode][] = [
   ["Price", price],
+  [
+    "Estimated total",
+    (p, quantity, lowest) => {
+      if (!p.price) return "—";
+      const kind = priceUnitKind(p.price_unit);
+      const t = total(p, quantity);
+      if (t == null) {
+        return <span className="text-ink-faint">Add {quantityNoun(kind)} above</span>;
+      }
+      const times = quantityText(kind, quantity);
+      return (
+        <span className="grid gap-0.5">
+          <strong>{money(t)}</strong>
+          {times ? <span className="text-xs text-ink-soft">for {times}</span> : null}
+          {/* Only meaningful against at least one other total. */}
+          {lowest != null && t === lowest ? (
+            <span className="mt-1">
+              <Badge tone="green">Lowest</Badge>
+            </span>
+          ) : null}
+        </span>
+      );
+    },
+  ],
   ["Hours included", (p) => (p.included_hours ? plural(p.included_hours, "hour", "hours") : "—")],
   [
     "What's included",
@@ -75,8 +118,27 @@ const ROWS: [string, (p: SavedPackage) => ReactNode][] = [
 ];
 
 export default function ComparePage() {
+  return (
+    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+      <CompareInner />
+    </Suspense>
+  );
+}
+
+function CompareInner() {
   const { user, loading } = useAuth();
   const { saved, toggle } = useSavedPackages();
+  const searchParams = useSearchParams();
+  const [eventInputs, setEventInputs] = useState(() => inputsFromParams(searchParams));
+  const quantity = useMemo(() => quantityFrom(eventInputs), [eventInputs]);
+  // The cheapest total, once two or more packages have one to compare.
+  const lowest = useMemo(() => {
+    const totals = (saved ?? [])
+      .filter((p) => p.available)
+      .map((p) => total(p, quantity))
+      .filter((t): t is number => t != null);
+    return totals.length > 1 ? Math.min(...totals) : null;
+  }, [saved, quantity]);
 
   useEffect(() => {
     if (!loading && !user) window.location.replace(signInUrl("/compare"));
@@ -86,7 +148,7 @@ export default function ComparePage() {
 
   return (
     <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-10">
-      <Link href="/marketplace" className="text-sm font-semibold text-ink-soft hover:text-ink">
+      <Link href={`/marketplace${quantityQuery(quantity)}`} className="text-sm font-semibold text-ink-soft hover:text-ink">
         ← Back to Explore
       </Link>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
@@ -99,6 +161,15 @@ export default function ComparePage() {
         </div>
         <Badge tone="neutral">{saved.length} selected</Badge>
       </div>
+
+      {saved.length > 0 ? (
+        <EventQuantityBar
+          value={eventInputs}
+          onChange={setEventInputs}
+          showPerformers={saved.some((p) => priceUnitKind(p.price_unit) === "performer")}
+          hint="Fill in what you know to compare totals, not just rates."
+        />
+      ) : null}
 
       {saved.length === 0 ? (
         <div className="mx-auto mt-16 max-w-[420px] text-center">
@@ -146,7 +217,7 @@ export default function ComparePage() {
                   </th>
                   {saved.map((p) => (
                     <td key={p.service_id} className="p-4 align-top text-ink">
-                      {value(p)}
+                      {value(p, quantity, lowest)}
                     </td>
                   ))}
                 </tr>
