@@ -35,9 +35,10 @@ import { searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
 import { categoryLabel, type VendorSearchItem } from "@/lib/types";
 import { findService, groupOf, useTaxonomy } from "@jorna/shared/lib/taxonomy";
-import { Button, Chip, Field, TimeField } from "@jorna/shared/components/ui";
+import { Button, Chip, Field, LinkButton, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
+import { useSavedVendors } from "@/lib/savedVendors";
 
 const PAGE_SIZE = 12;
 // /vendors/search has no text-query parameter, so a typed query is filtered
@@ -143,6 +144,7 @@ const PinIcon = (
 
 function MarketplaceInner() {
   const searchParams = useSearchParams();
+  const shortlist = useSavedVendors();
 
   const [query, setQuery] = useState("");
   // Set once by /book after a draft add; read straight off the URL rather than
@@ -509,7 +511,12 @@ function MarketplaceInner() {
           ) : null}
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((item) => (
-              <VendorCard key={`${item.vendor_id}-${item.service_name ?? ""}`} item={item} />
+              <VendorCard
+                key={`${item.vendor_id}-${item.service_name ?? ""}`}
+                item={item}
+                saved={shortlist.isSaved(item.vendor_id)}
+                onToggleSave={shortlist.canSave ? () => shortlist.toggle(item.vendor_id) : undefined}
+              />
             ))}
           </div>
         </>
@@ -522,6 +529,24 @@ function MarketplaceInner() {
           <Button variant="ghost" onClick={() => load(offset + PAGE_SIZE, false)}>
             Show more
           </Button>
+        </div>
+      ) : null}
+      {/* The shortlist, and the way on to comparing it (signed-in only). */}
+      {shortlist.canSave ? (
+        <div className="sticky bottom-[calc(72px+env(safe-area-inset-bottom)+0.75rem)] z-20 mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 shadow-[0_12px_36px_rgba(67,27,24,0.12)] backdrop-blur desk:bottom-4">
+          <span className="grid">
+            <strong className="text-sm text-ink">
+              {shortlist.saved?.length
+                ? `${shortlist.saved.length} ${shortlist.saved.length === 1 ? "vendor" : "vendors"} selected`
+                : "Select vendors to compare"}
+            </strong>
+            <small className="text-xs text-ink-soft">Tap the heart on any vendor card to add it.</small>
+          </span>
+          {shortlist.saved?.length ? (
+            <LinkButton size="md" href="/compare">
+              Next · Compare
+            </LinkButton>
+          ) : null}
         </div>
       ) : null}
     </div>
