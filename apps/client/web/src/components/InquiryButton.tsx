@@ -20,7 +20,7 @@ export function InquiryButton({
   return (
     <>
       <Button variant={variant} onClick={() => setOpen(true)}>
-        Send an inquiry
+        Get quote
       </Button>
       {open ? <InquirySheet vendorId={vendorId} vendorName={vendorName} onClose={() => setOpen(false)} /> : null}
     </>

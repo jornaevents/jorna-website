@@ -187,7 +187,7 @@ test.describe("inquiry form", () => {
     api.post("/vendors/vendor-1/inquiries", SENT);
 
     await page.goto("vendor/?id=vendor-1");
-    await page.getByRole("button", { name: "Send an inquiry" }).click();
+    await page.getByRole("button", { name: "Get quote" }).click();
     const sheet = page.getByRole("dialog", { name: "Send Arjun Kapoor an inquiry" });
     await expect(sheet.getByText("Sending as Priya Shah")).toBeVisible();
     await sheet.getByLabel("Event date").fill(DATE);

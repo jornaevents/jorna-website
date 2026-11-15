@@ -4,7 +4,7 @@ import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
 import { categoryLabel, type VendorSearchItem } from "@/lib/types";
-import { Card, Stars } from "@jorna/shared/components/ui";
+import { Card } from "@jorna/shared/components/ui";
 
 function money(n?: number | null) {
   if (n == null) return null;
@@ -43,7 +43,7 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
           ? `/service?id=${item.service_id}`
           : `/vendor?id=${item.vendor_id}`
       }
-      className="group flex flex-col overflow-hidden rounded-2xl border border-card-edge bg-card shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_20px_44px_-22px_rgba(74,11,26,0.4)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card transition hover:border-gold"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-panel">
         {photo ? (
@@ -56,49 +56,31 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
             className="size-full object-cover transition duration-300 group-hover:scale-[1.04]"
           />
         ) : (
-          // No photo → an elegant serif monogram on a soft gradient.
-          <div className="flex size-full items-center justify-center bg-gradient-to-br from-panel to-ground-2">
-            <span className="serif text-5xl text-gold/70">{monogram}</span>
+          <div className="flex size-full items-center justify-center bg-[#e7c790]">
+            <span className="font-serif text-5xl font-bold text-maroon">{monogram}</span>
           </div>
         )}
-        <span className="absolute left-3 top-3 rounded-full bg-ground/90 px-2.5 py-1 text-xs font-semibold text-maroon backdrop-blur dark:text-gold">
-          {categoryLabel(item.category)}
-        </span>
-        {/* The card leads with the service, so the badge is that listing's own
-            rating — not the vendor's blend, which used to be shown here and
-            described something the client isn't looking at.
-            No fallback to the vendor's number: this badge is a bare star row
-            with nowhere to put a label, so a quiet swap between two different
-            averages would be unreadable. An unreviewed listing shows nothing,
-            and the vendor's record is a tap away on their page. */}
-        {item.service_num_reviews && item.service_rating ? (
-          <span className="absolute right-3 top-3 rounded-full bg-ground/90 px-2 py-1 text-xs backdrop-blur">
-            <Stars rating={item.service_rating} />
-          </span>
-        ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="serif text-lg leading-snug text-ink">{item.service_name || name}</h3>
-        <p className="mt-0.5 text-sm text-ink-soft">{name}</p>
-
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          <div className="min-w-0">
-            {item.location ? (
-              <p className="truncate text-xs text-ink-faint">{item.location}</p>
-            ) : null}
-            {distance ? <p className="text-xs text-ink-faint">{distance}</p> : null}
-          </div>
-          {price ? (
-            // /vendors/search returns the service's rate but not its price_unit,
-            // so a per-person rate would read as a full total. Show it as a
-            // starting price instead — the vendor page has the real unit.
-            <p className="shrink-0 text-right">
-              <span className="block text-[0.65rem] uppercase tracking-wide text-ink-faint">
-                from
-              </span>
-              <span className="serif text-lg text-ink">{price}</span>
-            </p>
+      {/* The Jorna-Client card: what kind of vendor, who, which package, then
+          the price and the rating on one line. The rating is this listing's
+          own, shown only once it has reviews — an unreviewed listing shows
+          none rather than borrowing the vendor's average. */}
+      <div className="flex flex-1 flex-col gap-1 p-4">
+        <span className="text-[0.7rem] font-bold uppercase tracking-[0.1em] text-gold">{categoryLabel(item.category)}</span>
+        <h3 className="font-serif text-[1.05rem] font-bold leading-snug tracking-[-0.01em] text-ink">{name}</h3>
+        {item.service_name ? <span className="text-sm text-ink-soft">{item.service_name}</span> : null}
+        {item.location || distance ? (
+          <span className="truncate text-xs text-ink-faint">{[item.location, distance].filter(Boolean).join(" · ")}</span>
+        ) : null}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-sm">
+          {/* /vendors/search returns the rate but not its unit, so it's a
+              starting price here — the package page has the real unit. */}
+          {price ? <strong className="text-ink">From {price}</strong> : <span />}
+          {item.service_num_reviews && item.service_rating ? (
+            <span className="text-gold">
+              ★ {item.service_rating.toFixed(1)} <span className="text-ink-faint">({item.service_num_reviews})</span>
+            </span>
           ) : null}
         </div>
       </div>

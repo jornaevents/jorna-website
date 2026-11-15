@@ -335,7 +335,7 @@ function PricePanel({ service }: { service: ServiceItem }) {
 
       <div className="mt-5 grid gap-2">
         <LinkButton href={`/book?service=${service.service_id}`} size="lg">
-          Add to plan
+          Add to my event
         </LinkButton>
         {/* Beside the request, not instead of it. A client who isn't ready to
             book had one option on this page and it was a commitment — so the
