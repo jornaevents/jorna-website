@@ -393,3 +393,11 @@ with (accepted, paid or done in `lib/planning`'s progress stages); slots are eve
 celebration needs. The join of events and plans moved to `lib/myEvents.ts` for the event pages to
 share. The money and task detail the old card carried stay on the plan the card opens. A new client
 sees the welcome with "Plan your first event".
+
+## Decision: events are planned in a four-step builder (2026-11-14)
+
+Client redesign PR 3. "Plan a new event" opens `components/EventBuilder.tsx`: type and name, date
+and city (an end date only for a multi-day event; backend 0087), guests and budget, vendor
+categories. Nothing is saved until the last step. **Create event** returns to My Events;
+**Create and suggest vendors** goes to the bundle builder for the new event until the suggestions
+step (PR 5) takes over. It replaces the one-screen form the dashboard had.

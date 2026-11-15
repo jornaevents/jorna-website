@@ -1198,6 +1198,7 @@ export interface EventItem {
   user_id: string;
   name: string;
   date_iso?: string | null;
+  date_end?: string | null;
   location?: string | null;
   event_type?: string | null;
   description?: string | null;
@@ -1212,6 +1213,8 @@ export interface EventItem {
 export interface EventCreateInput {
   name: string;
   date_iso: string;
+  /** Last day of a multi-day celebration (backend 0087); omit for one day. */
+  date_end?: string | null;
   location: string;
   event_type?: string | null;
   description?: string | null;
