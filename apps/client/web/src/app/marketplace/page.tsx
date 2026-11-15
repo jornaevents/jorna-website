@@ -581,10 +581,15 @@ function MarketplaceInner() {
             <small className="text-xs text-ink-soft">Tap the heart on any package to add it.</small>
           </span>
           {shortlist.saved?.length ? (
-            // Carries the event along, so Compare's totals match the cards'.
-            <LinkButton size="md" href={`/compare${quantityQuery(quantity)}`}>
-              Next · Compare
-            </LinkButton>
+            <span className="flex items-center gap-2">
+              <Button size="md" variant="ghost" onClick={shortlist.clear}>
+                Clear
+              </Button>
+              {/* Carries the event along, so Compare's totals match the cards'. */}
+              <LinkButton size="md" href={`/compare${quantityQuery(quantity)}`}>
+                Next · Compare
+              </LinkButton>
+            </span>
           ) : null}
         </div>
       ) : null}

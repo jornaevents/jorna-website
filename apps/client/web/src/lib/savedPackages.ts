@@ -16,6 +16,8 @@ export function useSavedPackages(): {
   canSave: boolean;
   isSaved: (serviceId: string) => boolean;
   toggle: (serviceId: string) => void;
+  /** Empties the shortlist. */
+  clear: () => void;
 } {
   const { user } = useAuth();
   // Kept with the user it was loaded for, so one account never sees another's.
@@ -58,10 +60,23 @@ export function useSavedPackages(): {
     [userId, items],
   );
 
+  const clear = useCallback(() => {
+    if (!userId || !items?.length) return;
+    const ids = items.map((p) => p.service_id);
+    setState({ userId, items: [] });
+    // No bulk endpoint; the list is capped at 50, so one call each is fine.
+    // Anything that failed to go comes back with the server's list.
+    void Promise.allSettled(ids.map((id) => unsavePackage(id)))
+      .then(() => listSavedPackages())
+      .then((r) => setState({ userId, items: r.items }))
+      .catch(() => {});
+  }, [userId, items]);
+
   return {
     saved: userId ? items : [],
     canSave: Boolean(userId),
     isSaved: (id) => (items ?? []).some((p) => p.service_id === id),
     toggle,
+    clear,
   };
 }
