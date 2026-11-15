@@ -41,7 +41,7 @@ import { findService, groupOf, useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import { Button, Chip, Field, LinkButton, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
-import { useSavedVendors } from "@/lib/savedVendors";
+import { useSavedPackages } from "@/lib/savedPackages";
 
 const PAGE_SIZE = 12;
 // /vendors/search has no text-query parameter, so a typed query is filtered
@@ -157,7 +157,7 @@ const PinIcon = (
 
 function MarketplaceInner() {
   const searchParams = useSearchParams();
-  const shortlist = useSavedVendors();
+  const shortlist = useSavedPackages();
 
   const [query, setQuery] = useState("");
   // Set once by /book after a draft add; read straight off the URL rather than
@@ -579,8 +579,13 @@ function MarketplaceInner() {
                 key={`${item.vendor_id}-${item.service_name ?? ""}`}
                 item={item}
                 quantity={quantity}
-                saved={shortlist.isSaved(item.vendor_id)}
-                onToggleSave={shortlist.canSave ? () => shortlist.toggle(item.vendor_id) : undefined}
+                saved={item.service_id ? shortlist.isSaved(item.service_id) : false}
+                // A row with no package id has nothing to save — no heart.
+                onToggleSave={
+                  shortlist.canSave && item.service_id
+                    ? () => shortlist.toggle(item.service_id as string)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -602,10 +607,10 @@ function MarketplaceInner() {
           <span className="grid">
             <strong className="text-sm text-ink">
               {shortlist.saved?.length
-                ? `${shortlist.saved.length} ${shortlist.saved.length === 1 ? "vendor" : "vendors"} selected`
-                : "Select vendors to compare"}
+                ? `${shortlist.saved.length} ${shortlist.saved.length === 1 ? "package" : "packages"} selected`
+                : "Select packages to compare"}
             </strong>
-            <small className="text-xs text-ink-soft">Tap the heart on any vendor card to add it.</small>
+            <small className="text-xs text-ink-soft">Tap the heart on any package to add it.</small>
           </span>
           {shortlist.saved?.length ? (
             <LinkButton size="md" href="/compare">

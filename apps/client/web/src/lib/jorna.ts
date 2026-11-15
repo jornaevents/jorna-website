@@ -1251,34 +1251,46 @@ export function checkInWithToken(
   });
 }
 
-// ── Saved vendors (backend 0088) ─────────────────────────────────────
+// ── Saved packages (backend 0090) ────────────────────────────────────
 
-/** A vendor the client hearted in Explore, with what Compare shows. */
-export interface SavedVendor {
-  vendor_id: string;
+/** A package the client hearted in Explore, with what Compare shows. */
+export interface SavedPackage {
+  service_id: string;
   name: string;
+  /** False once the vendor hides or archives it — kept so it doesn't vanish. */
+  available: boolean;
   category?: string | null;
   subcategory?: string | null;
-  pfp_url?: string | null;
-  location?: string | null;
+  photo_url?: string | null;
+  price: number;
+  price_unit?: string | null;
+  included_hours?: number | null;
+  inclusions: string[];
+  /** Add-on names. */
+  add_ons: string[];
+  deposit_percent?: number | null;
+  cancellation_window_hours?: number | null;
+  negotiable: boolean;
+  /** This package's own rating, not the vendor's blend. */
   rating?: number | null;
   num_reviews?: number | null;
+  vendor_id: string;
+  vendor_name: string;
+  vendor_location?: string | null;
   years_experience?: number | null;
-  /** The cheapest listed package's rate — a "from" price. */
-  starting_price?: number | null;
   saved_at: string;
 }
 
-export function listSavedVendors(): Promise<{ items: SavedVendor[] }> {
-  return apiFetch<{ items: SavedVendor[] }>("/saved-vendors");
+export function listSavedPackages(): Promise<{ items: SavedPackage[] }> {
+  return apiFetch<{ items: SavedPackage[] }>("/saved-packages");
 }
 
-export function saveVendor(vendorId: string): Promise<void> {
-  return apiFetch<void>(`/saved-vendors/${encodeURIComponent(vendorId)}`, { method: "PUT" });
+export function savePackage(serviceId: string): Promise<void> {
+  return apiFetch<void>(`/saved-packages/${encodeURIComponent(serviceId)}`, { method: "PUT" });
 }
 
-export function unsaveVendor(vendorId: string): Promise<void> {
-  return apiFetch<void>(`/saved-vendors/${encodeURIComponent(vendorId)}`, { method: "DELETE" });
+export function unsavePackage(serviceId: string): Promise<void> {
+  return apiFetch<void>(`/saved-packages/${encodeURIComponent(serviceId)}`, { method: "DELETE" });
 }
 
 // ── Registry (backend 0089) ──────────────────────────────────────────
