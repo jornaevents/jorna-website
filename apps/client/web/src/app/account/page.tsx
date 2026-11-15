@@ -9,7 +9,14 @@ import { changePassword, updateMe, uploadAvatar } from "@/lib/jorna";
 import { checkImageFiles, describeRejections } from "@jorna/shared/lib/uploads";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
-import { signInUrl } from "@/lib/vendorSite";
+import { signInUrl, vendorSiteUrl } from "@/lib/vendorSite";
+import { DARK_MODE_ENABLED, PUSH_ENABLED } from "@jorna/shared/lib/flags";
+import { disableWebPushForThisDevice } from "@jorna/shared/lib/push";
+import { PushOptIn } from "@jorna/shared/components/PushOptIn";
+import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+const SECTIONS = ["Profile", "Password & sign-in", "Notifications", "Privacy"] as const;
 
 export default function AccountPage() {
   const { user, loading: authLoading, setUser, logout } = useAuth();
@@ -32,6 +39,7 @@ export default function AccountPage() {
   const [newPw, setNewPw] = useState("");
   const [changingPw, setChangingPw] = useState(false);
   const [pwErr, setPwErr] = useState<string | null>(null);
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>("Profile");
 
   useEffect(() => {
     if (!authLoading && !user) window.location.replace(signInUrl("/account"));
@@ -116,14 +124,47 @@ export default function AccountPage() {
   const name = [user.f_name, user.l_name].filter(Boolean).join(" ") || user.username;
 
   return (
-    <div className="mx-auto w-[min(640px,100%-2rem)] py-10">
-      <Link href="/profile" className="text-sm text-ink-soft hover:text-ink">
-        ← Profile
-      </Link>
-      <h1 className="serif mt-4 text-3xl text-maroon dark:text-gold">Account settings</h1>
+    <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-11">
+      <p className="eyebrow">Your details</p>
+      <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[3.2rem]">Account</h1>
 
+      <div className="mt-7 grid gap-6 desk:grid-cols-[220px_minmax(0,640px)]">
+        <aside>
+          <nav aria-label="Account sections" className="flex gap-1 overflow-x-auto desk:grid">
+            {SECTIONS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-current={section === item ? "page" : undefined}
+                onClick={() => setSection(item)}
+                className={`shrink-0 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold ${
+                  section === item ? "bg-card text-ink" : "text-ink-soft hover:bg-card"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
+          <div className="mt-4 border-t border-line pt-4">
+            <Button
+              variant="quiet"
+              onClick={async () => {
+                // Unregister this browser's push token first — it needs the
+                // session — so a shared computer stops pinging after sign-out.
+                await disableWebPushForThisDevice(user.user_id);
+                logout();
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </aside>
+
+        <section aria-label={section}>
+          {section === "Profile" ? (
+            <>
       {/* Avatar */}
-      <div className="mt-7 flex items-center gap-4">
+      <div className="flex items-center gap-4">
         {user.pfp_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={user.pfp_url} alt="" className="size-20 rounded-full object-cover" />
@@ -145,7 +186,7 @@ export default function AccountPage() {
       </div>
 
       {/* Profile */}
-      <Card className="mt-7 p-6">
+      <Card className="mt-6 p-6">
         <form onSubmit={saveProfile} className="grid gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="First name" value={fName} onChange={(e) => setFName(e.target.value)} />
@@ -162,7 +203,7 @@ export default function AccountPage() {
             />
           </div>
           {profileErr ? (
-            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon">
               {profileErr}
             </p>
           ) : null}
@@ -175,9 +216,22 @@ export default function AccountPage() {
         </form>
       </Card>
 
+              <Card className="mt-6 p-5">
+                <p className="text-sm text-ink-soft">
+                  Offer your packages on Jorna — vendors sign up and work on jornaevents.com.
+                </p>
+                <a href={vendorSiteUrl("/login?mode=register&role=vendor")} className="mt-3 inline-block text-sm font-semibold text-gold hover:underline">
+                  Start selling
+                </a>
+              </Card>
+            </>
+          ) : null}
+
+          {section === "Password & sign-in" ? (
+            <>
       {/* Password */}
-      <Card className="mt-6 p-6">
-        <h2 className="serif text-xl text-ink">Change password</h2>
+      <Card className="p-6">
+        <h2 className="serif text-xl text-ink">Password &amp; sign-in</h2>
         <form onSubmit={changePw} className="mt-4 grid gap-4">
           <Field
             label="Current password"
@@ -197,7 +251,7 @@ export default function AccountPage() {
             onChange={(e) => setNewPw(e.target.value)}
           />
           {pwErr ? (
-            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon dark:text-gold">
+            <p className="rounded-lg bg-maroon/10 px-3 py-2 text-sm text-maroon">
               {pwErr}
             </p>
           ) : null}
@@ -207,10 +261,48 @@ export default function AccountPage() {
         </form>
       </Card>
 
-      <div className="mt-8">
-        <Button variant="quiet" onClick={() => logout()}>
-          Sign out
-        </Button>
+            </>
+          ) : null}
+
+          {section === "Notifications" ? (
+            <Card className="p-6">
+              <h2 className="serif text-xl text-ink">Notifications</h2>
+              <p className="mt-2 text-sm text-ink-soft">
+                Contracts, payment reminders and vendor replies are emailed to <strong className="text-ink">{user.email}</strong>.
+                Change the address under Profile.
+              </p>
+              {PUSH_ENABLED ? (
+                <div className="mt-4 [&>*]:mb-0">
+                  <PushOptIn showWhenOn />
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {section === "Privacy" ? (
+            <div className="grid gap-6">
+              <Card className="divide-y divide-line-soft p-0">
+                <Link href="/blocked" className="flex items-center justify-between gap-3 px-6 py-4 text-sm">
+                  <span>
+                    <strong className="block text-ink">Blocked people</strong>
+                    <span className="text-ink-soft">You won&apos;t see their messages or reviews.</span>
+                  </span>
+                  <span className="text-ink-faint">›</span>
+                </Link>
+                {DARK_MODE_ENABLED ? (
+                  <div className="flex items-center justify-between gap-3 px-6 py-4 text-sm">
+                    <span>
+                      <strong className="block text-ink">Dark mode</strong>
+                      <span className="text-ink-soft">Use Jorna&apos;s evening palette.</span>
+                    </span>
+                    <ThemeToggle />
+                  </div>
+                ) : null}
+              </Card>
+              <DeleteAccountSection />
+            </div>
+          ) : null}
+        </section>
       </div>
     </div>
   );
