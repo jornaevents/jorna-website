@@ -106,4 +106,25 @@ test.describe("marketplace search", () => {
     await expect.poll(() => asked.at(-1)).toContain("subcategory=dhol");
     expect(asked.at(-1)).not.toContain("service=");
   });
+
+  // The price says what it's per (backend #189): a per-person rate isn't a total.
+  test("a card's price says what it is per", async ({ page, api }) => {
+    api.get(
+      "/vendors/search",
+      mockVendorSearchResponse([
+        mockVendorSearchItem({ vendor_id: "v1", service_id: "s1", first_name: "Saffron", last_name: "Table", service_name: "Plated dinner", service_price: 62, service_price_unit: "person" }),
+        mockVendorSearchItem({ vendor_id: "v2", service_id: "s2", first_name: "Lens", last_name: "Light", service_name: "Wedding day", service_price: 2400, service_price_unit: "event" }),
+        mockVendorSearchItem({ vendor_id: "v3", service_id: "s3", first_name: "Old", last_name: "Row", service_name: "No unit sent", service_price: 900 }),
+      ]),
+    );
+    await page.goto("marketplace/");
+
+    await expect(page.getByRole("link", { name: /Plated dinner/ })).toContainText("From $62 per person");
+    await expect(page.getByRole("link", { name: /Wedding day/ })).toContainText("$2,400 flat");
+    await expect(page.getByRole("link", { name: /Wedding day/ })).not.toContainText("From");
+    // A row with no unit (an older backend) keeps the plain starting price.
+    const old = page.getByRole("link", { name: /No unit sent/ });
+    await expect(old).toContainText("From $900");
+    await expect(old).not.toContainText("flat");
+  });
 });

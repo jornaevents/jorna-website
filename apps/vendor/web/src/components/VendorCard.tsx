@@ -3,7 +3,7 @@
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
-import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { categoryLabel, priceUnitLabel, type VendorSearchItem } from "@/lib/types";
 import { Card, Stars } from "@jorna/shared/components/ui";
 
 function money(n?: number | null) {
@@ -24,6 +24,8 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const name = vendorName(item);
   const price = money(item.service_price);
+  const unit = priceUnitLabel(item.service_price_unit);
+  const flat = item.service_price_unit != null && !unit;
   const monogram = (name || item.service_name || "·").charAt(0).toUpperCase();
   // The listing's own photo first — the card leads with the service, so that's
   // what a client is scrolling past photos of. Falls back to the vendor's
@@ -90,14 +92,14 @@ export function VendorCard({ item }: { item: VendorSearchItem }) {
             {distance ? <p className="text-xs text-ink-faint">{distance}</p> : null}
           </div>
           {price ? (
-            // /vendors/search returns the service's rate but not its price_unit,
-            // so a per-person rate would read as a full total. Show it as a
-            // starting price instead — the vendor page has the real unit.
+            // The rate and what it's per (backend #189), as on the client
+            // app's card: a flat price says so, a per-unit one is "from".
             <p className="shrink-0 text-right">
               <span className="block text-[0.65rem] uppercase tracking-wide text-ink-faint">
-                from
+                {flat ? "flat" : "from"}
               </span>
               <span className="serif text-lg text-ink">{price}</span>
+              {unit ? <span className="block text-xs text-ink-faint">{unit}</span> : null}
             </p>
           ) : null}
         </div>

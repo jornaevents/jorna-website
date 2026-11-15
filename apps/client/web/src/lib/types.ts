@@ -174,6 +174,8 @@ export interface VendorSearchItem {
   service_id?: string | null;
   service_name?: string | null;
   service_price?: number | null;
+  /** What the rate is per — "person", "hour", "event"… (backend #189). */
+  service_price_unit?: string | null;
   distance_miles?: number | null;
   /** The vendor's blended rating across every listing they sell. */
   rating?: number | null;
