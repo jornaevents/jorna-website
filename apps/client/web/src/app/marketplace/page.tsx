@@ -17,6 +17,8 @@
 // Where each filter is applied, which is not uniform:
 //
 //   service (or an old category), rating, price, sort   → the search API
+//   your event (guests, days, hours, performers)       → the search API, which
+//                           estimates each row's total and sorts price by it
 //   location                → API narrows to the state, the city is matched here
 //   date                    → not searchable at all; see lib/availability
 //   typed query             → here, over a pulled pool (the API has no q param)
@@ -33,7 +35,8 @@ import { useSearchParams } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
 import { searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
-import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { categoryLabel, priceUnitKind, type VendorSearchItem } from "@/lib/types";
+import type { Quantity } from "@jorna/shared/lib/pricing";
 import { findService, groupOf, useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import { Button, Chip, Field, LinkButton, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
@@ -49,7 +52,8 @@ const QUERY_POOL = 100;
 
 const SORTS = [
   { value: "rating", label: "Top rated" },
-  { value: "price", label: "Price" },
+  // The backend sorts by the estimated total for the event above, not the rate.
+  { value: "price", label: "Lowest total" },
 ];
 
 const RATINGS = [
@@ -69,6 +73,15 @@ function todayLocalIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
   ).padStart(2, "0")}`;
+}
+
+/** A typed quantity, or undefined until it's a usable one. The backend refuses
+ *  out-of-range values outright, so they're held back here rather than turning
+ *  the whole result list into an error while someone is mid-keystroke. */
+function quantityValue(raw: string, max: number, whole = true): number | undefined {
+  if (!raw.trim()) return undefined;
+  const n = whole ? Math.round(Number(raw)) : Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= max ? n : undefined;
 }
 
 function matches(item: VendorSearchItem, q: string) {
@@ -173,6 +186,23 @@ function MarketplaceInner() {
   const [minRating, setMinRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("rating");
+  // The client's event, as far as they've said. Each is optional: a per-person
+  // price gets a total once there's a guest count, an hourly one once there are
+  // hours, and a listing whose quantity is still missing keeps its rate.
+  const [guests, setGuests] = useState("");
+  const [days, setDays] = useState("");
+  const [hours, setHours] = useState("");
+  const [performers, setPerformers] = useState("");
+  // Caps match the backend's; hours stop at 24, the longest booking window.
+  const quantity = useMemo<Quantity>(
+    () => ({
+      guests: quantityValue(guests, 5000),
+      days: quantityValue(days, 60),
+      hours: quantityValue(hours, 24, false),
+      performers: quantityValue(performers, 100),
+    }),
+    [guests, days, hours, performers],
+  );
 
   const [items, setItems] = useState<VendorSearchItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -204,6 +234,10 @@ function MarketplaceInner() {
           min_rating: minRating || undefined,
           max_price: maxPrice ? Number(maxPrice) : undefined,
           sort_by: sortBy,
+          guests: quantity.guests ?? undefined,
+          days: quantity.days ?? undefined,
+          hours: quantity.hours ?? undefined,
+          performers: quantity.performers ?? undefined,
           limit: pageSize,
           offset: nextOffset,
         });
@@ -216,7 +250,7 @@ function MarketplaceInner() {
         setLoading(false);
       }
     },
-    [pick, legacy, state, minRating, maxPrice, sortBy, pageSize],
+    [pick, legacy, state, minRating, maxPrice, sortBy, quantity, pageSize],
   );
 
   // Debounced so dragging through filters fires one fetch, not one per keystroke.
@@ -290,6 +324,15 @@ function MarketplaceInner() {
   const activeFilters =
     (place ? 1 : 0) + (date ? 1 : 0) + (minRating ? 1 : 0) + (maxPrice ? 1 : 0);
   const placeUnrecognised = place.trim() !== "" && !state;
+  // Performer pricing is rare (dance troupes, dhol groups); the field only
+  // shows once a result is priced that way, or it's been filled in already.
+  const showPerformers =
+    performers !== "" || items.some((i) => priceUnitKind(i.service_price_unit) === "performer");
+  // Rate-priced rows the price sort couldn't place, because their quantity is
+  // still blank — they sit at the end, and the page should say why.
+  const unranked =
+    sortBy === "price" &&
+    visible.some((i) => i.estimated_total == null && priceUnitKind(i.service_price_unit) !== "event");
 
   return (
     <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-11">
@@ -340,6 +383,21 @@ function MarketplaceInner() {
           Filters{activeFilters ? ` · ${activeFilters}` : ""}
         </Button>
       </div>
+
+      <section aria-label="Your event" className="mt-4 rounded-2xl border border-card-edge bg-panel p-4">
+        <p className="text-sm text-ink-soft">
+          <strong className="text-ink">Your event</strong> · Fill in what you know and prices show
+          the estimated total.
+        </p>
+        <div className={`mt-3 grid grid-cols-2 gap-3 ${showPerformers ? "sm:grid-cols-4" : "sm:grid-cols-3"} sm:max-w-2xl`}>
+          <Field label="Guests" type="number" inputMode="numeric" min={1} max={5000} step={1} placeholder="e.g. 200" value={guests} onChange={(e) => setGuests(e.target.value)} />
+          <Field label="Days" type="number" inputMode="numeric" min={1} max={60} step={1} placeholder="e.g. 2" value={days} onChange={(e) => setDays(e.target.value)} />
+          <Field label="Hours" type="number" inputMode="decimal" min={0.5} max={24} step={0.5} placeholder="e.g. 6" value={hours} onChange={(e) => setHours(e.target.value)} />
+          {showPerformers ? (
+            <Field label="Performers" type="number" inputMode="numeric" min={1} max={100} step={1} placeholder="e.g. 4" value={performers} onChange={(e) => setPerformers(e.target.value)} />
+          ) : null}
+        </div>
+      </section>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Chip active={!pick && !legacy.category} onClick={() => choose(null)}>
@@ -498,6 +556,12 @@ function MarketplaceInner() {
               : `${total} ${total === 1 ? "listing" : "listings"}`}
             {checkingDate ? " · checking availability…" : ""}
           </p>
+          {unranked ? (
+            <p className="mt-1 text-xs text-ink-faint">
+              Prices per guest, day or hour are listed after the totals until you fill in
+              your event above.
+            </p>
+          ) : null}
           {/* Said once, next to the results, because the filter's own hint is
               behind a Filters toggle that may be shut by the time these are
               read — and "40 vendors, filtered by my date" is exactly the moment
@@ -514,6 +578,7 @@ function MarketplaceInner() {
               <VendorCard
                 key={`${item.vendor_id}-${item.service_name ?? ""}`}
                 item={item}
+                quantity={quantity}
                 saved={shortlist.isSaved(item.vendor_id)}
                 onToggleSave={shortlist.canSave ? () => shortlist.toggle(item.vendor_id) : undefined}
               />

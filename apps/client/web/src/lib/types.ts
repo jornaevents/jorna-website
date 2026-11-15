@@ -176,6 +176,9 @@ export interface VendorSearchItem {
   service_price?: number | null;
   /** What the rate is per — "person", "hour", "event"… (backend #189). */
   service_price_unit?: string | null;
+  /** The rate times the quantities sent with the search, or the flat price.
+   *  Null when the unit needs a quantity that wasn't sent — never the rate. */
+  estimated_total?: number | null;
   distance_miles?: number | null;
   /** The vendor's blended rating across every listing they sell. */
   rating?: number | null;
@@ -351,6 +354,11 @@ export interface VendorSearchParams {
   tag?: string;
   limit?: number;
   offset?: number;
+  /** The client's event, for each row's estimated_total and the price sort. */
+  guests?: number;
+  days?: number;
+  hours?: number;
+  performers?: number;
 }
 
 // ── Bundles & bookings ───────────────────────────────────────────────

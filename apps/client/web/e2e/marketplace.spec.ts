@@ -127,4 +127,35 @@ test.describe("marketplace search", () => {
     await expect(old).toContainText("From $900");
     await expect(old).not.toContainText("flat");
   });
+
+  // The event's numbers go to the search, which estimates each row's total and
+  // sorts price by it; the card leads with the total and keeps the rate.
+  test("filling in the event shows estimated totals and sorts by them", async ({ page, api }) => {
+    const asked: URLSearchParams[] = [];
+    api.get("/vendors/search", ({ url }: HandlerArgs) => {
+      asked.push(url.searchParams);
+      const guests = Number(url.searchParams.get("guests")) || null;
+      return mockVendorSearchResponse([
+        mockVendorSearchItem({ vendor_id: "v1", service_id: "s1", first_name: "Saffron", last_name: "Table", service_name: "Plated dinner", service_price: 38, service_price_unit: "person", estimated_total: guests ? 38 * guests : null }),
+        mockVendorSearchItem({ vendor_id: "v2", service_id: "s2", first_name: "Lens", last_name: "Light", service_name: "Wedding day", service_price: 2400, service_price_unit: "event", estimated_total: 2400 }),
+      ]);
+    });
+    await page.goto("marketplace/");
+
+    const dinner = page.getByRole("link", { name: /Plated dinner/ });
+    await expect(dinner).toContainText("From $38 per person");
+
+    await page.getByRole("region", { name: "Your event" }).getByLabel("Guests").fill("200");
+    await expect.poll(() => asked.at(-1)?.get("guests")).toBe("200");
+    await expect(dinner).toContainText("$7,600 est. total");
+    await expect(dinner).toContainText("$38 per person × 200 guests");
+    // A flat price is its own total — no estimate line.
+    await expect(page.getByRole("link", { name: /Wedding day/ })).toContainText("$2,400 flat");
+    await expect(page.getByRole("link", { name: /Wedding day/ })).not.toContainText("est. total");
+
+    await page.getByRole("button", { name: "Filters" }).click();
+    await page.getByRole("button", { name: "Lowest total" }).click();
+    await expect.poll(() => asked.at(-1)?.get("sort_by")).toBe("price");
+    expect(asked.at(-1)?.get("guests")).toBe("200");
+  });
 });
