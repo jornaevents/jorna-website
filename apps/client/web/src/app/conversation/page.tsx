@@ -384,6 +384,9 @@ function ConversationInner() {
           Send
         </button>
       </form>
+      {/* Contracts arrive here as cards (backend DECISIONS #48); what they
+          say is settled on the contract and in the event, not by message. */}
+      <p className="mt-2 text-center text-xs text-ink-faint">Prices and changes are handled in your event.</p>
     </div>
   );
 }

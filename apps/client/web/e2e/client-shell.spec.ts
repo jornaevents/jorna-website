@@ -30,7 +30,7 @@ test.describe("on a laptop", () => {
     await expect(links.nth(0)).toHaveText("Explore");
     await expect(links.nth(0)).toHaveAttribute("aria-current", "page");
     await expect(primary(page).getByRole("link", { name: "Messages, 3 unread" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Account" })).toHaveAttribute("href", /\/profile\/?$/);
+    await expect(page.getByRole("link", { name: "Account" })).toHaveAttribute("href", /\/account\/?$/);
     // Sign out lives on Account now, and the site is light only.
     await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /dark mode|light mode/ })).toHaveCount(0);
@@ -57,7 +57,7 @@ test.describe("on a phone", () => {
   test("the four tabs sit along the bottom, and the top bar keeps the wordmark", async ({ page, api }) => {
     await loginAs(page, api);
     signedIn(api);
-    await page.goto("profile/");
+    await page.goto("account/");
 
     const bar = primary(page);
     await expect(bar.getByRole("link")).toHaveText(["My Events", "Explore", "Messages", "Account"]);

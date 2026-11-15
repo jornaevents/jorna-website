@@ -55,8 +55,8 @@ export default function BlockedPage() {
 
   return (
     <div className="mx-auto w-[min(560px,100%-2rem)] py-10">
-      <Link href="/profile" className="text-sm text-ink-soft hover:text-ink">
-        ← Profile
+      <Link href="/account" className="text-sm text-ink-soft hover:text-ink">
+        ← Account
       </Link>
       <h1 className="serif mt-4 text-3xl text-maroon dark:text-gold">Blocked</h1>
       <p className="mt-2 text-ink-soft">

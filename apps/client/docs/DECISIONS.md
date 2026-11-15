@@ -452,3 +452,17 @@ the results says how many are selected and leads to `/compare`. Compare lays the
 rating (or "New" with no reviews), reviews, starting price ("Ask for a quote" with none listed),
 years in business, where they're based, then View vendor / Remove. The design's "Typical response"
 and "Travel fee" rows are left out — nothing records them. Signed-out visitors see no hearts.
+
+## Decision: chats are listed by event; one Account page (2026-11-14)
+
+Client redesign PR 8.
+
+- **Messages** lists chats under the event they belong to (a chat names its plan or booking; the
+  plans say which event), with "Other conversations" for a question asked before anything was added
+  to an event. Contract cards stay in the thread (backend DECISIONS #48); the line under the composer
+  reads "Prices and changes are handled in your event."
+- **Account** (`/account`) is one page with Profile, Password & sign-in, Notifications and Privacy,
+  and Sign out. Privacy holds Blocked people, the dark mode switch (only with
+  `NEXT_PUBLIC_DARK_MODE_ENABLED` on) and Delete account (`components/DeleteAccountSection.tsx`, the
+  same checks as before). `/profile`, the old hub, redirects to it; its links to the dashboard and
+  Needs you are covered by the tabs.

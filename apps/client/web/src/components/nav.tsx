@@ -109,7 +109,7 @@ export const MESSAGES: NavItem = {
 // The profile hub for now: it holds Settings, Blocked, Sign out and the link
 // to Needs you until the redesigned Account page (plan PR 8).
 export const ACCOUNT: NavItem = {
-  href: "/profile",
+  href: "/account",
   label: "Account",
   icon: icon(I.account),
   match: ["/profile", "/account", "/blocked"],

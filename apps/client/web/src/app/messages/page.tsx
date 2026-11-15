@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
-import { listConversations } from "@/lib/jorna";
-import type { ConversationSummary } from "@/lib/types";
+import { listBundles, listConversations } from "@/lib/jorna";
+import type { BundleDetail, ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton, StatusPill } from "@jorna/shared/components/ui";
 import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
 import { signInUrl } from "@/lib/vendorSite";
@@ -80,6 +80,33 @@ function preview(c: ConversationSummary): string {
   return last.content;
 }
 
+/**
+ * Chats under the event they belong to, as the Jorna-Client design lists them
+ * (client redesign PR 8). A chat names its plan or its booking; the plans say
+ * which event those are for. A question asked before anything was added to an
+ * event has neither, and goes under "Other conversations" at the end.
+ */
+function byEvent(conversations: ConversationSummary[], bundles: BundleDetail[]): { name: string; items: ConversationSummary[] }[] {
+  const eventOf = new Map<string, string>();
+  for (const b of bundles) {
+    const name = b.event_name || b.event?.name || b.name || "Your event";
+    eventOf.set(`bundle:${b.bundle_id}`, name);
+    for (const booking of b.bookings ?? []) eventOf.set(`booking:${booking.booking_id}`, name);
+  }
+  const groups = new Map<string, ConversationSummary[]>();
+  const other: ConversationSummary[] = [];
+  for (const c of conversations) {
+    const name =
+      (c.bundle_id ? eventOf.get(`bundle:${c.bundle_id}`) : undefined) ??
+      (c.booking_id ? eventOf.get(`booking:${c.booking_id}`) : undefined);
+    if (!name) other.push(c);
+    else groups.set(name, [...(groups.get(name) ?? []), c]);
+  }
+  const out = [...groups.entries()].map(([name, items]) => ({ name, items }));
+  if (other.length) out.push({ name: out.length ? "Other conversations" : "", items: other });
+  return out;
+}
+
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -87,6 +114,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [bundles, setBundles] = useState<BundleDetail[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) window.location.replace(signInUrl("/messages"));
@@ -110,6 +138,11 @@ export default function MessagesPage() {
         )
         .finally(() => !cancelled && setLoading(false));
     void load();
+    // Which event each chat belongs to. Once: a plan doesn't change events,
+    // and without it the list is simply ungrouped.
+    listBundles()
+      .then((b) => !cancelled && setBundles(b))
+      .catch(() => {});
     const poll = setInterval(load, 25000);
     return () => {
       cancelled = true;
@@ -124,9 +157,8 @@ export default function MessagesPage() {
   return (
     <div className="mx-auto w-[min(var(--container-page),100%-2rem)] py-10">
       <header>
-        <span className="eyebrow">Messages</span>
-        <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold sm:text-5xl">
-          Your chats
+        <h1 className="font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[3.2rem]">
+          Messages
         </h1>
         {/* This used to say chats only exist for plans you've sent, which was
             true and is the thing that changed: you can now ask a vendor
@@ -178,13 +210,18 @@ export default function MessagesPage() {
               Browse vendors
             </LinkButton>
             <LinkButton href="/bundles" variant="ghost">
-              Dashboard
+              My Events
             </LinkButton>
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-2">
-          {conversations.filter((c) => matches(c, filter)).map((c) => {
+        <div className="mt-6 grid gap-6">
+          {byEvent(conversations.filter((c) => matches(c, filter)), bundles).map((group) => (
+            <section key={group.name || "all"} aria-label={group.name || "Conversations"} className="grid gap-2">
+              {group.name ? (
+                <h2 className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-ink-faint">{group.name}</h2>
+              ) : null}
+              {group.items.map((c) => {
             const unread = c.unread_count ?? 0;
             const label = kindLabel(c);
             // Where things stand with this vendor, in the words the vendor
@@ -243,6 +280,8 @@ export default function MessagesPage() {
               </Link>
             );
           })}
+            </section>
+          ))}
         </div>
       )}
     </div>
