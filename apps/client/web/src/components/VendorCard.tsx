@@ -3,7 +3,7 @@
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
-import { categoryLabel, type VendorSearchItem } from "@/lib/types";
+import { categoryLabel, priceUnitLabel, type VendorSearchItem } from "@/lib/types";
 import { Card } from "@jorna/shared/components/ui";
 
 function money(n?: number | null) {
@@ -34,6 +34,8 @@ export function VendorCard({
   const [photoFailed, setPhotoFailed] = useState(false);
   const name = vendorName(item);
   const price = money(item.service_price);
+  const unit = priceUnitLabel(item.service_price_unit);
+  const flat = item.service_price_unit != null && !unit;
   const monogram = (name || item.service_name || "·").charAt(0).toUpperCase();
   // The listing's own photo first — the card leads with the service, so that's
   // what a client is scrolling past photos of. Falls back to the vendor's
@@ -98,9 +100,18 @@ export function VendorCard({
           <span className="truncate text-xs text-ink-faint">{[item.location, distance].filter(Boolean).join(" · ")}</span>
         ) : null}
         <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-sm">
-          {/* /vendors/search returns the rate but not its unit, so it's a
-              starting price here — the package page has the real unit. */}
-          {price ? <strong className="text-ink">From {price}</strong> : <span />}
+          {/* The rate and what it's per: "$62 per person" beside an $8,500
+              venue reads as what it is. A flat price says so; the total for a
+              per-unit one depends on the event, so it's "From" — as is a row
+              that arrives with no unit at all, which can't be called flat. */}
+          {price ? (
+            <span className="text-ink">
+              <strong>{flat ? price : `From ${price}`}</strong>
+              {unit || flat ? <span className="text-ink-soft"> {unit || "flat"}</span> : null}
+            </span>
+          ) : (
+            <span />
+          )}
           {item.service_num_reviews && item.service_rating ? (
             <span className="text-gold">
               ★ {item.service_rating.toFixed(1)} <span className="text-ink-faint">({item.service_num_reviews})</span>
