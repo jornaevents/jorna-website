@@ -45,6 +45,46 @@ test("a heart saves that package, not every card from the vendor", async ({ page
   await expect(page.getByText("1 package selected")).toBeVisible();
   expect(api.requestsTo("PUT", "/saved-packages/s1")).toHaveLength(1);
   await expect(page.getByRole("link", { name: "Next · Compare" })).toHaveAttribute("href", /\/compare\/?$/);
+
+  // The event typed in Explore goes along to Compare.
+  await page.getByRole("region", { name: "Your event" }).getByLabel("Guests").fill("200");
+  await expect(page.getByRole("link", { name: "Next · Compare" })).toHaveAttribute("href", /\/compare\/?\?guests=200$/);
+});
+
+test("Compare estimates each package's total for the event, and marks the lowest", async ({ page, api }) => {
+  await loginAs(page, api);
+  shell(api);
+  api.get("/saved-packages", {
+    items: [
+      saved("s1", "Plated dinner"),
+      saved("s2", "Reception buffet", { price: 8000, price_unit: "event" }),
+      saved("s3", "Photo hours", { price: 300, price_unit: "hour" }),
+      // Hidden since saving — never the "lowest", since it can't be booked.
+      saved("s4", "Old tasting menu", { price: 10, price_unit: "person", available: false }),
+    ],
+  });
+  await page.goto("compare/?guests=200");
+
+  const bar = page.getByRole("region", { name: "Your event" });
+  await expect(bar.getByLabel("Guests")).toHaveValue("200");
+  const total = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Estimated total", exact: true }) });
+  const cell = (i: number) => total.getByRole("cell").nth(i);
+  await expect(cell(0)).toContainText("$7,600");
+  await expect(cell(0)).toContainText("for 200 guests");
+  await expect(cell(0)).toContainText("Lowest");
+  await expect(cell(1)).toContainText("$8,000");
+  // No hours yet: the hourly package asks for them rather than guessing.
+  await expect(cell(2)).toContainText("Add hours above");
+
+  await bar.getByLabel("Guests").fill("250");
+  await bar.getByLabel("Hours").fill("6");
+  await expect(cell(0)).toContainText("$9,500");
+  await expect(cell(2)).toContainText("$1,800");
+  await expect(cell(2)).toContainText("Lowest");
+  await expect(cell(0)).not.toContainText("Lowest");
+  await expect(cell(3)).not.toContainText("Lowest");
+  // And it goes back to Explore with them.
+  await expect(page.getByRole("link", { name: "← Back to Explore" })).toHaveAttribute("href", /marketplace\/?\?guests=250&hours=6$/);
 });
 
 test("Compare lays the saved packages side by side and removes one", async ({ page, api }) => {

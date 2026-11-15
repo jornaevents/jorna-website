@@ -3,35 +3,14 @@
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { useState } from "react";
 import Link from "next/link";
-import {
-  categoryLabel,
-  priceUnitKind,
-  priceUnitLabel,
-  type PriceUnitKind,
-  type VendorSearchItem,
-} from "@/lib/types";
-import { quantityKey, type Quantity } from "@jorna/shared/lib/pricing";
+import { categoryLabel, priceUnitKind, priceUnitLabel, type VendorSearchItem } from "@/lib/types";
+import type { Quantity } from "@jorna/shared/lib/pricing";
+import { quantityText } from "@/lib/eventQuantity";
 import { Card } from "@jorna/shared/components/ui";
 
 function money(n?: number | null) {
   if (n == null) return null;
   return `$${Math.round(n).toLocaleString()}`;
-}
-
-const QUANTITY_NOUN: Record<Exclude<PriceUnitKind, "event">, [string, string]> = {
-  person: ["guest", "guests"],
-  day: ["day", "days"],
-  hour: ["hour", "hours"],
-  performer: ["performer", "performers"],
-};
-
-/** "200 guests" — the quantity a rate was multiplied by, or null if none was. */
-function quantityText(kind: PriceUnitKind, quantity?: Quantity): string | null {
-  const key = quantityKey(kind);
-  const n = key ? quantity?.[key] : null;
-  if (kind === "event" || !n) return null;
-  const [one, many] = QUANTITY_NOUN[kind];
-  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
 
 /**
