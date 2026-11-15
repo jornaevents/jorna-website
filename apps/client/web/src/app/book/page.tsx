@@ -643,7 +643,7 @@ function BookInner() {
           ) : (
             <>
               <Button type="submit" size="lg" disabled={busy || draftBusy || blocked}>
-                {busy ? "Adding…" : "Add to plan"}
+                {busy ? "Adding…" : "Add to my event"}
               </Button>
               {/* type="button" so it never trips the form's required fields —
                   a draft is exactly the case where they aren't required. */}

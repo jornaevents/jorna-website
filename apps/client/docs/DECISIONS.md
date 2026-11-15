@@ -434,3 +434,12 @@ points to Explore for that category.
 Not asked, because the matching engine doesn't read them yet: per-category budget weighting, "open
 to out-of-state vendors" and free-text notes. Swapping or skipping a suggestion happens on the plan
 after adding. `/plan` stays for building without an event.
+
+## Decision: Explore takes the design's look; its behaviour is unchanged (2026-11-14)
+
+Client redesign PR 6. The marketplace, vendor and package pages already did what the Jorna-Client
+design shows — search and filters, packages, add-ons, an inquiry and a question — so this is a
+restyle and relabel: the Explore heading, the vendor card (category, vendor, package, "From $X" and
+the listing's own rating), **Get quote** for the inquiry, and **Add to my event** for adding a
+package. The design's five-field search panel isn't built: the existing search box and Filters
+cover the same ground with real availability behind them.

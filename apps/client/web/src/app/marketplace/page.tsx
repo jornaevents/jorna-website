@@ -290,7 +290,7 @@ function MarketplaceInner() {
   const placeUnrecognised = place.trim() !== "" && !state;
 
   return (
-    <div className="mx-auto w-[min(var(--container-wide),100%-2rem)] py-10">
+    <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-11">
       {/* Adding a service as a draft lands back here, because assembling a plan
           means adding the next thing. The confirmation names what went where so
           the return doesn't read as the click having failed. */}
@@ -309,12 +309,12 @@ function MarketplaceInner() {
         </div>
       ) : null}
 
-      <header className="text-center">
-        <span className="eyebrow">Marketplace</span>
-        <h1 className="serif mt-3 text-4xl text-maroon dark:text-gold sm:text-5xl">
-          Every package on Jorna
+      <header>
+        <p className="eyebrow">Find your people</p>
+        <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[3.2rem]">
+          Vendors for every celebration
         </h1>
-        <p className="mx-auto mt-3 max-w-[52ch] text-ink-soft">
+        <p className="mt-2 max-w-[52ch] text-ink-soft">
           Search by name or package, or filter by city, date, category, rating, and price.
         </p>
       </header>

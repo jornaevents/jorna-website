@@ -34,7 +34,7 @@ test.describe("request form (/book)", () => {
     await page.getByLabel("Date").fill("2024-01-15");
     await expect(page.getByRole("alert").filter({ hasText: "That date has already passed — check the year." })).toBeVisible();
     // Neither add goes anywhere, and the form is still the form.
-    await expect(page.getByRole("button", { name: "Add to plan" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Add to my event" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Add and keep browsing" })).toBeDisabled();
     await expect(page.getByLabel("Event name")).toHaveValue("Asha's Sangeet");
     expect(api.requestsTo("POST", "/bookings")).toHaveLength(0);
@@ -47,7 +47,7 @@ test.describe("request form (/book)", () => {
 
     await page.goto("book/?service=svc-1");
     await page.getByLabel("Event name").fill("Asha's Sangeet");
-    await page.getByRole("button", { name: "Add to plan" }).click();
+    await page.getByRole("button", { name: "Add to my event" }).click();
     await expect(page.getByText("That date is fully booked")).toBeVisible();
     await expect(page.getByLabel("Event name")).toHaveValue("Asha's Sangeet");
   });
@@ -65,7 +65,7 @@ test.describe("request form (/book)", () => {
     await page.getByLabel("End time — hour").selectOption("2");
     await page.getByRole("button", { name: "AM" }).last().click();
     await expect(page.getByText(/spans into the next day/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add to plan" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Add to my event" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Add and keep browsing" })).toBeDisabled();
   });
 
