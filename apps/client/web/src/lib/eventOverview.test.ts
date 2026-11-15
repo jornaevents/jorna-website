@@ -58,3 +58,26 @@ describe("overviewTotals", () => {
     expect(overviewTotals(rows)).toEqual({ signed: 1, toSign: 1, paidCents: 100000, owedCents: 150000, overdue: 1 });
   });
 });
+
+import { paymentsByMonth, pendingContracts, signedCents } from "./eventOverview";
+
+describe("the Budget tab's figures", () => {
+  const paid = installment({ id: "dep", confirmed_at: "x", marked_paid_at: "x", effective_due: "2099-09-10" });
+  const later = installment({ id: "bal", label: "Balance", amount_cents: 150000, effective_due: "2099-10-10" });
+  const undated = installment({ id: "x", label: "Final", amount_cents: 50000 });
+  const rows = [
+    vendorRow(signed([later, paid, undated]), sent)!,
+    vendorRow(booking({ booking_id: "b2", vendor_name: "Royal Caterers", amount_cents: 1145000, status: "approved", contract_token: "t2", contract_status: "sent" } as Partial<BundleBooking>), sent)!,
+  ];
+
+  it("groups payments by month, earliest first, undated last", () => {
+    const months = paymentsByMonth(rows);
+    expect(months.map((m) => m.month)).toEqual(["2099-09", "2099-10", ""]);
+    expect(months[0].rows[0]).toMatchObject({ vendor: "Lens & Light", label: "Deposit", state: "received" });
+  });
+
+  it("counts signed contracts only, and names the pending ones", () => {
+    expect(signedCents(rows)).toBe(250000);
+    expect(pendingContracts(rows)).toEqual({ vendors: ["Royal Caterers"], cents: 1145000 });
+  });
+});

@@ -478,3 +478,16 @@ The design's "Registry visitors" figure is left out — there's no public regist
 Guest List stays the existing guests page, linked from the sidebar, and the RSVP and inquiry pages
 keep their working layouts (the inquiry keeps its account step); all three already take the
 client's new type from PR 1.
+
+## Decision: Budget and Day-of are event tabs (2026-11-14)
+
+Client redesign PR 10, the last of the plan. Both were in the design but unreachable; decided
+2026-11-14 to add them as workspace tabs.
+
+- **Budget** (`components/BudgetTab.tsx`): the event's budget beside what's signed, paid and still to
+  pay, then every payment on the signed contracts by month (`lib/eventOverview.ts`
+  `paymentsByMonth`). Signed contracts only — one that's sent and unsigned is named underneath and
+  counted once it's signed. A payment opens its vendor's drawer, where it's paid and marked sent.
+- **Day-of** (`components/DayOfTab.tsx`): the plan's run sheet (`components/RunSheet`), open from the
+  start, so the event and the plan can't disagree about the order of the day. Check-ins show in the
+  week of the event, as they do on the plan.

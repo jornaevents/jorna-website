@@ -27,6 +27,8 @@ import { Badge, MiniProgress, type Tone } from "@/components/kit";
 import { VendorDrawer } from "@/components/VendorDrawer";
 import { EditEventDrawer } from "@/components/EditEventDrawer";
 import { RegistryTab } from "@/components/RegistryTab";
+import { BudgetTab } from "@/components/BudgetTab";
+import { DayOfTab } from "@/components/DayOfTab";
 import { signInUrl } from "@/lib/vendorSite";
 
 const dollars = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -70,6 +72,8 @@ function Tile({ label, value, badge, tone, note, children }: { label: string; va
 const TABS: [string, string][] = [
   ["overview", "Overview"],
   ["registry", "Registry"],
+  ["budget", "Budget"],
+  ["dayof", "Day-of"],
 ];
 
 function Workspace() {
@@ -173,6 +177,8 @@ function Workspace() {
 
         <section className="min-w-0">
           {tab === "registry" ? <RegistryTab eventId={c.event.event_id} /> : null}
+          {tab === "budget" ? <BudgetTab celebration={c} rows={rows} onOpen={setOpenVendor} /> : null}
+          {tab === "dayof" ? <DayOfTab celebration={c} /> : null}
           {tab === "overview" ? (
             <>
           <div className="flex flex-wrap items-end justify-between gap-3">

@@ -198,7 +198,15 @@ function Entry({
   );
 }
 
-export function RunSheet({ bundle }: { bundle: BundleDetail }) {
+export function RunSheet({
+  bundle,
+  defaultOpen = false,
+}: {
+  bundle: BundleDetail;
+  /** Open from the start — the event's Day-of tab, where it's the whole page
+   *  rather than one section of a long plan. */
+  defaultOpen?: boolean;
+}) {
   const days = scheduleFor(bundle);
 
   // Two jobs, and only one of them is a same-week job.
@@ -219,7 +227,7 @@ export function RunSheet({ bundle }: { bundle: BundleDetail }) {
   // what's inside, so opening it is one click and a decision — and a section
   // that decides for you when to unfold is one you have to fold back every time
   // it guesses wrong.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
 
   // After the hooks: they have to run in the same order every render, and an
