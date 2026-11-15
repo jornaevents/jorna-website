@@ -51,6 +51,35 @@ test("a heart saves that package, not every card from the vendor", async ({ page
   await expect(page.getByRole("link", { name: "Next · Compare" })).toHaveAttribute("href", /\/compare\/?\?guests=200$/);
 });
 
+test("Clear empties the selection in one go", async ({ page, api }) => {
+  await loginAs(page, api);
+  shell(api);
+  let list = [saved("s1", "Plated dinner"), saved("s2", "Buffet")];
+  api.get("/saved-packages", () => ({ items: list }));
+  for (const id of ["s1", "s2"]) {
+    api.delete(`/saved-packages/${id}`, () => {
+      list = list.filter((p) => p.service_id !== id);
+      return {};
+    });
+  }
+  api.get(
+    "/vendors/search",
+    mockVendorSearchResponse([
+      mockVendorSearchItem({ service_id: "s1", service_name: "Plated dinner" }),
+      mockVendorSearchItem({ service_id: "s2", service_name: "Buffet" }),
+    ]),
+  );
+  await page.goto("marketplace/");
+
+  await expect(page.getByText("2 packages selected")).toBeVisible();
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await expect(page.getByText("Select packages to compare")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save Plated dinner" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Clear", exact: true })).toHaveCount(0);
+  expect(api.requestsTo("DELETE", "/saved-packages/s1")).toHaveLength(1);
+  expect(api.requestsTo("DELETE", "/saved-packages/s2")).toHaveLength(1);
+});
+
 test("Compare estimates each package's total for the event, and marks the lowest", async ({ page, api }) => {
   await loginAs(page, api);
   shell(api);
