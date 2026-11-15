@@ -1280,3 +1280,54 @@ export function saveVendor(vendorId: string): Promise<void> {
 export function unsaveVendor(vendorId: string): Promise<void> {
   return apiFetch<void>(`/saved-vendors/${encodeURIComponent(vendorId)}`, { method: "DELETE" });
 }
+
+// ── Registry (backend 0089) ──────────────────────────────────────────
+
+export interface RegistryGift {
+  gift_id: string;
+  from_name: string;
+  amount_cents: number;
+  thanked: boolean;
+  created_at: string;
+}
+
+export interface RegistryFund {
+  fund_id: string;
+  name: string;
+  goal_cents: number | null;
+  raised_cents: number;
+  gifts: RegistryGift[];
+}
+
+/** An event's gift registry. Tracking only: no money moves through Jorna. */
+export interface Registry {
+  event_id: string;
+  funds: RegistryFund[];
+  total_cents: number;
+  gift_count: number;
+  thanked_count: number;
+}
+
+export function getRegistry(eventId: string): Promise<Registry> {
+  return apiFetch<Registry>(`/events/${eventId}/registry`);
+}
+
+export function addRegistryFund(eventId: string, body: { name: string; goal_cents: number | null }): Promise<Registry> {
+  return apiFetch<Registry>(`/events/${eventId}/registry/funds`, { method: "POST", body });
+}
+
+export function deleteRegistryFund(fundId: string): Promise<Registry> {
+  return apiFetch<Registry>(`/registry/funds/${fundId}`, { method: "DELETE" });
+}
+
+export function addRegistryGift(fundId: string, body: { from_name: string; amount_cents: number }): Promise<Registry> {
+  return apiFetch<Registry>(`/registry/funds/${fundId}/gifts`, { method: "POST", body });
+}
+
+export function updateRegistryGift(giftId: string, body: { thanked?: boolean }): Promise<Registry> {
+  return apiFetch<Registry>(`/registry/gifts/${giftId}`, { method: "PATCH", body });
+}
+
+export function deleteRegistryGift(giftId: string): Promise<Registry> {
+  return apiFetch<Registry>(`/registry/gifts/${giftId}`, { method: "DELETE" });
+}

@@ -466,3 +466,15 @@ Client redesign PR 8.
   `NEXT_PUBLIC_DARK_MODE_ENABLED` on) and Delete account (`components/DeleteAccountSection.tsx`, the
   same checks as before). `/profile`, the old hub, redirects to it; its links to the dashboard and
   Needs you are covered by the tabs.
+
+## Decision: the event workspace has tabs; Registry is the first (2026-11-14)
+
+Client redesign PR 9 (backend 0089). The workspace's sections are tabs kept in the address
+(`/event?id=…&tab=registry`), so one can be linked to and survives a reload. **Registry**
+(`components/RegistryTab.tsx`) lists funds with optional goals, the gifts the host records against
+each, and who's been thanked. Tracking only: Jorna processes no payment and guests don't see it.
+The design's "Registry visitors" figure is left out — there's no public registry page to visit.
+
+Guest List stays the existing guests page, linked from the sidebar, and the RSVP and inquiry pages
+keep their working layouts (the inquiry keeps its account step); all three already take the
+client's new type from PR 1.
