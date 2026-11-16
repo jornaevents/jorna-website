@@ -999,6 +999,10 @@ export function ContractLink({
                 endedWhileOpen(err);
                 throw err;
               }
+              // The workspace starts from fields.draft each time it opens, so
+              // without this a closed and reopened one showed the draft from
+              // page load — the save looked lost.
+              getGuestNegotiation(token).then(setFields).catch(() => undefined);
             }}
             onSend={async (answers, message) => {
               let next: FieldNegotiationState;

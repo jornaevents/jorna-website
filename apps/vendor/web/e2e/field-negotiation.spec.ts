@@ -476,6 +476,32 @@ test.describe("field-by-field negotiation", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  test("a client's saved draft is still there after closing and reopening the workspace", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-1", contract);
+    api.get("/guest-bookings/tok-1/proposals", history);
+    let draft: unknown = null;
+    api.get("/guest-bookings/tok-1/negotiation", () =>
+      state({ side: "client", turn: "client", waiting_count: 0, fields: [field("event.guests", "Guest count", 200)], draft }),
+    );
+    api.put("/guest-bookings/tok-1/negotiation/draft", ({ route }: HandlerArgs) => {
+      const body = route.request().postDataJSON();
+      draft = { round: 2, answers: body.answers, message: body.message, updated_at: "2030-05-03T12:00:00", stale: false };
+      return draft;
+    });
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Ask for changes" }).click();
+    const answers = page.getByRole("complementary", { name: "Your answers" });
+    await answers.getByLabel("Guest count").fill("180");
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("Draft saved.")).toBeVisible();
+    await expect.poll(() => api.requestsTo("GET", "/guest-bookings/tok-1/negotiation").length).toBeGreaterThan(1);
+
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Ask for changes" }).click();
+    await expect(page.getByRole("complementary", { name: "Your answers" }).getByLabel("Guest count")).toHaveValue("180");
+  });
+
   test("after sending, the client sees what they asked for", async ({ page, api }) => {
     api.get("/guest-bookings/tok-1", contract);
     api.get("/guest-bookings/tok-1/proposals", history);
