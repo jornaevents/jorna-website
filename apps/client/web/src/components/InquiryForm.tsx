@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@jorna/shared/lib/api";
 import { CELEBRATIONS } from "@jorna/shared/lib/celebrations";
+import { EMPTY_ADDRESS, addressGaps, type Address } from "@jorna/shared/lib/address";
+import { AddressFields } from "@jorna/shared/components/AddressFields";
+import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { Button, Field } from "@jorna/shared/components/ui";
+import { priceUnitKind } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { listServices, sendInquiry } from "@/lib/jorna";
 
@@ -15,19 +19,34 @@ import { listServices, sendInquiry } from "@/lib/jorna";
 // account (or confirm their email) and is waiting here when they come back.
 // Used on the vendor's page (in a drawer) and on /inquire, the link vendors
 // share — coming back always lands on /inquire.
+//
+// What the event is and where are required (backend DECISIONS #52), and so is
+// a guest count when the package is priced per guest. Where is a city (the
+// app's city autofill) or a venue's full address. No phone: the vendor
+// replies in the thread.
 
-type FieldKey = "phone" | "date" | "guests" | "package";
+type FieldKey = "date" | "guests" | "package" | "event" | "where";
+type Where = "city" | "venue";
 
 type Draft = {
   vendorId: string;
-  phone: string;
   date: string;
   eventType: string;
-  location?: string;
+  where?: Where;
+  city?: string;
+  venue?: Address;
   serviceId?: string;
   guests: string;
   note: string;
 };
+
+const GUEST_SLIDER_MAX = 1000;
+
+/** "Edison, NJ" → its two parts; null for anything else. */
+function cityAndState(value: string): { city: string; state: string } | null {
+  const m = value.trim().match(/^(.+?),\s*([A-Za-z]{2})$/);
+  return m ? { city: m[1].trim(), state: m[2].toUpperCase() } : null;
+}
 
 const DRAFT_KEY = "jorna_inquiry_draft";
 const CONFIRM_EMAIL = "Confirm your email before sending an inquiry";
@@ -63,8 +82,9 @@ function clearDraft() {
  *  input they mean. */
 function fieldFor(message: string): FieldKey | null {
   const m = message.toLowerCase();
-  if (m.includes("phone")) return "phone";
   if (m.includes("date")) return "date";
+  if (m.includes("what the event")) return "event";
+  if (m.includes("where") || m.includes("city") || m.includes("venue") || m.includes("zip")) return "where";
   if (m.includes("guest")) return "guests";
   if (m.includes("package")) return "package";
   return null;
@@ -80,17 +100,18 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   const router = useRouter();
   const id = useId();
   const [draft] = useState(() => loadDraft(vendorId));
-  const [phone, setPhone] = useState(draft?.phone || user?.phone || "");
   const [date, setDate] = useState(draft?.date ?? "");
   const [eventType, setEventType] = useState(draft?.eventType ?? "");
-  const [location, setLocation] = useState(draft?.location ?? "");
+  const [where, setWhere] = useState<Where>(draft?.where ?? "city");
+  const [city, setCity] = useState(draft?.city ?? "");
+  const [venue, setVenue] = useState<Address>(draft?.venue ?? EMPTY_ADDRESS);
   // "" until they pick one; a package is required (backend DECISIONS #47).
   const [serviceId, setServiceId] = useState(draft?.serviceId ?? "");
   // The packages the client can see, kept with the vendor they're for.
   // `failed`: the list didn't load, so there's nothing to pick from.
   const [packages, setPackages] = useState<{
     vendorId: string;
-    items: { id: string; name: string }[];
+    items: { id: string; name: string; perGuest: boolean }[];
     failed?: boolean;
   } | null>(null);
   const [guests, setGuests] = useState(draft?.guests ?? "");
@@ -106,7 +127,10 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
     let cancelled = false;
     listServices({ vendor_id: vendorId, limit: 50 })
       .then((page) => {
-        if (!cancelled) setPackages({ vendorId, items: page.items.map((p) => ({ id: p.service_id, name: p.name })) });
+        if (!cancelled) setPackages({
+            vendorId,
+            items: page.items.map((p) => ({ id: p.service_id, name: p.name, perGuest: priceUnitKind(p.price_unit) === "person" })),
+          });
       })
       .catch(() => !cancelled && setPackages({ vendorId, items: [], failed: true }));
     return () => {
@@ -123,12 +147,14 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
       : "";
   // Nothing to pick from: they can't send it here.
   const noPackages = loaded != null && packageOptions.length === 0;
+  // Priced per guest, so the vendor can't quote without a count.
+  const needsGuests = packageOptions.find((p) => p.id === chosen)?.perGuest ?? false;
 
   const back = `/inquire?vendor=${encodeURIComponent(vendorId)}`;
 
   /** Keep what they typed and go do what sending needs first. */
   function leaveFor(path: string) {
-    saveDraft({ vendorId, phone, date, eventType, location, serviceId: chosen, guests, note });
+    saveDraft({ vendorId, date, eventType, where, city, venue, serviceId: chosen, guests, note });
     router.push(path);
   }
 
@@ -152,9 +178,14 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
     const found: Partial<Record<FieldKey, string>> = {};
     if (!chosen) found.package = "Pick the package you're asking about";
     if (!date) found.date = "Add your event date";
+    if (!eventType.trim()) found.event = "Add what the event is";
+    if (where === "city" && !cityAndState(city)) found.where = "Pick the city from the list, or type it as City, ST";
+    if (where === "venue" && addressGaps(venue).some((g) => g !== "line2")) found.where = "Add the venue's full address";
     const count = guests.trim() ? Number(guests) : null;
     if (count !== null && (!Number.isInteger(count) || count < 1 || count > 100_000)) {
       found.guests = "Guest count must be between 1 and 100,000";
+    } else if (count === null && needsGuests) {
+      found.guests = "Add a guest count — this package is priced per guest";
     }
     setErrors(found);
     setFormError(null);
@@ -176,11 +207,15 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
 
     setBusy(true);
     try {
+      const place = where === "city" ? cityAndState(city) : null;
       const reply = await sendInquiry(vendorId, {
-        phone: phone.trim() || null,
         event_date_iso: date || null,
         event_type: eventType.trim() || null,
-        event_location: location.trim() || null,
+        location_kind: where,
+        location_street: where === "venue" ? [venue.line1, venue.line2].map((x) => x.trim()).filter(Boolean).join(", ") : null,
+        location_city: place ? place.city : venue.city.trim(),
+        location_state: place ? place.state : venue.state,
+        location_zip: where === "venue" ? venue.zip.trim() : null,
         service_id: chosen,
         guest_count: count,
         note: note.trim() || null,
@@ -267,48 +302,88 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
           />
           {err("date")}
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <Field
-            label="What's the event? (optional)"
+            label="What's the event?"
             list={`${id}-events`}
             placeholder="Sangeet, wedding, birthday…"
             maxLength={50}
+            required
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
+            {...described("event")}
           />
           <datalist id={`${id}-events`}>
             {CELEBRATIONS.map((c) => (
               <option key={c.label} value={c.label} />
             ))}
           </datalist>
+          {err("event")}
         </div>
-        <div>
-          <Field
-            label="Where's the event? (optional)"
-            placeholder="Venue, or just the city"
-            autoComplete="off"
-            maxLength={255}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
+      </div>
+
+      <fieldset className="grid gap-3" {...described("where")}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <legend className="text-sm font-medium text-ink-soft">Where&apos;s the event?</legend>
+          {/* A venue isn't always booked yet; a city is enough to ask. */}
+          <div role="radiogroup" aria-label="Where" className="flex gap-0.5 rounded-full bg-panel p-[3px] text-sm">
+            {(["city", "venue"] as const).map((w) => (
+              <button
+                key={w}
+                type="button"
+                role="radio"
+                aria-checked={where === w}
+                onClick={() => setWhere(w)}
+                className={`rounded-full px-3.5 py-1 font-semibold transition ${
+                  where === w ? "bg-card text-ink shadow-sm" : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {w === "city" ? "City" : "Venue"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {where === "city" ? (
+          <CityCombobox label="City & state" placeholder="Start typing a city…" value={city} onChange={(v) => setCity(v)} />
+        ) : (
+          <AddressFields value={venue} onChange={setVenue} showGaps={Boolean(errors.where)} />
+        )}
+        {err("where")}
+      </fieldset>
+
+      <div>
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor={`${id}-guests`} className="text-sm font-medium text-ink-soft">
+            Guest count{needsGuests ? "" : " (optional)"}
+          </label>
+          {needsGuests ? <span className="text-xs text-ink-faint">This package is priced per guest</span> : null}
+        </div>
+        <div className="mt-1.5 flex items-center gap-3">
+          <input
+            type="range"
+            aria-label="Guest count slider"
+            // Tens for the slider; an exact or small count goes in the box.
+            min={10}
+            max={GUEST_SLIDER_MAX}
+            step={10}
+            value={Math.min(Math.max(Number(guests) || 10, 10), GUEST_SLIDER_MAX)}
+            onChange={(e) => setGuests(e.target.value)}
+            className="min-w-0 flex-1 accent-maroon"
           />
-        </div>
-        <div>
-          <Field
-            label="Rough guest count (optional)"
+          <input
+            id={`${id}-guests`}
             type="number"
             inputMode="numeric"
             min={1}
             max={100000}
+            placeholder="—"
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
             {...described("guests")}
+            className="w-24 rounded-xl border border-card-edge bg-ground-2 px-3 py-2 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
           />
-          {err("guests")}
         </div>
-        <div>
-          <Field label="Phone (optional)" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} {...described("phone")} />
-          {err("phone")}
-        </div>
+        {err("guests")}
       </div>
 
       <label className="block">
