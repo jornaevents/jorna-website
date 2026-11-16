@@ -26,6 +26,19 @@ test.describe("vendor sidebar shell", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
   });
 
+  test("Calendar shows Jorna bookings only: no Google Calendar, no weekly hours", async ({ page, api }) => {
+    await loginAs(page, api);
+    const vendor = mockVendorDetail();
+    api.get("/vendors/me", vendor);
+    api.get(`/bookings/vendor/${vendor.vendor_id}`, { items: [], total: 0, limit: 100, offset: 0 });
+
+    await page.goto("my-calendar/");
+
+    await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+    await expect(page.getByText(/Google/)).toHaveCount(0);
+    await expect(page.getByText(/Weekly hours|Set your hours|Edit hours/)).toHaveCount(0);
+  });
+
   test("the sidebar's order, and the profile card is the way to the profile", async ({ page, api }) => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
