@@ -16,8 +16,25 @@ export const MARK_CLASS: Record<Exclude<Mark, null>, string> = {
   yours: "rounded bg-gold/20 px-1 text-ink ring-1 ring-gold/50",
 };
 
-function V({ mark, children }: { mark: Mark; children: ReactNode }) {
-  return mark ? <span className={MARK_CLASS[mark]}>{children}</span> : <>{children}</>;
+function V({ mark, focused, children, onPick }: { mark: Mark; focused?: boolean; children: ReactNode; onPick?: () => void }) {
+  const className = `${mark
+    ? MARK_CLASS[mark]
+    : "rounded px-1 text-ink-soft decoration-dotted underline decoration-line underline-offset-2 transition hover:bg-gold/10 hover:text-ink focus-visible:outline-2 focus-visible:outline-gold"}${focused ? " outline outline-2 outline-offset-1 outline-gold ring-2 ring-gold/80" : ""}`;
+  return onPick ? (
+    <button
+      type="button"
+      className={`${className} align-baseline text-left hover:bg-gold/10 focus-visible:outline-2 focus-visible:outline-gold`}
+      title="Edit this field"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onPick}
+    >
+      {children}
+    </button>
+  ) : mark ? (
+    <span className={className}>{children}</span>
+  ) : (
+    <>{children}</>
+  );
 }
 
 function Term({ n, title, children }: { n: number; title: string; children: ReactNode }) {
@@ -37,6 +54,9 @@ export function ContractPaper({
   vendorName,
   clientName,
   title,
+  onPick,
+  focusedOf,
+  pickableOf,
 }: {
   draft: Draft;
   /** How to mark a value, by its id in lib/negotiation. */
@@ -44,8 +64,18 @@ export function ContractPaper({
   vendorName: string;
   clientName: string;
   title: string;
+  /** Focus the matching field in the negotiation panel. */
+  onPick?: (paperId: string) => void;
+  /** Keep focus visible even when an existing negotiation mark is present. */
+  focusedOf?: (paperId: string) => boolean;
+  /** Whether the field currently has an editor or response control. */
+  pickableOf?: (paperId: string) => boolean;
 }) {
-  const show = (id: string, kind: ValueKind, raw: string) => <V mark={markOf(id)}>{showValue(kind, raw)}</V>;
+  const show = (id: string, kind: ValueKind, raw: string) => (
+    <V mark={markOf(id)} focused={focusedOf?.(id)} onPick={onPick && (pickableOf?.(id) ?? true) ? () => onPick(id) : undefined}>
+      {showValue(kind, raw)}
+    </V>
+  );
   // The window prints inside the Cancellation section when there is one —
   // one place says what cancelling costs (2026-10-26 test). Without one it
   // stays with the policies, as before.
@@ -74,7 +104,7 @@ export function ContractPaper({
               {draft.multiDay ? <> through {show("event.dateEnd", "date", draft.dateEnd)}</> : null}, from{" "}
               {show("event.start", "time", draft.timeStart)} to {show("event.end", "time", draft.timeEnd)}, at{" "}
               {show("event.venue", "text", draft.location || "a venue to be confirmed")}
-              {draft.guestCount ? <>, for {show("event.guests", "count", draft.guestCount)} guests</> : null}.
+              . Guest count: {draft.guestCount ? show("event.guests", "count", draft.guestCount) : show("event.guests", "count", "not specified")}.
             </p>
           </Term>
         );
@@ -87,7 +117,13 @@ export function ContractPaper({
                 return (
                   <li key={l.key} className="flex items-baseline justify-between gap-3">
                     <span>
-                      <V mark={markOf(`line:${id}`) ?? markOf(`line:${id}.name`)}>{l.name || "New item"}</V> ·{" "}
+                      <V
+                        mark={markOf(`line:${id}`) ?? markOf(`line:${id}.name`)}
+                        focused={focusedOf?.(`line:${id}`) || focusedOf?.(`line:${id}.name`)}
+                        onPick={onPick && (pickableOf?.(`line:${id}`) ?? true) ? () => onPick(`line:${id}`) : undefined}
+                      >
+                        {l.name || "New item"}
+                      </V> ·{" "}
                       {show(`line:${id}.quantity`, "count", l.quantity)} × {show(`line:${id}.price`, "money", l.price)}
                       {l.description ? <span className="block text-xs text-ink-faint">{l.description}</span> : null}
                     </span>
@@ -156,7 +192,13 @@ export function ContractPaper({
             {c === cancelling ? windowLine : null}
             {c.body || c !== cancelling ? (
               <p className="whitespace-pre-line">
-                <V mark={markOf(`clause:${c.key}`)}>{c.body || "—"}</V>
+                <V
+                  mark={markOf(`clause:${c.key}`)}
+                  focused={focusedOf?.(`clause:${c.key}`)}
+                  onPick={onPick && (pickableOf?.(`clause:${c.key}`) ?? true) ? () => onPick(`clause:${c.key}`) : undefined}
+                >
+                  {c.body || "—"}
+                </V>
               </p>
             ) : null}
           </Term>
