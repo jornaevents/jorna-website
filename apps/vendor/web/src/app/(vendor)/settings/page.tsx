@@ -30,19 +30,19 @@ import { VendorPaymentFields } from "@/components/VendorProfileFields";
 import { FilterTabs, PageHeader } from "@/components/vendor/ui";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "@jorna/shared/lib/theme";
 
+/** The dashboard's card: title and hint inside the padding, as on Overview and
+ *  Contracts, rather than a header band ruled off from the body. */
 function SettingsCard({ id, title, hint, children }: { id: string; title: string; hint?: string; children: ReactNode }) {
   return (
     <section
       aria-labelledby={id}
-      className="rounded-2xl border border-card-edge bg-card shadow-[var(--shadow-card)]"
+      className="rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)]"
     >
-      <header className="border-b border-line-soft px-5 py-4 sm:px-6">
-        <h2 id={id} className="serif text-lg text-ink">
-          {title}
-        </h2>
-        {hint ? <p className="mt-0.5 text-sm text-ink-faint">{hint}</p> : null}
-      </header>
-      <div className="px-5 py-5 sm:px-6">{children}</div>
+      <h2 id={id} className="serif text-lg text-ink">
+        {title}
+      </h2>
+      {hint ? <p className="mt-0.5 text-sm text-ink-faint">{hint}</p> : null}
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -349,7 +349,7 @@ export default function SettingsPage() {
         </p>
       ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="vendor-form grid items-start gap-5 lg:grid-cols-2">
         <div className="grid gap-5">
           <ProfileCard />
           <SecurityCard />

@@ -94,3 +94,18 @@
   font-weight: 700;
   letter-spacing: 0.12em;
 }
+
+/* The dashboard's own form controls (the profile popup, the contract editor,
+   Contracts → Defaults): 10px corners and body-size text, smaller than the
+   app-wide Field. A page whose fields come from shared components — Field,
+   CityCombobox, the Venmo/Zelle fields — opts in with .vendor-form rather
+   than each of those growing a size prop. */
+.vendor-shell .vendor-form input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+.vendor-shell .vendor-form select,
+.vendor-shell .vendor-form textarea {
+  border-radius: 10px;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
