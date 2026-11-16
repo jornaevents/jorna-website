@@ -31,7 +31,10 @@
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { signInUrl } from "@/lib/vendorSite";
+import { EventBuilder } from "@/components/EventBuilder";
 import { ApiError } from "@jorna/shared/lib/api";
 import { searchVendors } from "@/lib/jorna";
 import { freeVendorIds } from "@/lib/availability";
@@ -335,14 +338,17 @@ function MarketplaceInner() {
         </div>
       ) : null}
 
-      <header>
-        <p className="eyebrow">Find your people</p>
-        <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[3.2rem]">
-          Vendors for every celebration
-        </h1>
-        <p className="mt-2 max-w-[52ch] text-ink-soft">
-          Search by name or package, or filter by city, date, category, rating, and price.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div>
+          <p className="eyebrow">Find your people</p>
+          <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.08] tracking-[-0.04em] text-ink desk:text-[3.2rem]">
+            Vendors for every celebration
+          </h1>
+          <p className="mt-2 max-w-[52ch] text-ink-soft">
+            Search by name or package, or filter by city, date, category, rating, and price.
+          </p>
+        </div>
+        <PlanEventButton />
       </header>
 
       <div className="mt-8 flex gap-2">
@@ -602,5 +608,35 @@ export default function MarketplacePage() {
     <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
       <MarketplaceInner />
     </Suspense>
+  );
+}
+
+// The design's "Plan a new event", top right of Explore. It opens the same
+// step-by-step builder as My Events; signed out, it goes through sign-in and
+// lands on My Events, where the builder is a click away.
+function PlanEventButton() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        onClick={() => {
+          if (user) setOpen(true);
+          else window.location.assign(signInUrl("/bundles"));
+        }}
+      >
+        + Plan a new event
+      </Button>
+      {open ? (
+        <EventBuilder
+          onClose={() => setOpen(false)}
+          onCreated={(event, suggest) => {
+            setOpen(false);
+            router.push(suggest ? `/suggest?event=${event.event_id}` : `/event?id=${event.event_id}`);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
