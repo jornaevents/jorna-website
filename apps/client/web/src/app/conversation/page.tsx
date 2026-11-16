@@ -16,6 +16,7 @@ import {
 import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
 import { ModerationMenu } from "@/components/ModerationMenu";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { signInUrl } from "@/lib/vendorSite";
 import { contractInChatPath } from "@/lib/contract";
 
@@ -111,6 +112,7 @@ function ConversationInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
   const [sending, setSending] = useState(false);
   const [live, setLive] = useState(false);
 
@@ -218,9 +220,27 @@ function ConversationInner() {
       : undefined;
   // Where things stand with this vendor, in the words the vendor sees.
   const stage = knownLabel(meta?.label);
+  // A thread with one vendor gets the panel beside it: the latest contract
+  // sent here, or the booking the thread is about.
+  const sidebarVendor = meta?.vendor_id ?? null;
+  const sidebarBooking =
+    messages.findLast((m) => m.kind === "contract" && typeof m.meta?.booking_id === "string")?.meta?.booking_id ??
+    meta?.booking_id ??
+    null;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] w-[min(680px,100%-2rem)] flex-col py-4">
+    <div
+      className={`mx-auto grid w-[min(1080px,100%-2rem)] gap-5 py-4 ${
+        sidebarVendor ? "lg:grid-cols-[minmax(0,1fr)_19rem]" : "max-w-[680px]"
+      }`}
+    >
+    {sidebarVendor ? (
+      // On a phone it's behind Details, above the thread.
+      <div className={`order-first lg:order-none lg:col-start-2 lg:row-start-1 ${showDetails ? "" : "max-lg:hidden"}`}>
+        <ChatSidebar vendorId={sidebarVendor} bookingId={sidebarBooking} />
+      </div>
+    ) : null}
+    <div className="flex h-[calc(100vh-8rem)] min-w-0 flex-col lg:col-start-1 lg:row-start-1">
       {/* A header. There wasn't one — a back link and a Live dot, and nothing
           saying whose chat you were in. Survivable when every chat was one
           plan's group; not once a client has a thread per vendor and a question
@@ -254,6 +274,16 @@ function ConversationInner() {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {sidebarVendor ? (
+            <button
+              type="button"
+              aria-expanded={showDetails}
+              onClick={() => setShowDetails((v) => !v)}
+              className="rounded-full border border-card-edge px-3 py-1 text-xs font-semibold text-ink-soft hover:text-ink lg:hidden"
+            >
+              {showDetails ? "Hide details" : "Details"}
+            </button>
+          ) : null}
           <span
             className={`text-xs ${live ? "text-green" : "text-ink-faint"}`}
             title={live ? "Live" : "Reconnecting…"}
@@ -387,6 +417,7 @@ function ConversationInner() {
       {/* Contracts arrive here as cards (backend DECISIONS #48); what they
           say is settled on the contract and in the event, not by message. */}
       <p className="mt-2 text-center text-xs text-ink-faint">Prices and changes are handled in your event.</p>
+    </div>
     </div>
   );
 }

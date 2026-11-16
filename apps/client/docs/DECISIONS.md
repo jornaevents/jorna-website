@@ -491,3 +491,13 @@ Client redesign PR 10, the last of the plan. Both were in the design but unreach
 - **Day-of** (`components/DayOfTab.tsx`): the plan's run sheet (`components/RunSheet`), open from the
   start, so the event and the plan can't disagree about the order of the day. Check-ins show in the
   week of the event, as they do on the plan.
+
+## Decision: a chat with one vendor has a sidebar (2026-11-16)
+
+Beside a client's thread with one vendor (`components/ChatSidebar.tsx`): the vendor's card (photo,
+category, place, rating, their page), the contract's standing with what to do about it (Review &
+sign, Propose changes, "Waiting on [vendor]", Open the contract), and the payment schedule once
+it's signed. The contract is the latest one sent in the thread, else the thread's booking. It's
+all read from endpoints the app already uses, so there's no backend change. On a phone it sits
+behind a **Details** button above the thread. `contractStanding` moved to `lib/contract.ts` so
+the contract page and the sidebar word the status the same way.

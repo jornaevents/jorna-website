@@ -7,7 +7,7 @@
 // NEXT_PUBLIC_VENDOR_APP_URL overrides the default, the same
 // env-with-fallback pattern as lib/api.ts.
 
-import { eventIsOver, type BundleBooking, type Installment } from "./types";
+import { eventIsOver, type BundleBooking, type Contract, type Installment } from "./types";
 
 
 export function contractSignUrl(token: string): string {
@@ -185,5 +185,31 @@ export function describePayment(row: PaymentRow, vendor: string): string {
       return "Due today";
     default:
       return row.due ? `Due ${shortDate(row.due)}` : "Due once signed";
+  }
+}
+
+/** Where it stands, in the words the plan uses for it. */
+export function contractStanding(c: Contract, token: string): { text: string; tone: string } {
+  // Read by its link, so the payload has no token of its own; the link's is it.
+  const stage = bookingStage({ ...c, contract_token: token });
+  if (stage === "completed") return { text: STAGE_LABELS.completed, tone: "text-ink-soft" };
+  if (stage === "confirmed") return { text: STAGE_LABELS.confirmed, tone: "text-green" };
+  if (stage === "deposit_due" || stage === "contract_to_review" || stage === "new_version") {
+    return { text: STAGE_LABELS[stage], tone: "text-gold" };
+  }
+  if (stage === "changes_proposed" || stage === "awaiting_vendor") {
+    return { text: STAGE_LABELS[stage], tone: "text-ink-soft" };
+  }
+  // Signed but off the lifecycle — a booking cancelled after signing.
+  if (c.signed_at) return { text: "Signed", tone: "text-ink-soft" };
+  switch (c.contract_status) {
+    case "expired":
+      return { text: "Expired unsigned", tone: "text-maroon dark:text-gold" };
+    case "declined":
+      return { text: "You declined this", tone: "text-ink-faint" };
+    case "voided":
+      return { text: "Withdrawn by the vendor", tone: "text-ink-faint" };
+    default:
+      return { text: "Not sent yet", tone: "text-ink-faint" };
   }
 }
