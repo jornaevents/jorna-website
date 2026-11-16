@@ -78,10 +78,8 @@ test.describe("field-by-field negotiation", () => {
     // The contract reads as it would be, with the counter in it (#153).
     await expect(page.getByRole("region", { name: "Contract" }).getByText("$1,800").first()).toBeVisible();
 
-    // Accept instead, and change something else on the way.
+    // Accept the counter, then edit another available field directly.
     await card.getByRole("button", { name: "Accept" }).click();
-    await page.getByText("Change something else").click();
-    await page.getByRole("complementary", { name: "Your answers" }).getByText("Overtime rate").locator("..").getByRole("button", { name: "Change" }).click();
     await page.getByLabel("Overtime rate ($)").fill("200");
     // An answer and a change of their own, counted apart (#168).
     await expect(send).toHaveText("Send 1 answer and 1 change");
@@ -97,6 +95,104 @@ test.describe("field-by-field negotiation", () => {
       ],
       message: null,
     });
+  });
+
+  test("a vendor can edit the full payment schedule in Prices and jump from the contract to its input", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/contracts/c-1", contract);
+    api.get("/contracts/c-1/proposals", history);
+    api.get("/contracts/c-1/negotiation", state({
+      waiting_count: 0,
+      fields: [field("schedule", "Payment schedule", terms.payment_schedule, { group: "schedule" })],
+    }));
+    api.put("/contracts/c-1/negotiation/draft", {});
+    api.post("/contracts/c-1/negotiation/send", state({ round: 3, turn: "client", waiting_count: 0, can_sign: true, fields: [] }));
+
+    await page.goto("contracts/changes/?id=c-1");
+    const panel = page.getByRole("complementary", { name: "Your answers" });
+    const prices = panel.getByRole("region", { name: "Prices" });
+    await expect(prices.getByLabel("Deposit amount ($)")).toHaveValue("500");
+    await prices.getByLabel("Deposit amount ($)").fill("400");
+    await prices.getByLabel("Final balance amount ($)").fill("1200");
+    const balance = page.getByRole("region", { name: "Contract" }).getByRole("button", { name: "$1,200.00", exact: true });
+    await balance.click();
+    await expect(prices.getByLabel("Final balance amount ($)")).toBeFocused();
+    await expect(balance).toHaveClass(/ring-2/);
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("Draft saved.")).toBeVisible();
+    const [draft] = api.requestsTo("PUT", "/contracts/c-1/negotiation/draft");
+    expect(draft.body).toMatchObject({
+      answers: [{ key: "schedule", action: "change", value: [
+        { id: "dep", amount_cents: 40000 },
+        { id: "bal", amount_cents: 120000 },
+      ] }],
+    });
+    await expect(page.getByRole("button", { name: "Send 1 change" })).toBeEnabled();
+    await page.getByRole("button", { name: "Send 1 change" }).click();
+
+    const [sent] = api.requestsTo("POST", "/contracts/c-1/negotiation/send");
+    expect(sent.body).toMatchObject({
+      answers: [{ key: "schedule", action: "change", value: [
+        { id: "dep", label: "Deposit", amount_cents: 40000 },
+        { id: "bal", label: "Final balance", amount_cents: 120000 },
+      ] }],
+    });
+  });
+
+  test("a vendor can add an item, while a locked settled field cannot be reopened", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/contracts/c-1", contract);
+    api.get("/contracts/c-1/proposals", history);
+    api.get("/contracts/c-1/negotiation", state({
+      waiting_count: 0,
+      fields: [
+        field("policy.overtime", "Overtime rate", 15000, { state: "settled", locked: true, can_change: false }),
+        field("event.guests", "Guest count", 200, { state: "settled" }),
+      ],
+      packages: [{
+        service_id: "svc-1", name: "Reception set", price_cents: 140000, price_unit: "event",
+        add_ons: [{ id: "fog", name: "Fog machine", price_cents: 7500 }],
+      }],
+    }));
+
+    await page.goto("contracts/changes/?id=c-1");
+    const contractPreview = page.getByRole("region", { name: "Contract" });
+    await contractPreview.getByRole("button", { name: "200", exact: true }).click();
+    const reopen = page.getByRole("button", { name: "Reopen" });
+    await expect(reopen).toBeFocused();
+    await expect(reopen).toHaveCount(1);
+    await reopen.click();
+    await page.getByLabel("Guest count").fill("250");
+    await expect(contractPreview.getByRole("button", { name: "250", exact: true })).toBeVisible();
+    await page.getByLabel("Add an item").selectOption("svc-1|fog");
+    await expect(contractPreview.getByText("Fog machine", { exact: true })).toBeVisible();
+  });
+
+  test("locked pending fields still allow Accept and Keep but never Counter", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/contracts/c-1", contract);
+    api.get("/contracts/c-1/proposals", history);
+    api.get("/contracts/c-1/negotiation", state({
+      waiting_count: 1,
+      fields: [field("line:pkg.price", "Reception set: price", 140000, {
+        state: "waiting_vendor", proposed: 130000, proposed_by: "client", locked: true, can_change: false,
+      })],
+    }));
+    api.post("/contracts/c-1/negotiation/send", state({ round: 3, turn: "client", waiting_count: 0, can_sign: true, fields: [] }));
+
+    await page.goto("contracts/changes/?id=c-1");
+    const price = page.getByRole("region", { name: "Reception set: price" });
+    await expect(price.getByRole("button", { name: "Accept $1,300" })).toBeVisible();
+    await expect(price.getByRole("button", { name: "Keep $1,400" })).toBeVisible();
+    await expect(price.getByRole("button", { name: "Counter" })).toHaveCount(0);
+    await price.getByRole("button", { name: "Keep $1,400" }).click();
+    await expect(page.getByRole("button", { name: "Send 1 answer" })).toBeEnabled();
+    await page.getByRole("button", { name: "Send 1 answer" }).click();
+    const [sent] = api.requestsTo("POST", "/contracts/c-1/negotiation/send");
+    expect(sent.body).toMatchObject({ answers: [{ key: "line:pkg.price", action: "keep" }] });
   });
 
   test("a locked group shows as fixed, and it's read-only on the other side's turn", async ({ page, api }) => {
@@ -146,8 +242,10 @@ test.describe("field-by-field negotiation", () => {
     // Answer instead: keep asking for 3 lights, accept the overtime rate.
     await page.getByRole("button", { name: "Back to the contract" }).click();
     await page.getByRole("button", { name: "Review their answers" }).click();
-    await page.getByText("Change something else").click();
     await expect(page.getByText("Fixed by Arjun Kapoor")).toBeVisible();
+    const lockedPanel = page.getByRole("complementary", { name: "Your answers" });
+    await expect(lockedPanel.getByText("Fixed by Arjun Kapoor")).toBeVisible();
+    await expect(lockedPanel.getByLabel("Reception set: price ($)")).toHaveCount(0);
     const lights = page.getByRole("region", { name: "Uplighting: quantity" });
     await lights.getByRole("button", { name: "Counter" }).click();
     await lights.getByLabel("Uplighting: quantity").fill("3");
@@ -219,13 +317,23 @@ test.describe("field-by-field negotiation", () => {
     await expect(price.getByRole("button", { name: "Accept $1,300" })).toBeVisible();
     await expect(price.getByRole("button", { name: "Ask for $1,200 again" })).toBeVisible();
 
-    // Opening a field isn't a change; a guest count of 0 can't be sent.
-    await page.getByText("Change something else").click();
-    await page.getByRole("complementary", { name: "Your answers" }).getByText("Guest count").locator("..").getByRole("button", { name: "Change" }).click();
-    await expect(page.getByText("Not changed yet")).toBeVisible();
+    // Every editable field is already visible, but unchanged values aren't sent.
+    const panel = page.getByRole("complementary", { name: "Your answers" });
+    await expect(panel.getByLabel("Guest count", { exact: true })).toHaveValue("200");
     await page.getByRole("region", { name: "Cancellation window" }).getByRole("button", { name: "Accept" }).click();
     await page.getByRole("region", { name: "Reception set: price" }).getByRole("button", { name: "Accept" }).click();
     await expect(page.getByRole("button", { name: "Send 2 answers" })).toBeEnabled();
+    const contractPreview = page.getByRole("region", { name: "Contract" });
+    const guestCount = contractPreview.getByRole("button", { name: "200", exact: true });
+    await guestCount.click();
+    await expect(panel.getByLabel("Guest count", { exact: true })).toBeFocused();
+    await expect(guestCount).toHaveClass(/bg-gold\/20/);
+    const contractPrice = contractPreview.getByRole("button", { name: "$1,300.00", exact: true });
+    await contractPrice.click();
+    await expect(price.getByRole("button", { name: "Accept $1,300" })).toBeFocused();
+    // Accepting changes the preview mark to ours; focus remains visible as a gold ring.
+    await expect(contractPrice).toHaveClass(/bg-gold\/20/);
+    await expect(contractPrice).toHaveClass(/ring-2/);
     await page.getByLabel("Guest count", { exact: true }).fill("0");
     await expect(page.getByText("A guest count is a whole number from 1 to 100,000.").first()).toBeVisible();
     await expect(page.getByRole("button", { name: /^Send/ })).toBeDisabled();
@@ -317,14 +425,11 @@ test.describe("field-by-field negotiation", () => {
     await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await page.getByRole("button", { name: "Ask for changes" }).click();
-    await page.getByText("Change something else").click();
     const panel = page.getByRole("complementary", { name: "Your answers" });
     await expect(panel.getByText("Needs one package")).toBeVisible();
-    await expect(panel.getByRole("button", { name: "Leave out Reception set" })).toHaveCount(0);
-
-    await panel.getByRole("button", { name: "Change Uplighting: price" }).click();
+    await expect(panel.getByLabel("Include Reception set")).toHaveCount(0);
     await page.getByLabel("Uplighting: price ($)").fill("50");
-    await panel.getByRole("button", { name: "Leave out Uplighting" }).click();
+    await panel.getByLabel("Include Uplighting").uncheck();
     const send = page.getByRole("button", { name: /^Send/ });
     await expect(send).toHaveText("Send 1 change");
     await send.click();
@@ -349,6 +454,26 @@ test.describe("field-by-field negotiation", () => {
     await expect(page.getByRole("region", { name: "Include “Travel”" }).getByRole("button", { name: "Counter" })).toHaveCount(0);
     await page.getByRole("button", { name: "Accept all" }).click();
     await expect(page.getByRole("button", { name: "Send 2 answers" })).toBeEnabled();
+  });
+
+  test("the client negotiation workspace stacks the answer panel above the contract on mobile", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-1", contract);
+    api.get("/guest-bookings/tok-1/proposals", history);
+    api.get("/guest-bookings/tok-1/negotiation", state({ side: "client", turn: "client", waiting_count: 0, fields: [field("event.guests", "Guest count", 200)] }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await pastLinkSteps(page, "tok-1");
+    await page.goto("booking-link/?t=tok-1");
+    await page.getByRole("button", { name: "Ask for changes" }).click();
+    const answers = page.getByRole("complementary", { name: "Your answers" });
+    const paper = page.getByRole("region", { name: "Contract", exact: true });
+    await expect(answers.getByLabel("Guest count")).toBeVisible();
+    await expect(paper).toBeVisible();
+    const answersBox = await answers.boundingBox();
+    const paperBox = await paper.boundingBox();
+    expect(answersBox).not.toBeNull();
+    expect(paperBox).not.toBeNull();
+    expect(answersBox!.y).toBeLessThan(paperBox!.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("after sending, the client sees what they asked for", async ({ page, api }) => {

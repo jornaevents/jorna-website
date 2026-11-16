@@ -55,9 +55,7 @@ test.describe("staging: contract round trip", () => {
     if (fields) {
       // Field by field: ask for a guest count, the vendor accepts it.
       await page.getByRole("button", { name: "Ask for changes" }).click();
-      await page.getByText("Change something else").click();
       const panel = page.getByRole("complementary", { name: "Your answers" });
-      await panel.getByText("Guest count", { exact: true }).locator("..").getByRole("button", { name: "Change" }).click();
       await panel.getByLabel("Guest count").fill("150");
       await page.getByRole("button", { name: "Send 1 change" }).click();
       await expect(page.getByText(/It's .*'s turn/)).toBeVisible();

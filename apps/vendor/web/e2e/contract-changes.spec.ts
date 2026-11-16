@@ -121,47 +121,93 @@ test.describe("contract change proposals", () => {
     ...over,
   });
 
+  const field = (key: string, label: string, value: unknown, group: string) => ({
+    key,
+    label,
+    value,
+    group,
+    state: "agreed",
+    proposed: null,
+    proposed_by: null,
+    round: null,
+    note: null,
+    locked: false,
+    can_change: true,
+  });
+  const fieldState = (over: Record<string, unknown> = {}) => ({
+    mode: "fields",
+    side: "client",
+    round: 1,
+    turn: "client",
+    revision: 1,
+    locks: [],
+    nudge: false,
+    can_sign: false,
+    waiting_count: 0,
+    terms: terms(),
+    previous_terms: null,
+    original_terms: terms(),
+    last_send: null,
+    draft: null,
+    fields: [
+      field("line:lights.quantity", "Uplighting · quantity", 2, "items"),
+      field("clause:travel.included", "Include Travel", true, "clauses"),
+    ],
+    ...over,
+  });
+
   const workspace = (page: import("@playwright/test").Page, who: string) =>
     page.getByRole("region", { name: `${who} contract negotiation` });
 
   test("the client changes values in the workspace and sends only what changed", async ({ page, api }) => {
     api.get("/guest-bookings/tok-1", contract());
     api.get("/guest-bookings/tok-1/proposals", history());
-    api.post("/guest-bookings/tok-1/proposals", history({ open_proposal: proposal(), proposals: [proposal()] }));
+    api.get("/guest-bookings/tok-1/negotiation", fieldState());
+    api.post("/guest-bookings/tok-1/negotiation/send", fieldState({
+      round: 2,
+      turn: "vendor",
+      last_send: {
+        round: 1,
+        side: "client",
+        message: "Could we add a light and remove the travel section?",
+        answers: [
+          { key: "line:lights.quantity", action: "change", value: 3 },
+          { key: "clause:travel.included", action: "change", value: false },
+        ],
+        sent_at: "2030-05-03T12:00:00",
+      },
+      fields: [
+        { ...field("line:lights.quantity", "Uplighting · quantity", 2, "items"), state: "waiting_vendor", proposed: 3, proposed_by: "client" },
+        { ...field("clause:travel.included", "Include Travel", true, "clauses"), state: "waiting_vendor", proposed: false, proposed_by: "client" },
+      ],
+    }));
 
     await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await page.getByRole("button", { name: "Ask for changes" }).click();
-    const ws = workspace(page, "Arjun Kapoor");
-    await expect(ws.getByRole("heading", { name: "Review and revise" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Your answers" }).getByRole("region", { name: "Available contract fields" })).toBeVisible();
+    const answers = page.getByRole("complementary", { name: "Your answers" });
     // Nothing changed yet, nothing to send.
-    await expect(ws.getByRole("button", { name: /Send to Arjun Kapoor/ })).toBeDisabled();
+    await expect(answers.getByRole("button", { name: /^Send/ })).toBeDisabled();
 
-    await ws.getByLabel("Change something else").selectOption({ label: "Uplighting · quantity" });
-    await ws.getByLabel("Your uplighting · quantity").fill("3");
+    await answers.getByLabel("Uplighting · quantity").fill("3");
     // The balance follows the total until they touch a payment.
-    await expect(ws.getByText("$1,200.00").first()).toBeVisible();
-    await ws.getByLabel("Change something else").selectOption({ label: "Travel" });
-    await ws.getByLabel("Your travel").fill("Travel within 50 miles is included.");
-    await ws.getByLabel(/A note for Arjun Kapoor/).fill("Could we add a light, and stretch the travel?");
-    await ws.getByRole("button", { name: /Send to Arjun Kapoor/ }).click();
+    await expect(answers.getByText("$1,700").first()).toBeVisible();
+    await answers.getByLabel("Include Travel").uncheck();
+    await answers.getByRole("button", { name: "Add a note for Arjun Kapoor" }).click();
+    await answers.getByLabel(/A note for Arjun Kapoor/).fill("Could we add a light and remove the travel section?");
+    await answers.getByRole("button", { name: /^Send 2 changes$/ }).click();
 
-    await expect(page.getByText("Waiting for Arjun Kapoor")).toBeVisible();
-    const [call] = api.requestsTo("POST", "/guest-bookings/tok-1/proposals");
+    await expect(page.getByText("Waiting on Arjun Kapoor")).toBeVisible();
+    const [call] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
     expect(call.body).toMatchObject({
-      base_revision: 1,
-      message: "Could we add a light, and stretch the travel?",
-      changes: {
-        line_items: [{ id: "pkg", quantity: 1 }, { id: "lights", quantity: 3 }],
-        payment_schedule: [{ id: "dep", amount_cents: 50000 }, { id: "bal", amount_cents: 120000 }],
-        terms_clauses: [{ key: "scope" }, { key: "travel", body: "Travel within 50 miles is included." }],
-      },
+      base_round: 1,
+      message: "Could we add a light and remove the travel section?",
+      answers: [
+        { key: "line:lights.quantity", action: "change", value: 3 },
+        { key: "clause:travel.included", action: "change", value: false },
+      ],
     });
-    expect(Object.keys((call.body as { changes: object }).changes).sort()).toEqual([
-      "line_items",
-      "payment_schedule",
-      "terms_clauses",
-    ]);
   });
 
   test("the client app's Propose changes link opens the workspace, where they can ask for something extra and save a draft", async ({
