@@ -42,7 +42,7 @@ export function DeleteAccountSection({ vendor, className = "" }: { vendor: Vendo
   return (
     <section
       aria-labelledby="delete-account-title"
-      className={`rounded-2xl border border-card-edge bg-card px-5 py-4 shadow-[var(--shadow-card)] sm:px-6 ${className}`}
+      className={`rounded-2xl border border-card-edge bg-card p-5 shadow-[var(--shadow-card)] ${className}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
