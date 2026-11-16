@@ -10,7 +10,6 @@ import {
   allVendorBookings,
   getContract,
   getEarnings,
-  getMyAvailability,
   getMyVendor,
   getNewBookingsCount,
   getPipeline,
@@ -46,7 +45,6 @@ export const myServices = (vendorId: string) => cachedRead(`services:${vendorId}
 
 export const vendorEarnings = (vendorId: string) => cachedRead(`earnings:${vendorId}`, () => getEarnings(vendorId));
 
-export const myAvailability = () => cachedRead("availability", getMyAvailability);
 
 export const leadPipeline = () => cachedRead(PIPELINE, getPipeline);
 
@@ -81,7 +79,7 @@ const AHEAD: Record<string, (vendorId: string) => Promise<unknown>[]> = {
   "/my-bookings": (id) => [vendorBookings(id)],
   "/leads": () => [leadPipeline()],
   "/contracts": (id) => [everyVendorBooking(id), contractTemplates(), myServices(id)],
-  "/my-calendar": (id) => [vendorBookings(id), myAvailability()],
+  "/my-calendar": (id) => [vendorBookings(id)],
   "/my-earnings": (id) => [vendorEarnings(id)],
 };
 

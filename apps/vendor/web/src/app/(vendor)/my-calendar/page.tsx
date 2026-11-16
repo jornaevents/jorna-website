@@ -11,21 +11,14 @@
 // this palette has no red or orange, so booked is maroon and tentative gold —
 // the same severity order in the colours the app actually has.
 //
-// Google-busy days come from the vendor's own availability endpoint and, as on
-// iOS, the legend only mentions Google when a calendar is actually connected.
-//
-// It takes the slot "Hours" used to hold in the seller nav. Weekly hours still
-// matter — they're what a host filtering by a date is matched against — so this
-// links through to them rather than dropping them.
+// Only what's booked through Jorna (2026-11-16): Google Calendar and weekly
+// hours are gone from the vendor app, and a vendor counts as free on any day
+// without a booking or a hold.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import {
-  getCalendarStatus,
-  getVendorAvailability,
-} from "@/lib/jorna";
-import { myAvailability, myVendor, vendorBookings } from "@/lib/vendorData";
+import { myVendor, vendorBookings } from "@/lib/vendorData";
 import { useDataVersion } from "@/lib/dataCache";
 import {
   calendarMonth,
@@ -34,10 +27,9 @@ import {
   type CalendarDay,
   type DayStatus,
 } from "@/lib/vendorPlan";
-import { WEEKDAYS, type AvailabilitySlot, type VendorBooking } from "@/lib/types";
+import { WEEKDAYS, type VendorBooking } from "@/lib/types";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { FilterTabs, PageHeader } from "@/components/vendor/ui";
-import { GoogleCalendarCard } from "@/components/GoogleCalendarCard";
 import { PageSkeleton, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
 
 const MONTHS = [
@@ -91,11 +83,10 @@ function prettyDate(iso: string): string {
  * draw (green/50). The year view puts a dot on every day, free ones included,
  * which is where that entry belongs.
  */
-function Legend({ google, view }: { google: boolean; view: "month" | "year" }) {
+function Legend({ view }: { view: "month" | "year" }) {
   const items: [string, string][] = [];
   if (view === "year") items.push(["Available", DOT.free]);
   items.push(["Tentative", DOT.tentative], ["Booked", DOT.booked]);
-  if (google) items.push(["Google", "bg-ink-faint"]);
   return (
     <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-line-soft pt-4">
       {items.map(([label, dot]) => (
@@ -117,7 +108,7 @@ function DayCell({
   selected: boolean;
   onSelect: (iso: string) => void;
 }) {
-  const marked = day.status !== "free" || day.googleBusy;
+  const marked = day.status !== "free";
   return (
     <button
       type="button"
@@ -130,16 +121,14 @@ function DayCell({
         className={`relative flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition ${
           selected
             ? "bg-maroon font-semibold text-white dark:bg-gold dark:text-[#2A0C19]"
-            : `${day.googleBusy ? "bg-ink-faint/15" : TINT[day.status]} text-ink hover:bg-gold/10`
+            : `${TINT[day.status]} text-ink hover:bg-gold/10`
         } ${day.isToday && !selected ? "font-bold ring-2 ring-inset ring-gold" : ""}`}
       >
         {day.day}
         {marked && !selected ? (
           <span
             aria-hidden="true"
-            className={`absolute -bottom-0.5 size-1 rounded-full ${
-              day.googleBusy && day.status === "free" ? "bg-ink-faint" : DOT[day.status]
-            }`}
+            className={`absolute -bottom-0.5 size-1 rounded-full ${DOT[day.status]}`}
           />
         ) : null}
       </span>
@@ -152,18 +141,16 @@ function MiniMonth({
   year,
   month,
   bookings,
-  googleBusy,
   onOpen,
 }: {
   year: number;
   month: number;
   bookings: VendorBooking[];
-  googleBusy: Set<string>;
   onOpen: (month: number) => void;
 }) {
   const days = useMemo(
-    () => calendarMonth(bookings, year, month, googleBusy).filter((d) => d.inMonth),
-    [bookings, year, month, googleBusy],
+    () => calendarMonth(bookings, year, month).filter((d) => d.inMonth),
+    [bookings, year, month],
   );
   const busy = days.filter((d) => d.status !== "free").length;
   return (
@@ -181,9 +168,7 @@ function MiniMonth({
           <span
             key={d.dateIso}
             aria-hidden="true"
-            className={`size-1.5 rounded-full ${
-              d.googleBusy && d.status === "free" ? "bg-ink-faint/60" : DOT[d.status]
-            }`}
+            className={`size-1.5 rounded-full ${DOT[d.status]}`}
           />
         ))}
       </div>
@@ -194,7 +179,7 @@ function MiniMonth({
 const HEADING: PageHeading = {
   eyebrow: "Schedule",
   title: "Calendar",
-  subtitle: "Booked days, tentative holds and your Google busy times, in one place.",
+  subtitle: "Booked days and tentative holds, in one place.",
 };
 
 function CalendarSkeleton() {
@@ -223,12 +208,7 @@ export default function VendorCalendarPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [vendorId, setVendorId] = useState<string | null>(null);
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
-  const [googleBusy, setGoogleBusy] = useState<Set<string>>(new Set());
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [googleWriteEnabled, setGoogleWriteEnabled] = useState(false);
   const [notVendor, setNotVendor] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -248,13 +228,10 @@ export default function VendorCalendarPage() {
     if (!user) return null;
     const me = await myVendor().catch(() => null);
     if (!me) return { vendor: null as null };
-    const [bk, avail] = await Promise.all([
-      vendorBookings(me.vendor_id)
-        .then((r) => r.items)
-        .catch(() => [] as VendorBooking[]),
-      myAvailability().catch(() => [] as AvailabilitySlot[]),
-    ]);
-    return { vendor: me, bookings: bk, availability: avail };
+    const bk = await vendorBookings(me.vendor_id)
+      .then((r) => r.items)
+      .catch(() => [] as VendorBooking[]);
+    return { vendor: me, bookings: bk };
   }, [user]);
 
   useEffect(() => {
@@ -266,9 +243,7 @@ export default function VendorCalendarPage() {
         setLoading(false);
         return;
       }
-      setVendorId(snap.vendor.vendor_id);
       setBookings(snap.bookings ?? []);
-      setAvailability(snap.availability ?? []);
       setLoading(false);
     });
     return () => {
@@ -276,78 +251,9 @@ export default function VendorCalendarPage() {
     };
   }, [fetchAll, dataVersion]);
 
-  // Google-busy days for the year on show. Its own effect because it depends on
-  // the year, and a failure only costs the fourth legend entry.
-  useEffect(() => {
-    if (!vendorId) return;
-    let cancelled = false;
-    getVendorAvailability(vendorId, `${year}-01-01`, `${year}-12-31`)
-      .then((a) => {
-        if (cancelled) return;
-        setGoogleConnected(Boolean(a.google_calendar_connected));
-        const days = new Set<string>();
-        for (const slot of a.google_busy_times ?? []) {
-          const s = slot as {
-            start?: unknown;
-            start_time?: unknown;
-            end?: unknown;
-            end_time?: unknown;
-          };
-          const rawStart = typeof s.start === "string" ? s.start : s.start_time;
-          const rawEnd = typeof s.end === "string" ? s.end : s.end_time;
-          if (typeof rawStart !== "string" || rawStart.length < 10) continue;
-          const from = rawStart.slice(0, 10);
-          days.add(from);
-          // A block spanning days marks all of them. Reading only the start put
-          // a three-day festival on the calendar as one busy morning, which is
-          // the opposite of what a busy marker is for. Capped, and only when the
-          // end genuinely parses — the shape of these is inferred from live
-          // responses (see lib/availability), so it fails back to the start day
-          // rather than guessing.
-          if (typeof rawEnd === "string" && rawEnd.length >= 10) {
-            const to = rawEnd.slice(0, 10);
-            const cursor = new Date(`${from}T00:00:00`);
-            const last = new Date(`${to}T00:00:00`);
-            if (!Number.isNaN(cursor.getTime()) && !Number.isNaN(last.getTime())) {
-              for (let n = 0; cursor < last && n < 62; n++) {
-                cursor.setDate(cursor.getDate() + 1);
-                days.add(
-                  `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(
-                    cursor.getDate(),
-                  ).padStart(2, "0")}`,
-                );
-              }
-            }
-          }
-        }
-        setGoogleBusy(days);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [vendorId, year]);
-
-  // Owner-only, so it's not on getVendorAvailability above (that's public) —
-  // a separate, simpler effect with nothing date-range-shaped to depend on.
-  // Failure just means the reconnect prompt doesn't show, not that anything
-  // breaks: connected still reads correctly off the availability call.
-  useEffect(() => {
-    if (!vendorId) return;
-    let cancelled = false;
-    getCalendarStatus(vendorId)
-      .then((s) => {
-        if (!cancelled) setGoogleWriteEnabled(Boolean(s.google_calendar_write_enabled));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [vendorId]);
-
   const days = useMemo(
-    () => calendarMonth(bookings, year, month, googleBusy),
-    [bookings, year, month, googleBusy],
+    () => calendarMonth(bookings, year, month),
+    [bookings, year, month],
   );
   // Everything the grid marks, including the tentative days — see
   // upcomingOnCalendar. Leaving them out left gold days on the calendar with
@@ -422,9 +328,7 @@ export default function VendorCalendarPage() {
         }
       />
 
-      {/* Calendar and what's ahead, side by side where there's room. The list
-          used to sit below the fold under the Google card and the weekly-hours
-          card, which is a long way from the grid it refers to. */}
+      {/* Calendar and what's ahead, side by side where there's room. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       {/* The anchor is the wrapper, not the Card — Card takes className and
           children only, and widening a shared component for one scroll target
@@ -468,7 +372,6 @@ export default function VendorCalendarPage() {
                 year={year}
                 month={i}
                 bookings={bookings}
-                googleBusy={googleBusy}
                 onOpen={(m) => {
                   setMonth(m);
                   setView("month");
@@ -504,11 +407,7 @@ export default function VendorCalendarPage() {
                   {prettyDate(selectedDay.dateIso)}
                 </p>
                 {selectedDay.bookings.length === 0 ? (
-                  <p className="mt-1 text-sm text-ink-soft">
-                    {selectedDay.googleBusy
-                      ? "Busy in your Google Calendar. Nothing booked through Jorna."
-                      : "Nothing booked."}
-                  </p>
+                  <p className="mt-1 text-sm text-ink-soft">Nothing booked.</p>
                 ) : (
                   <ul className="mt-2 grid gap-2">
                     {selectedDay.bookings.map((b) => {
@@ -560,7 +459,7 @@ export default function VendorCalendarPage() {
           </>
         )}
 
-        <Legend google={googleConnected} view={view} />
+        <Legend view={view} />
       </Card>
       </div>
 
@@ -629,33 +528,6 @@ export default function VendorCalendarPage() {
         )}
       </section>
       </div>
-
-      {vendorId ? (
-        <GoogleCalendarCard
-          className="mt-4"
-          vendorId={vendorId}
-          connected={googleConnected}
-          writeEnabled={googleWriteEnabled}
-        />
-      ) : null}
-
-      {/* Editing now lives on /vendor-profile (folded in from the old
-          /my-availability route) — this stays as a status summary + link,
-          since it's still what a host filtering by a date is matched
-          against, next to the grid it constrains. */}
-      <section className="mt-8">
-        <h2 className="eyebrow mb-3">Weekly hours</h2>
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <p className="text-sm text-ink-soft">
-            {availability.length === 0
-              ? "You haven't set any. Hosts filtering by a date can't tell whether you're free."
-              : `Set on ${new Set(availability.map((s) => s.day_of_week)).size} of 7 days.`}
-          </p>
-          <LinkButton href="/vendor-profile" variant="ghost" size="md">
-            {availability.length === 0 ? "Set your hours" : "Edit hours"}
-          </LinkButton>
-        </Card>
-      </section>
 
       {/* No "all your bookings" footer: the sidebar carries that link on
           every vendor page, and the upcoming list above already leads into
