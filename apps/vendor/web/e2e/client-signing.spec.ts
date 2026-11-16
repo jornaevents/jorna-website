@@ -167,20 +167,31 @@ test.describe("client signing page", () => {
     await expect(page.getByText(/Everything in the contract below is agreed/)).toHaveCount(0);
   });
 
-  test("signing as it is names only the side with open changes", async ({ page, api }) => {
+  test("signing as it is takes the vendor's open changes", async ({ page, api }) => {
     api.get("/guest-bookings/tok-10", booking());
     api.get(
       "/guest-bookings/tok-10/negotiation",
-      negotiation({ round: 2, turn: "vendor", can_sign: false, waiting_count: 2,
-        fields: [field("event.guests", "waiting_vendor", "client"), field("event.location", "waiting_vendor", "client")] }),
+      negotiation({ round: 2, turn: "client", can_sign: false, waiting_count: 2,
+        fields: [field("event.guests", "waiting_client", "vendor"), field("event.location", "waiting_client", "vendor")] }),
     );
     await pastLinkSteps(page, "tok-10");
     await page.goto("booking-link/?t=tok-10");
     await toSigning(page);
-    await expect(
-      page.getByText("Sign it as it is. Your 2 changes haven't been answered yet; signing drops them."),
-    ).toBeVisible();
-    await expect(page.getByText(/are taken|is taken/)).toHaveCount(0);
+    await expect(page.getByText("Sign it as it is. Priya Lens's 2 changes are taken as they stand.")).toBeVisible();
+  });
+
+  // Backend DECISIONS #51: the client's own changes, unanswered, hold Sign back.
+  test("with the client's own changes unanswered there's no signing as it is", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-11", booking());
+    api.get(
+      "/guest-bookings/tok-11/negotiation",
+      negotiation({ round: 2, turn: "vendor", can_sign: false, waiting_count: 2,
+        fields: [field("event.guests", "waiting_vendor", "client"), field("event.location", "waiting_vendor", "client")] }),
+    );
+    await pastLinkSteps(page, "tok-11");
+    await page.goto("booking-link/?t=tok-11");
+    await expect(page.getByText("Waiting on Priya Lens.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign it/ })).toHaveCount(0);
   });
 
   test("a link that never worked doesn't say it expired", async ({ page, api }) => {

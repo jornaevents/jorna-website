@@ -851,7 +851,7 @@ function BookingRow({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
           <p className="text-sm text-ink-soft">
             {booking.proposal_status === "open"
-              ? `Your changes are with ${booking.vendor_name || "your vendor"} — you can still sign the contract as it is.`
+              ? `Waiting on ${booking.vendor_name || "your vendor"} — they're answering your changes. You can sign once they do.`
               : booking.proposal_status === "accepted" || booking.proposal_status === "revised"
                 ? `${booking.vendor_name || "Your vendor"} sent a new version — see what changed, then sign.`
                 : `${booking.vendor_name || "Your vendor"} accepted — review and sign the contract to confirm.`}
@@ -869,12 +869,22 @@ function BookingRow({
                 Propose changes
               </Link>
             ) : null}
-            <Link
-              href={contractSignUrl(booking.contract_token)}
-              className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
-            >
-              Review &amp; sign
-            </Link>
+            {/* Sent changes stand until the vendor answers (backend DECISIONS #51). */}
+            {booking.proposal_status === "open" ? (
+              <Link
+                href={contractViewPath(booking.contract_token)}
+                className="inline-flex items-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:border-gold"
+              >
+                See the contract
+              </Link>
+            ) : (
+              <Link
+                href={contractSignUrl(booking.contract_token)}
+                className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
+              >
+                Review &amp; sign
+              </Link>
+            )}
           </div>
         </div>
       ) : signStep === "expired" ? (

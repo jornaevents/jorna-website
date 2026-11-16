@@ -82,10 +82,12 @@ function statusLabel(b: VendorBooking, s: ContractStatus): { label: string; tone
 }
 
 type Filter = "all" | "needs_you" | "waiting" | "signed" | "closed";
-const closed = (s: ContractStatus) => s === "cancelled" || s === "declined";
+// An offer that lapsed unsigned goes with the declined and voided ones
+// (2026-11-16): it's out of All and can still be resent from here.
+const closed = (s: ContractStatus) => s === "cancelled" || s === "declined" || s === "expired";
 const FILTER_TEST: Record<Filter, (s: ContractStatus) => boolean> = {
-  // Everything, so the tabs add up (web #167).
-  all: () => true,
+  // Everything but a lapsed offer (web #167 had All count every contract).
+  all: (s) => s !== "expired",
   needs_you: contractNeedsVendor,
   waiting: (s) => s === "awaiting_signature",
   signed: (s) => ["deposit_due", "balance_due", "paid", "confirm_deposit", "confirm_payment"].includes(s),

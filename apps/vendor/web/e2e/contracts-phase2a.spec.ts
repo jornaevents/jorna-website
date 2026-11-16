@@ -59,13 +59,16 @@ test.describe("contracts — Phase 2a (offers and holds)", () => {
     });
 
     await page.goto("contracts/");
-    await expect(page.getByText(/hold ended .* — date released/)).toBeVisible();
+    // A lapsed offer isn't in All (2026-11-16); it's under Declined & void.
     await expect(page.getByText(/Opened .* · date held until/)).toBeVisible();
+    await expect(page.getByText("Anita Shah")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "View as client" }).first()).toHaveAttribute(
       "href",
       /preview=1/,
     );
 
+    await page.getByRole("tab", { name: /Declined & void/ }).click();
+    await expect(page.getByText(/hold ended .* — date released/)).toBeVisible();
     await page.getByRole("button", { name: "Resend & hold date" }).click();
     await expect(page.getByText(/date released/)).toHaveCount(0);
     expect(api.requestsTo("POST", "/contracts/c-old/send")).toHaveLength(1);

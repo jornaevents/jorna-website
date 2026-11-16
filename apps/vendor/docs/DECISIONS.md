@@ -1367,3 +1367,16 @@ gave no warning.
   whatever the thread's label: **Edit draft** (into the editor) for a draft, **View contract**
   otherwise. A client with an event already booked used to hide both their next draft and Send
   contract; Send contract now shows for them when nothing is open.
+
+## Decision: sent changes lock the contract; Sign needs a location and a price (2026-11-16)
+
+Backend DECISIONS #51. Once the client has sent changes, the signing page (the shared
+`ContractLink`) shows "Waiting on [vendor]" in place of Sign. There's no "Sign it as it is" over
+the client's own asks, no "Change your proposal" and no "Withdraw it" until the vendor answers.
+The page reads this from the booking's `sign_blockers` and from its own negotiation state, so it's
+right the moment the client sends. "Sign it as it is" remains only for the vendor's open changes.
+With no location the review step offers "Add the location" (back to details); with no price it
+waits on the vendor. The client app's contract page and plan card follow the same rule.
+
+Expired offers leave All and "needs you" on Contracts and are listed under Declined & void, where
+they can still be resent (`contractNeedsVendor` no longer counts them).
