@@ -15,6 +15,7 @@ import { disableWebPushForThisDevice } from "@jorna/shared/lib/push";
 import { PushOptIn } from "@jorna/shared/components/PushOptIn";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { FormSkeleton } from "@/components/Skeletons";
 
 const SECTIONS = ["Profile", "Password & sign-in", "Notifications", "Privacy"] as const;
 
@@ -59,7 +60,7 @@ export default function AccountPage() {
   }
 
   if (authLoading || !user) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <FormSkeleton label="Loading your account…" />;
   }
 
   async function saveProfile(e: React.FormEvent) {

@@ -23,6 +23,7 @@ import { unchosenBundleIds } from "@/lib/planning";
 import { categoryLabel, priceLine, type BundleItem, type BundleOption } from "@/lib/types";
 import { Badge } from "@/components/kit";
 import { signInUrl } from "@/lib/vendorSite";
+import { FormSkeleton } from "@/components/Skeletons";
 
 const VIBES = ["Elegant", "Traditional", "Modern", "Fusion", "Playful", "Minimal"];
 // The builder's three options, under the names the design gives them.
@@ -161,7 +162,7 @@ function SuggestInner() {
     void load();
   }, [load]);
 
-  if (authLoading || !user || celebration === undefined) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (authLoading || !user || celebration === undefined) return <FormSkeleton label="Loading your event…" fields={2} />;
   const event = celebration?.event;
   if (!celebration || !event) {
     return (
@@ -449,7 +450,7 @@ function SuggestInner() {
 
 export default function SuggestPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading your event…" fields={2} />}>
       <SuggestInner />
     </Suspense>
   );

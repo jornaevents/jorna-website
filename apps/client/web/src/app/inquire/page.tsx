@@ -9,6 +9,7 @@ import { Avatar, Card, LinkButton } from "@jorna/shared/components/ui";
 import { InquiryForm } from "@/components/InquiryForm";
 import { getVendor } from "@/lib/jorna";
 import { categoryLabel, type VendorDetail } from "@/lib/types";
+import { FormSkeleton } from "@/components/Skeletons";
 
 // /inquire?vendor=<id>: the link a vendor shares (Instagram bio, their own
 // site). Just the vendor and the inquiry form, no marketplace around it.
@@ -41,7 +42,7 @@ function InquireInner() {
   }, [vendorId]);
 
   const current = loaded && loaded.id === vendorId ? loaded : null;
-  if (vendorId && !current) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (vendorId && !current) return <FormSkeleton label="Loading the inquiry form…" fields={5} />;
 
   const vendor = current?.vendor ?? null;
   if (!vendor) {
@@ -90,7 +91,7 @@ function InquireInner() {
 
 export default function InquirePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading the inquiry form…" fields={5} />}>
       <InquireInner />
     </Suspense>
   );

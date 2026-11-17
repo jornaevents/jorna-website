@@ -10,6 +10,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { resetPassword } from "@/lib/jorna";
 import { Button, Card, Field } from "@jorna/shared/components/ui";
 import { signInUrl } from "@/lib/vendorSite";
+import { FormSkeleton } from "@/components/Skeletons";
 
 function ResetInner() {
   const params = useSearchParams();
@@ -91,7 +92,7 @@ function ResetInner() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading…" fields={2} />}>
       <ResetInner />
     </Suspense>
   );

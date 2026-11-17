@@ -12,7 +12,7 @@ import { Card, Chip, LinkButton } from "@jorna/shared/components/ui";
 import { clientAppUrl } from "@/lib/clientApp";
 import { Suspense } from "react";
 import { useVendorShell } from "@/components/ChromeGate";
-import { MessagesHub } from "@/components/vendor/MessagesHub";
+import { MessagesHub, MessagesHubSkeleton } from "@/components/vendor/MessagesHub";
 
 function timeAgo(iso?: string | null): string {
   if (!iso) return "";
@@ -267,10 +267,10 @@ function ClientMessages() {
 /** Vendors get the Messages hub (redesign step 4); clients keep this list. */
 export default function MessagesPage() {
   const shell = useVendorShell();
-  if (shell === null) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (shell === null) return <MessagesHubSkeleton />;
   if (!shell) return <ClientMessages />;
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<MessagesHubSkeleton />}>
       <MessagesHub />
     </Suspense>
   );

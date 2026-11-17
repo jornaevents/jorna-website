@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { CARD_RETURN_KEY, syncSavedCard, type SavedCard } from "@/lib/jorna";
 import { Button } from "@jorna/shared/components/ui";
+import { FormSkeleton } from "@/components/Skeletons";
 
 type Phase = "working" | "saved" | "cancelled" | "failed";
 
@@ -90,7 +91,7 @@ function CardSavedInner() {
 
 export default function CardSavedPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Checking your card…" fields={1} />}>
       <CardSavedInner />
     </Suspense>
   );

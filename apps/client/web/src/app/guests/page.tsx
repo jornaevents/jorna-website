@@ -7,6 +7,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { EventSkeleton } from "@/components/Skeletons";
 
 function GuestsRedirect() {
   const router = useRouter();
@@ -14,12 +15,12 @@ function GuestsRedirect() {
   useEffect(() => {
     router.replace(eventId ? `/event?id=${encodeURIComponent(eventId)}&tab=guests` : "/bundles");
   }, [router, eventId]);
-  return <p className="py-20 text-center text-ink-soft">Opening your guest list…</p>;
+  return <EventSkeleton />;
 }
 
 export default function GuestsPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<EventSkeleton />}>
       <GuestsRedirect />
     </Suspense>
   );

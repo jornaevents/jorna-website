@@ -33,6 +33,7 @@ import { BudgetTab } from "@/components/BudgetTab";
 import { DayOfTab } from "@/components/DayOfTab";
 import { EVENT_ZOOM_NAME, eventArrived, zoomPending } from "@/lib/eventZoom";
 import { signInUrl } from "@/lib/vendorSite";
+import { EventSkeleton } from "@/components/Skeletons";
 
 const dollars = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
@@ -118,7 +119,7 @@ function Workspace() {
   }, [ready]);
 
   if (authLoading || !user || (celebrations === null && !error)) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <EventSkeleton />;
   }
   const c = celebrations?.find((x) => x.event?.event_id === eventId) ?? null;
   if (!c || !c.event) {
@@ -413,7 +414,7 @@ function Workspace() {
 
 export default function EventPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<EventSkeleton />}>
       <Workspace />
     </Suspense>
   );

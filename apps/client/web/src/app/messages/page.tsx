@@ -10,6 +10,7 @@ import type { BundleDetail, ConversationSummary } from "@/lib/types";
 import { Card, Chip, LinkButton, StatusPill } from "@jorna/shared/components/ui";
 import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
 import { signInUrl } from "@/lib/vendorSite";
+import { MessagesSkeleton } from "@/components/Skeletons";
 
 function timeAgo(iso?: string | null): string {
   if (!iso) return "";
@@ -151,7 +152,7 @@ export default function MessagesPage() {
   }, [user]);
 
   if (authLoading || !user) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <MessagesSkeleton />;
   }
 
   return (
@@ -198,7 +199,7 @@ export default function MessagesPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-10 text-center text-ink-soft">Loading…</p>
+        <MessagesSkeleton withHeading={false} />
       ) : conversations.length === 0 ? (
         <div className="mt-10 text-center">
           <p className="mx-auto max-w-[46ch] text-ink-soft">

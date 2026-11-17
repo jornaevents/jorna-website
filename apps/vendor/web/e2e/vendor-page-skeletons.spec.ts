@@ -12,6 +12,7 @@ const PAGES = [
   { path: "my-earnings", title: "Earnings", status: "Loading your earnings…" },
   { path: "settings", title: "Settings", status: "Loading how clients pay you…" },
   { path: "vendor-profile", title: "Vendor profile", status: "Loading your profile…" },
+  { path: "messages", title: "Messages", status: "Loading your messages…" },
 ];
 
 test.describe("vendor pages while they load", () => {

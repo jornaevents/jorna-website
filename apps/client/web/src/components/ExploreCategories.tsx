@@ -10,6 +10,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { findService, groupOf, searchServices, type Taxonomy } from "@jorna/shared/lib/taxonomy";
+import { Bar, SkeletonBody } from "@/components/Skeletons";
 
 const ICONS: Record<string, ReactNode> = {
   camera: (
@@ -209,7 +210,18 @@ function CategoryPicker({
         </div>
         <div className="overflow-y-auto px-5 py-4">
           {!taxonomy ? (
-            <p className="text-sm text-ink-soft">Loading categories…</p>
+            <SkeletonBody label="Loading categories…" className="grid gap-5">
+              {[5, 3, 4].map((n, i) => (
+                <div key={i} className="grid gap-2">
+                  <Bar className="h-2.5 w-24" />
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: n }, (_, j) => (
+                      <div key={j} className="h-8 w-24 rounded-full bg-line-soft" />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </SkeletonBody>
           ) : matches ? (
             matches.length ? (
               <div className="flex flex-wrap gap-2">

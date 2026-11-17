@@ -26,6 +26,7 @@ import {
   type Address,
 } from "@jorna/shared/lib/address";
 import { signInUrl } from "@/lib/vendorSite";
+import { FormSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -152,7 +153,7 @@ function BookInner() {
   }, [serviceId, user]);
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <FormSkeleton label="Loading the package…" fields={5} />;
   }
 
   if (loadError || !service) {
@@ -671,7 +672,7 @@ function BookInner() {
 
 export default function BookPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading the package…" fields={5} />}>
       <BookInner />
     </Suspense>
   );
