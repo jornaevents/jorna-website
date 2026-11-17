@@ -67,7 +67,7 @@ test.describe("marketplace search", () => {
     await expect(page.getByText("Protected", { exact: true })).toHaveCount(0);
   });
 
-  test("chips are the taxonomy's groups, then the group's services, and search by service", async ({ page, api }) => {
+  test("category tiles pick a group or a service; More opens the whole taxonomy", async ({ page, api }) => {
     api.get("/taxonomy", mockServiceTaxonomy());
     const asked: (string | null)[] = [];
     api.get("/vendors/search", ({ url }: HandlerArgs) => {
@@ -76,15 +76,36 @@ test.describe("marketplace search", () => {
     });
 
     await page.goto("marketplace/");
-    await page.getByRole("button", { name: "Beauty", exact: true }).click();
-    const services = page.getByRole("group", { name: "Beauty services" });
-    await expect(services.getByRole("button", { name: "All beauty" })).toHaveAttribute("aria-pressed", "true");
-    await services.getByRole("button", { name: "Mehndi artist" }).click();
+    const tiles = page.getByRole("group", { name: "Browse by category" });
+    const photography = tiles.getByRole("button", { name: "Photography" });
+    await photography.click();
+    await expect(photography).toHaveAttribute("aria-pressed", "true");
+    const services = page.getByRole("group", { name: "Photo & Video services" });
+    await expect(services.getByRole("button", { name: "All photo & video" })).toHaveAttribute("aria-pressed", "true");
+    await services.getByRole("button", { name: "Videographer" }).click();
 
     // Debounced: quick picks coalesce into one search, for the last one.
+    await expect.poll(() => asked.at(-1)).toBe("videography");
+    // Still the group's tile: the service is one of its own.
+    await expect(photography).toHaveAttribute("aria-pressed", "true");
+
+    // A tile that's a service, not a group.
+    await tiles.getByRole("button", { name: "Mehndi" }).click();
     await expect.poll(() => asked.at(-1)).toBe("mehndi_artist");
-    // Still the group's chip: the service is one of its own.
-    await expect(page.getByRole("button", { name: "Beauty", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    // Something with no tile: More opens the picker, and then carries its name.
+    await tiles.getByRole("button", { name: "More" }).click();
+    const picker = page.getByRole("dialog", { name: "All categories" });
+    await picker.getByRole("button", { name: "Dhol player" }).click();
+    await expect(picker).toHaveCount(0);
+    await expect(tiles.getByRole("button", { name: "Dhol player" })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => asked.at(-1)).toBe("dhol");
+
+    // The lit More reopens the picker, which can clear it.
+    await tiles.getByRole("button", { name: "Dhol player" }).click();
+    await picker.getByRole("button", { name: "Everything" }).click();
+    await expect(tiles.getByRole("button", { name: "More" })).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(() => asked.at(-1)).toBe(null);
   });
 
   test("?service= presets the filter; an old ?category= link still filters", async ({ page, api }) => {
@@ -154,8 +175,11 @@ test.describe("marketplace search", () => {
     await expect(page.getByRole("link", { name: /Wedding day/ })).not.toContainText("est. total");
 
     await page.getByRole("button", { name: "Filters" }).click();
-    await page.getByRole("button", { name: "Lowest total" }).click();
+    const filters = page.getByRole("dialog", { name: "Filters" });
+    await filters.getByRole("button", { name: "Lowest total" }).click();
     await expect.poll(() => asked.at(-1)?.get("sort_by")).toBe("price");
     expect(asked.at(-1)?.get("guests")).toBe("200");
+    await filters.getByRole("button", { name: /^Show \d+ vendors?$/ }).click();
+    await expect(filters).toHaveCount(0);
   });
 });
