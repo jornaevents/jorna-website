@@ -415,15 +415,15 @@ export function changesWaiting(b: Pick<VendorBooking, "negotiation" | "proposal_
 }
 
 /** The statuses where the vendor, not the client, owes the next move — a
- *  signature, a payment to confirm, changes to answer, or an offer to send or
- *  resend (or let go). */
+ *  signature, a payment to confirm, changes to answer, or a draft to send.
+ *  An expired offer isn't one any more (2026-11-16): it files itself under
+ *  Declined & void, where it can still be resent. */
 export function contractNeedsVendor(status: ContractStatus): boolean {
   return (
     status === "countersign" ||
     status === "changes_waiting" ||
     status === "confirm_deposit" ||
     status === "confirm_payment" ||
-    status === "expired" ||
     status === "draft"
   );
 }

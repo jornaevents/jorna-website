@@ -297,12 +297,12 @@ describe("contractStatus", () => {
     expect(contractStatus(b)).toBe("paid");
   });
 
-  it("hands a draft or a lapsed offer back to the vendor", () => {
+  it("hands a draft back to the vendor, and files a lapsed offer away", () => {
     const draft = contractStatus(contract({ contract_status: "draft" }));
     const expired = contractStatus(contract({ contract_status: "expired" }));
     expect([draft, expired]).toEqual(["draft", "expired"]);
     expect(contractNeedsVendor(draft)).toBe(true);
-    expect(contractNeedsVendor(expired)).toBe(true);
+    expect(contractNeedsVendor(expired)).toBe(false);
     // Opened or not, a live offer is waiting on the client.
     expect(contractStatus(contract({ contract_status: "viewed" }))).toBe("awaiting_signature");
   });

@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { Field } from "../ui";
-import { fillGuestBookingDetails, proposeGuestChanges, saveGuestDraft, withdrawGuestProposal } from "../../lib/guestBooking";
+import { fillGuestBookingDetails, proposeGuestChanges, saveGuestDraft } from "../../lib/guestBooking";
 import { fromContract, proposalChanges } from "../../lib/contractDraft";
 import { termsOf } from "../../lib/contractDiff";
 import { draftToSave, proposalProblems, roundOf } from "../../lib/negotiation";
@@ -38,7 +38,6 @@ export function ClientNegotiation({
   const you = booking.guest_name || "You";
   const open = history.open_proposal;
   const latest = history.proposals[0];
-  const [changing, setChanging] = useState(false);
   const [email, setEmail] = useState(booking.guest_email ?? "");
 
   const drafts = useMemo(() => {
@@ -52,9 +51,9 @@ export function ClientNegotiation({
       return {
         original: current,
         proposed: current,
-        initial: changing ? (fromSaved ?? mine) : mine,
+        initial: mine,
         ask: null,
-        stale: changing && Boolean(saved?.stale),
+        stale: false,
       };
     }
     // The vendor's answer is still the version on the table: show what it
@@ -71,16 +70,16 @@ export function ClientNegotiation({
       ask: (answered && before) || declined ? fromContract({ ...booking, ...latest.proposed }) : null,
       stale: Boolean(saved?.stale),
     };
-  }, [booking, history, open, latest, changing]);
+  }, [booking, history, open, latest]);
 
-  const readOnly = Boolean(open) && !changing;
+  const readOnly = Boolean(open);
   const base = termsOf(booking);
   const theirNote =
     !open && latest && latest.status !== "withdrawn" && latest.status !== "superseded" ? latest.response_note : null;
 
   return (
     <NegotiationWorkspace
-      key={`${booking.revision}-${open?.proposal_id ?? "none"}-${changing}`}
+      key={`${booking.revision}-${open?.proposal_id ?? "none"}`}
       perspective="client"
       header={{
         counterpart: vendorName,
@@ -100,32 +99,11 @@ export function ClientNegotiation({
       readOnly={readOnly}
       readOnlyNotice={
         open ? (
+          // Sent changes stand until the vendor answers: no withdrawing or
+          // changing them, and no signing over them (DECISIONS #51).
           <>
-            <strong className="text-ink">Waiting for {vendorName}.</strong> You can still sign the contract as it is —
-            that withdraws your proposal.
-          </>
-        ) : null
-      }
-      extraActions={
-        open && readOnly ? (
-          <>
-            <button
-              type="button"
-              onClick={async () => {
-                const h = await withdrawGuestProposal(token, open.proposal_id);
-                onHistory(h, "You withdrew your proposal. The contract stands as it is.");
-              }}
-              className="rounded-full px-4 py-2 text-sm text-ink-soft hover:text-ink"
-            >
-              Withdraw it
-            </button>
-            <button
-              type="button"
-              onClick={() => setChanging(true)}
-              className="rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-gold"
-            >
-              Change your proposal
-            </button>
+            <strong className="text-ink">Waiting on {vendorName}.</strong> You can sign once they answer your
+            changes — we&apos;ll email you when they do.
           </>
         ) : null
       }

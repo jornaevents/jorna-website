@@ -582,6 +582,8 @@ export interface Contract {
   status?: string;
   contract_status?: BundleBooking["contract_status"];
   proposal_status?: ProposalStatus | null;
+  /** Why Sign is held back (backend DECISIONS #51); empty or absent when it isn't. */
+  sign_blockers?: ("waiting_on_vendor" | "location" | "price")[];
   hold_expires_at?: string | null;
   payment_status?: string | null;
 }
