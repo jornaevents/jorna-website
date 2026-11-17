@@ -14,7 +14,7 @@ const signed = (schedule: unknown[]) =>
 
 describe("vendorRow", () => {
   it("a booking on an unsent plan is Ready to send, sent from the plan", () => {
-    expect(vendorRow(booking(), draft)).toMatchObject({ status: "Ready to send", action: "Send request", target: "plan", step: 1 });
+    expect(vendorRow(booking(), draft)).toMatchObject({ status: "Ready to send", action: "Send inquiry", target: "inquiry", step: 1 });
   });
 
   it("a sent request waits on the vendor", () => {
