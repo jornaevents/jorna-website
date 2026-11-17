@@ -11,7 +11,7 @@
 // does. The design's priority weighting, out-of-state option and notes aren't
 // asked — the matching engine doesn't read them yet.
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -33,6 +33,72 @@ const PLANS = [
 ] as const;
 
 const dollars = (n: number) => `$${Math.round(n).toLocaleString()}`;
+
+// The design's loading steps tick over on these marks (ms). The last one stays
+// in progress until the suggestions are back, and the results never show
+// before it's reached, so a fast answer still reads as three steps done.
+const STEP_AT = [650, 1400, 2200];
+const MIN_LOADING_MS = 2500;
+
+function SuggestLoading({ lines, onBack, backLabel }: { lines: string[]; onBack: () => void; backLabel: string }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = STEP_AT.slice(0, lines.length - 1).map((ms, i) => window.setTimeout(() => setStep(i + 1), ms));
+    return () => timers.forEach(window.clearTimeout);
+  }, [lines.length]);
+  return (
+    <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-10">
+      <button type="button" onClick={onBack} className="text-sm font-semibold text-ink-soft hover:text-ink">
+        ← {backLabel}
+      </button>
+      <div role="status" aria-live="polite" className="mx-auto flex min-h-[460px] max-w-[540px] flex-col items-center justify-center text-center">
+        <span aria-hidden="true" className="mb-[18px] grid size-[54px] place-items-center rounded-full bg-gold/12 text-gold">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-6 motion-safe:animate-pulse">
+            <path d="m12 2 1.3 4.2L17.5 8l-4.2 1.8L12 14l-1.3-4.2L6.5 8l4.2-1.8Z" />
+            <path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7Z" />
+          </svg>
+        </span>
+        <p className="eyebrow">Suggest vendors</p>
+        <h1 className="mb-7 mt-2 font-serif text-[2.1rem] font-bold tracking-[-0.03em] text-ink">Finding your best matches</h1>
+        <ol aria-label="Progress" className="grid w-full text-left">
+          {lines.map((line, i) => {
+            const state = step > i ? "complete" : step === i ? "active" : "waiting";
+            return (
+              <li
+                key={line}
+                aria-current={state === "active" ? "step" : undefined}
+                className={`flex items-center gap-[11px] border-b border-line py-[13px] transition-opacity duration-300 ${
+                  state === "complete" ? "text-green" : state === "active" ? "text-ink" : "text-ink-soft opacity-50"
+                }`}
+              >
+                <span
+                  className={`grid size-7 shrink-0 place-items-center rounded-full border text-[0.68rem] ${
+                    state === "complete" ? "border-green" : state === "active" ? "border-gold text-gold" : "border-line"
+                  }`}
+                >
+                  {state === "complete" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-label="Done">
+                      <path d="m5 12 4 4L19 6" />
+                    </svg>
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                <strong className="text-sm font-semibold">{line}</strong>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="mt-5 h-[7px] w-full overflow-hidden rounded-full bg-panel">
+          <div
+            className="h-full rounded-full bg-gold transition-[width] duration-500 ease-out"
+            style={{ width: `${Math.min(100, Math.round(((step + 0.5) / lines.length) * 100))}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function planOption(options: BundleOption[], match: string): BundleOption | null {
   return options.find((o) => o.label.toLowerCase().includes(match)) ?? null;
@@ -73,6 +139,8 @@ function SuggestInner() {
   const [budget, setBudget] = useState<string | null>(null);
   const [vibes, setVibes] = useState<string[]>([]);
   const [stage, setStage] = useState<"form" | "loading" | "results">("form");
+  // Which suggest() is current: going back while it loads drops its answer.
+  const run = useRef(0);
   const [options, setOptions] = useState<BundleOption[]>([]);
   const [plan, setPlan] = useState<(typeof PLANS)[number]["name"]>("Balanced");
   const [adding, setAdding] = useState(false);
@@ -112,10 +180,12 @@ function SuggestInner() {
   const summary = [prettyDate(celebration.dateIso), celebration.location].filter(Boolean).join(" · ");
 
   async function suggest() {
+    const id = ++run.current;
     setStage("loading");
     setError(null);
+    const minimum = new Promise((resolve) => window.setTimeout(resolve, MIN_LOADING_MS));
     try {
-      const res = await generateBundles({
+      const request = generateBundles({
         event_id: event!.event_id,
         needed_categories: open,
         booked_categories: [],
@@ -127,9 +197,12 @@ function SuggestInner() {
         budget_amount: amount > 0 ? String(amount) : null,
         style: vibes.map((v) => v.toLowerCase()),
       });
+      const [res] = await Promise.all([request, minimum]);
+      if (run.current !== id) return;
       setOptions(res.options);
       setStage("results");
     } catch (err) {
+      if (run.current !== id) return;
       setError(err instanceof ApiError ? err.message : "Couldn't build suggestions. Try again.");
       setStage("form");
     }
@@ -159,16 +232,20 @@ function SuggestInner() {
   }
 
   if (stage === "loading") {
+    const when = prettyDate(celebration.dateIso);
     return (
-      <div className="mx-auto w-[min(640px,100%-2rem)] py-20 text-center" role="status">
-        <p className="eyebrow">Suggest vendors</p>
-        <h1 className="mt-3 font-serif text-3xl font-bold tracking-[-0.03em] text-ink">Finding your best matches</h1>
-        <p className="mt-3 text-ink-soft">
-          Balancing {open.length} {open.length === 1 ? "category" : "categories"}
-          {amount > 0 ? ` within ${dollars(amount)}` : ""}
-          {summary ? ` for ${summary}` : ""}.
-        </p>
-      </div>
+      <SuggestLoading
+        backLabel={celebration.name}
+        onBack={() => {
+          run.current++;
+          setStage("form");
+        }}
+        lines={[
+          `Checking highly rated vendors${when ? ` for ${when}` : ""}${celebration.location ? ` near ${celebration.location}` : ""}`,
+          `Balancing ${open.length} ${open.length === 1 ? "category" : "categories"}${amount > 0 ? ` within ${dollars(amount)}` : ""}`,
+          vibes.length ? `Matching your style: ${vibes.join(", ").toLowerCase()}` : "Matching your style and priorities",
+        ]}
+      />
     );
   }
 
