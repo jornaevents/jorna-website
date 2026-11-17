@@ -44,6 +44,18 @@ test("asks budget and style, then suggests a vendor per open slot in three plans
   await page.getByRole("button", { name: "Playful" }).click();
   await page.getByRole("button", { name: "Suggest vendors" }).click();
 
+  // The design's three loading steps tick over before the results, even when
+  // the answer comes back at once.
+  const loading = page.getByRole("status");
+  await expect(loading.getByRole("heading", { name: "Finding your best matches" })).toBeVisible();
+  const steps = loading.getByRole("list", { name: "Progress" }).getByRole("listitem");
+  await expect(steps).toHaveCount(3);
+  await expect(steps.nth(0)).toHaveAttribute("aria-current", "step");
+  await expect(steps.nth(1)).toContainText("Balancing 2 categories within $5,000");
+  await expect(steps.nth(2)).toContainText("Matching your style: playful");
+  await expect(steps.nth(2)).toHaveAttribute("aria-current", "step");
+  await expect(steps.nth(0).getByLabel("Done")).toBeVisible();
+
   const [call] = api.requestsTo("POST", "/chatbot/bundles");
   expect(call.body).toMatchObject({
     event_id: "event-1", needed_categories: ["photography", "floral_decor"], budget_tier: "custom", budget_amount: "5000", style: ["playful"],
