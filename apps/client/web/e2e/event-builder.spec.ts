@@ -28,12 +28,18 @@ test("each step waits for what it needs, and the event is created with its categ
   await expect(next).toBeDisabled();
   await dialog.getByLabel("Event date").fill("2099-05-22");
   await dialog.getByLabel("City").fill("Edison, NJ");
-  // A multi-day event's end can't come before its start.
+  // A multi-day event's end can't come before its start: the end's calendar
+  // won't take an earlier day, and moving the start past it is flagged.
   await dialog.getByRole("button", { name: /Add end date/ }).click();
   await dialog.getByLabel("Ends").fill("2099-05-20");
+  await expect(dialog.getByLabel("Ends")).toHaveAttribute("aria-invalid", "true");
+  await dialog.getByLabel("Ends").blur();
+  await expect(dialog.getByLabel("Ends")).toHaveValue("");
+  await dialog.getByLabel("Ends").fill("2099-05-24");
+  await dialog.getByLabel("Starts").fill("2099-05-26");
   await expect(dialog.getByText("The end date is before the start date.")).toBeVisible();
   await expect(next).toBeDisabled();
-  await dialog.getByLabel("Ends").fill("2099-05-24");
+  await dialog.getByLabel("Starts").fill("2099-05-22");
   await next.click();
   await next.click();
 

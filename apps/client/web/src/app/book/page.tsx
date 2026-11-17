@@ -27,6 +27,7 @@ import {
 } from "@jorna/shared/lib/address";
 import { signInUrl } from "@/lib/vendorSite";
 import { FormSkeleton } from "@/components/Skeletons";
+import { DateField } from "@jorna/shared/components/DateField";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -438,21 +439,20 @@ function BookInner() {
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
+            <DateField
               label={multiDay ? "Start date" : "Date"}
-              type="date"
               required={planAlreadySent}
               value={dateIso}
-              onChange={(e) => setDateIso(e.target.value)}
+              onChange={setDateIso}
             />
             {multiDay ? (
-              <Field
+              <DateField
                 label="End date"
-                type="date"
                 min={dateIso || undefined}
                 required={planAlreadySent}
                 value={dateEnd}
-                onChange={(e) => setDateEnd(e.target.value)}
+                onChange={setDateEnd}
+                rangeWith={dateIso}
               />
             ) : (
               <div className="flex items-end">

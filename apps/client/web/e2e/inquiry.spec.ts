@@ -142,7 +142,7 @@ test.describe("inquiry form", () => {
     await page.getByRole("button", { name: "Confirm email" }).click();
 
     await expect(page).toHaveURL(/\/client\/inquire\/?\?vendor=vendor-1$/);
-    await expect(page.getByLabel("Event date")).toHaveValue(DATE);
+    await expect(page.getByLabel("Event date")).toHaveValue("May 14, 2027");
     await expect(page.getByLabel("What's the event?")).toHaveValue("Sangeet");
     await expect(page.getByLabel("City & state")).toHaveValue("Edison, NJ");
     await expect(page.getByLabel("Message (optional)")).toHaveValue("Looking for sangeet coverage in Edison.");

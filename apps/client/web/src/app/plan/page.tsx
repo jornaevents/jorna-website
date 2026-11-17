@@ -14,6 +14,7 @@ import { CityCombobox, type Coords } from "@jorna/shared/components/CityCombobox
 import { locateZip, type ZipPlace } from "@jorna/shared/lib/zips";
 import { signInUrl } from "@/lib/vendorSite";
 import { FormSkeleton } from "@/components/Skeletons";
+import { DateField } from "@jorna/shared/components/DateField";
 
 const BUDGETS = [
   { value: "budget-friendly", label: "Budget-friendly", hint: "Smart value" },
@@ -30,12 +31,6 @@ const IconPin = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={svg}>
     <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z" />
     <circle cx="12" cy="10" r="2.5" />
-  </svg>
-);
-const IconCalendar = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={svg}>
-    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-    <path d="M3.5 9.5h17M8 3v4M16 3v4" />
   </svg>
 );
 const IconUsers = (
@@ -354,21 +349,18 @@ function PlanInner() {
               <p className="mb-2 text-sm font-medium text-ink-soft">When</p>
 
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <Field
+                <DateField
                   label={multiDay ? "First day" : "Event date"}
-                  type="date"
-                  icon={IconCalendar}
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={setEventDate}
                 />
                 {multiDay ? (
-                  <Field
+                  <DateField
                     label="Last day"
-                    type="date"
-                    icon={IconCalendar}
                     min={eventDate || undefined}
                     value={eventDateEnd}
-                    onChange={(e) => setEventDateEnd(e.target.value)}
+                    onChange={setEventDateEnd}
+                    rangeWith={eventDate}
                   />
                 ) : (
                   <div className="flex items-end">

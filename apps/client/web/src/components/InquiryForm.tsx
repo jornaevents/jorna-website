@@ -12,6 +12,7 @@ import { Button, Field } from "@jorna/shared/components/ui";
 import { priceUnitKind } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { listServices, sendInquiry } from "@/lib/jorna";
+import { DateField } from "@jorna/shared/components/DateField";
 
 // The inquiry form (backend DECISIONS #32, #45): a client account with a
 // confirmed email sends it, and it opens their thread with the vendor. Anyone
@@ -329,12 +330,11 @@ export function InquiryForm({
           )}
         </div>
         <div>
-          <Field
+          <DateField
             label="Event date"
-            type="date"
             min={todayIso()}
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
             {...described("date")}
           />
           {err("date")}

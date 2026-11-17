@@ -10,8 +10,8 @@ import {
   type SchedulePreset,
 } from "@jorna/shared/lib/contractDraft";
 import type { DueType } from "@/lib/types";
-import { openPicker } from "@jorna/shared/components/ui";
 import { inputClass, smallButton, todayIso } from "./shared";
+import { DateField } from "@jorna/shared/components/DateField";
 
 /** How it's paid: a preset to start from, then each payment's amount and
  *  when it's due, checked against the total. */
@@ -86,13 +86,11 @@ export function ScheduleBlock({
             {i.dueType === "date" ? (
               <label className="block">
                 <span className="mb-1 block text-[0.68rem] text-ink-faint">Due date</span>
-                <input
+                <DateField
                   aria-label="Due date"
-                  type="date"
                   min={todayIso()}
                   value={i.dueDate}
-                  onClick={openPicker}
-                  onChange={(e) => updateInstallment(i.key, { dueDate: e.target.value })}
+                  onChange={(v) => updateInstallment(i.key, { dueDate: v })}
                   className={inputClass}
                 />
               </label>

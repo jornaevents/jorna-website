@@ -15,6 +15,7 @@ import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { createEvent } from "@/lib/jorna";
 import { CATEGORY_LABELS, categoryLabel, type EventItem } from "@/lib/types";
+import { DateField } from "@jorna/shared/components/DateField";
 
 const TYPES = ["Wedding", "Birthday", "Sangeet", "Mehndi", "Baby shower", "Pooja", "Anniversary", "Other"];
 const STEPS = ["Event", "Date & place", "Guests & budget", "Vendors"];
@@ -183,15 +184,15 @@ export function EventBuilder({
               {step === 1 ? (
                 <>
                   <div className={`grid gap-3 ${multiDay ? "sm:grid-cols-2" : ""}`}>
-                    <label className={control}>
-                      <span className={controlLabel}>{multiDay ? "Starts" : "Event date"}</span>
-                      <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className={input} />
-                    </label>
+                    <div className={control}>
+                      <span className={controlLabel} aria-hidden="true">{multiDay ? "Starts" : "Event date"}</span>
+                      <DateField aria-label={multiDay ? "Starts" : "Event date"} value={start} onChange={setStart} rangeWith={multiDay ? end : undefined} className={input} />
+                    </div>
                     {multiDay ? (
-                      <label className={control}>
-                        <span className={controlLabel}>Ends</span>
-                        <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} className={input} />
-                      </label>
+                      <div className={control}>
+                        <span className={controlLabel} aria-hidden="true">Ends</span>
+                        <DateField aria-label="Ends" value={end} min={start || undefined} onChange={setEnd} rangeWith={start} className={input} />
+                      </div>
                     ) : null}
                   </div>
                   {!endOk ? <p className="text-sm text-maroon">The end date is before the start date.</p> : null}
