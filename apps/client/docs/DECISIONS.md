@@ -491,3 +491,15 @@ Client redesign PR 10, the last of the plan. Both were in the design but unreach
 - **Day-of** (`components/DayOfTab.tsx`): the plan's run sheet (`components/RunSheet`), open from the
   start, so the event and the plan can't disagree about the order of the day. Check-ins show in the
   week of the event, as they do on the plan.
+
+## Decision: the inquiry form asks what and where; it lands in the chat as a card (2026-11-16)
+
+Backend DECISIONS #52. On the inquiry form, **What's the event?** and **Where's the event?** are
+required. Where is a City | Venue toggle: City uses the app's city autofill (`CityCombobox`, sent as
+city + state), Venue is a full street address (`AddressFields`). **Guest count** is a slider (tens,
+up to 1,000) beside a number box. It's required only when the chosen package is priced per guest.
+The phone field is gone, since the vendor replies in the thread.
+
+In the chat the inquiry is drawn from `meta.inquiry` as a card (`@jorna/shared` `InquiryCard`):
+the package, event, date, place and guests as a list, then the note. On the vendor's side it has
+**View lead**, which opens Leads with that lead (`/leads?open=lead:<id>`).
