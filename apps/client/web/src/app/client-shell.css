@@ -9,3 +9,29 @@ html.client-app {
   --font-sans: var(--font-dm-sans), "DM Sans", system-ui, -apple-system, sans-serif;
   --font-serif: var(--font-manrope), "Manrope", var(--font-sans);
 }
+
+/* My Events → an event: the card zooms into the event's page (lib/eventZoom). */
+::view-transition-group(event-zoom) {
+  animation-duration: 0.58s;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+::view-transition-old(event-zoom) {
+  animation: event-card-out 0.3s ease both;
+}
+::view-transition-new(event-zoom) {
+  animation: event-page-reveal 0.58s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+@keyframes event-card-out {
+  to {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+@keyframes event-page-reveal {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -30,6 +30,7 @@ import { Button } from "@jorna/shared/components/ui";
 import { Badge, MiniProgress } from "@/components/kit";
 import { EventBuilder } from "@/components/EventBuilder";
 import { signInUrl } from "@/lib/vendorSite";
+import { zoomIntoEvent } from "@/lib/eventZoom";
 
 function countdown(iso?: string | null): string | null {
   const n = daysAway(iso);
@@ -46,40 +47,48 @@ function greeting(): string {
 }
 
 function EventCard({ celebration }: { celebration: Celebration }) {
+  const router = useRouter();
   const { name, dateIso, location, tasks } = celebration;
   const { booked, total } = bookedOf(celebration);
   const when = countdown(dateIso);
   const where = [prettyDate(dateIso), location].filter(Boolean).join(" · ");
+  const href = celebrationHref(celebration);
   return (
     <Link
-      href={celebrationHref(celebration)}
-      className="grid items-center gap-4 rounded-2xl border border-line bg-card p-[15px] text-left transition hover:border-gold sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:gap-6"
+      href={href}
+      onClick={(e) => {
+        // A new tab or window gets a plain navigation, not the zoom.
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        zoomIntoEvent(e.currentTarget, () => router.push(href));
+      }}
+      className="grid grid-cols-[76px_minmax(0,1fr)_auto] items-center gap-3 rounded-[13px] border border-line bg-card p-2.5 text-left transition hover:border-gold active:scale-[0.99]"
     >
       <span
         aria-hidden="true"
-        className="hidden h-[110px] place-items-center rounded-xl bg-[#e7c790] font-serif text-5xl font-bold text-maroon sm:grid"
+        className="grid h-[92px] w-[76px] place-items-center rounded-[9px] bg-[#e7c790] font-serif text-[1.8rem] font-bold text-maroon"
       >
         {name.trim().charAt(0).toUpperCase() || "J"}
       </span>
-      <span className="grid min-w-0 gap-1.5">
-        <span className="flex items-center justify-between gap-4">
-          <span className="truncate font-serif text-xl font-bold tracking-[-0.02em] text-ink">{name}</span>
+      <span className="grid min-w-0 gap-0.5">
+        <span className="flex items-center justify-between gap-2">
+          <span className="truncate text-[0.94rem] font-bold text-ink">{name}</span>
           {when ? <Badge tone="neutral">{when}</Badge> : null}
         </span>
-        <span className="text-[0.85rem] text-ink-soft">{where || "Date and place not set yet"}</span>
-        <span className="mt-3 flex items-center justify-between gap-3 text-[0.85rem] text-ink-soft">
-          <span>
-            {total > 0 ? `${booked} of ${total} vendors booked` : "No vendors added yet"}
-          </span>
+        <span className="truncate text-[0.74rem] text-ink-soft">{where || "Date and place not set yet"}</span>
+        <span className="mt-2 flex items-center justify-between gap-2 text-[0.73rem] text-ink-soft">
+          <span className="truncate">{total > 0 ? `${booked} of ${total} vendors booked` : "No vendors added yet"}</span>
           {tasks.length > 0 ? (
             <Badge>
               {tasks.length} {tasks.length === 1 ? "needs you" : "need you"}
             </Badge>
           ) : null}
         </span>
-        <MiniProgress value={booked} max={total} label={`${name}: vendors booked`} />
+        <span className="mt-1.5">
+          <MiniProgress value={booked} max={total} label={`${name}: vendors booked`} />
+        </span>
       </span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="hidden size-5 text-ink-faint sm:block" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-ink-faint" aria-hidden="true">
         <path d="m9 18 6-6-6-6" />
       </svg>
     </Link>
@@ -254,7 +263,7 @@ function DashboardInner() {
               {active.length} active {active.length === 1 ? "event" : "events"}
             </span>
           </div>
-          <div className="grid gap-4">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {celebrations.map((c) => (
               <EventCard key={c.key} celebration={c} />
             ))}

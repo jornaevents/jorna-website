@@ -3,13 +3,15 @@ import type { HandlerArgs } from "./support/api-mock";
 
 // The Registry tab (client redesign PR 9): funds, the gifts recorded against
 // them and thank-yous. Tracking only.
+//
+// The tab is hidden for now (2026-11-17); the flow below comes back with it.
 
 const EVENT = { event_id: "event-1", user_id: "user-1", name: "Priya's Wedding", date_iso: "2099-05-22", location: "Edison, NJ" };
 
 type Gift = { gift_id: string; from_name: string; amount_cents: number; thanked: boolean; created_at: string };
 type Fund = { fund_id: string; name: string; goal_cents: number | null; gifts: Gift[] };
 
-test("add a fund, record a gift against it, and mark the giver thanked", async ({ page, api }) => {
+test.skip("add a fund, record a gift against it, and mark the giver thanked", async ({ page, api }) => {
   const funds: Fund[] = [];
   const registry = () => {
     const gifts = funds.flatMap((f) => f.gifts);
