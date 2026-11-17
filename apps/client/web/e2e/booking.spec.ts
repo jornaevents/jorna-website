@@ -360,7 +360,10 @@ test.describe("bundle detail (/bundle)", () => {
     const propose = page.getByRole("link", { name: "Propose changes" });
     await expect(propose).toHaveCount(1);
     await expect(propose).toHaveAttribute("href", /\/contract\/?\?t=tok-new&propose=1$/);
-    await expect(page.getByRole("link", { name: "Review & sign" })).toHaveCount(2);
+    // The open one waits on the vendor (backend DECISIONS #51): it can be read, not signed.
+    await expect(page.getByRole("link", { name: "Review & sign" })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: "See the contract" })).toHaveAttribute("href", /\/contract\/?\?t=tok-open$/);
+    await expect(page.getByText(/Waiting on .* — they're answering your changes/)).toBeVisible();
   });
 
   test("each booking card names its stage, the way the vendor's app does", async ({ page, api }) => {

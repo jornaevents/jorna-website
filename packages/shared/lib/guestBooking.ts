@@ -187,7 +187,13 @@ export interface GuestBooking {
   deposit_confirmed_received_at: string | null;
   /** The latest change proposal's status (backend DECISIONS #23). */
   proposal_status?: ProposalStatus | null;
+  /** Why Sign is held back (backend DECISIONS #51); empty or absent when it isn't. */
+  sign_blockers?: SignBlocker[];
 }
+
+/** waiting_on_vendor: the client's changes are unanswered. location: no
+ *  venue yet (the client may fill a blank one in). price: none set. */
+export type SignBlocker = "waiting_on_vendor" | "location" | "price";
 
 export interface GuestBookingDetailsInput {
   guest_name?: string | null;

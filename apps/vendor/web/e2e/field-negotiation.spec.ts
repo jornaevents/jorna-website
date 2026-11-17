@@ -207,7 +207,7 @@ test.describe("field-by-field negotiation", () => {
     await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
   });
 
-  test("the client answers on their link, then can only sign once nothing waits — or as it is", async ({ page, api }) => {
+  test("the client answers on their link, then waits on the vendor before signing", async ({ page, api }) => {
     const clientState = state({
       side: "client", turn: "client", round: 3, waiting_count: 2,
       fields: [
@@ -255,11 +255,11 @@ test.describe("field-by-field negotiation", () => {
     await expect(page.getByText("Fog machine × 1 at $75")).toBeVisible();
     await page.getByRole("button", { name: "Send 2 answers and 1 change" }).click();
 
-    await expect(page.getByText("It's Arjun Kapoor's turn")).toBeVisible();
-    // Back on the contract: nothing more to ask while it's their turn, but it can be taken as it is.
+    await expect(page.getByText(/You can sign once Arjun Kapoor answers/)).toBeVisible();
+    // Back on the contract: nothing to ask or sign while it's their turn (backend DECISIONS #51).
     await expect(page.getByText("Sent to Arjun Kapoor. It's their turn — we'll email you when they answer.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ask for changes" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Sign it as it is" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign it/ })).toHaveCount(0);
     const [sent] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
     expect(sent.body).toMatchObject({
       base_round: 3,
@@ -275,7 +275,11 @@ test.describe("field-by-field negotiation", () => {
   test("signing as it is sends as_is", async ({ page, api }) => {
     api.get("/guest-bookings/tok-1", contract);
     api.get("/guest-bookings/tok-1/proposals", history);
-    api.get("/guest-bookings/tok-1/negotiation", state({ side: "client", turn: "vendor", waiting_count: 1 }));
+    // The vendor's change waits on the client: signing takes it as it stands.
+    api.get("/guest-bookings/tok-1/negotiation", state({
+      side: "client", turn: "client", waiting_count: 1,
+      fields: [field("policy.overtime", "Overtime rate", 15000, { state: "waiting_client", proposed: 20000, proposed_by: "vendor" })],
+    }));
     api.patch("/guest-bookings/tok-1", contract);
     api.post("/guest-bookings/tok-1/sign", { ...contract, signed_at: "2030-05-04T12:00:00", signer_name: "Priya Mehta" });
 
@@ -512,7 +516,7 @@ test.describe("field-by-field negotiation", () => {
 
     await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
-    await expect(page.getByText("Waiting on Arjun Kapoor")).toBeVisible();
+    await expect(page.getByText("Waiting on Arjun Kapoor").first()).toBeVisible();
     await expect(page.getByText(/Guest count: you asked for/)).toBeVisible();
     await expect(page.getByText(/^Round 2$/)).toHaveCount(0);
   });

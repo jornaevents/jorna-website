@@ -32,7 +32,6 @@ import {
   guestUnmarkInstallment,
   signGuestBooking,
   requestGuestSigningCode,
-  withdrawGuestProposal,
 } from "../../lib/guestBooking";
 import { describeDue, fromContract } from "../../lib/contractDraft";
 import { termsOf } from "../../lib/contractDiff";
@@ -226,7 +225,7 @@ function FieldStatus({ state, vendorName, onOpen }: { state: FieldNegotiationSta
         {waitingOnMe
           ? `${vendorName} answered your changes. ${waitingOnMe === 1 ? "One needs" : `${waitingOnMe} need`} your answer before you sign.`
           : waitingOnThem
-            ? `You asked for ${waitingOnThem === 1 ? "a change" : `${waitingOnThem} changes`}. It's ${vendorName}'s turn — we'll email you when they answer.`
+            ? `You asked for ${waitingOnThem === 1 ? "a change" : `${waitingOnThem} changes`}. You can sign once ${vendorName} answers — we'll email you when they do.`
             : state.round <= 1
               ? "Read the contract below. Sign it, or ask for a change."
               : "Everything in the contract below is agreed. Read it over and sign, or ask for a change."}
@@ -261,15 +260,11 @@ function ProposalStatus({
   booking,
   history,
   vendorName,
-  busy,
-  onWithdraw,
   onOpen,
 }: {
   booking: GuestBooking;
   history: ProposalHistory;
   vendorName: string;
-  busy: boolean;
-  onWithdraw: (id: string) => void;
   /** The negotiation workspace, where their proposal and the vendor's answers live. */
   onOpen: () => void;
 }) {
@@ -285,8 +280,8 @@ function ProposalStatus({
         <p className="eyebrow">Changes proposed</p>
         <p className="mt-1 text-ink">Waiting for {vendorName}</p>
         <p className="mt-1 text-sm text-ink-soft">
-          You sent your changes on {shortDate(latest.created_at)}. We&apos;ll email you when they reply. You can
-          still sign the contract as it is — that withdraws your proposal.
+          You sent your changes on {shortDate(latest.created_at)}. You can sign once {vendorName} answers —
+          we&apos;ll email you when they do.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <button
@@ -295,14 +290,6 @@ function ProposalStatus({
             className="text-sm font-semibold text-gold underline-offset-4 hover:underline"
           >
             See your proposal
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onWithdraw(latest.proposal_id)}
-            className="text-sm text-ink-faint underline-offset-4 hover:text-ink hover:underline"
-          >
-            Withdraw it
           </button>
         </div>
       </Card>
@@ -354,19 +341,12 @@ function ProposalStatus({
   );
 }
 
-/** What signing "as it is" does to the changes still open, naming only the
- *  sides that have any: the vendor's are taken, the client's are dropped
- *  (backend field_negotiation_service.before_signing). */
+/** What signing "as it is" does: the vendor's open changes are taken
+ *  (backend field_negotiation_service.before_signing). The client's own
+ *  open asks block signing altogether (DECISIONS #51), so they never get here. */
 function signAsIsNote(state: FieldNegotiationState, vendorName: string): string {
   const theirs = state.fields.filter((f) => f.state === "waiting_client").length;
-  const mine = state.fields.filter((f) => f.state === "waiting_vendor").length;
-  const n = (count: number) => (count === 1 ? "1 change" : `${count} changes`);
-  return [
-    theirs ? `${vendorName}'s ${n(theirs)} ${theirs === 1 ? "is" : "are"} taken.` : null,
-    mine ? `Your ${n(mine)} ${mine === 1 ? "hasn't" : "haven't"} been answered yet; signing drops ${mine === 1 ? "it" : "them"}.` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return theirs ? `${vendorName}'s ${theirs === 1 ? "change is" : `${theirs} changes are`} taken as they stand.` : "";
 }
 
 /** A term of the contract the client can read here but not change. */
@@ -590,20 +570,6 @@ export function ContractLink({
       setError(
         err instanceof ApiError ? err.message : "Couldn't send your reply. Check your connection and try again.",
       );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function withdraw(id: string) {
-    setBusy(true);
-    setProposalNotice(null);
-    try {
-      setHistory(await withdrawGuestProposal(token, id));
-      setProposalNotice("Withdrawn. The contract is as it was.");
-    } catch (err) {
-      setProposalNotice(err instanceof ApiError ? err.message : "Couldn't withdraw that.");
-      getGuestProposals(token).then(setHistory).catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -943,9 +909,20 @@ export function ContractLink({
     );
   }
 
-  const current = step ?? (inApp ? "details" : "email");
-  // Anything still open in the negotiation: signing now takes it as it
-  // stands (field by field), or withdraws the client's proposal (older flow).
+  // What stands between the client and Sign (backend DECISIONS #51). With
+  // any of these there's no sign step to be on.
+  const blockers = booking.sign_blockers ?? [];
+  // The page's own negotiation state says it too, and is current the moment
+  // the client sends — before the booking is read again.
+  const withVendor =
+    blockers.includes("waiting_on_vendor") ||
+    Boolean(fields?.fields.some((f) => f.state === "waiting_vendor")) ||
+    (!fields && Boolean(history?.open_proposal));
+  const needsPrice = blockers.includes("price");
+  const needsVenue = blockers.includes("location");
+  const current = step === "sign" && blockers.length ? "review" : (step ?? (inApp ? "details" : "email"));
+  // Anything still open in the negotiation that signing would take as it
+  // stands: only ever the vendor's changes, since the client's own block it.
   const openAsks = fields ? fields.waiting_count > 0 : Boolean(history?.open_proposal);
   const clientsTurn = !fields || fields.turn === "client";
   const waitingOnMe = fields ? fields.fields.filter((f) => f.state === "waiting_client").length : 0;
@@ -1147,8 +1124,6 @@ export function ContractLink({
               booking={booking}
               history={history}
               vendorName={vendorName}
-              busy={busy}
-              onWithdraw={withdraw}
               onOpen={askForChanges}
             />
           ) : null}
@@ -1186,16 +1161,42 @@ export function ContractLink({
             Download as PDF to read later
           </a>
 
-          <div className="mt-6 grid gap-2">
-            <Button type="button" size="lg" variant={openAsks || waitingOnMe ? "ghost" : "primary"} onClick={() => goTo("sign")}>
-              {openAsks ? "Sign it as it is" : "Looks good — sign it"}
-            </Button>
-            {canAskForChange && clientsTurn && !waitingOnMe ? (
-              <Button type="button" size="lg" variant="ghost" onClick={askForChanges}>
-                {history?.open_proposal && !fields ? "Change your proposal" : "Ask for changes"}
-              </Button>
-            ) : null}
-          </div>
+          {withVendor ? (
+            // Sent changes stand until the vendor answers: no signing over
+            // them, and nothing more to change meanwhile (2026-11-16).
+            <p role="status" className="mt-6 rounded-xl border border-gold/50 bg-gold/[0.07] px-4 py-3 text-sm text-ink">
+              <strong>Waiting on {vendorName}.</strong>{" "}
+              <span className="text-ink-soft">They&apos;re answering your changes. You can sign once they do.</span>
+            </p>
+          ) : (
+            <div className="mt-6 grid gap-2">
+              {needsPrice ? (
+                <p role="status" className="rounded-xl border border-gold/50 bg-gold/[0.07] px-4 py-3 text-sm text-ink">
+                  <strong>Waiting on {vendorName} to add the price.</strong>{" "}
+                  <span className="text-ink-soft">You can sign once it&apos;s on the contract.</span>
+                </p>
+              ) : needsVenue ? (
+                <>
+                  <p role="status" className="rounded-xl border border-gold/50 bg-gold/[0.07] px-4 py-3 text-sm text-ink">
+                    <strong>Add where the event is before you sign.</strong>{" "}
+                    <span className="text-ink-soft">{vendorName} left the location blank for you to fill in.</span>
+                  </p>
+                  <Button type="button" size="lg" onClick={() => goTo("details")}>
+                    Add the location
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" size="lg" variant={openAsks || waitingOnMe ? "ghost" : "primary"} onClick={() => goTo("sign")}>
+                  {openAsks ? "Sign it as it is" : "Looks good — sign it"}
+                </Button>
+              )}
+              {canAskForChange && clientsTurn && !waitingOnMe ? (
+                <Button type="button" size="lg" variant="ghost" onClick={askForChanges}>
+                  Ask for changes
+                </Button>
+              ) : null}
+            </div>
+          )}
         </>
       ) : null}
 

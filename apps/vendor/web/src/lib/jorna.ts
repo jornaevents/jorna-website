@@ -7,9 +7,7 @@ import type {
   BundleDetail,
   BundleRequest,
   ChangeRequest,
-  AvailabilitySlot,
   BlockedUser,
-  CalendarStatus,
   Contract,
   ContractCreateInput,
   ContractUpdateInput,
@@ -734,10 +732,6 @@ export function sendConversationMessage(
 
 // ── Vendor availability ──────────────────────────────────────────────
 
-export function getMyAvailability(): Promise<AvailabilitySlot[]> {
-  return apiFetch<AvailabilitySlot[]>("/vendors/me/availability");
-}
-
 /**
  * A vendor's open slots over a date range — public, like the rest of browsing,
  * so the Marketplace's date filter works for a signed-out visitor. Dates are
@@ -752,42 +746,6 @@ export function getVendorAvailability(
     `/vendors/${vendorId}/availability${query({ start_date: startDate, end_date: endDate })}`,
     { auth: false },
   );
-}
-
-// ── Google Calendar ──────────────────────────────────────────────────
-//
-// Reading a vendor's Google-busy days has worked for a while — the days and the
-// connected flag both arrive on getVendorAvailability above, so there's still
-// no wrapper here for that half of /calendar-status.
-//
-// write_enabled is different: it's not on getVendorAvailability (that
-// endpoint is public, and whether a vendor's own connection can write to
-// their calendar isn't a browsing client's business), and it's genuinely new
-// information a vendor connected under the old read-only scope needs — hence
-// getCalendarStatus below, just for that.
-
-/**
- * The Google consent URL to send the vendor to. Their own vendor only — the
- * backend returns 403 otherwise, since completing this flow writes tokens onto
- * whichever vendor the URL names.
- *
- * `client=web` is what makes the return trip land back here. Without it the
- * backend finishes on its own bridge page, which exists to bounce the iOS app
- * open and is a dead end in a browser. Same convention as Stripe onboarding.
- */
-export function getGoogleAuthUrl(vendorId: string): Promise<{ auth_url: string }> {
-  return apiFetch(`/vendors/${vendorId}/google-auth${query({ client: "web" })}`);
-}
-
-/**
- * Whether the vendor's own Google connection covers write-back — their
- * Jorna bookings appearing on their calendar, not just busy times showing
- * up here. Their own vendor only, same reasoning as the URL above: which
- * accounts a vendor has linked, and what those accounts can do, isn't
- * something a browsing client asks about.
- */
-export function getCalendarStatus(vendorId: string): Promise<CalendarStatus> {
-  return apiFetch<CalendarStatus>(`/vendors/${vendorId}/calendar-status`);
 }
 
 // ── Card on file ─────────────────────────────────────────────────────
@@ -833,16 +791,6 @@ export function syncSavedCard(): Promise<SavedCard> {
 
 export function forgetSavedCard(): Promise<SavedCard> {
   return apiFetch("/payments/card", { method: "DELETE" });
-}
-
-/** Replace all weekly availability slots. Send [] to clear. */
-export function setMyAvailability(slots: AvailabilitySlot[]): Promise<unknown> {
-  const clean = slots.map((s) => ({
-    day_of_week: s.day_of_week,
-    start_time: s.start_time,
-    end_time: s.end_time,
-  }));
-  return apiFetch("/vendors/me/availability", { method: "PUT", body: { slots: clean } });
 }
 
 // ── Vendor-side bookings ─────────────────────────────────────────────

@@ -101,4 +101,26 @@ test.describe("client link steps", () => {
     await page.getByRole("navigation", { name: "Steps" }).getByRole("button", { name: /Details/ }).click();
     await expect(page.getByLabel("Your full name")).toHaveValue("Asha Mehta");
   });
+
+  // Backend DECISIONS #51: what has to be settled before Sign is offered.
+  test("with the client's changes sent, it waits on the vendor: no Sign, nothing to change", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-5", booking({ location: "Pines Manor", sign_blockers: ["waiting_on_vendor"] }));
+    await pastLinkSteps(page, "tok-5");
+    await page.goto("booking-link/?t=tok-5");
+
+    await expect(page.getByText("Waiting on Priya Lens.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign it/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Ask for changes|Change your proposal/ })).toHaveCount(0);
+  });
+
+  test("with no location yet, Sign gives way to adding it", async ({ page, api }) => {
+    api.get("/guest-bookings/tok-6", booking({ sign_blockers: ["location"] }));
+    await pastLinkSteps(page, "tok-6");
+    await page.goto("booking-link/?t=tok-6");
+
+    await expect(page.getByText("Add where the event is before you sign.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign it/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Add the location" }).click();
+    await expect(page.getByLabel("Street address")).toBeVisible();
+  });
 });
