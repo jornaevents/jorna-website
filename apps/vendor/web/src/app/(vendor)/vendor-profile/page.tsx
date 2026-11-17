@@ -4,7 +4,7 @@
 // Contracts → Defaults; payments to Settings.
 //
 // Each section saves itself — packages one at a time, the business details
-// through the Edit profile popup, availability with its own Save. It used to
+// through the Edit profile popup. It used to
 // be one long form whose single Save at the bottom covered some sections but
 // not others, so it was easy to edit the bio and leave.
 
@@ -28,11 +28,10 @@ import {
   type TaxonomyCategory,
   type VendorDetail,
 } from "@/lib/types";
-import { Avatar, Card, Stars } from "@jorna/shared/components/ui";
+import { Avatar, Stars } from "@jorna/shared/components/ui";
 import { ServicesManager, type ServicesManagerHandle } from "@/components/ServicesManager";
 import { PageHeader, PrimaryAction, primaryClass } from "@/components/vendor/ui";
 import { Bar, PageSkeleton, SkeletonCard, type PageHeading } from "@/components/vendor/PageSkeleton";
-import { AvailabilityFields } from "@/components/AvailabilityFields";
 import { ProfileEditModal, yearsLabel } from "@/components/vendor/ProfileEditModal";
 
 function prettyDate(iso?: string | null): string | null {
@@ -47,7 +46,7 @@ function prettyDate(iso?: string | null): string | null {
  *  to where it's fixed (EDIT: the Edit profile popup); the card goes away once
  *  they're all done. */
 const EDIT = "edit";
-function checklist(vendor: VendorDetail, services: ServiceItem[], hasHours: boolean | null) {
+function checklist(vendor: VendorDetail, services: ServiceItem[]) {
   const listed = services.filter((s) => s.status !== "hidden" && s.status !== "archived");
   return [
     { done: Boolean(vendor.pfp_url), label: "Add a profile photo", href: EDIT },
@@ -57,8 +56,6 @@ function checklist(vendor: VendorDetail, services: ServiceItem[], hasHours: bool
       label: "List a priced package with a photo",
       href: "#packages",
     },
-    // Unknown until the hours load: don't nag before we know.
-    { done: hasHours !== false, label: "Set the hours you're available", href: "#availability" },
     { done: Boolean(vendor.instagram_username?.trim()), label: "Link your Instagram", href: EDIT },
   ];
 }
@@ -98,7 +95,6 @@ export default function VendorProfilePage() {
   const taxonomy = useTaxonomy();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [hasHours, setHasHours] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const packagesRef = useRef<ServicesManagerHandle>(null);
   const [editing, setEditing] = useState(false);
@@ -154,7 +150,7 @@ export default function VendorProfilePage() {
   }
 
   const displayName = vendorName(vendor);
-  const todo = checklist(vendor, services, hasHours).filter((i) => !i.done);
+  const todo = checklist(vendor, services).filter((i) => !i.done);
   const meta = profileMeta(vendor);
 
   return (
@@ -225,7 +221,6 @@ export default function VendorProfilePage() {
       <nav aria-label="Profile sections" className="mt-6 flex flex-wrap gap-2 text-sm">
         {[
           ["#packages", "Packages"],
-          ["#availability", "Availability"],
           ["#reviews", "Reviews"],
         ].map(([href, label]) => (
           <a key={href} href={href} className="rounded-full border border-card-edge px-3 py-1 text-ink-soft hover:text-ink">
@@ -255,15 +250,6 @@ export default function VendorProfilePage() {
             </Link>
             ; a package can set its own where it differs. Whether a request needs a guest count is set on each package.
           </p>
-
-          {/* Availability saves through its own endpoint (setMyAvailability), so
-              it keeps its own Save. */}
-          <section id="availability" aria-label="Availability" className="mt-9 scroll-mt-24">
-            <h2 className="serif text-xl text-ink">Availability</h2>
-            <Card className="mt-4 p-6">
-              <AvailabilityFields onHoursChange={setHasHours} />
-            </Card>
-          </section>
 
           {/* Reputation, beside the bio and photos it's a consequence of. */}
           <section id="reviews" aria-label="Reviews" className="mt-9 scroll-mt-24">

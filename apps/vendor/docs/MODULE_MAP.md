@@ -140,11 +140,10 @@ always "none, verify manually" until a test runner is added.
   `lib/messageLabels.ts` (words and colours from `@jorna/shared`'s
   `lib/messageLabels`); vendors' `/conversation?id=` forwards into it. Settings
   holds account (`AccountSettings`, shared with `/account`), Venmo/Zelle,
-  tentative-hold length, Google Calendar (`GoogleCalendarCard`, also on the
-  calendar page), notifications and theme. See `docs/DECISIONS.md`.
+  tentative-hold length, notifications and theme. See `docs/DECISIONS.md`.
 - **Code:** `web/src/lib/vendorPlan.ts` (task rules, incl. `pipelineStage`/
   `pipelineStats`), `web/src/app/vendor/`, `(vendor)/vendor-profile/`,
-  `my-availability/`, `(vendor)/my-bookings/`, `(vendor)/my-calendar/`,
+  `(vendor)/my-bookings/`, `(vendor)/my-calendar/`,
   `(vendor)/my-earnings/` (escrow off: the ledger — `components/earnings/`,
   `lib/ledger.ts`; escrow on: the Stripe-era page),
   `(vendor)/overview/`, `(vendor)/contracts/`, `(vendor)/leads/`,

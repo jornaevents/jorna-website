@@ -1368,6 +1368,15 @@ gave no warning.
   otherwise. A client with an event already booked used to hide both their next draft and Send
   contract; Send contract now shows for them when nothing is open.
 
+## Decision: no Google Calendar or weekly hours for vendors (2026-11-16)
+
+The vendor app no longer offers a Google Calendar connection or weekly hours anywhere: the
+calendar page shows Jorna bookings and holds only, and the profile has no Availability section
+or "set your hours" checklist item. `GoogleCalendarCard`, `AvailabilityFields` and the
+`/calendar-connected` return page are deleted. The data is ignored as well as hidden: the backend's
+availability endpoint stops counting weekly hours and Google-busy days, so a vendor is free on
+any day without a booking or hold, including in the marketplace date filter.
+
 ## Decision: sent changes lock the contract; Sign needs a location and a price (2026-11-16)
 
 Backend DECISIONS #51. Once the client has sent changes, the signing page (the shared
