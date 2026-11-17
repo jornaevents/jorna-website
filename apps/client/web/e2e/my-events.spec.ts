@@ -62,3 +62,27 @@ test("a new client is welcomed and can plan a first event", async ({ page, api }
   await page.getByRole("button", { name: "Plan your first event" }).click();
   await expect(page.getByRole("dialog").getByRole("heading", { name: "What are you celebrating?" })).toBeVisible();
 });
+
+test("two events to a row; a card opens its event, which has no Registry section", async ({ page, api }) => {
+  await loginAs(page, api);
+  shell(api);
+  api.get("/events", [
+    { event_id: "event-1", user_id: "user-1", name: "Priya's Wedding", date_iso: "2099-05-22", location: "Edison, NJ" },
+    { event_id: "event-2", user_id: "user-1", name: "Anaya's Birthday", date_iso: "2099-12-12", location: "Jersey City, NJ" },
+  ]);
+  api.get("/bundles", []);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("bundles/");
+  const wedding = page.getByRole("link", { name: /Priya's Wedding/ });
+  const birthday = page.getByRole("link", { name: /Anaya's Birthday/ });
+  const [a, b] = [await wedding.boundingBox(), await birthday.boundingBox()];
+  expect(a && b && Math.abs(a.y - b.y) < 2).toBe(true);
+
+  await wedding.click();
+  await expect(page).toHaveURL(/\/event\/?\?id=event-1$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Priya's Wedding" })).toBeVisible();
+  const sections = page.getByRole("complementary", { name: "Event sections" });
+  await expect(sections.getByRole("link", { name: "Overview" })).toBeVisible();
+  await expect(sections.getByRole("link", { name: "Registry" })).toHaveCount(0);
+});
