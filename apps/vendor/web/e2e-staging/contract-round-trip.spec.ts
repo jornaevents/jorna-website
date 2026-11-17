@@ -58,7 +58,8 @@ test.describe("staging: contract round trip", () => {
       const panel = page.getByRole("complementary", { name: "Your answers" });
       await panel.getByLabel("Guest count").fill("150");
       await page.getByRole("button", { name: "Send 1 change" }).click();
-      await expect(page.getByText(/It's .*'s turn/)).toBeVisible();
+      // Waiting on the vendor's answer (backend DECISIONS #51).
+      await expect(page.getByText(/You can sign once .* answers/).first()).toBeVisible();
 
       const state = await api<{ round: number }>(`/contracts/${contract.booking_id}/negotiation`, { token });
       await api(`/contracts/${contract.booking_id}/negotiation/send`, {
