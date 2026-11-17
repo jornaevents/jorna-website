@@ -21,10 +21,6 @@ import {
 import { categoryLabel, type Contract, type VendorDetail } from "@/lib/types";
 import { PaymentSchedule } from "@/components/PaymentSchedule";
 
-/** sign_blockers is on Contract once web #311 lands; read here without
- *  depending on it (backend DECISIONS #51). */
-type WithBlockers = Contract & { sign_blockers?: string[] };
-
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-card-edge bg-card p-4">
@@ -37,7 +33,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 /** What the client can do about the contract right now, if anything. */
 function ContractAction({ c, token, bookingId }: { c: Contract; token: string; bookingId: string }) {
   const vendor = c.vendor_display_name || "your vendor";
-  const blockers = (c as WithBlockers).sign_blockers ?? [];
+  // What holds Sign back (backend DECISIONS #51).
+  const blockers = c.sign_blockers ?? [];
   const unsigned = !c.client_signed_at && !c.signed_at && (c.contract_status === "sent" || c.contract_status === "viewed");
   const button = "inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold";
   if (unsigned && (blockers.includes("waiting_on_vendor") || c.proposal_status === "open")) {
