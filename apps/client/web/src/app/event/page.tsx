@@ -26,10 +26,10 @@ import { categoryLabel } from "@/lib/types";
 import { Badge, MiniProgress, type Tone } from "@/components/kit";
 import { VendorDrawer } from "@/components/VendorDrawer";
 import { EditEventDrawer } from "@/components/EditEventDrawer";
-import { RegistryTab } from "@/components/RegistryTab";
 import { GuestListSection } from "@/components/GuestList";
 import { BudgetTab } from "@/components/BudgetTab";
 import { DayOfTab } from "@/components/DayOfTab";
+import { EVENT_ZOOM_NAME, eventArrived, zoomPending } from "@/lib/eventZoom";
 import { signInUrl } from "@/lib/vendorSite";
 
 const dollars = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -68,11 +68,11 @@ function Tile({ label, value, badge, tone, note, children }: { label: string; va
   );
 }
 
-// The event's sections, kept in the address (?tab=).
+// The event's sections, kept in the address (?tab=). Registry is off for now
+// (2026-11-17) — RegistryTab stays for when it comes back.
 const TABS: [string, string][] = [
   ["overview", "Overview"],
   ["guests", "Guest List"],
-  ["registry", "Registry"],
   ["budget", "Budget"],
   ["dayof", "Day-of"],
 ];
@@ -105,6 +105,11 @@ function Workspace() {
   useEffect(() => {
     void load();
   }, [load]);
+  const ready = celebrations !== null;
+  // The zoom from My Events waits for this: the event is drawn.
+  useEffect(() => {
+    if (ready) eventArrived();
+  }, [ready]);
 
   if (authLoading || !user || (celebrations === null && !error)) {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
@@ -137,7 +142,10 @@ function Workspace() {
   };
 
   return (
-    <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-10">
+    <div
+      className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-10"
+      style={zoomPending() ? { viewTransitionName: EVENT_ZOOM_NAME } : undefined}
+    >
       <Link href="/bundles" className="text-sm font-semibold text-ink-soft hover:text-ink">
         ← All Events
       </Link>
@@ -171,7 +179,6 @@ function Workspace() {
         </aside>
 
         <section className="min-w-0">
-          {tab === "registry" ? <RegistryTab eventId={c.event.event_id} /> : null}
           {tab === "guests" ? <GuestListSection eventId={c.event.event_id} plannedFor={c.guestCount} /> : null}
           {tab === "budget" ? <BudgetTab celebration={c} rows={rows} onOpen={setOpenVendor} /> : null}
           {tab === "dayof" ? <DayOfTab celebration={c} /> : null}
