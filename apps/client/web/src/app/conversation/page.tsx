@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -347,6 +348,8 @@ function ConversationInner() {
                     <OfferCard message={m} mine={mine} conversation={meta} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
                     <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
+                  ) : m.meta?.inquiry?.lead_id ? (
+                    <InquiryCard inquiry={m.meta.inquiry} mine={mine} />
                   ) : (
                     <div
                       className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm ${

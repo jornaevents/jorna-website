@@ -198,7 +198,7 @@ test.describe("contract change proposals", () => {
     await answers.getByLabel(/A note for Arjun Kapoor/).fill("Could we add a light and remove the travel section?");
     await answers.getByRole("button", { name: /^Send 2 changes$/ }).click();
 
-    await expect(page.getByText("Waiting on Arjun Kapoor")).toBeVisible();
+    await expect(page.getByText("Waiting on Arjun Kapoor").first()).toBeVisible();
     const [call] = api.requestsTo("POST", "/guest-bookings/tok-1/negotiation/send");
     expect(call.body).toMatchObject({
       base_round: 1,
@@ -267,29 +267,25 @@ test.describe("contract change proposals", () => {
     });
   });
 
-  test("an open proposal says it's waiting, opens read-only, and can be withdrawn", async ({ page, api }) => {
+  test("an open proposal says it's waiting and opens read-only, with nothing to sign, change or withdraw", async ({ page, api }) => {
     api.get("/guest-bookings/tok-1", contract({ proposal_status: "open" }));
     api.get("/guest-bookings/tok-1/proposals", history({ open_proposal: proposal(), proposals: [proposal()] }));
-    api.post(
-      "/guest-bookings/tok-1/proposals/p-1/withdraw",
-      history({ proposals: [proposal({ status: "withdrawn" })] }),
-    );
 
     await pastLinkSteps(page, "tok-1");
     await page.goto("booking-link/?t=tok-1");
     await expect(page.getByText("Waiting for Arjun Kapoor")).toBeVisible();
     await page.getByRole("button", { name: "See your proposal" }).click();
     const ws = workspace(page, "Arjun Kapoor");
-    await expect(ws.getByText("Waiting for Arjun Kapoor.").first()).toBeVisible();
-    await expect(ws.getByRole("button", { name: "Change your proposal" })).toBeVisible();
+    await expect(ws.getByText("Waiting on Arjun Kapoor.").first()).toBeVisible();
+    await expect(ws.getByRole("button", { name: "Change your proposal" })).toHaveCount(0);
+    await expect(ws.getByRole("button", { name: "Withdraw it" })).toHaveCount(0);
     await expect(ws.getByRole("button", { name: /Send to/ })).toHaveCount(0);
     await ws.getByRole("button", { name: "Close negotiation" }).click();
 
-    // They can still sign the version on the table.
-    await expect(page.getByRole("button", { name: "Sign it as it is" })).toBeVisible();
-    await page.getByRole("button", { name: "Withdraw it" }).click();
-    await expect(page.getByText("Withdrawn. The contract is as it was.")).toBeVisible();
-    expect(api.requestsTo("POST", "/guest-bookings/tok-1/proposals/p-1/withdraw")).toHaveLength(1);
+    // Sent changes stand until the vendor answers (backend DECISIONS #51).
+    await expect(page.getByText("Waiting on Arjun Kapoor.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign it/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Withdraw it" })).toHaveCount(0);
   });
 
   test("after a revision the client sees what the vendor changed, in the contract", async ({ page, api }) => {

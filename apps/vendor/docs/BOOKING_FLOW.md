@@ -139,11 +139,9 @@ Two more independent status enums exist for sub-flows:
    (`hasActiveBookings()`, `planning.ts`). "Done" means at least one service
    exists, not just a vendor record — `/vendor-profile` redirects back here
    until that's true.
-2. **Availability** — `/my-availability`: per-weekday time windows
-   (`getMyAvailability`/`setMyAvailability`). This is advisory, not a hard
-   gate — `listingHealth()` (`vendorPlan.ts`) flags "no weekly hours set" as a
-   warning, and the marketplace date filter and `getVendorAvailability`
-   (which also folds in Google Calendar busy times) use it for display.
+2. **Availability** — none to set (2026-11-16). Weekly hours and Google
+   Calendar are gone from the vendor app; a vendor is free on any day without
+   a booking or hold, and that's all the marketplace date filter reads.
 3. **Receive a request** — `/my-bookings`, filtered `pending` (needs an
    answer — includes `negotiation_ongoing`) / `upcoming`
    (`approved`/`payment_confirmed`) / `all`.

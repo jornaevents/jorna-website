@@ -78,6 +78,18 @@ test.describe("contracts in the chat", () => {
     await expect(page.getByRole("link", { name: "Review & sign" })).toHaveAttribute("href", /contract\/?\?t=tok-9&sign=1$/);
   });
 
+  test("with the client's changes sent, it waits on the vendor: no Review & sign, no Propose changes", async ({ page, api }) => {
+    await loginAs(page, api);
+    api.get("/bookings/b9", { booking_id: "b9", contract_token: "tok-9" });
+    api.get("/guest-bookings/tok-9", { ...CONTRACT, sign_blockers: ["waiting_on_vendor"] });
+
+    await page.goto("contract/?id=b9");
+
+    await expect(page.getByText(/Waiting on .* — they're answering your changes/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Review & sign" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Propose changes" })).toHaveCount(0);
+  });
+
   test("opened from the chat, it starts at the contract — no email step, no link message box", async ({ page, api }) => {
     await loginAs(page, api);
     api.get("/bookings/b9", { booking_id: "b9", contract_token: "tok-9" });

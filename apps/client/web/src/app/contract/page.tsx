@@ -242,6 +242,11 @@ function ContractRead({ token }: { token: string }) {
   const status = contractStanding(c, token);
   const rows = paymentRows(c);
   const awaitingSignature = !c.signed_at && (c.contract_status === "sent" || c.contract_status === "viewed");
+  // What stands between the client and Sign (backend DECISIONS #51).
+  const blockers = c.sign_blockers ?? [];
+  const withVendor = blockers.includes("waiting_on_vendor") || c.proposal_status === "open";
+  const needsPrice = blockers.includes("price");
+  const needsVenue = blockers.includes("location");
   // The client signs first, then the vendor; it's booked once both have
   // (backend DECISIONS #34). Older contracts have only signed_at.
   const clientSigned = signedOn(c.client_signed_at ?? c.signed_at);
@@ -296,27 +301,32 @@ function ContractRead({ token }: { token: string }) {
         {awaitingSignature ? (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/50 bg-gold/[0.07] p-4 print:hidden">
             <p className="text-sm text-ink-soft">
-              {c.proposal_status === "open"
-                ? "Your proposed changes are with your vendor. You can still sign it as it is."
-                : "Nothing is booked until you sign — and nothing is owed before then."}
+              {withVendor
+                ? `Waiting on ${c.vendor_display_name || "your vendor"} — they're answering your changes. You can sign once they do.`
+                : needsPrice
+                  ? `Waiting on ${c.vendor_display_name || "your vendor"} to add the price. You can sign once it's on the contract.`
+                  : needsVenue
+                    ? "Add where the event is, then sign. Nothing is booked until you do."
+                    : "Nothing is booked until you sign — and nothing is owed before then."}
             </p>
-            {/* The signing page is on the vendor site; see the note at the top. */}
-            <div className="flex flex-wrap items-center gap-2">
-              {c.proposal_status !== "open" ? (
+            {/* The signing steps; see the note at the top. Sent changes stand
+                until the vendor answers (backend DECISIONS #51). */}
+            {withVendor || needsPrice ? null : (
+              <div className="flex flex-wrap items-center gap-2">
                 <Link
                   href={contractProposeUrl(token)}
                   className="inline-flex items-center rounded-full border border-card-edge px-4 py-2 text-sm font-semibold text-ink hover:border-gold"
                 >
                   Propose changes
                 </Link>
-              ) : null}
-              <Link
-                href={contractSignUrl(token)}
-                className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
-              >
-                Review &amp; sign
-              </Link>
-            </div>
+                <Link
+                  href={contractSignUrl(token)}
+                  className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110"
+                >
+                  {needsVenue ? "Add the location" : "Review & sign"}
+                </Link>
+              </div>
+            )}
           </div>
         ) : null}
 

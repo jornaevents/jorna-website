@@ -10,7 +10,6 @@
 import { describeDue } from "@jorna/shared/lib/contractDraft";
 import {
   eventIsOver,
-  type AvailabilitySlot,
   type Earnings,
   type ServiceItem,
   type StripeStatus,
@@ -416,15 +415,15 @@ export function changesWaiting(b: Pick<VendorBooking, "negotiation" | "proposal_
 }
 
 /** The statuses where the vendor, not the client, owes the next move — a
- *  signature, a payment to confirm, changes to answer, or an offer to send or
- *  resend (or let go). */
+ *  signature, a payment to confirm, changes to answer, or a draft to send.
+ *  An expired offer isn't one any more (2026-11-16): it files itself under
+ *  Declined & void, where it can still be resent. */
 export function contractNeedsVendor(status: ContractStatus): boolean {
   return (
     status === "countersign" ||
     status === "changes_waiting" ||
     status === "confirm_deposit" ||
     status === "confirm_payment" ||
-    status === "expired" ||
     status === "draft"
   );
 }
@@ -870,9 +869,8 @@ export interface HealthIssue {
 export function listingHealth(opts: {
   vendor: VendorDetail | null;
   services: ServiceItem[];
-  availability: AvailabilitySlot[];
 }): HealthIssue[] {
-  const { vendor, services, availability } = opts;
+  const { vendor, services } = opts;
   const issues: HealthIssue[] = [];
 
   // No Stripe row. It was here and in vendorTasks, both worded by paymentsSetup
@@ -892,17 +890,6 @@ export function listingHealth(opts: {
     });
   }
 
-  if (availability.length === 0) {
-    issues.push({
-      id: "no-availability",
-      issue: "No weekly hours set",
-      consequence:
-        "Hosts filtering by a date can't tell whether you're free, so you're easy to skip.",
-      cta: "Set hours",
-      href: "/vendor-profile",
-      severity: "warning",
-    });
-  }
 
   const noPhotos = services.filter((s) => !s.media?.length);
   if (noPhotos.length > 0) {
@@ -978,8 +965,6 @@ export interface CalendarDay {
   isToday: boolean;
   isPast: boolean;
   status: DayStatus;
-  /** Busy in the vendor's connected Google Calendar, with nothing booked here. */
-  googleBusy: boolean;
   bookings: VendorBooking[];
 }
 
@@ -1048,8 +1033,6 @@ export function calendarMonth(
   bookings: VendorBooking[],
   year: number,
   month: number,
-  /** ISO days the vendor's Google Calendar reports as busy. */
-  googleBusyDays: Set<string> = new Set(),
 ): CalendarDay[] {
   const byDay = bookingsByDay(bookings);
   const todayIso = isoOf(new Date());
@@ -1073,9 +1056,6 @@ export function calendarMonth(
       isToday: iso === todayIso,
       isPast: iso < todayIso,
       status,
-      // Only worth saying when nothing of Jorna's own is on that day; a booked
-      // day is already accounted for.
-      googleBusy: status === "free" && googleBusyDays.has(iso),
       bookings: dayBookings,
     });
     cursor.setDate(cursor.getDate() + 1);

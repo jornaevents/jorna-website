@@ -5,8 +5,7 @@
 // details (/account), Venmo/Zelle (the profile page's form), notifications
 // (/activity), the theme (a toggle in the old sidebar), and the blocked list
 // and deleting the account (both from the old /profile hub, now gone).
-// Vendor Profile is left with what couples see. The Google Calendar
-// connection stays on the calendar page.
+// Vendor Profile is left with what couples see.
 //
 // Laid out like the rest of the dashboard (2026-11): full width, two columns
 // of cards on a wide screen — you on the left, how you work on the right —

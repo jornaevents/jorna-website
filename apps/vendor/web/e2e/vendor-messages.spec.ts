@@ -458,5 +458,39 @@ test.describe("vendor messages labels and tabs", () => {
     await expect(card).toContainText("Open contract");
     await expect(card).toHaveAttribute("href", /\/contracts\/view\/?\?id=bk9$/);
   });
+
+  // An inquiry from the form (backend DECISIONS #52): a card listing what they
+  // asked, with a way straight into the lead.
+  test("an inquiry shows as a card whose View lead opens that lead", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockHub(api);
+    api.get("/conversations", [conv("c-lead", "Riya Kapoor", {
+      last_message: { content: "Inquiry: Sangeet coverage", kind: "text", sender_id: "client-9", created_at: now },
+    })]);
+    api.get("/conversations/c-lead/messages", {
+      items: [
+        {
+          message_id: "m-i", conversation_id: "c-lead", sender_id: "client-9", sender_name: "Riya Kapoor",
+          content: "Inquiry: Sangeet coverage\n• Event: Sangeet", created_at: now, kind: "text",
+          meta: {
+            service_id: "svc-1", service_name: "Sangeet coverage",
+            inquiry: {
+              lead_id: "l7", service_name: "Sangeet coverage", event_type: "Sangeet", event_date_iso: "2030-03-12",
+              event_location: "Edison, NJ", guest_count: 180, note: "Can you do a mehndi too?",
+            },
+          },
+        },
+      ],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("messages/?id=c-lead");
+
+    await expect(page.getByText("New inquiry")).toBeVisible();
+    for (const text of ["Sangeet coverage", "Edison, NJ", "About 180", "Can you do a mehndi too?"]) {
+      await expect(page.getByText(text, { exact: false }).last()).toBeVisible();
+    }
+    await expect(page.getByRole("link", { name: "View lead" })).toHaveAttribute("href", /\/leads\/?\?open=lead%3Al7$/);
+  });
 });
 

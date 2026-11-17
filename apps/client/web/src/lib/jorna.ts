@@ -641,8 +641,15 @@ export interface InquiryInput {
   phone?: string | null;
   event_date_iso?: string | null;
   event_type?: string | null;
-  /** Where the event is, as they write it (backend DECISIONS #46). */
+  /** Where the event is, as one line — older pages (backend DECISIONS #46). */
   event_location?: string | null;
+  /** Where, in parts (backend DECISIONS #52): a city and state, or a venue's
+   *  full address. With a kind, event_location isn't sent. */
+  location_kind?: "city" | "venue";
+  location_street?: string | null;
+  location_city?: string | null;
+  location_state?: string | null;
+  location_zip?: string | null;
   /** One of the vendor's packages; null is "not sure yet". */
   service_id?: string | null;
   guest_count?: number | null;

@@ -50,7 +50,9 @@ test.describe("vendor profile (/vendor-profile)", () => {
 
     await expect(list.getByRole("button", { name: "Link your Instagram" })).toBeVisible();
     await expect(list.getByRole("link", { name: "List a priced package with a photo" })).toBeVisible();
-    await expect(list.getByRole("link", { name: "Set the hours you're available" })).toBeVisible();
+    // Weekly hours are gone from the vendor app (2026-11-16): no checklist item, no section.
+    await expect(list.getByText("Set the hours you're available")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Availability" })).toHaveCount(0);
     await list.getByRole("button", { name: "Write a few lines about your business" }).click();
     await expect(page.getByRole("dialog", { name: "Edit profile" })).toBeVisible();
   });
@@ -59,7 +61,6 @@ test.describe("vendor profile (/vendor-profile)", () => {
     await openProfile(page, api, {
       vendor: { pfp_url: "https://example.test/me.jpg", bio: "We have played sangeets and receptions across New Jersey for ten years.", instagram_username: "studio" },
       services: [pkg({ media: [{ url: "https://example.test/p.jpg", type: "image" }] })],
-      hours: [{ day_of_week: 5, start_time: "10:00", end_time: "23:00" }],
     });
     await expect(page.getByRole("button", { name: "Edit profile" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Listing checklist" })).toHaveCount(0);

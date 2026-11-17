@@ -2,6 +2,7 @@
 // backend Pydantic schemas so responses decode without transformation.
 
 import { priceUnitKind, priceUnitLabel, type PriceUnitKind } from "@jorna/shared/lib/priceUnits";
+import type { InquiryMeta } from "@jorna/shared/components/InquiryCard";
 
 // Shared with the other app (packages/shared); re-exported so imports from
 // "@/lib/types" keep working.
@@ -582,6 +583,8 @@ export interface Contract {
   status?: string;
   contract_status?: BundleBooking["contract_status"];
   proposal_status?: ProposalStatus | null;
+  /** Why Sign is held back (backend DECISIONS #51); empty or absent when it isn't. */
+  sign_blockers?: ("waiting_on_vendor" | "location" | "price")[];
   hold_expires_at?: string | null;
   payment_status?: string | null;
 }
@@ -994,6 +997,8 @@ export interface OfferMeta {
 export interface ServiceRefMeta {
   service_id?: string;
   service_name?: string;
+  /** An inquiry from the form (backend DECISIONS #52): the card's details and its lead. */
+  inquiry?: InquiryMeta;
 }
 
 export interface GroupMessage {
