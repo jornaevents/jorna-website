@@ -194,7 +194,19 @@ export function ConversationThread({
         }}
       >
         {!loaded ? (
-          <p className="py-10 text-center text-sm text-ink-faint">Loading…</p>
+          <div role="status" className="grid gap-4 motion-safe:animate-pulse">
+            <span className="sr-only">Loading the conversation…</span>
+            {[
+              ["", "w-[55%] h-16"],
+              ["justify-end", "w-[40%] h-10"],
+              ["", "w-[48%] h-20"],
+              ["justify-end", "w-[35%] h-10"],
+            ].map(([side, size], i) => (
+              <div key={i} aria-hidden="true" className={`flex ${side}`}>
+                <div className={`${size} rounded-2xl bg-card`} />
+              </div>
+            ))}
+          </div>
         ) : messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-ink-faint">No messages yet — say hello.</p>
         ) : (

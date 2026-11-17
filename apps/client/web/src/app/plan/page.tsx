@@ -13,6 +13,7 @@ import { BundleResults } from "@/components/BundleResults";
 import { CityCombobox, type Coords } from "@jorna/shared/components/CityCombobox";
 import { locateZip, type ZipPlace } from "@jorna/shared/lib/zips";
 import { signInUrl } from "@/lib/vendorSite";
+import { FormSkeleton } from "@/components/Skeletons";
 
 const BUDGETS = [
   { value: "budget-friendly", label: "Budget-friendly", hint: "Smart value" },
@@ -251,7 +252,7 @@ function PlanInner() {
   }
 
   if (loading || !user) {
-    return <div className="py-20 text-center text-ink-soft">Loading…</div>;
+    return <FormSkeleton label="Loading the planner…" />;
   }
 
   const allSelected = needed.length === ALL_CATEGORIES.length;
@@ -565,7 +566,7 @@ function PlanInner() {
 // useSearchParams needs a Suspense boundary to prerender in the static export.
 export default function PlanPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading the planner…" />}>
       <PlanInner />
     </Suspense>
   );

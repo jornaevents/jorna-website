@@ -9,6 +9,7 @@ import { listBlockedUsers, unblockUser } from "@/lib/jorna";
 import type { BlockedUser } from "@/lib/types";
 import { Button, Card } from "@jorna/shared/components/ui";
 import { signInUrl } from "@/lib/vendorSite";
+import { ListPageSkeleton, SkeletonBody, SkeletonRows } from "@/components/Skeletons";
 
 export default function BlockedPage() {
   const { user, loading: authLoading } = useAuth();
@@ -50,7 +51,7 @@ export default function BlockedPage() {
   }
 
   if (authLoading || !user) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ListPageSkeleton label="Loading the people you've blocked…" rows={3} />;
   }
 
   return (
@@ -71,7 +72,9 @@ export default function BlockedPage() {
       ) : null}
 
       {loading ? (
-        <p className="mt-8 text-center text-ink-soft">Loading…</p>
+        <SkeletonBody label="Loading the people you've blocked…" className="mt-8">
+          <SkeletonRows rows={3} />
+        </SkeletonBody>
       ) : blocks.length === 0 ? (
         <p className="mt-10 text-center text-ink-soft">You haven&apos;t blocked anyone.</p>
       ) : (

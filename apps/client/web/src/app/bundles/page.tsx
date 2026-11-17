@@ -31,6 +31,7 @@ import { Badge, MiniProgress } from "@/components/kit";
 import { EventBuilder } from "@/components/EventBuilder";
 import { signInUrl } from "@/lib/vendorSite";
 import { zoomIntoEvent } from "@/lib/eventZoom";
+import { MyEventsSkeleton } from "@/components/Skeletons";
 
 function countdown(iso?: string | null): string | null {
   const n = daysAway(iso);
@@ -153,7 +154,7 @@ function DashboardInner() {
   }, [load]);
 
   if (authLoading || !user) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <MyEventsSkeleton />;
   }
 
   const list = celebrations ?? [];
@@ -164,6 +165,10 @@ function DashboardInner() {
   const toFind = list.reduce((n, c) => n + bookedOf(c).toFind, 0);
   const firstName = (user.f_name ?? "").trim();
   const toEvents = () => eventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // The header and counts wait on the events, so until they're in the whole
+  // page is placeholders.
+  if (celebrations === null && !error && !creating) return <MyEventsSkeleton />;
 
   return (
     <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-11">
@@ -229,9 +234,7 @@ function DashboardInner() {
         </p>
       ) : null}
 
-      {celebrations === null ? (
-        <p className="mt-10 text-center text-ink-soft">Loading…</p>
-      ) : celebrations.length === 0 ? (
+      {celebrations === null ? null : celebrations.length === 0 ? (
         creating ? null : (
           <div className="mx-auto flex min-h-[60vh] max-w-[520px] flex-col items-center justify-center text-center">
             <div aria-hidden="true" className="relative mb-8 h-[120px] w-[190px]">

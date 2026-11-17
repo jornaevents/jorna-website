@@ -27,6 +27,7 @@ import {
 import { GAP_LABELS, describeGaps, requiredFields } from "@/lib/planning";
 import { Avatar, Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { AskVendor } from "@/components/AskVendor";
+import { VendorPageSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -471,7 +472,7 @@ function ServiceInner() {
 
   const media = useMemo(() => usableMedia(service?.media), [service]);
 
-  if (loading) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (loading) return <VendorPageSkeleton label="Loading the package…" />;
 
   if (error || !service) {
     return (
@@ -617,7 +618,7 @@ function ServiceInner() {
 
 export default function ServicePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<VendorPageSkeleton label="Loading the package…" />}>
       <ServiceInner />
     </Suspense>
   );

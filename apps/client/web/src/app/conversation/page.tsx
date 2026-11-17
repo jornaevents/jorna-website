@@ -20,6 +20,7 @@ import { ModerationMenu } from "@/components/ModerationMenu";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { signInUrl } from "@/lib/vendorSite";
 import { contractInChatPath } from "@/lib/contract";
+import { ChatSkeleton } from "@/components/Skeletons";
 
 function clockTime(iso: string): string {
   const t = Date.parse(iso.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
@@ -210,7 +211,7 @@ function ConversationInner() {
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ChatSkeleton />;
   }
 
   // Only offered on a two-person thread: blocking one member of a group chat
@@ -427,7 +428,7 @@ function ConversationInner() {
 
 export default function ConversationPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<ChatSkeleton />}>
       <ConversationInner />
     </Suspense>
   );

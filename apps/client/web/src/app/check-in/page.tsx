@@ -19,6 +19,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { getLocation, LocationError } from "@/lib/checkin";
 import { checkInWithToken, getCheckInInvite, type CheckInInvite } from "@/lib/jorna";
 import { Button, Card } from "@jorna/shared/components/ui";
+import { FormSkeleton } from "@/components/Skeletons";
 
 function prettyWhen(invite: CheckInInvite): string | null {
   if (!invite.starts_at) return null;
@@ -177,7 +178,7 @@ function CheckInInner() {
 
 export default function CheckInPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading check-in…" fields={2} />}>
       <CheckInInner />
     </Suspense>
   );

@@ -20,6 +20,7 @@ import { Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { AskVendor } from "@/components/AskVendor";
 import { InquiryButton } from "@/components/InquiryButton";
+import { VendorPageSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -213,7 +214,7 @@ function VendorInner() {
   const services = current?.services ?? [];
   const reviews = current?.reviews ?? [];
 
-  if (loading) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (loading) return <VendorPageSkeleton />;
 
   if (error || !vendor) {
     return (
@@ -416,7 +417,7 @@ function VendorInner() {
 
 export default function VendorPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<VendorPageSkeleton />}>
       <VendorInner />
     </Suspense>
   );

@@ -49,6 +49,7 @@ import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
 import { CategoryTiles } from "@/components/ExploreCategories";
 import { FiltersDialog } from "@/components/FiltersDialog";
 import { useSavedPackages } from "@/lib/savedPackages";
+import { ExploreSkeleton, ResultsGrid, SkeletonBody } from "@/components/Skeletons";
 
 const PAGE_SIZE = 12;
 // /vendors/search has no text-query parameter, so a typed query is filtered
@@ -560,7 +561,9 @@ function MarketplaceInner() {
       ) : null}
 
       {visible.length > 0 && loading ? (
-        <p className="mt-8 text-center text-ink-soft">Loading…</p>
+        <SkeletonBody label="Loading more vendors…">
+          <ResultsGrid count={3} />
+        </SkeletonBody>
       ) : hasMore && items.length > 0 ? (
         <div className="mt-8 text-center">
           <Button variant="ghost" onClick={() => load(offset + PAGE_SIZE, false)}>
@@ -598,7 +601,7 @@ function MarketplaceInner() {
 
 export default function MarketplacePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<ExploreSkeleton />}>
       <MarketplaceInner />
     </Suspense>
   );

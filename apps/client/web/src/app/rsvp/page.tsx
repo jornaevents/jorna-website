@@ -17,6 +17,7 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { getInvitation, joinViaInviteLink, sendRsvp } from "@/lib/jorna";
 import { Button, Card, Field, Rule } from "@jorna/shared/components/ui";
 import type { EventFunction, Invitation, RsvpReply } from "@/lib/types";
+import { FormSkeleton } from "@/components/Skeletons";
 
 /** "Saturday, 5 June 2027" — no year-less shorthand on a page about a date. */
 function prettyDate(iso?: string | null): string | null {
@@ -406,7 +407,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default function RsvpPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Loading your invitation…" fields={3} />}>
       <RsvpInner />
     </Suspense>
   );

@@ -35,6 +35,7 @@ import {
   type GuestList,
 } from "@/lib/types";
 import { Drawer } from "@/components/Drawer";
+import { GuestListSkeleton } from "@/components/Skeletons";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso || iso === "TBD") return null;
@@ -795,7 +796,7 @@ export function GuestListSection({ eventId, plannedFor }: { eventId: string; pla
     return (
       <div>
         {head}
-        <p className="text-ink-soft">{failed ?? "Loading your guest list…"}</p>
+        {failed ? <p className="text-ink-soft">{failed}</p> : <GuestListSkeleton />}
       </div>
     );
   }

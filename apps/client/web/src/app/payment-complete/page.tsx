@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { syncBookingPayment } from "@/lib/jorna";
 import { LinkButton } from "@jorna/shared/components/ui";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
+import { FormSkeleton } from "@/components/Skeletons";
 
 type Phase = "working" | "paid" | "cancelled" | "pending";
 
@@ -77,7 +78,7 @@ function PaymentCompleteInner() {
 
 export default function PaymentCompletePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<FormSkeleton label="Checking your payment…" fields={1} />}>
       <PaymentCompleteInner />
     </Suspense>
   );

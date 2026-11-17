@@ -31,6 +31,7 @@ import { categoryLabel, priceUnitKind, priceUnitLabel } from "@/lib/types";
 import type { SavedPackage } from "@/lib/jorna";
 import { Badge } from "@/components/kit";
 import { signInUrl } from "@/lib/vendorSite";
+import { CompareSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -119,7 +120,7 @@ const ROWS: [string, (p: SavedPackage, quantity: Quantity, lowest: number | null
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<CompareSkeleton />}>
       <CompareInner />
     </Suspense>
   );
@@ -144,7 +145,7 @@ function CompareInner() {
     if (!loading && !user) window.location.replace(signInUrl("/compare"));
   }, [loading, user]);
 
-  if (loading || !user || saved === null) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (loading || !user || saved === null) return <CompareSkeleton />;
 
   return (
     <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-10">

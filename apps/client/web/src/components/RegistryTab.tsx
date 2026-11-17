@@ -23,6 +23,7 @@ import {
 } from "@/lib/jorna";
 import { centsMoney } from "@/lib/contract";
 import { Badge, MiniProgress } from "@/components/kit";
+import { SkeletonBody, SkeletonRows } from "@/components/Skeletons";
 
 /** "1,250.50" → 125050. Null for anything that isn't an amount above zero. */
 function toCents(text: string): number | null {
@@ -168,7 +169,9 @@ export function RegistryTab({ eventId }: { eventId: string }) {
       ) : null}
 
       {!registry ? (
-        error ? null : <p className="mt-8 text-center text-ink-soft">Loading…</p>
+        error ? null : <SkeletonBody label="Loading your registry…" className="mt-6">
+          <SkeletonRows rows={3} avatar={false} />
+        </SkeletonBody>
       ) : (
         <>
           <dl className="mt-5 grid grid-cols-2 gap-3">

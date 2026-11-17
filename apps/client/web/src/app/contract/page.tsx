@@ -22,6 +22,7 @@ import {
 import { parseServerTime, type Contract, type Installment } from "@/lib/types";
 import { PaymentSchedule } from "@/components/PaymentSchedule";
 import { Button, Card } from "@jorna/shared/components/ui";
+import { DocumentSkeleton } from "@/components/Skeletons";
 
 function longDate(iso?: string | null): string | null {
   if (!iso || iso === "TBD") return null;
@@ -166,7 +167,7 @@ function ContractInner() {
   const loaded = byBooking && byBooking.id === bookingId ? byBooking : null;
   const token = bookingId ? (loaded?.token ?? "") : (params.get("t") ?? "");
 
-  if (bookingId && !loaded) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (bookingId && !loaded) return <DocumentSkeleton label="Loading the contract…" />;
   if (bookingId && !token) {
     return (
       <div className="mx-auto w-[min(560px,100%-2rem)] py-20 text-center">
@@ -235,7 +236,7 @@ function ContractRead({ token }: { token: string }) {
       </Card>
     );
   }
-  if (!contract) return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+  if (!contract) return <DocumentSkeleton label="Loading the contract…" />;
 
   const c = contract;
   const vendor = c.vendor_display_name || "Your vendor";
@@ -396,7 +397,7 @@ function ContractRead({ token }: { token: string }) {
 
 export default function ContractPage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<DocumentSkeleton label="Loading the contract…" />}>
       <ContractInner />
     </Suspense>
   );

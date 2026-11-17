@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { Button, Card } from "@jorna/shared/components/ui";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
+import { SkeletonBody, SkeletonRows } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -150,7 +151,9 @@ export function ServiceSwapPanel({
           ) : null}
 
           {loading ? (
-            <p className="py-8 text-center text-ink-soft">Loading alternatives…</p>
+            <SkeletonBody label="Loading alternatives…">
+              <SkeletonRows rows={3} />
+            </SkeletonBody>
           ) : candidates.length === 0 ? (
             <p className="py-8 text-center text-ink-soft">
               No other {slot ? categoryLabel(slot) : "packages"} available right now.

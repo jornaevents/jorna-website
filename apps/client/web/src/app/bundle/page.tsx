@@ -98,6 +98,7 @@ import { PaymentSchedule } from "@/components/PaymentSchedule";
 import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import { Avatar, Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { signInUrl } from "@/lib/vendorSite";
+import { PlanSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -1725,7 +1726,7 @@ function BundleInner() {
   }
 
   if (authLoading || !user || loading) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <PlanSkeleton />;
   }
 
   if (error || !bundle) {
@@ -2345,7 +2346,7 @@ function BundleInner() {
 
 export default function BundlePage() {
   return (
-    <Suspense fallback={<p className="py-20 text-center text-ink-soft">Loading…</p>}>
+    <Suspense fallback={<PlanSkeleton />}>
       <BundleInner />
     </Suspense>
   );

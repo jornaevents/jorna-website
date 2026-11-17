@@ -15,6 +15,7 @@ import { loadAttention, type AttentionItem } from "@/lib/attention";
 import { PushOptIn } from "@jorna/shared/components/PushOptIn";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { signInUrl } from "@/lib/vendorSite";
+import { ListPageSkeleton } from "@/components/Skeletons";
 
 export default function ActivityPage() {
   const { user, loading: authLoading } = useAuth();
@@ -45,7 +46,7 @@ export default function ActivityPage() {
   }, [load]);
 
   if (authLoading || !user || (items === null && !error)) {
-    return <p className="py-20 text-center text-ink-soft">Loading…</p>;
+    return <ListPageSkeleton label="Loading what needs you…" />;
   }
 
   return (

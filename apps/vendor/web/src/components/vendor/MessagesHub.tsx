@@ -30,6 +30,79 @@ import { ModerationMenu } from "@/components/ModerationMenu";
 import { ConversationThread, type OfferLink } from "@/components/ConversationThread";
 import { Drawer, FilterTabs, PageHeader, PrimaryAction, StatusPill } from "@/components/vendor/ui";
 import { Icon } from "@/components/vendor/Icon";
+import { Bar, PageSkeleton, type PageHeading } from "@/components/vendor/PageSkeleton";
+
+const HEADING: PageHeading = {
+  eyebrow: "Client communication",
+  title: "Messages",
+  subtitle: "Every client's conversation, organised and moving forward.",
+};
+
+/** The hub's three columns — conversations, the thread, the details — as
+ *  placeholders the same size, so nothing jumps when the inbox lands. */
+export function MessagesHubSkeleton() {
+  return (
+    <PageSkeleton heading={HEADING} label="Loading your messages…">
+      <div className="grid overflow-hidden rounded-2xl border border-card-edge bg-card shadow-[var(--shadow-card)] md:h-[calc(100vh-13rem)] md:min-h-[34rem] md:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_17rem]">
+        <div className="border-line-soft md:border-r">
+          <div className="grid gap-2 px-4 pb-3 pt-4">
+            <Bar className="h-2.5 w-12" />
+            <div className="h-5 w-32 rounded-md bg-line" />
+            <div className="mt-2 h-10 w-full rounded-xl bg-line-soft" />
+            <div className="mt-1 flex gap-1.5">
+              {["w-10", "w-20", "w-28"].map((w) => (
+                <div key={w} className={`h-8 ${w} rounded-full bg-line-soft`} />
+              ))}
+            </div>
+          </div>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-3 border-t border-line-soft px-4 py-3.5">
+              <div className="size-9 shrink-0 rounded-full bg-line" />
+              <div className="grid min-w-0 flex-1 gap-2">
+                <Bar className="h-3.5 w-2/3" />
+                <Bar className="h-2.5 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden min-h-0 flex-col md:flex">
+          <div className="flex items-center gap-3 border-b border-line-soft px-5 py-4">
+            <div className="size-9 rounded-full bg-line" />
+            <div className="grid gap-2">
+              <div className="h-4 w-36 rounded-md bg-line" />
+              <Bar className="h-2.5 w-20" />
+            </div>
+          </div>
+          <div className="m-4 grid flex-1 content-start gap-4 rounded-2xl bg-panel p-4">
+            {[
+              ["", "w-[55%] h-20"],
+              ["justify-end", "w-[40%] h-12"],
+              ["", "w-[48%] h-16"],
+            ].map(([side, size], i) => (
+              <div key={i} className={`flex ${side}`}>
+                <div className={`${size} rounded-2xl bg-card`} />
+              </div>
+            ))}
+          </div>
+          <div className="mx-4 mb-4 flex gap-2">
+            <div className="h-11 flex-1 rounded-xl bg-line-soft" />
+            <div className="h-11 w-20 rounded-full bg-line" />
+          </div>
+        </div>
+        <div className="hidden border-l border-line-soft p-5 xl:grid xl:content-start xl:justify-items-center xl:gap-3">
+          <div className="size-14 rounded-full bg-line" />
+          <div className="h-4 w-28 rounded-md bg-line" />
+          <Bar className="h-5 w-20" />
+          <div className="mt-4 grid w-full gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <Bar key={i} className={`h-3 ${["w-3/4", "w-1/2", "w-2/3", "w-1/3"][i]}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </PageSkeleton>
+  );
+}
 
 type Filter = "all" | "enquiries" | "bookings" | "unread";
 
@@ -310,11 +383,7 @@ export function MessagesHub() {
   }
 
   if (!user || conversations == null) {
-    return error ? (
-      <p className="py-20 text-center text-ink-soft">{error}</p>
-    ) : (
-      <p className="py-20 text-center text-ink-soft">Loading…</p>
-    );
+    return error ? <p className="py-20 text-center text-ink-soft">{error}</p> : <MessagesHubSkeleton />;
   }
 
   // Contracts go out in the chat (backend DECISIONS #48): the panel offers
