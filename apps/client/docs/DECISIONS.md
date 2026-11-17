@@ -503,3 +503,13 @@ The phone field is gone, since the vendor replies in the thread.
 In the chat the inquiry is drawn from `meta.inquiry` as a card (`@jorna/shared` `InquiryCard`):
 the package, event, date, place and guests as a list, then the note. On the vendor's side it has
 **View lead**, which opens Leads with that lead (`/leads?open=lead:<id>`).
+
+## Decision: a chat with one vendor has a sidebar (2026-11-16)
+
+Beside a client's thread with one vendor (`components/ChatSidebar.tsx`): the vendor's card (photo,
+category, place, rating, their page), the contract's standing with what to do about it (Review &
+sign, Propose changes, "Waiting on [vendor]", Open the contract), and the payment schedule once
+it's signed. The contract is the latest one sent in the thread, else the thread's booking. It's
+all read from endpoints the app already uses, so there's no backend change. On a phone it sits
+behind a **Details** button above the thread. `contractStanding` moved to `lib/contract.ts` so
+the contract page and the sidebar word the status the same way.
