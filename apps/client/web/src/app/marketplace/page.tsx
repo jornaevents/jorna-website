@@ -50,6 +50,7 @@ import { CategoryTiles } from "@/components/ExploreCategories";
 import { FiltersDialog } from "@/components/FiltersDialog";
 import { useSavedPackages } from "@/lib/savedPackages";
 import { ExploreSkeleton, ResultsGrid, SkeletonBody } from "@/components/Skeletons";
+import { DateField } from "@jorna/shared/components/DateField";
 
 const PAGE_SIZE = 12;
 // /vendors/search has no text-query parameter, so a typed query is filtered
@@ -425,12 +426,11 @@ function MarketplaceInner() {
             </div>
 
             <div>
-              <Field
+              <DateField
                 label="Date"
-                type="date"
                 value={date}
                 min={todayLocalIso()}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
               />
               {date ? (
                 // What this can actually promise. lib/availability hides a

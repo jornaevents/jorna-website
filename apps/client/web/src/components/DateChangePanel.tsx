@@ -27,6 +27,7 @@ import {
 } from "@/lib/types";
 import { isDeadBooking } from "@/lib/planning";
 import { Button, Card, Field, TimeField } from "@jorna/shared/components/ui";
+import { DateField } from "@jorna/shared/components/DateField";
 
 function money(cents: number) {
   return `$${Math.round(cents / 100).toLocaleString()}`;
@@ -175,18 +176,17 @@ export function DateChangePanel({
       {proposing ? (
         <div className="mt-4 border-t border-line-soft pt-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
+            <DateField
               label="New date"
-              type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
             />
-            <Field
+            <DateField
               label="Last day (if it runs across several)"
-              type="date"
               min={date || undefined}
               value={dateEnd}
-              onChange={(e) => setDateEnd(e.target.value)}
+              onChange={setDateEnd}
+              rangeWith={date}
             />
             <TimeField label="Starts (optional)" value={timeStart} onChange={setTimeStart} />
             <TimeField label="Ends (optional)" value={timeEnd} onChange={setTimeEnd} />

@@ -15,7 +15,7 @@
 // keeps the working version and calls back with it.
 
 import { AddressStringFields } from "../AddressFields";
-import { openPicker, TimeField } from "../ui";
+import { TimeField } from "../ui";
 import { useMemo, useState, type ReactNode } from "react";
 import { wordDiff } from "../../lib/contractDiff";
 import type { Draft } from "../../lib/contractDraft";
@@ -38,6 +38,7 @@ import {
   type Toggle,
 } from "../../lib/negotiation";
 import { ContractPaper, MARK_CLASS, type Mark } from "./ContractPaper";
+import { DateField } from "../DateField";
 
 const input =
   "w-full rounded-lg border border-card-edge bg-ground-2 px-3 py-2 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30";
@@ -93,7 +94,7 @@ function ValueInput({
     case "longtext":
       return <textarea {...common} rows={4} onChange={(e) => onChange(e.target.value)} />;
     case "date":
-      return <input {...common} type="date" onClick={openPicker} onChange={(e) => onChange(e.target.value)} />;
+      return <DateField aria-label={common["aria-label"]} value={value} className={input} onChange={onChange} />;
     case "time":
       return <TimeField name={common["aria-label"]} value={value} onChange={onChange} />;
     case "count":

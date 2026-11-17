@@ -12,6 +12,7 @@ import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { Drawer } from "@/components/Drawer";
 import { deleteEvent, updateEvent } from "@/lib/jorna";
 import { CATEGORY_LABELS, categoryLabel, type EventItem } from "@/lib/types";
+import { DateField } from "@jorna/shared/components/DateField";
 
 export function EditEventDrawer({
   event,
@@ -83,8 +84,8 @@ export function EditEventDrawer({
       <form onSubmit={save} className="mt-5 grid gap-4">
         <Field label="Event name" required value={name} onChange={(e) => setName(e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date" type="date" required value={start} onChange={(e) => setStart(e.target.value)} />
-          <Field label="End date (optional)" type="date" min={start || undefined} value={end} onChange={(e) => setEnd(e.target.value)} />
+          <DateField label="Date" required value={start} onChange={setStart} />
+          <DateField label="End date (optional)" min={start || undefined} value={end} onChange={setEnd} rangeWith={start} />
         </div>
         <CityCombobox label="Where" value={location} onChange={(v) => setLocation(v)} required />
         <div className="grid grid-cols-2 gap-3">

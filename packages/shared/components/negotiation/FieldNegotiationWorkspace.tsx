@@ -32,8 +32,9 @@ import {
   valueProblem,
   waitingOn,
 } from "../../lib/fieldNegotiation";
-import { Button, openPicker, TimeField } from "../ui";
+import { Button, TimeField } from "../ui";
 import { ContractPaper, type Mark } from "./ContractPaper";
+import { DateField } from "../DateField";
 
 
 const inputClass =
@@ -115,9 +116,9 @@ function ScheduleInput({
           {row.due_type === "date" ? (
             <label className="grid gap-1 text-xs text-ink-soft">
               <span>Due date</span>
-              <input id={inputId ? `${inputId}-${index}-date` : undefined} aria-label={`${row.label || `Payment ${index + 1}`} due date`}
-                type="date" onClick={openPicker} className={inputClass} value={row.due_date ?? ""}
-                onChange={(e) => update(index, { due_date: e.target.value || null })} />
+              <DateField id={inputId ? `${inputId}-${index}-date` : undefined} aria-label={`${row.label || `Payment ${index + 1}`} due date`}
+                className={inputClass} value={row.due_date ?? ""}
+                onChange={(iso) => update(index, { due_date: iso || null })} />
             </label>
           ) : null}
           {row.due_type === "before_event" ? (
@@ -172,10 +173,10 @@ function ValueInput({
     const v = (value ?? {}) as { date_iso?: string; date_end?: string | null };
     return (
       <div className="grid grid-cols-2 gap-2">
-        <input id={inputId ? `${inputId}-start` : undefined} aria-label={`${field.label}: start`} type="date" className={inputClass} onClick={openPicker} value={v.date_iso ?? ""}
-          onChange={(e) => onChange({ date_iso: e.target.value, date_end: v.date_end ?? null })} />
-        <input id={inputId ? `${inputId}-end` : undefined} aria-label={`${field.label}: last day (optional)`} type="date" className={inputClass} onClick={openPicker} value={v.date_end ?? ""}
-          onChange={(e) => onChange({ date_iso: v.date_iso ?? "", date_end: e.target.value || null })} />
+        <DateField id={inputId ? `${inputId}-start` : undefined} aria-label={`${field.label}: start`} className={inputClass} value={v.date_iso ?? ""}
+          rangeWith={v.date_end ?? undefined} onChange={(iso) => onChange({ date_iso: iso, date_end: v.date_end ?? null })} />
+        <DateField id={inputId ? `${inputId}-end` : undefined} aria-label={`${field.label}: last day (optional)`} className={inputClass} value={v.date_end ?? ""}
+          min={v.date_iso || undefined} rangeWith={v.date_iso ?? undefined} onChange={(iso) => onChange({ date_iso: v.date_iso ?? "", date_end: iso || null })} />
       </div>
     );
   }

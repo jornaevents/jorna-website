@@ -137,7 +137,7 @@ test("Send inquiry opens the inquiry form filled from the event, then the row po
 
   const sheet = page.getByRole("dialog", { name: "Send Beat Bazaar an inquiry" });
   await expect(sheet.getByLabel("Package")).toHaveValue("svc-b");
-  await expect(sheet.getByLabel("Event date")).toHaveValue("2099-05-22");
+  await expect(sheet.getByLabel("Event date")).toHaveValue("May 22, 2099");
   await expect(sheet.getByLabel("What's the event?")).toHaveValue("Wedding");
   await expect(sheet.getByLabel("City & state")).toHaveValue("Edison, NJ");
   await sheet.getByRole("button", { name: "Send inquiry" }).click();

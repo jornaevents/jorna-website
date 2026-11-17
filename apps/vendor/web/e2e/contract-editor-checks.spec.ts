@@ -47,12 +47,6 @@ test.describe("contract editor checks", () => {
   test("a payment is due when they sign, days before, or on a specific date, picked from a calendar", async ({ page, api }) => {
     await loginAs(page, api);
     mockEditor(api);
-    // The native calendar button is hidden, so clicking the box has to open it.
-    await page.addInitScript(() => {
-      HTMLInputElement.prototype.showPicker = function () {
-        (window as unknown as { picked?: string }).picked = this.getAttribute("aria-label") ?? "";
-      };
-    });
     await page.goto("contracts/new/?conversation=c1&scratch=1");
     await fillEvent(page, iso(250));
     const schedule = page.getByRole("article", { name: "Contract document" }).getByRole("region", { name: "Payment schedule" });
@@ -60,8 +54,14 @@ test.describe("contract editor checks", () => {
     await expect(due.locator("option")).toHaveText(["When they sign", "Days before the event", "On a specific date"]);
 
     await due.selectOption("date");
-    await schedule.getByLabel("Due date").click();
-    expect(await page.evaluate(() => (window as unknown as { picked?: string }).picked)).toBe("Due date");
+    // Clicking the box opens Jorna's calendar (DateField); a picked day lands in it.
+    const field = schedule.getByLabel("Due date");
+    await field.click();
+    const calendar = page.getByRole("dialog", { name: "Choose Due date" });
+    await calendar.getByRole("button", { name: "Next month" }).click();
+    await calendar.getByRole("button", { name: /[A-Z][a-z]+ 15, \d{4}$/ }).click();
+    await expect(calendar).toHaveCount(0);
+    await expect(field).toHaveValue(/^[A-Z][a-z]{2} 15, \d{4}$/);
   });
 
   test("times start unset and are picked as hour, minute and AM/PM, not the clock's minute", async ({ page, api }) => {

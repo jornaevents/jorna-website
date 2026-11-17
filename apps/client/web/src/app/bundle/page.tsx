@@ -99,6 +99,7 @@ import { ESCROW_ENABLED } from "@jorna/shared/lib/flags";
 import { Avatar, Button, Card, Field, LinkButton } from "@jorna/shared/components/ui";
 import { signInUrl } from "@/lib/vendorSite";
 import { PlanSkeleton } from "@/components/Skeletons";
+import { DateField } from "@jorna/shared/components/DateField";
 
 function money(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
@@ -1315,11 +1316,10 @@ function CelebrationPanel({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {!committed ? (
             <>
-              <Field
+              <DateField
                 label="Date"
-                type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
               />
               <Field
                 label="Guests"

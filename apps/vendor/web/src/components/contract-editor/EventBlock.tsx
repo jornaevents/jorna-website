@@ -5,6 +5,7 @@ import { AddressStringFields } from "@jorna/shared/components/AddressFields";
 import { describeWhen, type Draft } from "@jorna/shared/lib/contractDraft";
 import type { VendorBooking } from "@/lib/types";
 import { todayIso, type SetDraft } from "./shared";
+import { DateField } from "@jorna/shared/components/DateField";
 
 /** When and where. A request's are the client's own, so they're shown, not
  *  edited — the client asks for a new date from their plan. */
@@ -37,20 +38,19 @@ export function EventBlock({
     </div>
   ) : (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field
+      <DateField
         label={draft.multiDay ? "Start date" : "Date"}
-        type="date"
         min={todayIso()}
         value={draft.dateIso}
-        onChange={(e) => set({ dateIso: e.target.value })}
+        onChange={(v) => set({ dateIso: v })}
       />
       {draft.multiDay ? (
-        <Field
+        <DateField
           label="End date"
-          type="date"
           min={draft.dateIso || todayIso()}
           value={draft.dateEnd}
-          onChange={(e) => set({ dateEnd: e.target.value })}
+          onChange={(v) => set({ dateEnd: v })}
+          rangeWith={draft.dateIso}
         />
       ) : (
         <label className="flex items-center gap-2 self-end pb-3 text-sm text-ink-soft">

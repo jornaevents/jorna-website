@@ -36,6 +36,7 @@ import {
 } from "@/lib/types";
 import { Drawer } from "@/components/Drawer";
 import { GuestListSkeleton } from "@/components/Skeletons";
+import { DateField } from "@jorna/shared/components/DateField";
 
 function prettyDate(iso?: string | null): string | null {
   if (!iso || iso === "TBD") return null;
@@ -552,10 +553,10 @@ function Functions({
             <div key={fn.function_id} className="rounded-xl border border-card-edge bg-ground-2 p-3">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Field value={editName} onChange={(e) => setEditName(e.target.value)} />
-                <Field
-                  type="date"
+                <DateField
+                  aria-label="Date"
                   value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
+                  onChange={setEditDate}
                 />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -614,11 +615,10 @@ function Functions({
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <Field
+            <DateField
               label="Date"
-              type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
             />
             <TimeField label="From" value={from} onChange={setFrom} />
             <TimeField label="To" value={to} onChange={setTo} />

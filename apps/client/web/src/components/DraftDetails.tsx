@@ -53,6 +53,7 @@ import { priceUnitKind, type BundleDetail, type BundleBooking } from "@/lib/type
 import { crossesMidnight, hoursBetween } from "@jorna/shared/lib/pricing";
 import { AddressFields } from "@jorna/shared/components/AddressFields";
 import { Button, Card, Field, roundTimeLabel, TimeField } from "@jorna/shared/components/ui";
+import { DateField } from "@jorna/shared/components/DateField";
 
 /**
  * This card autosaves with no submit step to gate (see the header comment),
@@ -320,11 +321,10 @@ export function DraftDetails({
 
       <div className="mt-4 grid gap-4">
         {show("date", Boolean(date)) ? (
-          <Field
+          <DateField
             label="Event date"
-            type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
           />
         ) : null}
 
