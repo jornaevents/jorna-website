@@ -46,6 +46,8 @@ import { findService, groupOf, useTaxonomy } from "@jorna/shared/lib/taxonomy";
 import { Button, Chip, Field, LinkButton, TimeField } from "@jorna/shared/components/ui";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
 import { VendorCard, VendorCardSkeleton } from "@/components/VendorCard";
+import { CategoryTiles } from "@/components/ExploreCategories";
+import { FiltersDialog } from "@/components/FiltersDialog";
 import { useSavedPackages } from "@/lib/savedPackages";
 
 const PAGE_SIZE = 12;
@@ -363,29 +365,21 @@ function MarketplaceInner() {
             placeholder="Search DJs, Mehndi…"
             aria-label="Search vendors"
             autoFocus
-            className="w-full rounded-xl border border-card-edge bg-ground-2 py-3 pl-11 pr-3.5 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+            className="w-full rounded-xl border border-transparent bg-card py-3 pl-11 pr-3.5 text-ink shadow-card outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
           />
         </label>
-        <Button variant={showFilters ? "primary" : "ghost"} onClick={() => setShowFilters((v) => !v)}>
+        <Button variant={activeFilters ? "primary" : "ghost"} aria-haspopup="dialog" onClick={() => setShowFilters(true)}>
           Filters{activeFilters ? ` · ${activeFilters}` : ""}
         </Button>
       </div>
 
       <EventQuantityBar value={eventInputs} onChange={setEventInputs} showPerformers={showPerformers} />
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Chip active={!pick && !legacy.category} onClick={() => choose(null)}>
-          All
-        </Chip>
-        {(taxonomy?.groups ?? []).map((g) => (
-          <Chip key={g.key} active={activeGroup?.key === g.key} onClick={() => choose(g.key)}>
-            {g.label}
-          </Chip>
-        ))}
-      </div>
+      <h2 className="mt-8 mb-3 text-lg font-bold text-ink">Browse by category</h2>
+      <CategoryTiles taxonomy={taxonomy} pick={pick} onPick={choose} />
 
       {activeGroup && activeGroup.services.length > 1 ? (
-        <div aria-label={`${activeGroup.label} services`} role="group" className="mt-2 flex flex-wrap gap-2">
+        <div aria-label={`${activeGroup.label} services`} role="group" className="mt-3 flex flex-wrap gap-2">
           <Chip active={!activeService} onClick={() => choose(activeGroup.key)}>
             All {activeGroup.label.toLowerCase()}
           </Chip>
@@ -398,7 +392,13 @@ function MarketplaceInner() {
       ) : null}
 
       {showFilters ? (
-        <div className="mt-4 rounded-2xl border border-card-edge bg-panel p-4 sm:p-5">
+        <FiltersDialog
+          count={narrowing ? visible.length : total}
+          loading={loading || checkingDate}
+          canClear={activeFilters > 0 || sortBy !== "rating"}
+          onClear={clearFilters}
+          onClose={() => setShowFilters(false)}
+        >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <CityCombobox
@@ -455,7 +455,7 @@ function MarketplaceInner() {
             </div>
           ) : null}
 
-          <div className="mt-4 grid gap-4 border-t border-card-edge pt-4 sm:grid-cols-3">
+          <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-3">
             <div>
               <span className="mb-2 block text-sm font-medium text-ink-soft">Minimum rating</span>
               <div className="flex flex-wrap gap-2">
@@ -488,14 +488,7 @@ function MarketplaceInner() {
             />
           </div>
 
-          {activeFilters ? (
-            <div className="mt-4 text-right">
-              <Button variant="quiet" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        </FiltersDialog>
       ) : null}
 
       {error ? (
