@@ -1115,7 +1115,7 @@ function Detail({ label, value, muted }: { label: string; value: string; muted?:
 /**
  * Who's coming, in one line, with the way through to the list.
  *
- * The guest list is its own page — it gets worked over months, in short bursts,
+ * The guest list lives in the event's page — it gets worked over months, in short bursts,
  * and it isn't about vendors. What belongs here is the one number that changes
  * a decision: how the replies sit against the count the vendors were booked
  * against. Reports it; changes nothing. A caterer holding two hundred is
@@ -1123,11 +1123,9 @@ function Detail({ label, value, muted }: { label: string; value: string; muted?:
  */
 function GuestsRow({
   eventId,
-  bundleId,
   plannedFor,
 }: {
   eventId: string;
-  bundleId: string;
   plannedFor?: number | null;
 }) {
   const [list, setList] = useState<GuestList | null>(null);
@@ -1144,7 +1142,7 @@ function GuestsRow({
     };
   }, [eventId]);
 
-  const href = `/guests?event=${eventId}&bundle=${bundleId}`;
+  const href = `/event?id=${eventId}&tab=guests`;
   const started = (list?.guests.length ?? 0) > 0;
 
   // The biggest gathering, named as such.
@@ -1217,13 +1215,11 @@ function CelebrationPanel({
   summary,
   full,
   bookings,
-  bundleId,
   onSaved,
 }: {
   summary: BundleEventInfo;
   full: EventItem | null;
   bookings: BundleBooking[];
-  bundleId: string;
   onSaved: () => void | Promise<void>;
 }) {
   // A booked venue is where the event is, and it knows its own address; asking
@@ -1431,7 +1427,6 @@ function CelebrationPanel({
 
       <GuestsRow
         eventId={summary.event_id}
-        bundleId={bundleId}
         plannedFor={guestCount}
       />
 
@@ -2089,7 +2084,6 @@ function BundleInner() {
               summary={bundle.event}
               full={event}
               bookings={bundle.bookings}
-              bundleId={bundle.bundle_id}
               onSaved={load}
             />
           ) : null}

@@ -11,7 +11,7 @@
 // the plan (/bundle) the vendor rows link to, and a contract opens on
 // /contract. /event was a redirect to the plan before this.
 
-import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -28,6 +28,7 @@ import { VendorDrawer } from "@/components/VendorDrawer";
 import { InquirySheet } from "@/components/InquiryButton";
 import { inquirySentFor, rememberInquiry } from "@/lib/inquirySent";
 import { EditEventDrawer } from "@/components/EditEventDrawer";
+import { GuestListSection } from "@/components/GuestList";
 import { BudgetTab } from "@/components/BudgetTab";
 import { DayOfTab } from "@/components/DayOfTab";
 import { EVENT_ZOOM_NAME, eventArrived, zoomPending } from "@/lib/eventZoom";
@@ -69,11 +70,11 @@ function Tile({ label, value, badge, tone, note, children }: { label: string; va
   );
 }
 
-// The event's sections. Guest List is the existing guests page, linked from
-// the sidebar; the rest are tabs here, kept in the address (?tab=). Registry
-// is off for now (2026-11-17) — RegistryTab stays for when it comes back.
+// The event's sections, kept in the address (?tab=). Registry is off for now
+// (2026-11-17) — RegistryTab stays for when it comes back.
 const TABS: [string, string][] = [
   ["overview", "Overview"],
+  ["guests", "Guest List"],
   ["budget", "Budget"],
   ["dayof", "Day-of"],
 ];
@@ -176,26 +177,21 @@ function Workspace() {
       <div className="mt-7 grid gap-6 desk:grid-cols-[200px_minmax(0,1fr)]">
         <aside aria-label="Event sections">
           <nav className="flex gap-1 overflow-x-auto desk:grid">
-            {TABS.map(([key, label], i) => (
-              <Fragment key={key}>
-                <Link
-                  href={`/event?id=${c.event!.event_id}${key === "overview" ? "" : `&tab=${key}`}`}
-                  aria-current={tab === key ? "page" : undefined}
-                  className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-card text-ink" : "text-ink-soft hover:bg-card"}`}
-                >
-                  {label}
-                </Link>
-                {i === 0 ? (
-                  <Link href={`/guests?event=${c.event!.event_id}`} className="shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-soft hover:bg-card">
-                    Guest List
-                  </Link>
-                ) : null}
-              </Fragment>
+            {TABS.map(([key, label]) => (
+              <Link
+                key={key}
+                href={`/event?id=${c.event!.event_id}${key === "overview" ? "" : `&tab=${key}`}`}
+                aria-current={tab === key ? "page" : undefined}
+                className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-semibold ${tab === key ? "bg-card text-ink" : "text-ink-soft hover:bg-card"}`}
+              >
+                {label}
+              </Link>
             ))}
           </nav>
         </aside>
 
         <section className="min-w-0">
+          {tab === "guests" ? <GuestListSection eventId={c.event.event_id} plannedFor={c.guestCount} /> : null}
           {tab === "budget" ? <BudgetTab celebration={c} rows={rows} onOpen={setOpenVendor} /> : null}
           {tab === "dayof" ? <DayOfTab celebration={c} /> : null}
           {tab === "overview" ? (
