@@ -26,8 +26,12 @@ export interface VendorRow {
   /** Price, and the next thing about its money. */
   detail: string;
   /** The single next step, and what it opens. */
-  action: "Send request" | "Review" | "Pay now" | "View";
-  target: "plan" | "contract" | "drawer";
+  action: "Send inquiry" | "Review" | "Pay now" | "View" | "Open chat";
+  /** "inquiry" opens the inquiry form for this vendor; "chat", the thread
+   *  an inquiry started. */
+  target: "plan" | "contract" | "drawer" | "inquiry" | "chat";
+  /** The thread an inquiry from here started, once there is one. */
+  conversationId?: string | null;
   /** How far along the eight-step line it is (0 = find one … 7 = done). */
   step: number;
 }
@@ -86,7 +90,7 @@ export function vendorRow(booking: BundleBooking, bundle: BundleDetail): VendorR
     return { ...base, status: "Contract expired", tone: "maroon", detail: say("ask the vendor to resend it"), action: "View", target: "plan", step: 3 };
   }
   if (isDraftBundle(bundle)) {
-    return { ...base, status: "Ready to send", tone: "gold", detail: say("not sent yet"), action: "Send request", target: "plan", step: 1 };
+    return { ...base, status: "Ready to send", tone: "gold", detail: say("not sent yet"), action: "Send inquiry", target: "inquiry", step: 1 };
   }
   if (stage === "requested") {
     return { ...base, status: "Requested", tone: "neutral", detail: say("waiting on the vendor"), action: "View", target: "drawer", step: 2 };
@@ -94,6 +98,26 @@ export function vendorRow(booking: BundleBooking, bundle: BundleDetail): VendorR
   // Agreed before contracts existed (the escrow-era path): the plan still
   // describes its payment state.
   return { ...base, status: "Booked", tone: "green", detail: say(""), action: "View", target: "plan", step: 5 };
+}
+
+/**
+ * A "Ready to send" row once an inquiry has gone to that vendor from here. The
+ * plan's draft booking doesn't change when an inquiry is sent (the inquiry is
+ * its own lead and thread), so what's known is only what this device recorded
+ * — see lib/inquirySent.
+ */
+export function withInquirySent(row: VendorRow, conversationId: string | null): VendorRow {
+  if (row.target !== "inquiry") return row;
+  return {
+    ...row,
+    status: "Inquiry sent",
+    tone: "neutral",
+    detail: "Waiting on the vendor's reply",
+    action: conversationId ? "Open chat" : "View",
+    target: conversationId ? "chat" : "drawer",
+    conversationId,
+    step: 2,
+  };
 }
 
 export function vendorRows(c: Celebration): VendorRow[] {

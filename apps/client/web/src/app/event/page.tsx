@@ -19,12 +19,14 @@ import { ApiError } from "@jorna/shared/lib/api";
 import { Button, LinkButton } from "@jorna/shared/components/ui";
 import { listBundles, listEvents } from "@/lib/jorna";
 import { bookedOf, daysAway, prettyDate, toCelebrations, type Celebration } from "@/lib/myEvents";
-import { overviewTotals, vendorRows, type VendorRow } from "@/lib/eventOverview";
+import { overviewTotals, vendorRows, withInquirySent, type VendorRow } from "@/lib/eventOverview";
 import { centsMoney, contractInChatPath } from "@/lib/contract";
 import { taskDetail, type PlanTask } from "@/lib/planning";
 import { categoryLabel } from "@/lib/types";
 import { Badge, MiniProgress, type Tone } from "@/components/kit";
 import { VendorDrawer } from "@/components/VendorDrawer";
+import { InquirySheet } from "@/components/InquiryButton";
+import { inquirySentFor, rememberInquiry } from "@/lib/inquirySent";
 import { EditEventDrawer } from "@/components/EditEventDrawer";
 import { BudgetTab } from "@/components/BudgetTab";
 import { DayOfTab } from "@/components/DayOfTab";
@@ -85,6 +87,10 @@ function Workspace() {
   const [celebrations, setCelebrations] = useState<Celebration[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openVendor, setOpenVendor] = useState<string | null>(null);
+  // The "Ready to send" vendor whose inquiry form is open.
+  const [inquiring, setInquiring] = useState<string | null>(null);
+  // Bumped when an inquiry is recorded, so the row re-reads lib/inquirySent.
+  const [, setSentCount] = useState(0);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
@@ -125,18 +131,24 @@ function Workspace() {
     );
   }
 
-  const rows = vendorRows(c);
+  const rows = vendorRows(c).map((row) => {
+    const sent = row.target === "inquiry" ? inquirySentFor(row.booking.booking_id) : undefined;
+    return sent ? withInquirySent(row, sent.conversationId) : row;
+  });
   const totals = overviewTotals(rows);
   const { booked, total } = bookedOf(c);
   const pct = total > 0 ? Math.round((booked / total) * 100) : 0;
   const countdown = toGo(c);
   const open = rows.find((r) => r.booking.booking_id === openVendor) ?? null;
+  const asking = rows.find((r) => r.booking.booking_id === inquiring && r.booking.vendor_id) ?? null;
   const budget = c.budget;
   const committed = c.money.committed;
   const builderHref = `/suggest?event=${c.event.event_id}`;
 
   const act = (row: VendorRow) => {
     if (row.target === "drawer") setOpenVendor(row.booking.booking_id);
+    else if (row.target === "inquiry") setInquiring(row.booking.booking_id);
+    else if (row.target === "chat") router.push(`/conversation?id=${row.conversationId}`);
     else router.push(row.target === "contract" ? contractInChatPath(row.booking.booking_id) : `/bundle?id=${row.bundleId}`);
   };
 
@@ -369,6 +381,24 @@ function Workspace() {
         </section>
       </div>
 
+      {asking ? (
+        <InquirySheet
+          vendorId={asking.booking.vendor_id!}
+          vendorName={asking.booking.vendor_name ?? "the vendor"}
+          prefill={{
+            date: c.dateIso,
+            eventType: c.event.event_type || c.name,
+            city: c.location,
+            guests: c.guestCount,
+            packageName: asking.booking.service_name,
+          }}
+          onSent={(conversationId) => {
+            rememberInquiry(asking.booking.booking_id, conversationId);
+            setSentCount((n) => n + 1);
+          }}
+          onClose={() => setInquiring(null)}
+        />
+      ) : null}
       {open ? <VendorDrawer row={open} onClose={() => setOpenVendor(null)} onPaid={() => void load()} /> : null}
       {editing ? (
         <EditEventDrawer

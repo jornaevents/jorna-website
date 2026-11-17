@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Card } from "@jorna/shared/components/ui";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
-import { InquiryForm } from "@/components/InquiryForm";
+import { InquiryForm, type InquiryPrefill } from "@/components/InquiryForm";
 
 /** "Send an inquiry" on a vendor's page: the inquiry form in a sheet. Anyone
  *  can fill it in; sending needs a client account (backend DECISIONS #45). */
@@ -27,13 +27,17 @@ export function InquiryButton({
   );
 }
 
-function InquirySheet({
+export function InquirySheet({
   vendorId,
   vendorName,
+  prefill,
+  onSent,
   onClose,
 }: {
   vendorId: string;
   vendorName: string;
+  prefill?: InquiryPrefill;
+  onSent?: (conversationId: string | null) => void;
   onClose: () => void;
 }) {
   const panelRef = useOverlay<HTMLDivElement>(true, onClose);
@@ -57,7 +61,7 @@ function InquirySheet({
           </button>
         </div>
         <div className="relative p-4 sm:p-5">
-          <InquiryForm vendorId={vendorId} vendorName={vendorName} />
+          <InquiryForm vendorId={vendorId} vendorName={vendorName} prefill={prefill} onSent={onSent} />
         </div>
       </Card>
     </div>
