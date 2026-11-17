@@ -106,3 +106,48 @@ test("an event with nothing on it yet offers suggestions for its open slots", as
   await expect(page.getByText("No vendors added yet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Suggest vendors" })).toHaveAttribute("href", /suggest\/?\?event=event-1$/);
 });
+
+// A vendor waiting in the event as "Ready to send" gets an inquiry, not the old
+// bundle request: the inquiry form, started from what the event knows.
+test("Send inquiry opens the inquiry form filled from the event, then the row points to the chat", async ({ page, api }) => {
+  await loginAs(page, api);
+  api.error("GET", "/vendors/me", 404, "Not a vendor");
+  api.get("/conversations/unread-count", { unread_count: 0 });
+  api.get("/events", [{ ...EVENT, event_type: "Wedding" }]);
+  api.get("/bundles", [
+    mockBundleDetail({
+      status: "draft",
+      bookings: [
+        mockBundleBooking({ booking_id: "bk-dj", vendor_id: "vendor-dj", vendor_name: "Beat Bazaar", service_category: "dj", service_name: "Reception set", status: "pending" }),
+      ],
+    }),
+  ]);
+  api.get("/services", {
+    items: [
+      { service_id: "svc-a", name: "Sangeet set", vendor_id: "vendor-dj", price: 1500, price_unit: "event" },
+      { service_id: "svc-b", name: "Reception set", vendor_id: "vendor-dj", price: 2500, price_unit: "event" },
+    ],
+    total: 2, limit: 50, offset: 0,
+  });
+  api.post("/vendors/vendor-dj/inquiries", { received: true, vendor_name: "Beat Bazaar", conversation_id: "conv-dj" });
+
+  await page.goto("event/?id=event-1");
+  await expect(page.getByText("Ready to send").first()).toBeVisible();
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  const sheet = page.getByRole("dialog", { name: "Send Beat Bazaar an inquiry" });
+  await expect(sheet.getByLabel("Package")).toHaveValue("svc-b");
+  await expect(sheet.getByLabel("Event date")).toHaveValue("2099-05-22");
+  await expect(sheet.getByLabel("What's the event?")).toHaveValue("Wedding");
+  await expect(sheet.getByLabel("City & state")).toHaveValue("Edison, NJ");
+  await sheet.getByRole("button", { name: "Send inquiry" }).click();
+  await expect(sheet.getByRole("status")).toContainText("Beat Bazaar will reply in your messages");
+
+  const [sent] = api.requestsTo("POST", "/vendors/vendor-dj/inquiries");
+  expect(sent.body).toMatchObject({ service_id: "svc-b", event_date_iso: "2099-05-22", event_type: "Wedding", location_city: "Edison", location_state: "NJ" });
+
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Inquiry sent").first()).toBeVisible();
+  await page.getByRole("button", { name: "Open chat" }).click();
+  await expect(page).toHaveURL(/conversation\/?\?id=conv-dj$/);
+});

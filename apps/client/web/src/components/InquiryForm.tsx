@@ -95,11 +95,46 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendorName: string }) {
+/** What an event already knows, to start the form from (a vendor waiting in
+ *  an event as "Ready to send"). A saved draft still wins: it's newer. The
+ *  package comes by name, since a booking in a plan doesn't carry its id. */
+export interface InquiryPrefill {
+  date?: string | null;
+  eventType?: string | null;
+  city?: string | null;
+  guests?: number | null;
+  packageName?: string | null;
+}
+
+export function InquiryForm({
+  vendorId,
+  vendorName,
+  prefill,
+  onSent,
+}: {
+  vendorId: string;
+  vendorName: string;
+  prefill?: InquiryPrefill;
+  onSent?: (conversationId: string | null) => void;
+}) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const id = useId();
-  const [draft] = useState(() => loadDraft(vendorId));
+  const [draft] = useState<Draft | null>(
+    () =>
+      loadDraft(vendorId) ??
+      (prefill
+        ? {
+            vendorId,
+            date: prefill.date ?? "",
+            eventType: prefill.eventType ?? "",
+            where: "city",
+            city: prefill.city && cityAndState(prefill.city) ? prefill.city : "",
+            guests: prefill.guests != null ? String(prefill.guests) : "",
+            note: "",
+          }
+        : null),
+  );
   const [date, setDate] = useState(draft?.date ?? "");
   const [eventType, setEventType] = useState(draft?.eventType ?? "");
   const [where, setWhere] = useState<Where>(draft?.where ?? "city");
@@ -139,12 +174,13 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
   }, [vendorId]);
   const loaded = packages?.vendorId === vendorId ? packages : null;
   const packageOptions = loaded?.items ?? [];
-  // One package is the answer already.
+  // One package is the answer already, as is the one the event named.
+  const named = prefill?.packageName?.trim().toLowerCase();
   const chosen = packageOptions.some((p) => p.id === serviceId)
     ? serviceId
     : packageOptions.length === 1
       ? packageOptions[0].id
-      : "";
+      : (named && packageOptions.find((p) => p.name.trim().toLowerCase() === named)?.id) || "";
   // Nothing to pick from: they can't send it here.
   const noPackages = loaded != null && packageOptions.length === 0;
   // Priced per guest, so the vendor can't quote without a count.
@@ -223,6 +259,7 @@ export function InquiryForm({ vendorId, vendorName }: { vendorId: string; vendor
       });
       clearDraft();
       setSent({ conversationId: reply.conversation_id ?? null });
+      onSent?.(reply.conversation_id ?? null);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Couldn't send that. Check your connection and try again.";
       if (message === CONFIRM_EMAIL) {
