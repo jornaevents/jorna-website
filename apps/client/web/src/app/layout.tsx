@@ -50,16 +50,18 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col">
         <SentryRuntime />
         <AuthProvider>
-          <ChromeGate>
-            <SiteHeader />
-          </ChromeGate>
-          <main className="flex-1">
-            <VendorAccountGate>{children}</VendorAccountGate>
-          </main>
-          <ChromeGate>
-            <SiteFooter />
-            <MobileTabBar />
-          </ChromeGate>
+          {/* Around the header and tab bar too: a vendor account never sees
+              the client app's chrome, only the notice that sends it home. */}
+          <VendorAccountGate>
+            <ChromeGate>
+              <SiteHeader />
+            </ChromeGate>
+            <main className="flex-1">{children}</main>
+            <ChromeGate>
+              <SiteFooter />
+              <MobileTabBar />
+            </ChromeGate>
+          </VendorAccountGate>
           {/* Foreground web-push listener; no-op unless signed in + permitted. */}
           <PushRuntime />
         </AuthProvider>

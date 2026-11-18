@@ -15,10 +15,11 @@ import {
   useMemo,
   useState,
 } from "react";
-import { apiFetch, configureTokens, type TokenPair } from "./api";
+import { accountSide, type AccountRole, type AccountSide } from "./accountSide";
+import { ApiError, apiFetch, configureTokens, type TokenPair } from "./api";
 import { ACCESS_KEY, REFRESH_KEY, ROLE_HINT_KEY } from "./sessionKeys";
 
-export interface User {
+export interface User extends AccountRole {
   user_id: string;
   email: string;
   username: string;
@@ -92,6 +93,8 @@ export function hasStoredSession(): boolean {
 
 interface RegisterInput {
   email: string;
+  /** Which sign-up this is, recorded on the account (backend #53). */
+  side?: "client" | "vendor";
   password: string;
   /** The sign-up form's terms box; the backend records when it was ticked. */
   accept_terms?: boolean;
@@ -117,13 +120,39 @@ interface RegisterInput {
   supabase_access_token?: string;
 }
 
+/**
+ * GET /me, with is_vendor set. A backend older than #53 doesn't send it, so
+ * it's read from /vendors/me there (404 = not a vendor), with one retry — an
+ * extra request for as long as such a backend is live, then none. If that
+ * still fails it's left unset rather than failing the sign-in: a session
+ * isn't lost to a hiccup in a side check (see the vendor app's lib/role).
+ */
+async function loadMe(): Promise<User> {
+  const me = await apiFetch<User>("/me");
+  if (typeof me.is_vendor === "boolean") return me;
+  const vendorCheck = () =>
+    apiFetch("/vendors/me").then(
+      () => true,
+      (err) => {
+        if (err instanceof ApiError && err.status === 404) return false;
+        throw err;
+      },
+    );
+  const is_vendor = await vendorCheck()
+    .catch(vendorCheck)
+    .catch(() => undefined);
+  return is_vendor === undefined ? me : { ...me, is_vendor };
+}
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
+  /** Each resolves to the signed-in account, so a caller can pick where to
+   *  go by what it is (accountSide) without waiting for a re-render. */
+  login: (identifier: string, password: string) => Promise<User>;
+  register: (input: RegisterInput) => Promise<User>;
   /** Adopt a Jorna token pair obtained outside the password flow (Google). */
-  adoptSession: (pair: TokenPair) => Promise<void>;
+  adoptSession: (pair: TokenPair) => Promise<User>;
   /** End the session. With a destination (`to`, else the provider's
    *  `logoutTo`) it leaves with a full page load, so no page's "signed out →
    *  /login?next=<this page>" redirect can run first and hand the next person
@@ -182,7 +211,7 @@ export function AuthProvider({
     // promise settles, as it does after /me — never synchronously in this
     // effect. The tokens above are read synchronously either way, so a page's
     // first requests still carry them.
-    const me = a ? apiFetch<User>("/me").then(setUser).catch(() => clear()) : Promise.resolve();
+    const me = a ? loadMe().then(setUser).catch(() => clear()) : Promise.resolve();
     void me.finally(() => setLoading(false));
   }, [clear]);
 
@@ -194,8 +223,9 @@ export function AuthProvider({
       /* storage disabled — nothing was stored either */
     }
     persist(pair);
-    const me = await apiFetch<User>("/me");
+    const me = await loadMe();
     setUser(me);
+    return me;
   }, [persist]);
 
   const login = useCallback(
@@ -205,7 +235,7 @@ export function AuthProvider({
         auth: false,
         body: { identifier, password },
       });
-      await afterTokens(pair);
+      return afterTokens(pair);
     },
     [afterTokens],
   );
@@ -226,7 +256,7 @@ export function AuthProvider({
         auth: false,
         body: { identifier: input.email, password: input.password },
       });
-      await afterTokens(pair);
+      return afterTokens(pair);
     },
     [afterTokens],
   );
@@ -234,9 +264,7 @@ export function AuthProvider({
   // Persist a token pair we already hold (e.g. from /auth/google/lookup) and
   // load the profile — the Google equivalent of finishing login().
   const adoptSession = useCallback(
-    async (pair: TokenPair) => {
-      await afterTokens(pair);
-    },
+    async (pair: TokenPair) => afterTokens(pair),
     [afterTokens],
   );
 
@@ -261,4 +289,16 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
+}
+
+/**
+ * What the signed-in account is, known as soon as the account is: null while
+ * the session is still loading, "signed-out" with none. Never a guess, so a
+ * page can hold its content back for null instead of drawing one side and
+ * swapping to the other.
+ */
+export function useAccountSide(): AccountSide | "signed-out" | null {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? accountSide(user) : "signed-out";
 }

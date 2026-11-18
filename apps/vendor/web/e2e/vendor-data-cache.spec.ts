@@ -1,5 +1,8 @@
 import { test, expect, loginAs } from "./support/fixtures";
-import { mockEarnings, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
+import { mockEarnings, mockUser, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
+
+// A vendor, as /me says (backend #53).
+const VENDOR_USER = mockUser({ is_vendor: true });
 
 // Moving between vendor pages reuses what was just read (lib/dataCache), and
 // any write makes the next page read afresh — so nothing shown can predate
@@ -32,7 +35,7 @@ test.describe("remembered reads between vendor pages", () => {
   }
 
   test("going back to a page doesn't ask for the vendor or the bookings again", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockShell(api);
     const nav = page.getByRole("navigation", { name: "Vendor" });
 
@@ -52,7 +55,7 @@ test.describe("remembered reads between vendor pages", () => {
   });
 
   test("a reload shows the pages without asking again", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockShell(api);
 
     await page.goto("my-calendar/");
@@ -68,7 +71,7 @@ test.describe("remembered reads between vendor pages", () => {
   });
 
   test("pointing at a sidebar link reads that page's data ahead", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockShell(api);
     api.get(`/payments/vendors/${vendor.vendor_id}/earnings`, mockEarnings());
     const nav = page.getByRole("navigation", { name: "Vendor" });
@@ -82,7 +85,7 @@ test.describe("remembered reads between vendor pages", () => {
   });
 
   test("opening a contract again doesn't read it again; pointing at its row reads it ahead", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockShell(api);
     api.get("/contract-templates", { items: [], total: 0 });
     api.get("/contracts/c-1/documents", { items: [], total: 0 });
@@ -119,7 +122,7 @@ test.describe("remembered reads between vendor pages", () => {
   });
 
   test("after a write, the next page reads afresh", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockShell(api);
     const nav = page.getByRole("navigation", { name: "Vendor" });
 

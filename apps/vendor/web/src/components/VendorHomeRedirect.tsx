@@ -14,10 +14,10 @@
 // be a vendor — a stored token before /me settles, or a known user before
 // the role check does — which only ever happens in a browser.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { hasStoredSession, useAuth } from "@/lib/auth";
-import { clientLanding, loadIsVendor } from "@/lib/role";
+import { hasStoredSession, useAccountSide, useAuth } from "@/lib/auth";
+import { clientLanding } from "@/lib/role";
 
 const noSubscribe = () => () => {};
 
@@ -25,21 +25,13 @@ export function VendorHomeRedirect({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const { user, loading } = useAuth();
   const storedSession = useSyncExternalStore(noSubscribe, hasStoredSession, () => false);
-  const [isVendor, setIsVendor] = useState<boolean | null>(null);
+  const side = useAccountSide();
 
   useEffect(() => {
-    if (loading || !user) return;
-    let cancelled = false;
-    loadIsVendor().then((v) => !cancelled && setIsVendor(v));
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, user]);
-
-  useEffect(() => {
-    if (isVendor === true) router.replace("/overview");
-    if (isVendor === false) clientLanding().then((url) => window.location.replace(url));
-  }, [isVendor, router]);
+    if (side === "vendor") router.replace("/overview");
+    else if (side === "vendor-setup") router.replace("/vendor-onboarding");
+    else if (side === "client") clientLanding().then((url) => window.location.replace(url));
+  }, [side, router]);
 
   // Signed in either way means leaving, so the page is held until then.
   const deciding = user ? true : loading && storedSession;

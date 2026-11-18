@@ -1,4 +1,8 @@
 import { test, expect, loginAs } from "./support/fixtures";
+import { mockUser } from "./support/mock-data";
+
+// A vendor, as /me says (backend #53).
+const VENDOR_USER = mockUser({ is_vendor: true });
 import { MOCK_API_BASE } from "./support/api-base";
 
 // While a vendor page's data is on its way, it shows its own heading and the
@@ -18,7 +22,7 @@ const PAGES = [
 test.describe("vendor pages while they load", () => {
   for (const p of PAGES) {
     test(`${p.title} shows its heading and placeholders`, async ({ page, api }) => {
-      await loginAs(page, api);
+      await loginAs(page, api, VENDOR_USER);
       // Everything but the session is held, so the page stays loading.
       await page.route(`${MOCK_API_BASE}/**`, (route) =>
         new URL(route.request().url()).pathname === "/me" ? route.fallback() : new Promise<void>(() => {}),
@@ -46,7 +50,7 @@ const CONTRACT_PAGES = [
 test.describe("contract pages while they load", () => {
   for (const p of CONTRACT_PAGES) {
     test(`${p.path} shows its placeholders`, async ({ page, api }) => {
-      await loginAs(page, api);
+      await loginAs(page, api, VENDOR_USER);
       await page.route(`${MOCK_API_BASE}/**`, (route) =>
         new URL(route.request().url()).pathname === "/me" ? route.fallback() : new Promise<void>(() => {}),
       );

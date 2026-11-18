@@ -20,10 +20,9 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAccountSide, useAuth } from "@/lib/auth";
 import { loadAttention } from "@/lib/attention";
 import { getUnreadCount } from "@/lib/jorna";
-import { loadIsVendor } from "@/lib/role";
 import { clientAppUrl } from "@/lib/clientApp";
 
 export interface NavItem {
@@ -93,12 +92,10 @@ export const MESSAGES: NavItem = {
   match: ["/messages"],
 };
 
-// Every real login in this app is a vendor now — the marketplace/booking-
-// request flow this used to serve (Builder, Market, a bundles dashboard) was
-// deleted when this repo forked from jorna-website (see docs/DECISIONS.md).
-// What's left is the narrow signed-in-but-not-yet-selling gap: someone who's
-// created an account but hasn't finished vendor-onboarding, or is still
-// signed in during that flow. Route them at that, not at three dead links.
+// A signed-in account with no vendor profile: a client passing through (the
+// sign-in page and Messages are shared since 2026-10-29), or someone who
+// hasn't finished vendor-onboarding. Clients plan in the client app; these
+// are the few links that make sense here for either.
 export const NO_VENDOR_TABS: NavItem[] = [
   { href: "/home", label: "Home", icon: icon(I.home), match: ["/home"] },
   // Signed-in only, on purpose — a visitor who hasn't planned anything yet
@@ -253,30 +250,14 @@ export function useAppNav(): {
   isActive: (item: NavItem) => boolean;
 } {
   const { user, loading } = useAuth();
+  // From the account itself, so the tabs are right the first time they draw.
+  const side = useAccountSide();
   const pathname = usePathname() ?? "";
   // Each value is kept with the user it was loaded for, and only counts for
   // that user: signing out (or someone else signing in) shows the empty
   // default at once, with no effect needed to reset it.
-  const [isVendorFor, setIsVendorFor] = useState<{ userId: string; value: boolean } | null>(null);
   const [attention, setAttention] = useState<{ userId: string; value: number } | null>(null);
   const [messagesUnread, setMessagesUnread] = useState<{ userId: string; value: number } | null>(null);
-
-  // Re-check on navigation, not just on sign-in: this bar is part of the
-  // persistent layout, mounted once per session — unlike ClientOnlyRoute,
-  // which re-derives isVendor on every protected page it wraps, this effect
-  // would otherwise never run again after the first check. A client who
-  // completes vendor-onboarding mid-session (create_vendor calls
-  // clearRoleCache()) would keep seeing the client tabs until they signed
-  // out and back in. Cheap: lib/role's own TTL cache makes most of these a
-  // no-op, same as the attention/messagesUnread effects below.
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    loadIsVendor().then((v) => !cancelled && setIsVendorFor({ userId: user.user_id, value: v }));
-    return () => {
-      cancelled = true;
-    };
-  }, [user, pathname]);
 
   // Re-check on navigation so the badge follows you as you act on things. Cheap:
   // lib/attention's TTL cache makes most of these a no-op, so this is roughly
@@ -299,8 +280,7 @@ export function useAppNav(): {
     if (!user) return;
     let cancelled = false;
     // A vendor's Messages doesn't list plan chats, so their badge leaves them out.
-    loadIsVendor()
-      .then((vendor) => getUnreadCount({ includePlanChats: !vendor }))
+    getUnreadCount({ includePlanChats: !user.is_vendor })
       .then((r) => !cancelled && setMessagesUnread({ userId: user.user_id, value: r.unread_count }))
       .catch(() => {});
     return () => {
@@ -310,11 +290,13 @@ export function useAppNav(): {
 
   const mine = <T,>(got: { userId: string; value: T } | null, fallback: T): T =>
     user && got?.userId === user.user_id ? got.value : fallback;
-  const isVendor = mine<boolean | null>(isVendorFor, null);
-  const signedOut = loading || !user;
+  const isVendor = side === "vendor";
+  // No tabs until the account is known: drawing the no-vendor set first is
+  // what flashed "Browse vendors" and "Get started" at signed-in vendors.
+  const undecided = loading || !user || side === null;
   return {
-    items: signedOut ? null : isVendor ? VENDOR_TABS : NO_VENDOR_TABS,
-    desktopItems: signedOut ? null : isVendor ? VENDOR_DESKTOP_TABS : NO_VENDOR_TABS,
+    items: undecided ? null : isVendor ? VENDOR_TABS : NO_VENDOR_TABS,
+    desktopItems: undecided ? null : isVendor ? VENDOR_DESKTOP_TABS : NO_VENDOR_TABS,
     attention: mine(attention, 0),
     messagesUnread: mine(messagesUnread, 0),
     // Where the wordmark goes. A logo goes home, and home for a seller is their

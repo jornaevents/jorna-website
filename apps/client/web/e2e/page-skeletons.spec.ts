@@ -1,5 +1,6 @@
 import { test, expect, loginAs } from "./support/fixtures";
 import { MOCK_API_BASE } from "./support/api-base";
+import { mockUser } from "./support/mock-data";
 
 // While a page's data is on its way, it shows the shape of what's coming
 // (components/Skeletons) and says what's loading, not a bare "Loading…".
@@ -20,7 +21,9 @@ const PAGES = [
 test.describe("client pages while they load", () => {
   for (const p of PAGES) {
     test(`${p.path} shows its placeholders`, async ({ page, api }) => {
-      await loginAs(page, api);
+      // A client, as /me says (backend #53): every other request is held
+      // open here, so there's nothing else to tell it by.
+      await loginAs(page, api, mockUser({ is_vendor: false }));
       // Everything but the session is held, so the page stays loading.
       await page.route(`${MOCK_API_BASE}/**`, (route) =>
         new URL(route.request().url()).pathname === "/me" ? route.fallback() : new Promise<void>(() => {}),

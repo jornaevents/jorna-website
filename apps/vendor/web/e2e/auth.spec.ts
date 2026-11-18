@@ -168,6 +168,7 @@ test.describe("authentication", () => {
       f_name: "Raj",
       l_name: "Mehta",
       accept_terms: true,
+      side: "vendor",
       phone: "(732) 555-0184",
     });
   });

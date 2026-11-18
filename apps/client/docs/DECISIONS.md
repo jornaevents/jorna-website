@@ -523,3 +523,14 @@ they clicked wins over the one in a saved draft. "Add to my event" (the package 
 this" (the profile) used to open `/book`, which only added a draft to a plan and reached no one.
 The package page's "Add it to your plan now" note went with it. `/book` itself is unchanged, but
 nothing in the app links to it any more.
+
+## Decision: a vendor account never sees the client app (2026-11-18)
+
+`VendorAccountGate` now wraps the header and tab bar as well as the page, and reads what the
+account is from `/me` (`useAccountSide`, backend #53) instead of asking `/vendors/me` after the
+page had drawn. While a signed-in session loads it shows a plain loading line, not the client app.
+A vendor account sees only the notice; one that signed up as a vendor but hasn't finished
+onboarding gets "Finish setting up", linking there. A browser with no stored session passes
+straight through, so the static export keeps its content. The client sign-up sends
+`side: "client"`, Google's too, and an existing vendor account that signs in with Google here is
+sent to the vendor site.

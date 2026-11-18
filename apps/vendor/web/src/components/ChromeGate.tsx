@@ -11,11 +11,9 @@
 //     Messages from the sidebar dropped out of their app into the client
 //     header and had no sidebar to get back with.
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { useAuth } from "@/lib/auth";
-import { loadIsVendor } from "@/lib/role";
+import { useAccountSide } from "@/lib/auth";
 
 const VENDOR_SHELL_PREFIXES = [
   "/overview",
@@ -48,24 +46,10 @@ export function isVendorShellPath(pathname: string | null): boolean {
   return under(VENDOR_SHELL_PREFIXES, pathname);
 }
 
-/** Null while the viewer's role is still being looked up. Keyed on the user
- *  so a sign-in as someone else can't briefly inherit the last answer. */
+/** Null while the session is still loading; otherwise from the account. */
 function useIsVendor(): boolean | null {
-  const { user, loading } = useAuth();
-  const [role, setRole] = useState<{ userId: string; isVendor: boolean } | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    loadIsVendor().then((isVendor) => !cancelled && setRole({ userId: user.user_id, isVendor }));
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  if (loading) return null;
-  if (!user) return false;
-  return role?.userId === user.user_id ? role.isVendor : null;
+  const side = useAccountSide();
+  return side === null ? null : side === "vendor";
 }
 
 /**

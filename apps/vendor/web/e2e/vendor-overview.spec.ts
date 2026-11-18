@@ -1,6 +1,9 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockLead, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
+import { mockLead, mockUser, mockVendorBooking, mockVendorDetail } from "./support/mock-data";
+
+// A vendor, as /me says (backend #53).
+const VENDOR_USER = mockUser({ is_vendor: true });
 
 // Overview (vendor redesign step 1): a summary of the other pages. These pin
 // the parts with logic — which bookings count as what, and where old links go.
@@ -82,7 +85,7 @@ function separateReads(api: import("./support/api-mock").ApiMock, vendorId: stri
 
 test.describe("vendor overview (/overview)", () => {
   test("everything comes in one request, and the next pages find it", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     const vendor = mockOverview(api);
 
     await page.goto("overview/");
@@ -103,7 +106,7 @@ test.describe("vendor overview (/overview)", () => {
   });
 
   test("once the vendor is remembered, Overview reads the rest side by side instead", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockOverview(api);
     api.get("/vendors/me/availability", []);
 
@@ -120,7 +123,7 @@ test.describe("vendor overview (/overview)", () => {
   });
 
   test("when the combined read fails, the separate reads still fill the page", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     const vendor = mockOverview(api, { combined: false });
     api.error("GET", "/vendors/me/overview", 500, "Internal Server Error");
 
@@ -132,7 +135,7 @@ test.describe("vendor overview (/overview)", () => {
   });
 
   test("summarises leads, the next event, bookings and the inbox", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockOverview(api);
 
     await page.goto("overview/");
@@ -173,7 +176,7 @@ test.describe("vendor overview (/overview)", () => {
   });
 
   test("the sidebar lights Overview", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockOverview(api);
 
     await page.goto("overview/");
@@ -184,7 +187,7 @@ test.describe("vendor overview (/overview)", () => {
   });
 
   test("an old ?view=leads link lands on /leads", async ({ page, api }) => {
-    await loginAs(page, api);
+    await loginAs(page, api, VENDOR_USER);
     mockOverview(api);
 
     await page.goto("overview/?view=leads");

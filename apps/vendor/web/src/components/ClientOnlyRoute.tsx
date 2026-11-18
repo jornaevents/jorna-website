@@ -14,33 +14,22 @@
 // — asking would only add a redirect in front of the one already there.
 //
 // Role is the same signal as everywhere else (a vendor profile exists), read
-// through lib/role's cache, so a guarded navigation usually costs no request.
+// from the account (useAccountSide), so a guarded navigation costs no request.
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
-import { loadIsVendor } from "@/lib/role";
+import { useAccountSide } from "@/lib/auth";
 
 export function ClientOnlyRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const [isVendor, setIsVendor] = useState<boolean | null>(null);
+  const side = useAccountSide();
 
   useEffect(() => {
-    if (loading || !user) return;
-    let cancelled = false;
-    loadIsVendor().then((v) => !cancelled && setIsVendor(v));
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, user]);
+    if (side === "vendor") router.replace("/overview");
+  }, [side, router]);
 
-  useEffect(() => {
-    if (isVendor === true) router.replace("/overview");
-  }, [isVendor, router]);
-
-  if (!loading && !user) return <>{children}</>;
-  if (loading || isVendor === null || isVendor) {
+  if (side === "signed-out") return <>{children}</>;
+  if (side === null || side === "vendor") {
     return <p className="py-20 text-center text-ink-soft">Loading…</p>;
   }
   return <>{children}</>;

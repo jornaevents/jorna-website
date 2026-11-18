@@ -48,6 +48,7 @@ test.describe("authentication", () => {
       f_name: "Priya",
       l_name: "Shah",
       accept_terms: true,
+      side: "client",
     });
   });
 
