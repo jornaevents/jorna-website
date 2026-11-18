@@ -1036,6 +1036,10 @@ export interface ConversationSummary {
   /** For the client in a chat with one vendor: the label that vendor sees
    *  on it (Inquiry, Negotiation, Booked, Closed). Null otherwise. */
   label?: ConversationLabel | null;
+  /** The client has sent the inquiry form in this thread (backend DECISIONS
+   *  #54). Until then the vendor can't send a contract, so the chat offers
+   *  the form. Absent from an older backend. */
+  has_inquiry?: boolean;
   last_message?: {
     message_id?: string;
     content?: string | null;

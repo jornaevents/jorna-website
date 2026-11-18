@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
+import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -18,6 +19,7 @@ import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { ChatSidebar } from "@/components/ChatSidebar";
+import { InquirySheet } from "@/components/InquiryButton";
 import { signInUrl } from "@/lib/vendorSite";
 import { contractInChatPath } from "@/lib/contract";
 import { ChatSkeleton } from "@/components/Skeletons";
@@ -117,6 +119,7 @@ function ConversationInner() {
   const [showDetails, setShowDetails] = useState(false);
   const [sending, setSending] = useState(false);
   const [live, setLive] = useState(false);
+  const [inquiring, setInquiring] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -153,7 +156,9 @@ function ConversationInner() {
   // arrive here as offer and system lines, and each can move the label in
   // the header, so a new one re-reads it.
   const lastStep =
-    messages.findLast((m) => m.kind === "offer" || m.kind === "system" || m.kind === "contract")?.message_id ?? null;
+    messages.findLast(
+      (m) => m.kind === "offer" || m.kind === "system" || m.kind === "contract" || Boolean(m.meta?.inquiry),
+    )?.message_id ?? null;
 
   // Who this is with, and what it's about.
   useEffect(() => {
@@ -225,6 +230,16 @@ function ConversationInner() {
   // A thread with one vendor gets the panel beside it: the latest contract
   // sent here, or the booking the thread is about.
   const sidebarVendor = meta?.vendor_id ?? null;
+  // Every contract starts from the inquiry form (backend DECISIONS #54): a
+  // chat that began with a question offers it until it's sent.
+  const needsInquiry = Boolean(sidebarVendor && meta?.has_inquiry === false);
+  const vendorName = meta?.name || "this vendor";
+
+  function inquirySent() {
+    setInquiring(false);
+    void loadMessages();
+    if (conversationId) getConversation(conversationId).then(setMeta, () => {});
+  }
   const sidebarBooking =
     messages.findLast((m) => m.kind === "contract" && typeof m.meta?.booking_id === "string")?.meta?.booking_id ??
     meta?.booking_id ??
@@ -305,6 +320,21 @@ function ConversationInner() {
         </div>
       </div>
 
+      {needsInquiry ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-card px-4 py-3">
+          <p className="text-sm text-ink-soft">
+            Ready to book? Send {vendorName} your event details so they can send you a contract.
+          </p>
+          <button
+            type="button"
+            onClick={() => setInquiring(true)}
+            className="rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110 dark:bg-gold dark:text-[#2A0C19]"
+          >
+            Send inquiry
+          </button>
+        </div>
+      ) : null}
+
       <div
         className="flex-1 overflow-y-auto rounded-2xl border border-card-edge bg-panel p-4"
         onScroll={(e) => {
@@ -349,6 +379,23 @@ function ConversationInner() {
                     <OfferCard message={m} mine={mine} conversation={meta} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
                     <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
+                  ) : m.kind === "inquiry_request" ? (
+                    <InquiryRequestCard
+                      mine={mine}
+                      vendorName={m.sender_name ?? meta?.name}
+                      sent={meta?.has_inquiry === true}
+                      action={
+                        sidebarVendor ? (
+                          <button
+                            type="button"
+                            onClick={() => setInquiring(true)}
+                            className="inline-flex items-center rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-ground hover:brightness-110 dark:bg-gold dark:text-[#2A0C19]"
+                          >
+                            Fill in inquiry
+                          </button>
+                        ) : null
+                      }
+                    />
                   ) : m.meta?.inquiry?.lead_id ? (
                     <InquiryCard inquiry={m.meta.inquiry} mine={mine} />
                   ) : (
@@ -422,6 +469,14 @@ function ConversationInner() {
           say is settled on the contract and in the event, not by message. */}
       <p className="mt-2 text-center text-xs text-ink-faint">Prices and changes are handled in your event.</p>
     </div>
+    {inquiring && sidebarVendor ? (
+      <InquirySheet
+        vendorId={sidebarVendor}
+        vendorName={vendorName}
+        onSent={inquirySent}
+        onClose={() => setInquiring(false)}
+      />
+    ) : null}
     </div>
   );
 }

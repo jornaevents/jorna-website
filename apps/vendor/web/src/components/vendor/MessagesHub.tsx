@@ -20,6 +20,7 @@ import {
   listVendorBookings,
   markConversationUnread,
   openBookingThread,
+  requestInquiryForm,
 } from "@/lib/jorna";
 import { centsToMoney } from "@/lib/vendorPlan";
 import { myVendor } from "@/lib/vendorData";
@@ -238,6 +239,8 @@ export function MessagesHub() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  // The thread the inquiry form was just sent in, so its button says so.
+  const [formSentTo, setFormSentTo] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [live, setLive] = useState(false);
 
@@ -350,6 +353,25 @@ export function MessagesHub() {
     label: "Answer in Leads",
   });
 
+  /** Every contract starts from the client's inquiry (backend DECISIONS #54):
+   *  until they've sent one, the button sends them the form. */
+  async function sendInquiryForm() {
+    if (!selected) return;
+    const id = selected.conversation_id;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await requestInquiryForm(id);
+      setFormSentTo(id);
+      setNotice(`Sent ${otherMember?.name?.split(" ")[0] || "them"} the inquiry form.`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't send the inquiry form.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addToLeads() {
     if (!selected) return;
     setBusy(true);
@@ -389,8 +411,14 @@ export function MessagesHub() {
   // Contracts go out in the chat (backend DECISIONS #48): the panel offers
   // the one already open with this client, or a new one for this thread —
   // also when they've booked before, for their next event.
+  // A marketplace request carries its own details. Otherwise a contract waits
+  // for the client's inquiry form; an older backend (no has_inquiry) keeps
+  // the old way.
+  const needsInquiry = Boolean(
+    selected && relation && !openContract && otherMember && !relation.requestId && selected.has_inquiry === false,
+  );
   const sendContractHref =
-    selected && relation && !openContract && otherMember
+    selected && relation && !openContract && otherMember && !needsInquiry
       ? relation.requestId
         ? `/contracts/new?request=${relation.requestId}`
         : `/contracts/new?conversation=${selected.conversation_id}${relation.leadId ? `&lead=${relation.leadId}` : ""}`
@@ -409,6 +437,11 @@ export function MessagesHub() {
         >
           {openContract.draft ? "Edit draft" : "View contract"}
         </Link>
+      ) : null}
+      {needsInquiry ? (
+        <Button disabled={busy || formSentTo === selected?.conversation_id} onClick={sendInquiryForm}>
+          {formSentTo === selected?.conversation_id ? "Inquiry form sent" : "Send inquiry form"}
+        </Button>
       ) : null}
       {sendContractHref ? (
         <Link

@@ -1419,3 +1419,20 @@ to the client app.
 - **An older backend** without `is_vendor`: the shared auth reads `/vendors/me` once (with one
   retry) to fill it in. If that fails it's left unset, and `defaultLanding` sends the account to
   the dashboard, which checks for itself, as before.
+
+## Decision: a contract waits for the client's inquiry (2026-11-18)
+
+Every contract starts from the client's inquiry form (backend DECISIONS #54), so it has the date,
+event, place and guests to build from. A chat that began with a question has none of that.
+
+- **Messages:** when the thread's `has_inquiry` is false and there's no marketplace request, the
+  side panel shows **Send inquiry form** instead of Send contract (`MessagesHub`). It posts the
+  `inquiry_request` card (`requestInquiryForm`); the button then reads "Inquiry form sent". The
+  backend allows one a day and says so if asked again. A lead the vendor added doesn't count; only
+  the client's form does. Once `has_inquiry` is true, Send contract is back.
+- **The card** (`@jorna/shared/components/InquiryRequestCard`, drawn by `ConversationThread`) says
+  who asked, and that a contract follows once the form is in. The client app draws the same card
+  with a Fill in inquiry button.
+- **The editor** opened for such a chat anyway (an old link, a bookmark) still works, with a
+  warning and the same Send inquiry form button.
+- **An older backend** with no `has_inquiry` keeps the old way: Send contract on every chat.

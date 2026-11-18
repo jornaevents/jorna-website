@@ -1161,6 +1161,13 @@ export function leadFromConversation(conversationId: string): Promise<Lead> {
 }
 
 /** Counts the thread as unread for you until you next open it. */
+/** Send inquiry form (backend DECISIONS #54): a card in the thread asking the
+ *  client for their event details. At most once a day; refused once they've
+ *  sent it. */
+export function requestInquiryForm(conversationId: string): Promise<GroupMessage> {
+  return apiFetch<GroupMessage>(`/conversations/${conversationId}/inquiry-request`, { method: "POST" });
+}
+
 export function markConversationUnread(conversationId: string): Promise<ConversationSummary> {
   return apiFetch<ConversationSummary>(`/conversations/${conversationId}/unread`, { method: "POST" });
 }
