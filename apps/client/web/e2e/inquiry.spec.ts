@@ -217,6 +217,21 @@ test.describe("inquiry form", () => {
     await expect(sheet.getByRole("status")).toContainText("will reply in your messages");
   });
 
+  test("a package's Send an inquiry on the vendor's page picks that package", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: true }));
+    const OTHER = { ...PACKAGE, service_id: "svc-2", name: "Mehndi coverage" };
+    mockVendor(api, [PACKAGE, OTHER]);
+    api.get("/reviews/vendor/vendor-1", { items: [], total: 0, limit: 50, offset: 0 });
+
+    await page.goto("vendor/?id=vendor-1");
+    await expect(page.getByRole("link", { name: "Book this" })).toHaveCount(0);
+    // Each package card holds its own button.
+    const card = page.locator(".group").filter({ hasText: "Mehndi coverage" });
+    await card.getByRole("button", { name: "Send an inquiry" }).click();
+    const sheet = page.getByRole("dialog", { name: "Send Arjun Kapoor an inquiry" });
+    await expect(sheet.getByLabel("Package")).toHaveValue("svc-2");
+  });
+
   test("a package priced per guest needs a guest count, and the slider sets it", async ({ page, api }) => {
     await loginAs(page, api, mockUser({ email_verified: true }));
     mockVendor(api, [{ ...PACKAGE, price_unit: "person" }]);

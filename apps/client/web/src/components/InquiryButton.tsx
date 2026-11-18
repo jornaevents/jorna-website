@@ -11,18 +11,29 @@ export function InquiryButton({
   vendorId,
   vendorName,
   variant = "ghost",
+  size,
+  label = "Get quote",
+  prefill,
+  className,
 }: {
   vendorId: string;
   vendorName: string;
   variant?: "primary" | "ghost";
+  size?: "md" | "lg";
+  label?: string;
+  /** Opened from a package's page: that package comes picked. */
+  prefill?: InquiryPrefill;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant={variant} onClick={() => setOpen(true)}>
-        Get quote
+      <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
+        {label}
       </Button>
-      {open ? <InquirySheet vendorId={vendorId} vendorName={vendorName} onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <InquirySheet vendorId={vendorId} vendorName={vendorName} prefill={prefill} onClose={() => setOpen(false)} />
+      ) : null}
     </>
   );
 }

@@ -105,6 +105,9 @@ export interface InquiryPrefill {
   city?: string | null;
   guests?: number | null;
   packageName?: string | null;
+  /** The package the form was opened from (its page's "Send an inquiry").
+   *  It wins over a saved draft's pick: the client just chose it. */
+  serviceId?: string | null;
 }
 
 export function InquiryForm({
@@ -142,7 +145,7 @@ export function InquiryForm({
   const [city, setCity] = useState(draft?.city ?? "");
   const [venue, setVenue] = useState<Address>(draft?.venue ?? EMPTY_ADDRESS);
   // "" until they pick one; a package is required (backend DECISIONS #47).
-  const [serviceId, setServiceId] = useState(draft?.serviceId ?? "");
+  const [serviceId, setServiceId] = useState(prefill?.serviceId || draft?.serviceId || "");
   // The packages the client can see, kept with the vendor they're for.
   // `failed`: the list didn't load, so there's nothing to pick from.
   const [packages, setPackages] = useState<{
