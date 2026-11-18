@@ -72,7 +72,7 @@ function StatTile({ value, label }: { value: React.ReactNode; label: string }) {
   );
 }
 
-function ServiceRow({ service }: { service: ServiceItem }) {
+function ServiceRow({ service, vendorName }: { service: ServiceItem; vendorName: string }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const unit = priceUnitLabel(service.price_unit);
   const first = usableMedia(service.media)[0];
@@ -83,8 +83,8 @@ function ServiceRow({ service }: { service: ServiceItem }) {
     // The card itself is the link — a "stretched link" overlay covers the
     // whole thing (group-hover carries the name's old hover color along with
     // it) so a click anywhere on the panel opens the package, not just the
-    // name. "Book this" sits above that overlay (relative z-10) so it still
-    // opens its own destination rather than being swallowed by the card's.
+    // name. "Send an inquiry" sits above that overlay (relative z-10) so it still
+    // opens its own form rather than being swallowed by the card's.
     <Card className="group relative overflow-hidden transition hover:border-gold/40">
       <Link
         href={`/service?id=${service.service_id}`}
@@ -152,13 +152,15 @@ function ServiceRow({ service }: { service: ServiceItem }) {
                 {service.experience}
               </span>
             ) : null}
-            <LinkButton
-              href={`/book?service=${service.service_id}`}
-              size="md"
+            {/* The inquiry form with this package picked, as on its own page. */}
+            <InquiryButton
+              vendorId={service.vendor_id}
+              vendorName={vendorName}
+              variant="primary"
+              label="Send an inquiry"
+              prefill={{ serviceId: service.service_id }}
               className="relative z-10 ml-auto"
-            >
-              Book this
-            </LinkButton>
+            />
           </div>
         </div>
       </div>
@@ -344,7 +346,7 @@ function VendorInner() {
         ) : (
           <div className="mt-4 grid gap-3">
             {services.map((s) => (
-              <ServiceRow key={s.service_id} service={s} />
+              <ServiceRow key={s.service_id} service={s} vendorName={name || "this vendor"} />
             ))}
           </div>
         )}

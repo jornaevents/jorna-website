@@ -24,9 +24,9 @@ import {
   settledBy,
   type Quantity,
 } from "@jorna/shared/lib/pricing";
-import { GAP_LABELS, describeGaps, requiredFields } from "@/lib/planning";
 import { Avatar, Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { AskVendor } from "@/components/AskVendor";
+import { InquiryButton } from "@/components/InquiryButton";
 import { VendorPageSkeleton } from "@/components/Skeletons";
 
 function money(n: number) {
@@ -319,25 +319,17 @@ function PricePanel({ service }: { service: ServiceItem }) {
         </p>
       )}
 
-      {/* What a request will ask for, before the client starts one — driven
-          by the same rule that gates sending it (bookingGaps, lib/planning),
-          so this can never promise less than the booking form will actually
-          demand. */}
-      <div className="mt-4 rounded-lg bg-gold/10 px-3 py-2.5">
-        <p className="text-sm font-medium text-ink">Add it to your plan now</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
-          Before you send your plan to vendors, it needs{" "}
-          {describeGaps(
-            requiredFields(service).map((field) => ({ field, label: GAP_LABELS[field] })),
-          )}
-          {" "}— add them now or on the plan.
-        </p>
-      </div>
-
       <div className="mt-5 grid gap-2">
-        <LinkButton href={`/book?service=${service.service_id}`} size="lg">
-          Add to my event
-        </LinkButton>
+        {/* The inquiry form, this package already picked: it reaches the
+            vendor, where adding a draft to a plan didn't. */}
+        <InquiryButton
+          vendorId={service.vendor_id}
+          vendorName={service.vendor_name || "this vendor"}
+          variant="primary"
+          size="lg"
+          label="Send an inquiry"
+          prefill={{ serviceId: service.service_id }}
+        />
         {/* Beside the request, not instead of it. A client who isn't ready to
             book had one option on this page and it was a commitment — so the
             question that would have got them there was asked somewhere else,

@@ -254,7 +254,7 @@ Stripe regardless of what a vendor's profile still says.
 
 From the 2026-10-05 staging walkthrough (#164, #132), decided 2026-10-14: fields are required only at "Send to vendors", and the form keeps what was typed.
 
-- **One story.** Nothing on `/book` reaches the vendor (on a draft plan), so the page says "Add to your plan", the package page's button says "Add to plan", and both say the date, address and times are needed before the plan is sent — add them now or on the plan.
+- **One story.** Nothing on `/book` reaches the vendor (on a draft plan), so the page says "Add to your plan", the package page's button said "Add to plan" (replaced 2026-11-17 by Send an inquiry, below), and both said the date, address and times are needed before the plan is sent — add them now or on the plan.
 - **The form never disappears.** A load failure is a page of its own; a refused add is said beside the button. A past date is caught as it's typed, under the date, and holds both add buttons — it used to reach the server and replace the whole form.
 - **Unset times read as unset.** The shared `TimeField` shows "--" with neither AM nor PM chosen until a time is picked (picking an hour first lands on :00 PM); it used to show 12:00 AM, which looked like an answer.
 - **Add-ons are listed, not picked.** `POST /bookings` takes no add-ons, so the form lists the package's add-ons and says to mention any in the note — the vendor adds them in the contract.
@@ -513,3 +513,13 @@ it's signed. The contract is the latest one sent in the thread, else the thread'
 all read from endpoints the app already uses, so there's no backend change. On a phone it sits
 behind a **Details** button above the thread. `contractStanding` moved to `lib/contract.ts` so
 the contract page and the sidebar word the status the same way.
+
+## Decision: a package's button sends an inquiry (2026-11-17)
+
+On a package's page and on each package card on the vendor's profile, the button is **Send an
+inquiry**. It opens the inquiry form in a sheet (`InquiryButton` → `InquirySheet`) with that
+package already picked (`InquiryPrefill.serviceId`), even when the vendor has others. The package
+they clicked wins over the one in a saved draft. "Add to my event" (the package page) and "Book
+this" (the profile) used to open `/book`, which only added a draft to a plan and reached no one.
+The package page's "Add it to your plan now" note went with it. `/book` itself is unchanged, but
+nothing in the app links to it any more.
