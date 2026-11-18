@@ -45,7 +45,7 @@ always "none, verify manually" until a test runner is added.
 - **Code:** `web/src/components/SiteHeader.tsx`, `SiteFooter.tsx`,
   `MobileNavMenu.tsx`, `nav.tsx`, `ui.tsx`,
   `ClientOnlyRoute.tsx`, `ChromeGate.tsx`, `VendorShellIfVendor.tsx`.
-- **Depends on:** `lib/auth.tsx` (role-aware nav), `lib/role.ts`.
+- **Depends on:** `lib/auth.tsx` (`useAccountSide`: role-aware nav, from `/me`), `lib/role.ts` (where a sign-in lands).
 - **Client-app links:** anything a *client* follows to planning/booking
   (`/book`, `/plan`, `/bundle`, `/bundles`) goes through `lib/clientApp.ts`'s
   `clientAppUrl()` to book.jornaevents.com — those routes don't exist here.
@@ -79,8 +79,8 @@ always "none, verify manually" until a test runner is added.
   (Google identity), `web/src/app/login/`, `forgot-password/`,
   `reset-password/`, `auth/callback/`.
 - **Entry points:** `AuthProvider`, `useAuth()` (defined in `auth.tsx`).
-- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts`,
-  `lib/role.ts` and `lib/dataCache.ts` (cache clearing on logout).
+- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts`
+  and `lib/dataCache.ts` (cache clearing on logout).
 - **Consumers:** `RootLayout`, every page gating on `user`.
 
 ## Remembered reads (vendor pages)

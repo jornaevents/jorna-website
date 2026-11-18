@@ -1389,3 +1389,33 @@ waits on the vendor. The client app's contract page and plan card follow the sam
 
 Expired offers leave All and "needs you" on Contracts and are listed under Declined & void, where
 they can still be resent (`contractNeedsVendor` no longer counts them).
+
+## Decision: what an account is comes with the account (2026-11-18)
+
+Vendors sometimes saw the client app around signing in, and clients the vendor one. Every page
+found out whether the account was a vendor by asking `/vendors/me` after it had drawn, and drew
+the no-vendor side while it waited. A vendor who signed up and left before onboarding's first step
+had no profile, so they looked exactly like a client, and the header's plain "Sign in" sent them
+to the client app.
+
+- **`/me` says what the account is** (backend #53): `is_vendor` and `signup_side`. The shared
+  auth's `useAccountSide()` turns that into `"vendor"`, `"vendor-setup"` (signed up as a vendor,
+  no profile yet), `"client"`, `"signed-out"`, or null while the session loads
+  (`@jorna/shared/lib/accountSide`). The nav, `ChromeGate`, `ClientOnlyRoute`,
+  `VendorHomeRedirect` and the pages that asked read it; `lib/role`'s cached check is gone.
+- **No tabs until it's known.** `useAppNav` draws nothing while the side is null, instead of the
+  no-vendor tabs.
+- **Landing** (`defaultLanding(user, role)`): a vendor to the dashboard, a vendor in setup to
+  onboarding from any sign-in link, an account from before sides were recorded to onboarding only
+  from a vendor-side link (`?role=vendor`), and anyone else to the client app.
+- **Sign-ups send their side** (`side: "vendor"` here, `"client"` in the client app), Google
+  sign-ups too.
+- **Google from the shared sign-in page** looks the identity up first (`/auth/google/lookup`,
+  which creates nothing). A new one is asked "Are you planning an event, or a vendor?" before
+  `/auth/google/register` makes the account with that side.
+- **Onboarding's first step** marks the account a vendor (`setUser`), so every gate switches at
+  once. Its loading effect is keyed on the account's id and location, not the account object, so
+  that doesn't reload the wizard back a step.
+- **An older backend** without `is_vendor`: the shared auth reads `/vendors/me` once (with one
+  retry) to fill it in. If that fails it's left unset, and `defaultLanding` sends the account to
+  the dashboard, which checks for itself, as before.

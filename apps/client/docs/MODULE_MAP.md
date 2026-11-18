@@ -39,7 +39,7 @@ always "none, verify manually" until a test runner is added.
   menu) and generic UI primitives used across pages.
 - **Code:** `web/src/components/SiteHeader.tsx`, `SiteFooter.tsx`,
   `MobileNavMenu.tsx`, `nav.tsx`, `ui.tsx`, `VendorAccountGate.tsx`.
-- **Depends on:** `lib/auth.tsx`, `lib/role.ts` (the gate's vendor check).
+- **Depends on:** `lib/auth.tsx` (`useAccountSide`: the gate reads what the account is from `/me`).
 - **Consumers:** every page, via the root layout.
 
 ## API client layer
@@ -64,8 +64,8 @@ always "none, verify manually" until a test runner is added.
   (Google identity), `web/src/app/login/`, `verify-email/` (the sign-up email code), `forgot-password/`,
   `reset-password/`, `auth/callback/`.
 - **Entry points:** `AuthProvider`, `useAuth()` (defined in `auth.tsx`).
-- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts` and
-  `lib/role.ts` (cache clearing on logout).
+- **Depends on:** `lib/api.ts` (`configureTokens`), `lib/attention.ts`
+  (cache clearing on logout).
 - **Consumers:** `RootLayout`, every page gating on `user`.
 
 ## Client planning flow

@@ -10,10 +10,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, takeOAuthNext, takeOAuthRole, takeOAuthTerms } from "@/lib/supabase";
 import { clientLanding } from "@/lib/landing";
+import { accountSide } from "@jorna/shared/lib/accountSide";
 import { useAuth } from "@/lib/auth";
 import { googleRegister } from "@/lib/jorna";
 import { ApiError } from "@jorna/shared/lib/api";
-import { signInUrl } from "@/lib/vendorSite";
+import { signInUrl, vendorSiteUrl } from "@/lib/vendorSite";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -55,16 +56,25 @@ export default function AuthCallbackPage() {
         // started before that may have left a role behind.
         takeOAuthRole();
 
-        const session_ = await googleRegister(session.access_token, takeOAuthTerms());
+        // Sign-up here is a client sign-up (side), recorded only if this
+        // call makes the account.
+        const session_ = await googleRegister(session.access_token, takeOAuthTerms(), "client");
 
         if (session_.access_token && session_.refresh_token) {
-          await adoptSession({
+          const me = await adoptSession({
             access_token: session_.access_token,
             refresh_token: session_.refresh_token,
             token_type: session_.token_type || "bearer",
           });
           // Jorna's JWT is the session now — the Supabase one isn't needed.
           await supabase.auth.signOut();
+          // An existing vendor account signing in here belongs on the vendor
+          // site, not behind VendorAccountGate's notice.
+          const side = accountSide(me);
+          if (side !== "client") {
+            window.location.replace(vendorSiteUrl(side === "vendor" ? "/overview" : "/vendor-onboarding"));
+            return;
+          }
           router.replace(next ?? (await clientLanding()));
           return;
         }

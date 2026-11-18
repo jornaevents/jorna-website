@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { loadAttention, type AttentionItem } from "@/lib/attention";
-import { loadIsVendor } from "@/lib/role";
 import { PushOptIn } from "@jorna/shared/components/PushOptIn";
 import { Button, Card, LinkButton } from "@jorna/shared/components/ui";
 import { clientAppUrl } from "@/lib/clientApp";
@@ -21,21 +20,12 @@ export default function ActivityPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<AttentionItem[] | null>(null);
-  const [isVendor, setIsVendor] = useState(false);
+  const isVendor = user?.is_vendor === true;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/activity");
   }, [authLoading, user, router]);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    loadIsVendor().then((v) => !cancelled && setIsVendor(v));
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   // Force: this is the page you open *to* check, so it shouldn't show a
   // minute-old cache. It refreshes the badge's cache on the way through.

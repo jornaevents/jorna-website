@@ -137,6 +137,7 @@ function LoginInner() {
         f_name: fName,
         l_name: lName,
         accept_terms: true,
+        side: "client",
         ...(isGoogleSignup && googleUserId && googleToken
           ? { supabase_user_id: googleUserId, supabase_access_token: googleToken }
           : {}),

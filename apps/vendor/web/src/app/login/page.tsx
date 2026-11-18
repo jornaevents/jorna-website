@@ -138,11 +138,15 @@ function LoginInner() {
     setBusy(true);
     setError(null);
     try {
+      let me;
       if (mode === "login") {
-        await login(identifier, password);
+        me = await login(identifier, password);
       } else {
-        await register({
+        me = await register({
           email,
+          // The vendor sign-up: recorded on the account, so an unfinished
+          // vendor is sent back to onboarding from any sign-in (backend #53).
+          side: "vendor",
           password,
           f_name: fName,
           l_name: lName,
@@ -159,7 +163,7 @@ function LoginInner() {
       // guided setup, as iOS routes "I am a Vendor" into VendorInfoView. A
       // sign-in goes where it was headed, else by role (defaultLanding).
       // One sign-in for both sides: a client lands in the client app (goTo).
-      goTo(router, mode === "register" ? "/vendor-onboarding" : (next ?? (await defaultLanding(role))));
+      goTo(router, mode === "register" ? "/vendor-onboarding" : (next ?? (await defaultLanding(me, role))));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {

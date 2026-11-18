@@ -16,7 +16,6 @@ import {
   type ServiceItem,
   type VendorDetail,
 } from "@/lib/types";
-import { loadIsVendor } from "@/lib/role";
 import { Card, LinkButton, Stars } from "@jorna/shared/components/ui";
 import { ModerationMenu } from "@/components/ModerationMenu";
 import { AskVendor } from "@/components/AskVendor";
@@ -176,7 +175,7 @@ function ServiceRow({ service, canBook }: { service: ServiceItem; canBook: boole
 function VendorInner() {
   const params = useSearchParams();
   const vendorId = params.get("id");
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // What was loaded, and for which vendor: a different ?id= reads as
   // loading until its own answer arrives, with nothing to reset by hand.
@@ -189,15 +188,7 @@ function VendorInner() {
   } | null>(null);
   // Null until known, and only a confirmed vendor loses the button — a signed-out
   // visitor keeps it, because "Book this" is how they're invited to sign up.
-  const [isVendor, setIsVendor] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadIsVendor().then((v) => !cancelled && setIsVendor(v));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const isVendor: boolean | null = authLoading ? null : user?.is_vendor === true;
 
   useEffect(() => {
     if (!vendorId) return;

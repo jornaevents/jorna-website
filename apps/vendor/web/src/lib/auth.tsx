@@ -8,14 +8,13 @@ import { useLayoutEffect } from "react";
 import { AuthProvider as SharedAuthProvider, useAuth } from "@jorna/shared/lib/auth";
 import { clearAttentionCache } from "./attention";
 import { clearDataCache, setDataCacheOwner } from "./dataCache";
-import { clearRoleCache } from "./role";
+import { LAST_ROLE_KEY, ROLE_HINT_KEY } from "@jorna/shared/lib/sessionKeys";
 
-export { hasStoredSession, useAuth } from "@jorna/shared/lib/auth";
+export { hasStoredSession, useAccountSide, useAuth } from "@jorna/shared/lib/auth";
 
 // Module-level so it's one stable function: the provider's clear() depends on it.
 function clearCaches() {
   clearAttentionCache();
-  clearRoleCache();
   clearDataCache();
 }
 
@@ -32,10 +31,29 @@ function DataCacheOwner() {
   return null;
 }
 
+/** Leaves what the account is in localStorage for the scripts that run before
+ *  React does (welcomeBoot, vendorishBoot). Written from the account itself,
+ *  which used to be lib/role's job when it asked /vendors/me. */
+function RoleHint() {
+  const { user } = useAuth();
+  const isVendor = user?.is_vendor;
+  useLayoutEffect(() => {
+    if (isVendor === undefined) return;
+    try {
+      localStorage.setItem(ROLE_HINT_KEY, isVendor ? "vendor" : "client");
+      localStorage.setItem(LAST_ROLE_KEY, isVendor ? "vendor" : "client");
+    } catch {
+      /* storage disabled — Welcome just takes the slower way round */
+    }
+  }, [isVendor]);
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <SharedAuthProvider onSessionCleared={clearCaches} logoutTo="/login">
       <DataCacheOwner />
+      <RoleHint />
       {children}
     </SharedAuthProvider>
   );

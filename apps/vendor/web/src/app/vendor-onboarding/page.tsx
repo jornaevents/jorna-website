@@ -27,7 +27,6 @@ import {
   uploadAvatar,
 } from "@/lib/jorna";
 import { hasActiveBookings } from "@/lib/planning";
-import { clearRoleCache } from "@/lib/role";
 import type { ServiceItem, TaxonomyCategory, VendorDetail } from "@/lib/types";
 import { popularServices, searchServices, taxonomyLabel, useTaxonomy, type Taxonomy } from "@jorna/shared/lib/taxonomy";
 import { ServicesManager } from "@/components/ServicesManager";
@@ -112,15 +111,21 @@ export default function VendorOnboardingPage() {
     if (!authLoading && !user) router.replace("/login?next=/vendor-onboarding&role=vendor");
   }, [authLoading, user, router]);
 
+  // Keyed on what this load reads from the account, not the account object:
+  // step 1 marks it a vendor (setUser below), and loading again then would
+  // put the wizard back where the server says it is, undoing the step.
+  const userId = user?.user_id ?? null;
+  const userLocation = user?.location ?? null;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let cancelled = false;
     Promise.all([listVendorCategories(), getMyVendor()])
       .then(async ([tax, mine]) => {
         if (cancelled) return;
         setCategories(tax.categories);
         // From the account, unless the vendor has already typed one here.
-        setBasedIn((cur) => cur || user.location || "");
+        setBasedIn((cur) => cur || userLocation || "");
         if (!mine) {
           // An account is a client or a vendor. Converting out from under an
           // open request or a booking would strand it, so check first — and
@@ -153,7 +158,7 @@ export default function VendorOnboardingPage() {
         }
         if (svc) setServices(svc.items);
         const paid = ESCROW_ENABLED ? mine.payment_method != null : Boolean(mine.venmo_handle || mine.zelle_contact);
-        setStep(paid ? "package" : user.location ? "pay" : "where");
+        setStep(paid ? "package" : userLocation ? "pay" : "where");
         setResumed(true);
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : "Couldn't load your profile."))
@@ -161,7 +166,7 @@ export default function VendorOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router, retryTick]);
+  }, [userId, userLocation, router, retryTick]);
 
   function toggle(key: string) {
     setError(null);
@@ -203,8 +208,9 @@ export default function VendorOnboardingPage() {
         setVendor(await updateMyVendor(payload));
       } else {
         const created = await createVendor(payload);
-        // The one moment "is this a vendor" changes; nav reads a cached answer.
-        clearRoleCache();
+        // The one moment "is this a vendor" changes: the account says so at
+        // once, so the nav and every gate switch to the vendor side together.
+        if (user) setUser({ ...user, is_vendor: true });
         setVendor(created);
       }
       return true;
