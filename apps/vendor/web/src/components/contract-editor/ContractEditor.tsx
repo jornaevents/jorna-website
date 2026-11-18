@@ -34,6 +34,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
 import {
   convertLead,
+  countUse,
   createContract,
   getContract,
   getContractProposals,
@@ -1262,7 +1263,10 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
                 onClick={() => {
                   setInquiryAsk({ sent: false, error: null, busy: true });
                   requestInquiryForm(conversationId)
-                    .then(() => setInquiryAsk({ sent: true, error: null, busy: false }))
+                    .then(() => {
+                      countUse({ name: "inquiry_form_sent", props: { from: "editor" } });
+                      setInquiryAsk({ sent: true, error: null, busy: false });
+                    })
                     .catch((err) =>
                       setInquiryAsk({
                         sent: false,
