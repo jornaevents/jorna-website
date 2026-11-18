@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
+import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
 import { ApiError } from "@jorna/shared/lib/api";
 import { offerTarget, type OfferTarget } from "@jorna/shared/lib/offerTarget";
 import { getConversationMessages, sendConversationMessage } from "@/lib/jorna";
@@ -233,6 +234,13 @@ export function ConversationThread({
                     <OfferCard message={m} mine={mine} conversation={conversation} offerLink={offerLink} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
                     <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
+                  ) : m.kind === "inquiry_request" ? (
+                    <InquiryRequestCard
+                      mine={mine}
+                      vendorName={m.sender_name}
+                      clientName={conversation?.members?.find((p) => p.user_id !== currentUserId)?.name}
+                      sent={conversation?.has_inquiry === true}
+                    />
                   ) : m.meta?.inquiry?.lead_id ? (
                     <InquiryCard inquiry={m.meta.inquiry} mine={mine} leadHref={`/leads?open=${encodeURIComponent(`lead:${m.meta.inquiry.lead_id}`)}`} />
                   ) : (

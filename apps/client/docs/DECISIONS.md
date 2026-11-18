@@ -534,3 +534,14 @@ onboarding gets "Finish setting up", linking there. A browser with no stored ses
 straight through, so the static export keeps its content. The client sign-up sends
 `side: "client"`, Google's too, and an existing vendor account that signs in with Google here is
 sent to the vendor site.
+
+## Decision: a question chat offers the inquiry form (2026-11-18)
+
+Every contract starts from the client's inquiry form (backend DECISIONS #54), and a vendor can't send
+one until it's in. So a chat that began with a question offers the form: while the thread's
+`has_inquiry` is false, a "Ready to book?" line above the messages has **Send inquiry**. The vendor
+can also send an `inquiry_request` card, drawn with `@jorna/shared/components/InquiryRequestCard` and
+a **Fill in inquiry** button. Both open the existing `InquirySheet` for the thread's vendor. The
+inquiry lands in this same thread (the backend reuses the client's one thread with that vendor), and
+the chat re-reads the thread when it arrives, so the prompt goes and the card says "You've sent them".
+An older backend with no `has_inquiry` shows neither.

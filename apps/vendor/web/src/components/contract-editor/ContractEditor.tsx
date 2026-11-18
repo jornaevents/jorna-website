@@ -39,6 +39,7 @@ import {
   getContractProposals,
   getConversation,
   proposeFromRequest,
+  requestInquiryForm,
   sendContract,
   updateContract,
 } from "@/lib/jorna";
@@ -249,6 +250,14 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // A chat whose client hasn't sent the inquiry form (backend DECISIONS #54):
+  // their first name, for the warning. The contract can still be written.
+  const [noInquiryFrom, setNoInquiryFrom] = useState<string | null>(null);
+  const [inquiryAsk, setInquiryAsk] = useState<{ sent: boolean; error: string | null; busy: boolean }>({
+    sent: false,
+    error: null,
+    busy: false,
+  });
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [titleEdited, setTitleEdited] = useState(false);
@@ -441,6 +450,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         }
         const other = thread?.members?.find((m) => m.user_id !== mine.user_id);
         if (!lead && other?.name) start.clientName = other.name;
+        if (thread && thread.has_inquiry === false && !editId && !requestId) {
+          setNoInquiryFrom(other?.name?.split(" ")[0] || "This client");
+        }
         const picked = packageId
           ? offered.find((c) => c.id === packageChoiceId(packageId))
           : templateId
@@ -1145,6 +1157,36 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           <p role="status" className="mt-3 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
             That proposal has already been answered, so this is the contract as it stands.
           </p>
+        ) : null}
+        {noInquiryFrom && conversationId ? (
+          <div role="status" className="mt-3 rounded-lg border border-gold/40 bg-panel px-3 py-3 text-sm text-ink-soft">
+            <p>
+              <span className="font-semibold text-ink">{noInquiryFrom} hasn&apos;t sent their event details yet.</span>{" "}
+              A contract built from their inquiry form starts with the date, place and guests filled in.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={inquiryAsk.busy || inquiryAsk.sent}
+                onClick={() => {
+                  setInquiryAsk({ sent: false, error: null, busy: true });
+                  requestInquiryForm(conversationId)
+                    .then(() => setInquiryAsk({ sent: true, error: null, busy: false }))
+                    .catch((err) =>
+                      setInquiryAsk({
+                        sent: false,
+                        error: err instanceof ApiError ? err.message : "Couldn't send the inquiry form.",
+                        busy: false,
+                      }),
+                    );
+                }}
+              >
+                {inquiryAsk.sent ? "Inquiry form sent" : "Send inquiry form"}
+              </Button>
+              {inquiryAsk.error ? <span className="text-sm text-red-700 dark:text-red-300">{inquiryAsk.error}</span> : null}
+            </div>
+          </div>
         ) : null}
       </header>
 
