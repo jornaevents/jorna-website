@@ -1456,3 +1456,25 @@ from the lead. Now, in `ContractEditor`'s load:
 
 A newer inquiry in the same thread needs nothing here: the backend updates that thread's open lead
 (`inquiry_service._lead_for`), so the lead always holds the latest answers.
+
+## Decision: "Mentioned in chat" lists, never fills (2026-11-18)
+
+The last part of version 1 of Contract Builder from Chat, with no model. The contract editor for a
+chat reads the thread's messages once (`getConversationMessages`, newest 100) and lists what they
+mention since the client's latest inquiry (`lib/chatMentions`): dates and times through
+[chrono-node](https://github.com/wanasit/chrono) 2.10.3, guest counts, hours and dollar amounts
+through plain patterns. It runs in the browser, so it's free and no chat text leaves Jorna.
+
+- **Evidence, not answers.** Every value is listed with the words it came from, who said it and
+  when, newest first, one entry per value. "Could we do 200?" and "No, 150 max" both appear. A
+  pattern can't tell what was agreed, so the vendor picks.
+- **Use** applies a date, a time range, a start time or a guest count through the editor's own
+  setter, so autosave and the schedule behave as for typing. Hours and amounts have no Use: which
+  line an hour belongs to, or what a figure was for, isn't something a pattern can know.
+- **Only what someone wrote out.** A date or time needs a digit, and a time needs a clear half of
+  the day ("4pm", "16:00"; not "at 4"). chrono's relative readings ("now", "tomorrow", "six hours")
+  are dropped: they resolve against the message's own timestamp and would list when a message was
+  sent as if it had been proposed. Dates before today are left out.
+- Offers, contracts, system lines and the inquiry itself are skipped; they're on the contract or
+  in their own cards. The panel is collapsed ("3 details mentioned in chat") and shows for new
+  contracts and drafts from a chat, not once one has gone out.

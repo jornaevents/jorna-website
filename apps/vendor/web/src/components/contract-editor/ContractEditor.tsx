@@ -38,6 +38,7 @@ import {
   getContract,
   getContractProposals,
   getConversation,
+  getConversationMessages,
   proposeFromRequest,
   requestInquiryForm,
   sendContract,
@@ -107,6 +108,8 @@ import { SignatureBlock } from "@/components/contract-editor/SignatureBlock";
 import { TermsBlock } from "@/components/contract-editor/TermsBlock";
 import { TemplatePicker, type Pick } from "@/components/contract-editor/TemplatePicker";
 import { smallButton, todayIso } from "@/components/contract-editor/shared";
+import { MentionedInChat } from "@/components/contract-editor/MentionedInChat";
+import { findMentions, type Mention } from "@/lib/chatMentions";
 
 // What a template leaves to each contract made from it.
 const TEMPLATE_SKIPS: Step[] = ["client", "event", "review"];
@@ -256,6 +259,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // What the client's inquiry said that the contract has no field for (the
   // event type, their note), and the place as they wrote it, shown above the
   // editor so nothing they asked for is lost on the way.
+  // What the chat's messages since the inquiry mention (lib/chatMentions),
+  // kept with the thread they were read from.
+  const [mentioned, setMentioned] = useState<{ conversationId: string; items: Mention[] } | null>(null);
   const [fromInquiry, setFromInquiry] = useState<{
     firstName: string;
     eventType: string | null;
@@ -521,6 +527,21 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
       cancelled = true;
     };
   }, [user, router, leadId, conversationId, editId, proposalId, requestId, templateId, packageId, choosing, isTemplate, reloadKey]);
+
+  // The chat this contract is for, read once for what it mentions. Only for
+  // a contract still being written: a sent one changes by addendum.
+  useEffect(() => {
+    if (!conversationId || isTemplate || !user) return;
+    let cancelled = false;
+    getConversationMessages(conversationId, { limit: 100 })
+      .then((res) => !cancelled && setMentioned({ conversationId, items: findMentions(res.items, todayIso()) }))
+      .catch(() => {
+        /* the editor works the same without it */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, isTemplate, user]);
 
   // A template has no client or event yet; those are each contract's.
   const issues = useMemo(
@@ -1216,6 +1237,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
               <p className="mt-2 whitespace-pre-wrap border-l-2 border-line pl-3">{fromInquiry.note}</p>
             ) : null}
           </div>
+        ) : null}
+        {mentioned && mentioned.conversationId === conversationId && (!editing || editing.contract_status === "draft") ? (
+          <MentionedInChat mentions={mentioned.items} onUse={set} />
         ) : null}
         {noInquiryFrom && conversationId ? (
           <div role="status" className="mt-3 rounded-lg border border-gold/40 bg-panel px-3 py-3 text-sm text-ink-soft">
