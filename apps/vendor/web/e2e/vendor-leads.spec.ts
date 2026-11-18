@@ -309,4 +309,50 @@ test.describe("vendor leads (/leads)", () => {
     await items.first().click();
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Your inquiry form" })).toBeVisible();
   });
+
+  test("a typed-in lead with no chat can be sent the inquiry link, or have it copied", async ({ page, api, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await loginAs(page, api);
+    const lead = item({
+      id: "lead:l5",
+      source: "lead",
+      booking_id: null,
+      lead_id: "l5",
+      conversation_id: null,
+      name: "Neha Patel",
+      email: "neha@example.com",
+      attention_reason: "new_lead",
+      lead_status: "new",
+      lead_source: "manual",
+    });
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/leads/pipeline", { items: [lead], counts: { inquiries: 1, negotiations: 0, needs_you: 1, waiting: 0, archived: 0 } });
+    api.post("/leads/l5/inquiry-link", { sent: true, link: "https://jornaevents.com/client/inquire/?vendor=vendor-1", sent_to: "neha@example.com" });
+
+    await page.goto("leads/");
+    await page.getByRole("button", { name: /Neha Patel/ }).click();
+    const drawer = page.getByRole("dialog");
+
+    await drawer.getByRole("button", { name: "Send inquiry link" }).click();
+    await expect(page.getByText("Sent Neha your inquiry link.")).toBeVisible();
+    expect(api.requestsTo("POST", "/leads/l5/inquiry-link")).toHaveLength(1);
+
+    await drawer.getByRole("button", { name: "Copy inquiry link" }).click();
+    await expect(page.getByText("Copied your inquiry link.", { exact: false })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/client\/inquire\/\?vendor=vendor-1$/);
+  });
+
+  test("a lead with a chat doesn't offer the inquiry link", async ({ page, api }) => {
+    await loginAs(page, api);
+    const lead = item({
+      id: "lead:l6", source: "lead", booking_id: null, lead_id: "l6", conversation_id: "conv-6",
+      name: "Neha Patel", attention_reason: "new_lead", lead_status: "new", lead_source: "inquiry_form",
+    });
+    api.get("/vendors/me", mockVendorDetail());
+    api.get("/leads/pipeline", { items: [lead], counts: { inquiries: 1, negotiations: 0, needs_you: 1, waiting: 0, archived: 0 } });
+
+    await page.goto("leads/");
+    await page.getByRole("button", { name: /Neha Patel/ }).click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: /inquiry link/ })).toHaveCount(0);
+  });
 });

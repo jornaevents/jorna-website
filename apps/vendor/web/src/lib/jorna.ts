@@ -1115,6 +1115,13 @@ export function updateLead(leadId: string, updates: LeadUpdateInput): Promise<Le
   return apiFetch<Lead>(`/leads/${leadId}`, { method: "PATCH", body: updates });
 }
 
+/** Email a lead the vendor typed in their inquiry form link (backend
+ *  DECISIONS #56): the client makes an account to send it, and the inquiry
+ *  lands on this lead. Once a day; not for a lead with a chat. */
+export function sendLeadInquiryLink(leadId: string): Promise<{ sent: boolean; link: string; sent_to: string }> {
+  return apiFetch<{ sent: boolean; link: string; sent_to: string }>(`/leads/${leadId}/inquiry-link`, { method: "POST" });
+}
+
 export function deleteLead(leadId: string): Promise<{ message: string }> {
   return apiFetch(`/leads/${leadId}`, { method: "DELETE" });
 }
