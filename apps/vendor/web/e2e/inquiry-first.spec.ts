@@ -120,7 +120,11 @@ test.describe("inquiry first", () => {
     await loginAs(page, api);
     const vendor = mockVendorDetail();
     api.get("/vendors/me", vendor);
-    api.get("/services", { items: [], total: 0, limit: 100, offset: 0 });
+    // A package, or the vendor shell sends a vendor with none to setup (#162).
+    api.get("/services", {
+      items: [{ service_id: "svc-1", vendor_id: vendor.vendor_id, name: "Reception set", price: 1400, add_ons: [] }],
+      total: 1, limit: 100, offset: 0,
+    });
     api.get("/contract-templates", { items: [], total: 0 });
     api.get("/conversations/c-q", conv("c-q", "Meera Patel", { has_inquiry: false }));
     api.post("/conversations/c-q/inquiry-request", {
