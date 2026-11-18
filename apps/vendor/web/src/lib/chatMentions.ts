@@ -1,0 +1,160 @@
+// "Mentioned in chat" (Contract Builder from Chat, version 1): event details
+// the client and vendor typed in their messages, found without a model and
+// shown beside the contract editor as evidence. Nothing here decides what
+// was agreed — "could we do 200?" and "no, 150 max" are both listed, newest
+// first, and nothing reaches the contract until the vendor clicks Use.
+//
+// Runs in the browser on messages the editor already has: free, and no chat
+// text leaves Jorna. Dates and times come from chrono-node; guest counts,
+// hours and dollar amounts from plain patterns.
+
+import * as chrono from "chrono-node";
+
+export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount";
+
+export interface Mention {
+  /** Stable for this message and value, for React keys and dismissing. */
+  id: string;
+  kind: MentionKind;
+  /** What Use would set: an ISO date, "HH:MM", "HH:MM-HH:MM", a count. */
+  value: string;
+  /** How it reads: "Sat, Mar 14, 2027", "4:00 PM – 10:00 PM", "180 guests". */
+  label: string;
+  /** The words it was found in, trimmed around the match. */
+  quote: string;
+  messageId: string;
+  sender: string;
+  at: string;
+  /** Whether the contract has a field Use can fill. Hours and amounts are
+   *  shown for the vendor to act on themselves: which line an hour belongs
+   *  to, or what a figure was for, isn't something a pattern can know. */
+  usable: boolean;
+}
+
+export interface ChatMessage {
+  message_id: string;
+  sender_id?: string | null;
+  sender_name?: string | null;
+  content: string;
+  created_at: string;
+  kind?: string | null;
+  meta?: { inquiry?: unknown } | null;
+}
+
+/** Only typed messages: offers, contracts and system lines say their own
+ *  things in their own cards, and the inquiry is already on the contract. */
+function typed(m: ChatMessage): boolean {
+  return (!m.kind || m.kind === "text") && !m.meta?.inquiry;
+}
+
+/** The messages since the client's latest inquiry: older chat may be about a
+ *  different event, and the inquiry itself is already on the contract. */
+export function sinceLatestInquiry(messages: ChatMessage[]): ChatMessage[] {
+  const sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  let start = 0;
+  sorted.forEach((m, i) => {
+    if (m.meta?.inquiry) start = i + 1;
+  });
+  return sorted.slice(start);
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function clock(h: number, m: number): string {
+  return `${pad(h)}:${pad(m)}`;
+}
+
+function clockLabel(h: number, m: number): string {
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${pad(m)} ${suffix}`;
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+/** The words around a match, so the vendor can see what it was said in. */
+function around(text: string, index: number, length: number): string {
+  const from = Math.max(0, index - 40);
+  const to = Math.min(text.length, index + length + 40);
+  return `${from > 0 ? "…" : ""}${text.slice(from, to).trim()}${to < text.length ? "…" : ""}`;
+}
+
+/** A time is only taken when its half of the day is clear ("4pm", "16:00"):
+ *  "at 4" could be either, and guessing would put a wrong hour in front of
+ *  the vendor as if it had been said. */
+function clearTime(c: chrono.ParsedComponents | null | undefined): { h: number; m: number } | null {
+  if (!c || !c.isCertain("hour")) return null;
+  const h = c.get("hour") ?? 0;
+  if (!c.isCertain("meridiem") && h < 13) return null;
+  return { h, m: c.get("minute") ?? 0 };
+}
+
+const RELATIVE = /\b(ago|hours?|hrs?|minutes?|mins?|days?|weeks?|months?|years?)\b/i;
+const GUESTS = /\b(\d{1,3}(?:,\d{3})?|\d{2,4})\s*\+?\s*(guests|people|persons|pax|attendees|ppl)\b/gi;
+const GUEST_COUNT = /\bguest\s+count\s+(?:of|is|will be|would be|:)?\s*(?:about|around|~)?\s*(\d{2,4})\b/gi;
+const HOURS = /\b(\d{1,2}(?:\.5)?)\s*(hours|hrs|hr)\b/gi;
+const AMOUNT = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?/g;
+
+/**
+ * What the messages mention, newest first, one entry per value (its latest
+ * mention). `today` is the venue's calendar day as "YYYY-MM-DD": dates before
+ * it are left out, since a contract can't be for them.
+ */
+export function findMentions(messages: ChatMessage[], today: string): Mention[] {
+  const found: Mention[] = [];
+  for (const m of sinceLatestInquiry(messages).filter(typed)) {
+    const text = m.content ?? "";
+    const base = { messageId: m.message_id, sender: m.sender_name || "Someone", at: m.created_at };
+    const add = (kind: MentionKind, value: string, label: string, index: number, length: number, usable = true) =>
+      found.push({ id: `${m.message_id}:${kind}:${value}`, kind, value, label, quote: around(text, index, length), usable, ...base });
+
+    for (const r of chrono.parse(text, new Date(m.created_at), { forwardDate: true })) {
+      // Only a date or time someone wrote out. chrono also reads "now",
+      // "tomorrow" or "six hours" against the message's own timestamp, which
+      // would list when the message was sent as if it had been proposed.
+      if (!/\d/.test(r.text) || RELATIVE.test(r.text)) continue;
+      const s = r.start;
+      if (s.isCertain("day") && s.isCertain("month")) {
+        const iso = isoDay(s.date());
+        if (iso >= today) add("date", iso, dayLabel(iso), r.index, r.text.length);
+      }
+      const from = clearTime(s);
+      const to = clearTime(r.end);
+      if (from && to) {
+        add("times", `${clock(from.h, from.m)}-${clock(to.h, to.m)}`, `${clockLabel(from.h, from.m)} – ${clockLabel(to.h, to.m)}`, r.index, r.text.length);
+      } else if (from) {
+        add("start", clock(from.h, from.m), `Starts ${clockLabel(from.h, from.m)}`, r.index, r.text.length);
+      }
+    }
+
+    for (const re of [GUESTS, GUEST_COUNT]) {
+      for (const x of text.matchAll(re)) {
+        const n = Number(x[1].replace(/,/g, ""));
+        if (n >= 10 && n <= 5000) add("guests", String(n), `${n.toLocaleString("en-US")} guests`, x.index ?? 0, x[0].length);
+      }
+    }
+    for (const x of text.matchAll(HOURS)) {
+      const n = Number(x[1]);
+      if (n >= 1 && n <= 24) add("hours", String(n), `${n} hours`, x.index ?? 0, x[0].length, false);
+    }
+    for (const x of text.matchAll(AMOUNT)) {
+      const dollars = Number(x[1].replace(/,/g, ""));
+      if (dollars > 0) add("amount", String(dollars), `$${dollars.toLocaleString("en-US")}${x[2] && x[2] !== "00" ? `.${x[2]}` : ""}`, x.index ?? 0, x[0].length, false);
+    }
+  }
+
+  // Newest first; a value said twice is listed once, where it was said last.
+  const newest = new Map<string, Mention>();
+  for (const f of found.sort((a, b) => b.at.localeCompare(a.at))) {
+    const key = `${f.kind}:${f.value}`;
+    if (!newest.has(key)) newest.set(key, f);
+  }
+  return [...newest.values()];
+}
