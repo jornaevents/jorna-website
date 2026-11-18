@@ -23,12 +23,14 @@ import {
   declineContractSignature,
   getContract,
   sendContract,
+  sendLeadInquiryLink,
   setBookingStatus,
   updateLead,
   voidContract,
 } from "@/lib/jorna";
 import { sendNotice } from "@/lib/contractLink";
 import { leadPipeline, myVendor } from "@/lib/vendorData";
+import { clientAppUrl } from "@/lib/clientApp";
 import { useDataVersion } from "@/lib/dataCache";
 import { describeEvent, visibleEvents } from "@/lib/contractTimeline";
 import { centsToMoney } from "@/lib/vendorPlan";
@@ -449,6 +451,46 @@ function LeadDrawer({
                 <a href={`mailto:${item.email}`} className={messageButton}>
                   <Icon name="messages" size={16} /> Message client
                 </a>
+              ) : null}
+              {/* No chat yet: a client met by phone or in person joins by
+                  sending the inquiry form (backend DECISIONS #56), and that
+                  inquiry lands back on this lead. */}
+              {!item.conversation_id ? (
+                <>
+                  {item.email ? (
+                    <Button
+                      className={ghost}
+                      disabled={busy != null}
+                      onClick={() =>
+                        run(
+                          "inquiry-link",
+                          () => sendLeadInquiryLink(item.lead_id!),
+                          `Sent ${item.name.split(" ")[0] || "them"} your inquiry link.`,
+                        )
+                      }
+                    >
+                      Send inquiry link
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    className={ghost}
+                    disabled={busy != null}
+                    onClick={() =>
+                      run(
+                        "copy-link",
+                        () =>
+                          myVendor().then((v) => {
+                            if (!v) throw new Error("No vendor profile");
+                            return navigator.clipboard.writeText(`${clientAppUrl("/inquire")}?vendor=${v.vendor_id}`);
+                          }),
+                        "Copied your inquiry link. Send it to them however you talk.",
+                      )
+                    }
+                  >
+                    Copy inquiry link
+                  </Button>
+                </>
               ) : null}
               <LinkPrimary
                 href={`/contracts/new?lead=${item.lead_id}${item.service_id ? `&package=${item.service_id}` : ""}`}
