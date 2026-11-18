@@ -8,10 +8,10 @@ import { CELEBRATIONS } from "@jorna/shared/lib/celebrations";
 import { EMPTY_ADDRESS, addressGaps, type Address } from "@jorna/shared/lib/address";
 import { AddressFields } from "@jorna/shared/components/AddressFields";
 import { CityCombobox } from "@jorna/shared/components/CityCombobox";
-import { Button, Field } from "@jorna/shared/components/ui";
-import { priceUnitKind } from "@/lib/types";
+import { Button, Field, TimeField } from "@jorna/shared/components/ui";
+import { priceUnitKind, type EventItem } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
-import { listServices, sendInquiry } from "@/lib/jorna";
+import { listEvents, listServices, sendInquiry } from "@/lib/jorna";
 import { DateField } from "@jorna/shared/components/DateField";
 
 // The inquiry form (backend DECISIONS #32, #45): a client account with a
@@ -26,7 +26,7 @@ import { DateField } from "@jorna/shared/components/DateField";
 // app's city autofill) or a venue's full address. No phone: the vendor
 // replies in the thread.
 
-type FieldKey = "date" | "guests" | "package" | "event" | "where";
+type FieldKey = "date" | "time" | "guests" | "package" | "event" | "where";
 type Where = "city" | "venue";
 
 type Draft = {
@@ -39,6 +39,8 @@ type Draft = {
   serviceId?: string;
   guests: string;
   note: string;
+  timeStart?: string;
+  timeEnd?: string;
 };
 
 const GUEST_SLIDER_MAX = 1000;
@@ -83,6 +85,7 @@ function clearDraft() {
  *  input they mean. */
 function fieldFor(message: string): FieldKey | null {
   const m = message.toLowerCase();
+  if (m.includes("start and an end time")) return "time";
   if (m.includes("date")) return "date";
   if (m.includes("what the event")) return "event";
   if (m.includes("where") || m.includes("city") || m.includes("venue") || m.includes("zip")) return "where";
@@ -154,6 +157,12 @@ export function InquiryForm({
     failed?: boolean;
   } | null>(null);
   const [guests, setGuests] = useState(draft?.guests ?? "");
+  // When it starts and ends (backend DECISIONS #58): optional, both or neither.
+  const [timeStart, setTimeStart] = useState(draft?.timeStart ?? "");
+  const [timeEnd, setTimeEnd] = useState(draft?.timeEnd ?? "");
+  // The client's own events, to start the form from one (Contract Builder
+  // from Chat, A6): a date, place, guest count and type they've already given.
+  const [events, setEvents] = useState<EventItem[] | null>(null);
   const [note, setNote] = useState(draft?.note ?? "");
   // Hidden from people; a bot fills it in and the server quietly drops it.
   const [website, setWebsite] = useState("");
@@ -161,6 +170,19 @@ export function InquiryForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<{ conversationId: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    listEvents()
+      .then((list) => !cancelled && setEvents(list))
+      .catch(() => {
+        /* the form works the same without them */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,9 +214,25 @@ export function InquiryForm({
 
   const back = `/inquire?vendor=${encodeURIComponent(vendorId)}`;
 
+  // Only events still ahead; a past one isn't what they're asking about.
+  const upcoming = (events ?? []).filter((ev) => !ev.date_iso || ev.date_iso >= todayIso());
+
+  /** Start from one of their events: fills what it knows, over what's typed. */
+  function fromEvent(eventId: string) {
+    const ev = upcoming.find((x) => x.event_id === eventId);
+    if (!ev) return;
+    if (ev.date_iso && ev.date_iso >= todayIso()) setDate(ev.date_iso);
+    if (ev.event_type) setEventType(ev.event_type);
+    if (ev.guest_count) setGuests(String(ev.guest_count));
+    if (ev.location && cityAndState(ev.location)) {
+      setWhere("city");
+      setCity(ev.location);
+    }
+  }
+
   /** Keep what they typed and go do what sending needs first. */
   function leaveFor(path: string) {
-    saveDraft({ vendorId, date, eventType, where, city, venue, serviceId: chosen, guests, note });
+    saveDraft({ vendorId, date, eventType, where, city, venue, serviceId: chosen, guests, note, timeStart, timeEnd });
     router.push(path);
   }
 
@@ -219,6 +257,7 @@ export function InquiryForm({
     if (!chosen) found.package = "Pick the package you're asking about";
     if (!date) found.date = "Add your event date";
     if (!eventType.trim()) found.event = "Add what the event is";
+    if (Boolean(timeStart) !== Boolean(timeEnd)) found.time = "Add both a start and an end time, or leave both out";
     if (where === "city" && !cityAndState(city)) found.where = "Pick the city from the list, or type it as City, ST";
     if (where === "venue" && addressGaps(venue).some((g) => g !== "line2")) found.where = "Add the venue's full address";
     const count = guests.trim() ? Number(guests) : null;
@@ -258,6 +297,7 @@ export function InquiryForm({
         location_zip: where === "venue" ? venue.zip.trim() : null,
         service_id: chosen,
         guest_count: count,
+        ...(timeStart && timeEnd ? { time_start: timeStart, time_end: timeEnd } : {}),
         note: note.trim() || null,
         website,
       });
@@ -332,6 +372,23 @@ export function InquiryForm({
             </label>
           )}
         </div>
+        {upcoming.length > 0 ? (
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-ink-soft">Which event is this for?</span>
+            <select
+              className="w-full rounded-xl border border-card-edge bg-ground-2 px-3 py-2.5 text-ink outline-none focus:border-gold"
+              defaultValue=""
+              onChange={(e) => fromEvent(e.target.value)}
+            >
+              <option value="">Pick one of your events, or fill it in below</option>
+              {upcoming.map((ev) => (
+                <option key={ev.event_id} value={ev.event_id}>
+                  {ev.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div>
           <DateField
             label="Event date"
@@ -341,6 +398,11 @@ export function InquiryForm({
             {...described("date")}
           />
           {err("date")}
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:col-span-2" {...described("time")}>
+          <TimeField label="Starts (optional)" value={timeStart} onChange={setTimeStart} />
+          <TimeField label="Ends (optional)" value={timeEnd} onChange={setTimeEnd} />
+          <div className="col-span-2">{err("time")}</div>
         </div>
         <div className="sm:col-span-2">
           <Field
