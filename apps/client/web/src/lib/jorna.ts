@@ -660,6 +660,9 @@ export interface InquiryInput {
   guest_count?: number | null;
   note?: string | null;
   website?: string;
+  /** "HH:MM", both or neither (backend DECISIONS #58). */
+  time_start?: string;
+  time_end?: string;
 }
 
 export interface InquiryReply {

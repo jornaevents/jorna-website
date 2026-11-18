@@ -1355,6 +1355,9 @@ export interface Lead {
   event_location?: string | null;
   service_id?: string | null;
   service_name?: string | null;
+  /** "HH:MM", when the inquiry form said (backend DECISIONS #58). */
+  time_start?: string | null;
+  time_end?: string | null;
   note: string | null;
   status: LeadStatus;
   /** Where it came from: the vendor, a Messages thread, or the inquiry form. */

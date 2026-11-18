@@ -11,7 +11,15 @@ export interface InquiryMeta {
   event_date_iso?: string | null;
   event_location?: string | null;
   guest_count?: number | null;
+  /** "HH:MM", when the form said (backend DECISIONS #58). */
+  time_start?: string | null;
+  time_end?: string | null;
   note?: string | null;
+}
+
+function clock(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
 function dateLabel(iso?: string | null): string | null {
@@ -33,6 +41,7 @@ export function InquiryCard({ inquiry, mine, leadHref }: { inquiry: InquiryMeta;
     ["Package", inquiry.service_name ?? null],
     ["Event", inquiry.event_type ?? null],
     ["Date", dateLabel(inquiry.event_date_iso)],
+    ["Time", inquiry.time_start && inquiry.time_end ? `${clock(inquiry.time_start)} – ${clock(inquiry.time_end)}` : null],
     ["Where", inquiry.event_location ?? null],
     ["Guests", inquiry.guest_count ? `About ${inquiry.guest_count.toLocaleString()}` : null],
   ];

@@ -479,6 +479,11 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           start.clientPhone = lead.phone ?? "";
           if (lead.event_date_iso && lead.event_date_iso >= todayIso()) start.dateIso = lead.event_date_iso;
           if (lead.guest_count) start.guestCount = String(lead.guest_count);
+          // The times, when the form said; both come together (backend #58).
+          if (lead.time_start && lead.time_end) {
+            start.timeStart = lead.time_start;
+            start.timeEnd = lead.time_end;
+          }
           // As much of the place as they gave: "Edison, NJ" fills the city
           // and state, and the venue check at Send asks for the street.
           if (lead.event_location) start.location = lead.event_location;

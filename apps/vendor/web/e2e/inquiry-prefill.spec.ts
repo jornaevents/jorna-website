@@ -42,6 +42,8 @@ const INQUIRY = {
   event_date_iso: future(),
   guest_count: 180,
   event_location: "Edison, NJ",
+  time_start: "16:00",
+  time_end: "22:30",
   note: "Can you play a mix of Bollywood and Punjabi?",
 };
 
@@ -65,6 +67,9 @@ test.describe("contract from the inquiry", () => {
 
     await expect(page.getByLabel("City")).toHaveValue("Edison");
     await expect(page.getByLabel("State")).toHaveValue("NJ");
+    // The form's times (backend #58).
+    await expect(page.getByLabel("Start time — hour")).toHaveValue("4");
+    await expect(page.getByLabel("End time — minute")).toHaveValue("30");
     const note = page.getByRole("note");
     await expect(note.getByText("From Meera's inquiry")).toBeVisible();
     await expect(note.getByText("— add the venue's street address below.")).toBeVisible();

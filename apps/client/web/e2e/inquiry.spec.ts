@@ -67,6 +67,45 @@ test.describe("inquiry form", () => {
     });
   });
 
+  test("one of the client's events fills the form, and times go with it when both are given", async ({ page, api }) => {
+    await loginAs(page, api, mockUser({ email_verified: true }));
+    mockVendor(api);
+    api.get("/events", [
+      { event_id: "ev-1", name: "Meera's Sangeet", date_iso: DATE, location: "Edison, NJ", event_type: "Sangeet", guest_count: 180 },
+      { event_id: "ev-old", name: "Last year's party", date_iso: "2020-01-01", location: "Edison, NJ" },
+    ]);
+    api.post("/vendors/vendor-1/inquiries", SENT);
+
+    await page.goto("inquire/?vendor=vendor-1");
+    const picker = page.getByLabel("Which event is this for?");
+    // A past event isn't offered.
+    await expect(picker.locator("option")).toHaveText(["Pick one of your events, or fill it in below", "Meera's Sangeet"]);
+    await picker.selectOption("ev-1");
+    await expect(page.getByLabel("Event date")).toHaveValue("May 14, 2027");
+    await expect(page.getByLabel("What's the event?")).toHaveValue("Sangeet");
+    await expect(page.getByLabel("City & state")).toHaveValue("Edison, NJ");
+    await expect(page.getByLabel("Guest count (optional)")).toHaveValue("180");
+
+    // Half a range says so, and nothing is sent.
+    const start = (part: string) => page.getByLabel(`Starts (optional) — ${part}`);
+    const end = (part: string) => page.getByLabel(`Ends (optional) — ${part}`);
+    await start("hour").selectOption("4");
+    await start("minute").selectOption("00");
+    await start("hour").locator("xpath=ancestor::div[1]").getByRole("button", { name: "PM", exact: true }).click();
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+    await expect(page.getByText("Add both a start and an end time, or leave both out")).toBeVisible();
+    expect(api.requestsTo("POST", "/vendors/vendor-1/inquiries")).toHaveLength(0);
+
+    await end("hour").selectOption("10");
+    await end("minute").selectOption("30");
+    await end("hour").locator("xpath=ancestor::div[1]").getByRole("button", { name: "PM", exact: true }).click();
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+
+    await expect(page.getByRole("status")).toContainText("Arjun Kapoor will reply in your messages");
+    const [sent] = api.requestsTo("POST", "/vendors/vendor-1/inquiries");
+    expect(sent.body).toMatchObject({ event_date_iso: DATE, guest_count: 180, time_start: "16:00", time_end: "22:30" });
+  });
+
   test("with several packages one has to be picked, and a date, the event and a place given", async ({ page, api }) => {
     await loginAs(page, api, mockUser({ email_verified: true }));
     mockVendor(api, [PACKAGE, { ...PACKAGE, service_id: "svc-2", name: "Full wedding day" }]);
