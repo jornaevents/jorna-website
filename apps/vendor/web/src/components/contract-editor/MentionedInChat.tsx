@@ -9,6 +9,7 @@
 import { useState } from "react";
 import type { Draft } from "@jorna/shared/lib/contractDraft";
 import type { Mention } from "@/lib/chatMentions";
+import { countUse } from "@/lib/jorna";
 
 const KIND_LABEL: Record<Mention["kind"], string> = {
   date: "Date",
@@ -45,7 +46,12 @@ export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUs
   if (mentions.length === 0) return null;
   const count = mentions.length;
   return (
-    <details className="mt-3 rounded-lg border border-card-edge bg-card text-sm">
+    <details
+      className="mt-3 rounded-lg border border-card-edge bg-card text-sm"
+      onToggle={(e) => {
+        if (e.currentTarget.open) countUse({ name: "mention_panel_opened", props: { count } });
+      }}
+    >
       <summary className="cursor-pointer px-3 py-2.5 font-semibold text-ink">
         {count === 1 ? "1 detail mentioned in chat" : `${count} details mentioned in chat`}
       </summary>
@@ -71,6 +77,7 @@ export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUs
                   onClick={() => {
                     onUse(patch);
                     setUsed((s) => new Set(s).add(m.id));
+                    countUse({ name: "mention_used", props: { kind: m.kind } });
                   }}
                   className="shrink-0 rounded-full border border-card-edge px-3 py-1 text-xs font-semibold text-ink hover:border-gold disabled:opacity-60"
                 >

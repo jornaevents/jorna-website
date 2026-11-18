@@ -69,6 +69,9 @@ test.describe("inquiry first", () => {
     await expect(page.getByText("Sent Meera the inquiry form.")).toBeVisible();
     await expect(details.getByRole("button", { name: "Inquiry form sent" })).toBeDisabled();
     expect(api.requestsTo("POST", "/conversations/c-q/inquiry-request")).toHaveLength(1);
+    await expect.poll(() => api.requestsTo("POST", "/usage-events").map((r) => r.body)).toEqual([
+      { name: "inquiry_form_sent", props: { from: "messages" } },
+    ]);
   });
 
   test("a lead the vendor added isn't enough: the client still sends the form", async ({ page, api }) => {

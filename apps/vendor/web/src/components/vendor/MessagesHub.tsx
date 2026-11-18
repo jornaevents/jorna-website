@@ -20,6 +20,7 @@ import {
   listVendorBookings,
   markConversationUnread,
   openBookingThread,
+  countUse,
   requestInquiryForm,
 } from "@/lib/jorna";
 import { centsToMoney } from "@/lib/vendorPlan";
@@ -363,6 +364,7 @@ export function MessagesHub() {
     setNotice(null);
     try {
       await requestInquiryForm(id);
+      countUse({ name: "inquiry_form_sent", props: { from: "messages" } });
       setFormSentTo(id);
       setNotice(`Sent ${otherMember?.name?.split(" ")[0] || "them"} the inquiry form.`);
     } catch (err) {

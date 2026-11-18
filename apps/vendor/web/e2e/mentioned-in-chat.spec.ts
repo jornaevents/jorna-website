@@ -58,6 +58,13 @@ test.describe("mentioned in chat", () => {
 
     await list.getByRole("button", { name: "Use Starts 4:30 PM" }).click();
     await expect(page.getByLabel("Start time — hour")).toHaveValue("4");
+
+    // Counted, never the words (backend DECISIONS #57).
+    await expect.poll(() => api.requestsTo("POST", "/usage-events").map((r) => r.body)).toEqual([
+      { name: "mention_panel_opened", props: { count: 3 } },
+      { name: "mention_used", props: { kind: "guests" } },
+      { name: "mention_used", props: { kind: "start" } },
+    ]);
   });
 
   test("a chat with nothing to use shows no panel", async ({ page, api }) => {

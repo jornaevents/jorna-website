@@ -1122,6 +1122,19 @@ export function sendLeadInquiryLink(leadId: string): Promise<{ sent: boolean; li
   return apiFetch<{ sent: boolean; link: string; sent_to: string }>(`/leads/${leadId}/inquiry-link`, { method: "POST" });
 }
 
+/** The usage events the backend accepts (DECISIONS #57): a name and its few
+ *  allowed fields — never anything a person typed. */
+export type UsageEvent =
+  | { name: "mention_panel_opened"; props: { count: number } }
+  | { name: "mention_used"; props: { kind: string } }
+  | { name: "inquiry_form_sent"; props: { from: "messages" | "editor" } }
+  | { name: "inquiry_link_shared"; props: { how: "email" | "copy" } };
+
+/** Count a use, best effort: a failed count never stops what the vendor did. */
+export function countUse(event: UsageEvent): void {
+  void apiFetch("/usage-events", { method: "POST", body: event }).catch(() => {});
+}
+
 export function deleteLead(leadId: string): Promise<{ message: string }> {
   return apiFetch(`/leads/${leadId}`, { method: "DELETE" });
 }

@@ -23,6 +23,7 @@ import {
   declineContractSignature,
   getContract,
   sendContract,
+  countUse,
   sendLeadInquiryLink,
   setBookingStatus,
   updateLead,
@@ -464,7 +465,10 @@ function LeadDrawer({
                       onClick={() =>
                         run(
                           "inquiry-link",
-                          () => sendLeadInquiryLink(item.lead_id!),
+                          () =>
+                            sendLeadInquiryLink(item.lead_id!).then(() =>
+                              countUse({ name: "inquiry_link_shared", props: { how: "email" } }),
+                            ),
                           `Sent ${item.name.split(" ")[0] || "them"} your inquiry link.`,
                         )
                       }
@@ -482,7 +486,9 @@ function LeadDrawer({
                         () =>
                           myVendor().then((v) => {
                             if (!v) throw new Error("No vendor profile");
-                            return navigator.clipboard.writeText(`${clientAppUrl("/inquire")}?vendor=${v.vendor_id}`);
+                            return navigator.clipboard
+                              .writeText(`${clientAppUrl("/inquire")}?vendor=${v.vendor_id}`)
+                              .then(() => countUse({ name: "inquiry_link_shared", props: { how: "copy" } }));
                           }),
                         "Copied your inquiry link. Send it to them however you talk.",
                       )
