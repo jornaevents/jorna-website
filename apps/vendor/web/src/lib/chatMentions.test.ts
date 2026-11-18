@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findMentions, sinceLatestInquiry, type ChatMessage } from "./chatMentions";
+import { findMentions, readSinceInquiry, sinceLatestInquiry, type ChatMessage } from "./chatMentions";
 
 const TODAY = "2026-11-18";
 
@@ -109,5 +109,41 @@ describe("sinceLatestInquiry", () => {
 
   it("keeps everything when there's no inquiry", () => {
     expect(sinceLatestInquiry([msg("a", "hi", "2026-11-01T00:00:00Z")])).toHaveLength(1);
+  });
+});
+
+describe("readSinceInquiry", () => {
+  const thread = (n: number, inquiryAt?: number) =>
+    Array.from({ length: n }, (_, i) =>
+      msg(`m${i}`, `line ${i}`, new Date(Date.UTC(2026, 10, 1, 0, i)).toISOString(), i === inquiryAt ? { meta: { inquiry: { lead_id: "l" } } } : {}),
+    );
+  // offset 0 = the newest page, as the API serves it.
+  const pages = (rows: ChatMessage[]) => {
+    const asked: number[] = [];
+    const page = async (offset: number, limit: number) => {
+      asked.push(offset);
+      const end = rows.length - offset;
+      return { items: rows.slice(Math.max(0, end - limit), Math.max(0, end)), total: rows.length };
+    };
+    return { page, asked };
+  };
+
+  it("pages back until the page that holds the inquiry", async () => {
+    const { page, asked } = pages(thread(350, 120));
+    const got = await readSinceInquiry(page);
+    expect(asked).toEqual([0, 100, 200]);
+    expect(got.some((m) => m.meta?.inquiry)).toBe(true);
+  });
+
+  it("stops at the start of a short thread", async () => {
+    const { page, asked } = pages(thread(40));
+    expect(await readSinceInquiry(page)).toHaveLength(40);
+    expect(asked).toEqual([0]);
+  });
+
+  it("stops at the cap on a long thread with no inquiry", async () => {
+    const { page, asked } = pages(thread(2000));
+    expect(await readSinceInquiry(page, 500)).toHaveLength(500);
+    expect(asked).toEqual([0, 100, 200, 300, 400]);
   });
 });

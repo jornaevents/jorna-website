@@ -158,3 +158,22 @@ export function findMentions(messages: ChatMessage[], today: string): Mention[] 
   }
   return [...newest.values()];
 }
+
+/** One page of a thread, newest window first (offset 0 = the latest). */
+export type MessagePage = (offset: number, limit: number) => Promise<{ items: ChatMessage[]; total: number }>;
+
+/**
+ * The thread back to the client's latest inquiry: pages of 100, newest first,
+ * until a page holds an inquiry, the thread runs out, or `max` messages are in
+ * hand. A long chat used to be read only as far as its newest 100.
+ */
+export async function readSinceInquiry(page: MessagePage, max = 500, limit = 100): Promise<ChatMessage[]> {
+  const all: ChatMessage[] = [];
+  for (let offset = 0; offset < max; offset += limit) {
+    const res = await page(offset, limit);
+    all.push(...res.items);
+    if (res.items.some((m) => m.meta?.inquiry)) break;
+    if (res.items.length < limit || all.length >= res.total) break;
+  }
+  return all;
+}

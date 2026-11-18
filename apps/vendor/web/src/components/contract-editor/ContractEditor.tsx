@@ -109,7 +109,7 @@ import { TermsBlock } from "@/components/contract-editor/TermsBlock";
 import { TemplatePicker, type Pick } from "@/components/contract-editor/TemplatePicker";
 import { smallButton, todayIso } from "@/components/contract-editor/shared";
 import { MentionedInChat } from "@/components/contract-editor/MentionedInChat";
-import { findMentions, type Mention } from "@/lib/chatMentions";
+import { findMentions, readSinceInquiry, type Mention } from "@/lib/chatMentions";
 
 // What a template leaves to each contract made from it.
 const TEMPLATE_SKIPS: Step[] = ["client", "event", "review"];
@@ -262,6 +262,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // What the chat's messages since the inquiry mention (lib/chatMentions),
   // kept with the thread they were read from.
   const [mentioned, setMentioned] = useState<{ conversationId: string; items: Mention[] } | null>(null);
+  // A draft reopened from Contracts (?edit=) has no chat in its link: the lead
+  // it was converted from knows the thread.
+  const [editThread, setEditThread] = useState<string | null>(null);
   const [fromInquiry, setFromInquiry] = useState<{
     firstName: string;
     eventType: string | null;
@@ -399,7 +402,8 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         setVendor(mine);
         const [svc, leads, tpl, existing, requests, proposals, thread] = await Promise.all([
           myServices(mine.vendor_id).catch(() => null),
-          leadId ? myLeads().catch(() => null) : Promise.resolve(null),
+          // Also for a reopened draft: its lead knows the chat it came from.
+          leadId || editId ? myLeads().catch(() => null) : Promise.resolve(null),
           contractTemplates().catch(() => [] as SavedContractTemplate[]),
           // The contract being edited is read fresh: an edit starts from what
           // the server has now, not from what this tab saw (lib/vendorData).
@@ -423,6 +427,8 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
         if (existing) {
           setEditing(existing);
+          const fromLead = leads?.items.find((l) => l.converted_booking_id === existing.booking_id)?.conversation_id;
+          if (fromLead) setEditThread(fromLead);
           if (existing.contract_status === "draft") {
             serverDraftRef.current = existing;
             setServerDraft(existing);
@@ -530,18 +536,19 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
 
   // The chat this contract is for, read once for what it mentions. Only for
   // a contract still being written: a sent one changes by addendum.
+  const chatId = conversationId ?? editThread;
   useEffect(() => {
-    if (!conversationId || isTemplate || !user) return;
+    if (!chatId || isTemplate || !user) return;
     let cancelled = false;
-    getConversationMessages(conversationId, { limit: 100 })
-      .then((res) => !cancelled && setMentioned({ conversationId, items: findMentions(res.items, todayIso()) }))
+    readSinceInquiry((offset, limit) => getConversationMessages(chatId, { limit, offset }))
+      .then((items) => !cancelled && setMentioned({ conversationId: chatId, items: findMentions(items, todayIso()) }))
       .catch(() => {
         /* the editor works the same without it */
       });
     return () => {
       cancelled = true;
     };
-  }, [conversationId, isTemplate, user]);
+  }, [chatId, isTemplate, user]);
 
   // A template has no client or event yet; those are each contract's.
   const issues = useMemo(
@@ -1238,7 +1245,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
             ) : null}
           </div>
         ) : null}
-        {mentioned && mentioned.conversationId === conversationId && (!editing || editing.contract_status === "draft") ? (
+        {mentioned && mentioned.conversationId === chatId && (!editing || editing.contract_status === "draft") ? (
           <MentionedInChat mentions={mentioned.items} onUse={set} />
         ) : null}
         {noInquiryFrom && conversationId ? (

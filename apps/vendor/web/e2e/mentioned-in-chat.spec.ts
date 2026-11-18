@@ -1,6 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { loginAs } from "./support/fixtures";
-import { mockVendorDetail } from "./support/mock-data";
+import { mockLead, mockVendorDetail } from "./support/mock-data";
 import type { ApiMock } from "./support/api-mock";
 
 // "Mentioned in chat" (Contract Builder from Chat, version 1): what the chat
@@ -68,5 +68,33 @@ test.describe("mentioned in chat", () => {
 
     await expect(page.getByRole("heading", { name: "New contract" })).toBeVisible();
     await expect(page.getByText(/mentioned in chat/)).toHaveCount(0);
+  });
+
+  test("a draft reopened from Contracts finds its chat through its lead", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api, [msg("m2", "We're now about 180 guests.", ago(1))]);
+    api.get("/leads", {
+      items: [mockLead({ lead_id: "l1", name: "Meera Patel", converted_booking_id: "d-1", conversation_id: "c1" })],
+      total: 1,
+    });
+    api.get("/contracts/d-1", {
+      booking_id: "d-1", vendor_id: "vendor-1", service_id: "svc-1", service_name: "Reception set",
+      date_iso: "TBD", date_end: null, time_start: "TBD", time_end: "TBD", location: "TBD", guest_count: null,
+      amount_cents: 140000, subtotal_cents: 140000, discount_cents: null,
+      line_items: [{ id: "pkg", kind: "package", service_id: "svc-1", addon_id: null, name: "Reception set", description: null, unit: "event", unit_price_cents: 140000, quantity: 1, total_cents: 140000 }],
+      payment_schedule: [{ id: "full", label: "Payment in full", amount_cents: 140000, due_type: "on_signing", due_date: null, due_days: null, marked_paid_at: null, confirmed_at: null }],
+      terms_clauses: [], document_title: "Meera Patel — Reception set agreement", document_layout: null, revision: 1,
+      deposit_percent: null, deposit_amount_cents: null, cancellation_window_hours: null, overtime_rate_cents: null,
+      addon_rate_cents: null, contract_terms: null, guest_name: "Meera Patel", guest_email: "meera@example.com",
+      guest_phone: null, signed_at: null, status: "approved", payment_status: "unpaid", contract_status: "draft",
+      sent_at: null, viewed_at: null, hold_expires_at: null, contract_token: "tok-d1", vendor_display_name: "Priya Shah",
+      proposal_status: null, timeline: [],
+    });
+    api.get("/bookings/vendor/vendor-1", { items: [], total: 0, limit: 100, offset: 0 });
+
+    await page.goto("contracts/new/?edit=d-1");
+
+    await expect(page.getByRole("heading", { name: "Edit draft" })).toBeVisible();
+    await expect(page.getByText("1 detail mentioned in chat")).toBeVisible();
   });
 });
