@@ -1436,3 +1436,23 @@ event, place and guests to build from. A chat that began with a question has non
 - **The editor** opened for such a chat anyway (an old link, a bookmark) still works, with a
   warning and the same Send inquiry form button.
 - **An older backend** with no `has_inquiry` keeps the old way: Send contract on every chat.
+
+## Decision: a contract starts from everything the inquiry said (2026-11-18)
+
+Version 1 of Contract Builder from Chat fills the contract only from the client's inquiry, exactly,
+with no model. The editor already copied the name, email, phone, a future date and the guest count
+from the lead. Now, in `ContractEditor`'s load:
+
+- **The package they asked about.** A lead with a `service_id` the vendor still offers skips the
+  "start from" screen and opens on that package, the way Leads' own link (`&package=`) does. It
+  goes into the URL, so a reload keeps it, and the editor stays loading through the hand-off so
+  the first screen doesn't flash. A package no longer offered leaves the first screen as it was.
+- **As much of the place as they gave.** "Edison, NJ" now fills city and state instead of nothing.
+  The venue check at Send still asks for the street, and the note above the editor says so.
+- **The event, in the title.** A generated title reads "Meera Patel's Sangeet — DJ agreement". A
+  package template's own title is kept: it's the vendor's.
+- **Their note**, and the event type, in a "From Meera's inquiry" note above the editor, since the
+  contract has no field for either.
+
+A newer inquiry in the same thread needs nothing here: the backend updates that thread's open lead
+(`inquiry_service._lead_for`), so the lead always holds the latest answers.

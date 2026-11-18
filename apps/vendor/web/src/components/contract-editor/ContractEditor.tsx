@@ -253,6 +253,15 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // A chat whose client hasn't sent the inquiry form (backend DECISIONS #54):
   // their first name, for the warning. The contract can still be written.
   const [noInquiryFrom, setNoInquiryFrom] = useState<string | null>(null);
+  // What the client's inquiry said that the contract has no field for (the
+  // event type, their note), and the place as they wrote it, shown above the
+  // editor so nothing they asked for is lost on the way.
+  const [fromInquiry, setFromInquiry] = useState<{
+    firstName: string;
+    eventType: string | null;
+    note: string | null;
+    place: string | null;
+  } | null>(null);
   const [inquiryAsk, setInquiryAsk] = useState<{ sent: boolean; error: string | null; busy: boolean }>({
     sent: false,
     error: null,
@@ -371,6 +380,9 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     if (!user) return;
     if (editId && editId === adoptedId.current) return;
     let cancelled = false;
+    // Set when this load hands off to the inquiry's package: the next load
+    // finishes loading, so the first screen doesn't flash in between.
+    let handedOff = false;
     myVendor()
       .then(async (mine) => {
         if (cancelled) return;
@@ -428,6 +440,17 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           }
           setRequest(asked);
         }
+        const lead = leads?.items.find((l) => l.lead_id === leadId);
+        // The inquiry named a package: start from it, as Leads' own link does,
+        // instead of asking which to start from. Into the URL, like choose(),
+        // so a reload or Back keeps it.
+        if (choosing && lead?.service_id && offered.some((c) => c.id === packageChoiceId(lead.service_id!))) {
+          const next = new URLSearchParams(window.location.search);
+          next.set("package", lead.service_id);
+          handedOff = true;
+          router.replace(`/contracts/new?${next.toString()}`);
+          return;
+        }
         if (choosing) return;
         const start = asked ? fromRequest(asked) : emptyDraft();
         start.clauses = defaultClauses(mine).map((c) => ({ ...c, key: newKey() }));
@@ -437,16 +460,24 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         if (mine.default_overtime_rate_cents != null) {
           start.overtimeRate = String(mine.default_overtime_rate_cents / 100);
         }
-        const lead = leads?.items.find((l) => l.lead_id === leadId);
         if (lead) {
           start.clientName = lead.name;
           start.clientEmail = lead.email ?? "";
           start.clientPhone = lead.phone ?? "";
           if (lead.event_date_iso && lead.event_date_iso >= todayIso()) start.dateIso = lead.event_date_iso;
           if (lead.guest_count) start.guestCount = String(lead.guest_count);
-          // Only a full address: "Edison, NJ" would stop the contract at the
-          // venue check. The lead still shows what they wrote.
-          if (lead.event_location && isCompleteLocation(lead.event_location)) start.location = lead.event_location;
+          // As much of the place as they gave: "Edison, NJ" fills the city
+          // and state, and the venue check at Send asks for the street.
+          if (lead.event_location) start.location = lead.event_location;
+          const place = lead.event_location && !isCompleteLocation(lead.event_location) ? lead.event_location : null;
+          if (lead.event_type || lead.note || place) {
+            setFromInquiry({
+              firstName: lead.name.split(" ")[0] || lead.name,
+              eventType: lead.event_type?.trim() || null,
+              note: lead.note?.trim() || null,
+              place,
+            });
+          }
         }
         const other = thread?.members?.find((m) => m.user_id !== mine.user_id);
         if (!lead && other?.name) start.clientName = other.name;
@@ -485,7 +516,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         !cancelled &&
         setLoadError(err instanceof ApiError ? err.message : "Couldn't load your listing."),
       )
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => !cancelled && !handedOff && setLoading(false));
     return () => {
       cancelled = true;
     };
@@ -546,7 +577,14 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   // apart in the list (2026-10-26: two "test agreement"s side by side).
   const baseTitle = `${firstPackage || (vendor?.category ? categoryLabel(vendor.subcategory || vendor.category) : "Services")} agreement`;
   const client = (request?.client_name || draft.clientName).trim();
-  const defaultTitle = client ? `${client} — ${baseTitle}` : baseTitle;
+  // The event they asked about, when the inquiry said: "Meera Patel's
+  // Sangeet — Reception set agreement".
+  const eventType = fromInquiry?.eventType;
+  const defaultTitle = client
+    ? `${eventType ? `${client}'s ${eventType}` : client} — ${baseTitle}`
+    : eventType
+      ? `${eventType} — ${baseTitle}`
+      : baseTitle;
   // The generated title is real text in the field, not a placeholder, so the
   // vendor can edit it in place. It follows the package and client until
   // they type; after that an emptied field stays empty (and saves as the
@@ -1157,6 +1195,27 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           <p role="status" className="mt-3 rounded-lg bg-panel px-3 py-2 text-sm text-ink-soft">
             That proposal has already been answered, so this is the contract as it stands.
           </p>
+        ) : null}
+        {fromInquiry && !editing ? (
+          <div role="note" className="mt-3 rounded-lg bg-panel px-3 py-3 text-sm text-ink-soft">
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-faint">
+              From {fromInquiry.firstName}&apos;s inquiry
+            </p>
+            {fromInquiry.eventType ? (
+              <p className="mt-1">
+                <span className="text-ink-faint">Event:</span> <span className="text-ink">{fromInquiry.eventType}</span>
+              </p>
+            ) : null}
+            {fromInquiry.place ? (
+              <p className="mt-1">
+                <span className="text-ink-faint">Where:</span> <span className="text-ink">{fromInquiry.place}</span>{" "}
+                <span>— add the venue&apos;s street address below.</span>
+              </p>
+            ) : null}
+            {fromInquiry.note ? (
+              <p className="mt-2 whitespace-pre-wrap border-l-2 border-line pl-3">{fromInquiry.note}</p>
+            ) : null}
+          </div>
         ) : null}
         {noInquiryFrom && conversationId ? (
           <div role="status" className="mt-3 rounded-lg border border-gold/40 bg-panel px-3 py-3 text-sm text-ink-soft">
