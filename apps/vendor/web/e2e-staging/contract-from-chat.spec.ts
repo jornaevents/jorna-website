@@ -82,7 +82,18 @@ test.describe("staging: contract from chat", () => {
     await api(`/conversations/${conv}/details`, { method: "POST", token: clientToken, body: { field: "guests", value: "150" } });
 
     await page.reload();
-    await page.getByRole("button", { name: "Agree" }).click();
+    // Wait for the request itself: a click before the reloaded page is ready
+    // does nothing, and the answer's status says whether the backend took it.
+    const agree = page.getByRole("button", { name: "Agree" });
+    await expect(agree).toBeVisible();
+    let answered = null;
+    for (let attempt = 0; attempt < 3 && !answered; attempt++) {
+      const response = page.waitForResponse((r) => r.url().includes("/details/") && r.url().endsWith("/agree"), { timeout: 8_000 });
+      await agree.click();
+      answered = await response.catch(() => null);
+    }
+    expect(answered, "the Agree click never reached the backend").not.toBeNull();
+    expect(answered!.status(), await answered!.text()).toBe(200);
     await expect(page.getByText("Agreed", { exact: true })).toBeVisible();
 
     // 5. Send contract now opens a contract built from the inquiry.
