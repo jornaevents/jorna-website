@@ -1478,3 +1478,12 @@ through plain patterns. It runs in the browser, so it's free and no chat text le
 - Offers, contracts, system lines and the inquiry itself are skipped; they're on the contract or
   in their own cards. The panel is collapsed ("3 details mentioned in chat") and shows for new
   contracts and drafts from a chat, not once one has gone out.
+
+## Decision: agreed details come first in the panel (2026-11-18)
+
+Propose a detail (backend DECISIONS #59) is drawn by the shared `DetailProposal` components in
+both chats: a card with Agree and Decline for the side that didn't propose it, and a "Propose a
+detail" form for a date, times, a guest count or one of the vendor's add-ons. In the contract
+editor's Mentioned in chat panel, an agreed proposal is listed first, marked "Agreed in chat", with
+Use; open, declined and replaced ones aren't listed. An agreed add-on is listed without Use until
+add-on lines can be added from the panel.

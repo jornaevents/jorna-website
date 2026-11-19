@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
+import { DetailProposalCard, ProposeDetailForm, isDetailProposal, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -11,8 +12,11 @@ import { offerTarget } from "@jorna/shared/lib/offerTarget";
 import { LABEL_TEXT, LABEL_TONE, knownLabel } from "@jorna/shared/lib/messageLabels";
 import { StatusPill } from "@jorna/shared/components/ui";
 import {
+  answerDetail,
   getConversation,
   getConversationMessages,
+  listServices,
+  proposeDetail,
   sendConversationMessage,
 } from "@/lib/jorna";
 import { openConversationSocket } from "@/lib/chat";
@@ -120,6 +124,9 @@ function ConversationInner() {
   const [sending, setSending] = useState(false);
   const [live, setLive] = useState(false);
   const [inquiring, setInquiring] = useState(false);
+  // Propose a detail to the vendor (backend DECISIONS #59).
+  const [proposing, setProposing] = useState(false);
+  const [addons, setAddons] = useState<AddOnChoice[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -234,6 +241,18 @@ function ConversationInner() {
   // chat that began with a question offers it until it's sent.
   const needsInquiry = Boolean(sidebarVendor && meta?.has_inquiry === false);
   const vendorName = meta?.name || "this vendor";
+
+  function openPropose() {
+    setProposing(true);
+    if (!sidebarVendor) return;
+    listServices({ vendor_id: sidebarVendor, limit: 50 })
+      .then((page) => {
+        const seen = new Map<string, AddOnChoice>();
+        for (const svc of page.items) for (const a of svc.add_ons ?? []) if (a.id && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
+        setAddons([...seen.values()]);
+      })
+      .catch(() => {});
+  }
 
   function inquirySent() {
     setInquiring(false);
@@ -379,6 +398,17 @@ function ConversationInner() {
                     <OfferCard message={m} mine={mine} conversation={meta} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
                     <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
+                  ) : m.kind === "detail_proposal" && isDetailProposal(m.meta) ? (
+                    <DetailProposalCard
+                      meta={m.meta}
+                      mine={mine}
+                      who={m.sender_name || meta?.name || "They"}
+                      onAnswer={(agree) =>
+                        answerDetail(conversationId!, m.message_id, agree).then(upsert, (err) => {
+                          throw new Error(err instanceof ApiError ? err.message : "That didn't work. Try again.");
+                        })
+                      }
+                    />
                   ) : m.kind === "inquiry_request" ? (
                     <InquiryRequestCard
                       mine={mine}
@@ -465,6 +495,25 @@ function ConversationInner() {
           Send
         </button>
       </form>
+      {sidebarVendor ? (
+        proposing ? (
+          <div className="mt-3">
+            <ProposeDetailForm
+              addons={addons}
+              onClose={() => setProposing(false)}
+              onPropose={(field, value) =>
+                proposeDetail(conversationId!, field, value).then(upsert, (err) => {
+                  throw new Error(err instanceof ApiError ? err.message : "Couldn't propose that. Try again.");
+                })
+              }
+            />
+          </div>
+        ) : (
+          <button type="button" onClick={openPropose} className="mt-2 text-sm font-semibold text-gold hover:underline">
+            Propose a detail
+          </button>
+        )
+      ) : null}
       {/* Contracts arrive here as cards (backend DECISIONS #48); what they
           say is settled on the contract and in the event, not by message. */}
       <p className="mt-2 text-center text-xs text-ink-faint">Prices and changes are handled in your event.</p>

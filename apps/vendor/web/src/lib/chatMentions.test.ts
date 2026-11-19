@@ -132,7 +132,7 @@ describe("readSinceInquiry", () => {
     const { page, asked } = pages(thread(350, 120));
     const got = await readSinceInquiry(page);
     expect(asked).toEqual([0, 100, 200]);
-    expect(got.some((m) => m.meta?.inquiry)).toBe(true);
+    expect(got.some((m) => Boolean((m.meta as { inquiry?: unknown } | null)?.inquiry))).toBe(true);
   });
 
   it("stops at the start of a short thread", async () => {
@@ -145,5 +145,32 @@ describe("readSinceInquiry", () => {
     const { page, asked } = pages(thread(2000));
     expect(await readSinceInquiry(page, 500)).toHaveLength(500);
     expect(asked).toEqual([0, 100, 200, 300, 400]);
+  });
+});
+
+describe("agreed proposals", () => {
+  const proposal = (id: string, field: string, value: string, label: string, status: string, at: string) =>
+    msg(id, `Meera proposed ${label}`, at, { kind: "detail_proposal", meta: { field, value, label, status, proposed_by: "c" } });
+
+  it("lists agreed details first, marked agreed, and skips open or declined ones", () => {
+    const found = findMentions(
+      [
+        msg("m1", "Maybe 200 guests?", "2026-11-14T15:00:00Z"),
+        proposal("p1", "guests", "150", "150 guests", "agreed", "2026-11-13T15:00:00Z"),
+        proposal("p2", "times", "16:00-22:00", "4:00 PM – 10:00 PM", "open", "2026-11-15T15:00:00Z"),
+        proposal("p3", "date", "2027-03-14", "Sun, Mar 14, 2027", "declined", "2026-11-15T15:00:00Z"),
+      ],
+      TODAY,
+    );
+    expect(found[0]).toMatchObject({ kind: "guests", value: "150", agreed: true, usable: true, quote: "Agreed in chat" });
+    expect(kinds(found)).toEqual(["guests=150", "guests=200"]);
+  });
+
+  it("an agreed add-on is listed but has no Use yet", () => {
+    const found = findMentions(
+      [msg("p1", "x", "2026-11-13T15:00:00Z", { kind: "detail_proposal", meta: { field: "addon", value: "ao-1", label: "Drone coverage", status: "agreed", proposed_by: "c", addon: { id: "ao-1", name: "Drone coverage" } } })],
+      TODAY,
+    );
+    expect(found).toEqual([expect.objectContaining({ kind: "addon", value: "ao-1", usable: false, agreed: true })]);
   });
 });

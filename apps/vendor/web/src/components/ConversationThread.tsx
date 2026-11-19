@@ -10,9 +10,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
+import { DetailProposalCard, ProposeDetailForm, isDetailProposal, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
 import { ApiError } from "@jorna/shared/lib/api";
 import { offerTarget, type OfferTarget } from "@jorna/shared/lib/offerTarget";
-import { getConversationMessages, sendConversationMessage } from "@/lib/jorna";
+import { answerDetail, getConversationMessages, proposeDetail, sendConversationMessage } from "@/lib/jorna";
+import { myServices, myVendor } from "@/lib/vendorData";
 import { openConversationSocket } from "@/lib/chat";
 import type { ConversationSummary, GroupMessage } from "@/lib/types";
 
@@ -117,6 +119,10 @@ export function ConversationThread({
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // Propose a detail (backend DECISIONS #59): only in a chat with one client.
+  const [proposing, setProposing] = useState(false);
+  const [addons, setAddons] = useState<AddOnChoice[]>([]);
+  const canPropose = Boolean(conversation?.vendor_id && conversation.members?.length === 2);
   const bottomRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
   const onLiveRef = useRef(onLive);
@@ -167,6 +173,21 @@ export function ConversationThread({
   useEffect(() => {
     if (atBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
+
+  function openPropose() {
+    setProposing(true);
+    myVendor()
+      .then((v) => (v ? myServices(v.vendor_id) : null))
+      .then((page) => {
+        const seen = new Map<string, AddOnChoice>();
+        for (const svc of page?.items ?? []) {
+          if (svc.status === "archived") continue;
+          for (const a of svc.add_ons ?? []) if (a.id && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
+        }
+        setAddons([...seen.values()]);
+      })
+      .catch(() => {});
+  }
 
   async function send() {
     const content = draft.trim();
@@ -234,6 +255,17 @@ export function ConversationThread({
                     <OfferCard message={m} mine={mine} conversation={conversation} offerLink={offerLink} />
                   ) : m.kind === "contract" && typeof m.meta?.booking_id === "string" ? (
                     <ContractCard text={m.content} bookingId={m.meta.booking_id} mine={mine} />
+                  ) : m.kind === "detail_proposal" && isDetailProposal(m.meta) ? (
+                    <DetailProposalCard
+                      meta={m.meta}
+                      mine={mine}
+                      who={m.sender_name || "They"}
+                      onAnswer={(agree) =>
+                        answerDetail(conversationId, m.message_id, agree).then(upsert, (err) => {
+                          throw new Error(err instanceof ApiError ? err.message : "That didn't work. Try again.");
+                        })
+                      }
+                    />
                   ) : m.kind === "inquiry_request" ? (
                     <InquiryRequestCard
                       mine={mine}
@@ -268,6 +300,26 @@ export function ConversationThread({
       </div>
 
       {error ? <p className="mt-2 text-center text-xs text-maroon dark:text-gold">{error}</p> : null}
+
+      {canPropose ? (
+        proposing ? (
+          <div className="mt-3">
+            <ProposeDetailForm
+              addons={addons}
+              onClose={() => setProposing(false)}
+              onPropose={(field, value) =>
+                proposeDetail(conversationId, field, value).then(upsert, (err) => {
+                  throw new Error(err instanceof ApiError ? err.message : "Couldn't propose that. Try again.");
+                })
+              }
+            />
+          </div>
+        ) : (
+          <button type="button" onClick={openPropose} className="mt-3 self-start text-sm font-semibold text-gold hover:underline">
+            Propose a detail
+          </button>
+        )
+      ) : null}
 
       <form
         onSubmit={(e) => {

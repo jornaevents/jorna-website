@@ -9,8 +9,9 @@
 // hours and dollar amounts from plain patterns.
 
 import * as chrono from "chrono-node";
+import { isDetailProposal } from "@jorna/shared/components/DetailProposal";
 
-export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount";
+export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon";
 
 export interface Mention {
   /** Stable for this message and value, for React keys and dismissing. */
@@ -29,6 +30,9 @@ export interface Mention {
    *  shown for the vendor to act on themselves: which line an hour belongs
    *  to, or what a figure was for, isn't something a pattern can know. */
   usable: boolean;
+  /** Proposed and agreed in the chat (backend DECISIONS #59): exact, not
+   *  just mentioned, so it's listed first. */
+  agreed?: boolean;
 }
 
 export interface ChatMessage {
@@ -38,13 +42,18 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   kind?: string | null;
-  meta?: { inquiry?: unknown } | null;
+  meta?: object | null;
+}
+
+/** Whether a message is the client's inquiry (its card's meta.inquiry). */
+function isInquiry(m: ChatMessage): boolean {
+  return Boolean(m.meta && (m.meta as { inquiry?: unknown }).inquiry);
 }
 
 /** Only typed messages: offers, contracts and system lines say their own
  *  things in their own cards, and the inquiry is already on the contract. */
 function typed(m: ChatMessage): boolean {
-  return (!m.kind || m.kind === "text") && !m.meta?.inquiry;
+  return (!m.kind || m.kind === "text") && !isInquiry(m);
 }
 
 /** The messages since the client's latest inquiry: older chat may be about a
@@ -53,7 +62,7 @@ export function sinceLatestInquiry(messages: ChatMessage[]): ChatMessage[] {
   const sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
   let start = 0;
   sorted.forEach((m, i) => {
-    if (m.meta?.inquiry) start = i + 1;
+    if (isInquiry(m)) start = i + 1;
   });
   return sorted.slice(start);
 }
@@ -109,7 +118,26 @@ const AMOUNT = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?/g;
  */
 export function findMentions(messages: ChatMessage[], today: string): Mention[] {
   const found: Mention[] = [];
-  for (const m of sinceLatestInquiry(messages).filter(typed)) {
+  const agreed: Mention[] = [];
+  const since = sinceLatestInquiry(messages);
+  for (const m of since) {
+    if (m.kind !== "detail_proposal" || !isDetailProposal(m.meta) || m.meta.status !== "agreed") continue;
+    const { field, value, label, addon } = m.meta;
+    const kind: MentionKind = field === "addon" ? "addon" : field;
+    agreed.push({
+      id: `${m.message_id}:agreed`,
+      kind,
+      value: field === "addon" ? (addon?.id ?? value) : value,
+      label,
+      quote: "Agreed in chat",
+      messageId: m.message_id,
+      sender: m.sender_name || "Someone",
+      at: m.created_at,
+      usable: field !== "addon",
+      agreed: true,
+    });
+  }
+  for (const m of since.filter(typed)) {
     const text = m.content ?? "";
     const base = { messageId: m.message_id, sender: m.sender_name || "Someone", at: m.created_at };
     const add = (kind: MentionKind, value: string, label: string, index: number, length: number, usable = true) =>
@@ -150,9 +178,11 @@ export function findMentions(messages: ChatMessage[], today: string): Mention[] 
     }
   }
 
-  // Newest first; a value said twice is listed once, where it was said last.
+  // Agreed first, then the rest, newest first; a value is listed once, where
+  // it was agreed or said last.
   const newest = new Map<string, Mention>();
-  for (const f of found.sort((a, b) => b.at.localeCompare(a.at))) {
+  const byNewest = (a: Mention, b: Mention) => b.at.localeCompare(a.at);
+  for (const f of [...agreed.sort(byNewest), ...found.sort(byNewest)]) {
     const key = `${f.kind}:${f.value}`;
     if (!newest.has(key)) newest.set(key, f);
   }
@@ -172,7 +202,7 @@ export async function readSinceInquiry(page: MessagePage, max = 500, limit = 100
   for (let offset = 0; offset < max; offset += limit) {
     const res = await page(offset, limit);
     all.push(...res.items);
-    if (res.items.some((m) => m.meta?.inquiry)) break;
+    if (res.items.some((m) => isInquiry(m))) break;
     if (res.items.length < limit || all.length >= res.total) break;
   }
   return all;
