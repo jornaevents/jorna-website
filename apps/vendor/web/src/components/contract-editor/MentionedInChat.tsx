@@ -65,7 +65,9 @@ export function MentionedInChat({
                   ) : null}
                 </p>
                 <p className="mt-0.5 text-xs text-ink-soft">
-                  &ldquo;{m.quote}&rdquo; — {m.sender}, {when(m.at)}
+                  {/* An agreed detail has no words to quote, and its badge
+                      already says it was agreed. */}
+                  {m.agreed ? `Proposed by ${m.sender}, ${when(m.at)}` : <>&ldquo;{m.quote}&rdquo; — {m.sender}, {when(m.at)}</>}
                 </p>
               </div>
               {patch || done ? (
