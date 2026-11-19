@@ -217,7 +217,13 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const leadId = params.get("lead");
+  const leadParam = params.get("lead");
+  // A chat's Send contract names its lead when Messages knows it. When it
+  // doesn't yet (its Leads list refreshes on a slower timer than the chat),
+  // the chat's own open lead is found here, so the contract still starts from
+  // the inquiry and converts that lead when it's sent.
+  const [threadLeadId, setThreadLeadId] = useState<string | null>(null);
+  const leadId = leadParam ?? threadLeadId;
   // Send contract in Messages (backend DECISIONS #48): the thread, and so
   // the client, this contract goes out to.
   const conversationId = params.get("conversation");
@@ -407,7 +413,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
         const [svc, leads, tpl, existing, requests, proposals, thread] = await Promise.all([
           myServices(mine.vendor_id).catch(() => null),
           // Also for a reopened draft: its lead knows the chat it came from.
-          leadId || editId ? myLeads().catch(() => null) : Promise.resolve(null),
+          leadParam || editId || conversationId ? myLeads().catch(() => null) : Promise.resolve(null),
           contractTemplates().catch(() => [] as SavedContractTemplate[]),
           // The contract being edited is read fresh: an edit starts from what
           // the server has now, not from what this tab saw (lib/vendorData).
@@ -456,7 +462,19 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
           }
           setRequest(asked);
         }
-        const lead = leads?.items.find((l) => l.lead_id === leadId);
+        const lead =
+          leads?.items.find((l) => l.lead_id === leadParam) ??
+          (conversationId && !leadParam && !requestId
+            ? leads?.items.find(
+                (l) =>
+                  l.conversation_id === conversationId &&
+                  !l.converted_booking_id &&
+                  !l.archived_at &&
+                  l.status !== "won" &&
+                  l.status !== "lost",
+              )
+            : undefined);
+        if (lead && !leadParam) setThreadLeadId(lead.lead_id);
         // The inquiry named a package: start from it, as Leads' own link does,
         // instead of asking which to start from. Into the URL, like choose(),
         // so a reload or Back keeps it.
@@ -541,7 +559,7 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
     return () => {
       cancelled = true;
     };
-  }, [user, router, leadId, conversationId, editId, proposalId, requestId, templateId, packageId, choosing, isTemplate, reloadKey]);
+  }, [user, router, leadParam, conversationId, editId, proposalId, requestId, templateId, packageId, choosing, isTemplate, reloadKey]);
 
   // The chat this contract is for, read once for what it mentions. Only for
   // a contract still being written: a sent one changes by addendum.

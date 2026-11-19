@@ -101,4 +101,18 @@ test.describe("contract from the inquiry", () => {
 
     await expect(page).not.toHaveURL(/[?&]package=/);
   });
+
+  test("Send contract without the lead in its link still starts from the chat's inquiry", async ({ page, api }) => {
+    await loginAs(page, api);
+    // Messages can know the chat has an inquiry before its Leads list does.
+    mockEditor(api, { ...INQUIRY, conversation_id: "c1" });
+
+    await page.goto("contracts/new/?conversation=c1");
+
+    await expect(page).toHaveURL(/[?&]package=svc-2/);
+    await expect(page.getByRole("button", { name: "Remove Sangeet night" })).toBeVisible();
+    await expect(page.getByRole("note").getByText("From Meera's inquiry")).toBeVisible();
+    await expect(page.getByLabel("City")).toHaveValue("Edison");
+  });
 });
+
