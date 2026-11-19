@@ -725,6 +725,19 @@ export function getConversationMessages(
 }
 
 /** Send a message. The backend also broadcasts it over the socket. */
+/** Propose a date, times ("HH:MM-HH:MM"), a guest count or an add-on id in
+ *  a client–vendor chat (backend DECISIONS #59). */
+export function proposeDetail(conversationId: string, field: string, value: string): Promise<GroupMessage> {
+  return apiFetch<GroupMessage>(`/conversations/${conversationId}/details`, { method: "POST", body: { field, value } });
+}
+
+/** The other side's answer to a proposal: the same message, answered. */
+export function answerDetail(conversationId: string, messageId: string, agree: boolean): Promise<GroupMessage> {
+  return apiFetch<GroupMessage>(`/conversations/${conversationId}/details/${messageId}/${agree ? "agree" : "decline"}`, {
+    method: "POST",
+  });
+}
+
 export function sendConversationMessage(
   conversationId: string,
   content: string,

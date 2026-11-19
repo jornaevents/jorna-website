@@ -18,6 +18,7 @@ const KIND_LABEL: Record<Mention["kind"], string> = {
   guests: "Guests",
   hours: "Hours",
   amount: "Amount",
+  addon: "Add-on",
 };
 
 function patchFor(m: Mention): Partial<Draft> | null {
@@ -64,6 +65,9 @@ export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUs
               <div className="min-w-0">
                 <p className="text-ink">
                   <span className="text-ink-faint">{KIND_LABEL[m.kind]}:</span> {m.label}
+                  {m.agreed ? (
+                    <span className="ml-2 rounded-full bg-green/10 px-2 py-0.5 text-[0.68rem] font-bold text-green">Agreed in chat</span>
+                  ) : null}
                 </p>
                 <p className="mt-0.5 text-xs text-ink-soft">
                   &ldquo;{m.quote}&rdquo; — {m.sender}, {when(m.at)}
