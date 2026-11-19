@@ -219,10 +219,21 @@ function NewMessagePicker({
 
 /** The row's last line. A contract card's text is written to the client
  *  ("… sent you a contract"), so the vendor's own reads in their words. */
+/** "Meera proposed a guest count: 150 guests." from the whole message. */
+function firstSentence(text: string): string {
+  const cut = text.search(/\.\s/);
+  return cut === -1 ? text : text.slice(0, cut + 1);
+}
+
 function inboxPreview(c: ConversationSummary, myUserId: string | undefined): string {
   const last = c.last_message;
   if (!last?.content) return "No messages yet";
   if (last.kind === "contract") return last.sender_id === myUserId ? "📄 You sent a contract" : `📄 ${last.content}`;
+  // Their text carries a link for apps that don't draw the card; the
+  // inbox shows the first sentence, without it.
+  if (last.kind === "inquiry_request" || last.kind === "detail_proposal") {
+    return last.sender_id === myUserId ? `You: ${firstSentence(last.content)}` : firstSentence(last.content);
+  }
   return last.content;
 }
 
