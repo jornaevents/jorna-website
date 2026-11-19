@@ -84,7 +84,7 @@ test.describe("staging: contract from chat", () => {
     await page.reload();
     // Wait for the request itself: a click before the reloaded page is ready
     // does nothing, and the answer's status says whether the backend took it.
-    const agree = page.getByRole("button", { name: "Agree" });
+    const agree = page.getByRole("button", { name: "Agree", exact: true });
     await expect(agree).toBeVisible();
     let answered = null;
     for (let attempt = 0; attempt < 3 && !answered; attempt++) {
