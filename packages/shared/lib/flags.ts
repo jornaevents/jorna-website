@@ -23,3 +23,12 @@ export const PUSH_ENABLED = process.env.NEXT_PUBLIC_PUSH_ENABLED === "true";
 // the variable itself, and the mark keeps a stored theme or a dark device from
 // reaching a build that's meant to be light.
 export const DARK_MODE_ENABLED = process.env.NEXT_PUBLIC_DARK_MODE_ENABLED === "true";
+
+/**
+ * The client's inquiry note as an optional "Special requests" section of the
+ * contract (Contract Builder from Chat, A7). Off until legal has OK'd it:
+ * it's wording on the contract that the vendor's cleared templates don't
+ * have. Turn on with NEXT_PUBLIC_SPECIAL_REQUESTS_ENABLED=true.
+ */
+export const SPECIAL_REQUESTS_ENABLED = process.env.NEXT_PUBLIC_SPECIAL_REQUESTS_ENABLED === "true";
+
