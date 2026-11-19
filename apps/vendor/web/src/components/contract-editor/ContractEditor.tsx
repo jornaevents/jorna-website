@@ -112,6 +112,8 @@ import { smallButton, todayIso } from "@/components/contract-editor/shared";
 import { MentionedInChat } from "@/components/contract-editor/MentionedInChat";
 import { findMentions, readSinceInquiry, type ChatMessage } from "@/lib/chatMentions";
 import { mentionPatch } from "@/lib/mentionUse";
+import { hasSpecialRequests, specialRequestsClause } from "@/lib/specialRequests";
+import { SPECIAL_REQUESTS_ENABLED } from "@jorna/shared/lib/flags";
 
 // What a template leaves to each contract made from it.
 const TEMPLATE_SKIPS: Step[] = ["client", "event", "review"];
@@ -1256,6 +1258,22 @@ export function ContractEditor({ mode = "contract" }: { mode?: "contract" | "tem
             ) : null}
             {fromInquiry.note ? (
               <p className="mt-2 whitespace-pre-wrap border-l-2 border-line pl-3">{fromInquiry.note}</p>
+            ) : null}
+            {SPECIAL_REQUESTS_ENABLED && fromInquiry.note ? (
+              hasSpecialRequests(draft) ? (
+                <p className="mt-2 text-xs text-ink-faint">Added as a Special requests section. Edit or remove it below.</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clause = specialRequestsClause(fromInquiry.note);
+                    if (clause) setDraft((d) => ({ ...d, ...insertClause(d, clause) }));
+                  }}
+                  className="mt-2 text-sm font-semibold text-gold hover:underline"
+                >
+                  Add as a Special requests section
+                </button>
+              )
             ) : null}
           </div>
         ) : null}

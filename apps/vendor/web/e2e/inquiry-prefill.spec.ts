@@ -74,6 +74,8 @@ test.describe("contract from the inquiry", () => {
     await expect(note.getByText("From Meera's inquiry")).toBeVisible();
     await expect(note.getByText("— add the venue's street address below.")).toBeVisible();
     await expect(note.getByText("Can you play a mix of Bollywood and Punjabi?")).toBeVisible();
+    // Special requests waits for legal's OK: off unless switched on.
+    await expect(page.getByRole("button", { name: "Add as a Special requests section" })).toHaveCount(0);
     await expect(page.getByLabel("Client name")).toHaveValue("Meera Patel");
     // From scratch the title is generated, so it can carry the event. A
     // package's template has a title of its own, which is kept.

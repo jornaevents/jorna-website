@@ -1504,3 +1504,12 @@ What Use does is worked out against the contract as it stands and the vendor's p
 
 Mentions are worked out with the add-ons once the packages have loaded, so the editor keeps the
 chat's raw messages, not the mentions.
+
+## Decision: Special requests is built, and off until legal says yes (2026-11-18)
+
+The client's inquiry note can become an optional "Special requests" section of the contract, in
+their own words (`lib/specialRequests`). The vendor adds it from the "From Meera's inquiry" note
+and then keeps, edits or removes it like any other section; it's offered once. It's new wording
+on the contract that the vendor's cleared templates don't have, so it sits behind
+`SPECIAL_REQUESTS_ENABLED` (`NEXT_PUBLIC_SPECIAL_REQUESTS_ENABLED=true`), off by default, until
+legal has OK'd it.
