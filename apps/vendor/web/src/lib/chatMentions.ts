@@ -11,7 +11,7 @@
 import * as chrono from "chrono-node";
 import { isDetailProposal } from "@jorna/shared/components/DetailProposal";
 
-export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon";
+export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon" | "discount";
 
 export interface Mention {
   /** Stable for this message and value, for React keys and dismissing. */
@@ -26,9 +26,9 @@ export interface Mention {
   messageId: string;
   sender: string;
   at: string;
-  /** Whether the contract has a field Use can fill. Hours and amounts are
-   *  shown for the vendor to act on themselves: which line an hour belongs
-   *  to, or what a figure was for, isn't something a pattern can know. */
+  /** Whether Use may change the contract at all. A plain amount never: what
+   *  a figure was for isn't something a pattern can know. The rest depend on
+   *  the contract as it stands (lib/mentionUse). */
   usable: boolean;
   /** Proposed and agreed in the chat (backend DECISIONS #59): exact, not
    *  just mentioned, so it's listed first. */
@@ -109,6 +109,7 @@ const RELATIVE = /\b(ago|hours?|hrs?|minutes?|mins?|days?|weeks?|months?|years?)
 const GUESTS = /\b(\d{1,3}(?:,\d{3})?|\d{2,4})\s*\+?\s*(guests|people|persons|pax|attendees|ppl)\b/gi;
 const GUEST_COUNT = /\bguest\s+count\s+(?:of|is|will be|would be|:)?\s*(?:about|around|~)?\s*(\d{2,4})\b/gi;
 const HOURS = /\b(\d{1,2}(?:\.5)?)\s*(hours|hrs|hr)\b/gi;
+const DISCOUNT = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?\s*(?:off|discount)\b|\bdiscount\s+of\s+\$\s?(\d{1,3}(?:,\d{3})+|\d+)/gi;
 const AMOUNT = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?/g;
 
 /**
@@ -116,7 +117,12 @@ const AMOUNT = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?/g;
  * mention). `today` is the venue's calendar day as "YYYY-MM-DD": dates before
  * it are left out, since a contract can't be for them.
  */
-export function findMentions(messages: ChatMessage[], today: string): Mention[] {
+export function findMentions(messages: ChatMessage[], today: string, addons: { id: string; name: string }[] = []): Mention[] {
+  // An add-on is matched by its own name, whole words, any case: never a
+  // guess at what someone meant.
+  const named = addons
+    .filter((a) => a.name.trim().length >= 3)
+    .map((a) => ({ ...a, re: new RegExp(`\\b${a.name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i") }));
   const found: Mention[] = [];
   const agreed: Mention[] = [];
   const since = sinceLatestInquiry(messages);
@@ -133,7 +139,7 @@ export function findMentions(messages: ChatMessage[], today: string): Mention[] 
       messageId: m.message_id,
       sender: m.sender_name || "Someone",
       at: m.created_at,
-      usable: field !== "addon",
+      usable: true,
       agreed: true,
     });
   }
@@ -170,11 +176,26 @@ export function findMentions(messages: ChatMessage[], today: string): Mention[] 
     }
     for (const x of text.matchAll(HOURS)) {
       const n = Number(x[1]);
-      if (n >= 1 && n <= 24) add("hours", String(n), `${n} hours`, x.index ?? 0, x[0].length, false);
+      // Usable when the contract says what the hours are for (lib/mentionUse).
+      if (n >= 1 && n <= 24) add("hours", String(n), `${n} hours`, x.index ?? 0, x[0].length);
+    }
+    for (const a of named) {
+      const x = a.re.exec(text);
+      if (x) add("addon", a.id, a.name.trim(), x.index, x[0].length);
+    }
+    // A figure said as a discount ("$200 off", "a $200 discount") can be
+    // used as one; any other figure is only shown.
+    const discounted = new Set<number>();
+    for (const x of text.matchAll(DISCOUNT)) {
+      const dollars = Number((x[1] ?? x[2]).replace(/,/g, ""));
+      if (dollars > 0) {
+        add("discount", String(dollars), `$${dollars.toLocaleString("en-US")} off`, x.index ?? 0, x[0].length);
+        discounted.add(dollars);
+      }
     }
     for (const x of text.matchAll(AMOUNT)) {
       const dollars = Number(x[1].replace(/,/g, ""));
-      if (dollars > 0) add("amount", String(dollars), `$${dollars.toLocaleString("en-US")}${x[2] && x[2] !== "00" ? `.${x[2]}` : ""}`, x.index ?? 0, x[0].length, false);
+      if (dollars > 0 && !discounted.has(dollars)) add("amount", String(dollars), `$${dollars.toLocaleString("en-US")}${x[2] && x[2] !== "00" ? `.${x[2]}` : ""}`, x.index ?? 0, x[0].length, false);
     }
   }
 

@@ -4,7 +4,8 @@
 // what the messages since the client's inquiry said about the event, each
 // with the words it was said in. Use puts a value on the contract; nothing
 // changes until the vendor clicks it. Hours and amounts have no Use: which
-// line an hour belongs to, or what a figure was for, is the vendor's call.
+// line an hour belongs to, or what a figure was for, is the vendor's call —
+// unless the contract makes it clear (lib/mentionUse).
 
 import { useState } from "react";
 import type { Draft } from "@jorna/shared/lib/contractDraft";
@@ -19,30 +20,24 @@ const KIND_LABEL: Record<Mention["kind"], string> = {
   hours: "Hours",
   amount: "Amount",
   addon: "Add-on",
+  discount: "Discount",
 };
-
-function patchFor(m: Mention): Partial<Draft> | null {
-  switch (m.kind) {
-    case "date":
-      return { dateIso: m.value };
-    case "times": {
-      const [timeStart, timeEnd] = m.value.split("-");
-      return { timeStart, timeEnd };
-    }
-    case "start":
-      return { timeStart: m.value };
-    case "guests":
-      return { guestCount: m.value };
-    default:
-      return null;
-  }
-}
 
 function when(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUse: (patch: Partial<Draft>) => void }) {
+export function MentionedInChat({
+  mentions,
+  patchFor,
+  onUse,
+}: {
+  mentions: Mention[];
+  /** What Use would change on the contract as it stands (lib/mentionUse);
+   *  null leaves the mention without a Use button. */
+  patchFor: (m: Mention) => Partial<Draft> | null;
+  onUse: (patch: Partial<Draft>) => void;
+}) {
   const [used, setUsed] = useState<Set<string>>(() => new Set());
   if (mentions.length === 0) return null;
   const count = mentions.length;
@@ -58,8 +53,8 @@ export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUs
       </summary>
       <ul aria-label="Mentioned in chat" className="grid gap-2 border-t border-line-soft px-3 py-3">
         {mentions.map((m) => {
-          const patch = m.usable ? patchFor(m) : null;
           const done = used.has(m.id);
+          const patch = done ? null : patchFor(m);
           return (
             <li key={m.id} className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -73,12 +68,13 @@ export function MentionedInChat({ mentions, onUse }: { mentions: Mention[]; onUs
                   &ldquo;{m.quote}&rdquo; — {m.sender}, {when(m.at)}
                 </p>
               </div>
-              {patch ? (
+              {patch || done ? (
                 <button
                   type="button"
                   disabled={done}
                   aria-label={`Use ${m.label}`}
                   onClick={() => {
+                    if (!patch) return;
                     onUse(patch);
                     setUsed((s) => new Set(s).add(m.id));
                     countUse({ name: "mention_used", props: { kind: m.kind } });

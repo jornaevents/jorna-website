@@ -104,4 +104,23 @@ test.describe("mentioned in chat", () => {
     await expect(page.getByRole("heading", { name: "Edit draft" })).toBeVisible();
     await expect(page.getByText("1 detail mentioned in chat")).toBeVisible();
   });
+
+  test("an add-on named in chat and a discount are added with Use", async ({ page, api }) => {
+    await loginAs(page, api);
+    mockEditor(api, [msg("m1", "Could you add drone coverage? I can do $200 off if we book this week.", ago(1))]);
+    api.get("/services", {
+      items: [{ service_id: "svc-1", vendor_id: "vendor-1", name: "Reception set", price: 1400, add_ons: [{ id: "ao-drone", name: "Drone coverage", price: 400, price_unit: "event" }] }],
+      total: 1, limit: 100, offset: 0,
+    });
+
+    await page.goto("contracts/new/?conversation=c1&scratch=1");
+    await page.getByText("2 details mentioned in chat").click();
+    const list = page.getByRole("list", { name: "Mentioned in chat" });
+
+    await list.getByRole("button", { name: "Use Drone coverage" }).click();
+    await expect(page.getByRole("button", { name: "Remove Drone coverage" })).toBeVisible();
+    await list.getByRole("button", { name: "Use $200 off" }).click();
+    await expect(list.getByRole("button", { name: "Use $200 off" })).toHaveText("Used");
+  });
 });
+

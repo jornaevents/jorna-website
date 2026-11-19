@@ -20,8 +20,8 @@ describe("findMentions", () => {
     );
     expect(found.find((m) => m.kind === "times")?.label).toBe("4:00 PM – 10:00 PM");
     expect(found.find((m) => m.kind === "guests")?.usable).toBe(true);
-    // Which line an hour or a figure belongs to isn't a pattern's call.
-    expect(found.find((m) => m.kind === "hours")?.usable).toBe(false);
+    // What a figure was for isn't a pattern's call; hours depend on the contract.
+    expect(found.find((m) => m.kind === "hours")?.usable).toBe(true);
     expect(found.find((m) => m.kind === "amount")?.usable).toBe(false);
   });
 
@@ -166,11 +166,31 @@ describe("agreed proposals", () => {
     expect(kinds(found)).toEqual(["guests=150", "guests=200"]);
   });
 
-  it("an agreed add-on is listed but has no Use yet", () => {
+  it("an agreed add-on can be used", () => {
     const found = findMentions(
       [msg("p1", "x", "2026-11-13T15:00:00Z", { kind: "detail_proposal", meta: { field: "addon", value: "ao-1", label: "Drone coverage", status: "agreed", proposed_by: "c", addon: { id: "ao-1", name: "Drone coverage" } } })],
       TODAY,
     );
-    expect(found).toEqual([expect.objectContaining({ kind: "addon", value: "ao-1", usable: false, agreed: true })]);
+    expect(found).toEqual([expect.objectContaining({ kind: "addon", value: "ao-1", usable: true, agreed: true })]);
+  });
+});
+
+describe("add-ons and discounts", () => {
+  const ADDONS = [{ id: "ao-drone", name: "Drone coverage" }, { id: "ao-dhol", name: "Dhol" }];
+
+  it("names an add-on by its own name, any case, whole words", () => {
+    const found = findMentions([msg("m1", "Could you add DRONE COVERAGE for the baraat?", "2026-11-12T15:00:00Z")], TODAY, ADDONS);
+    expect(found).toEqual([expect.objectContaining({ kind: "addon", value: "ao-drone", label: "Drone coverage", usable: true })]);
+    expect(findMentions([msg("m1", "dholak music", "2026-11-12T15:00:00Z")], TODAY, ADDONS)).toEqual([]);
+  });
+
+  it("a figure said as a discount is a discount, not just an amount", () => {
+    const off = findMentions([msg("m1", "I can do $200 off if you book this week.", "2026-11-12T15:00:00Z")], TODAY);
+    expect(kinds(off)).toEqual(["discount=200"]);
+    expect(off[0]).toMatchObject({ label: "$200 off", usable: true });
+    const of = findMentions([msg("m1", "We'll give a discount of $150.", "2026-11-12T15:00:00Z")], TODAY);
+    expect(kinds(of)).toEqual(["discount=150"]);
+    const plain = findMentions([msg("m1", "The total would be $1,800.", "2026-11-12T15:00:00Z")], TODAY);
+    expect(plain).toEqual([expect.objectContaining({ kind: "amount", usable: false })]);
   });
 });

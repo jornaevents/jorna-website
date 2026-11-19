@@ -1487,3 +1487,20 @@ detail" form for a date, times, a guest count or one of the vendor's add-ons. In
 editor's Mentioned in chat panel, an agreed proposal is listed first, marked "Agreed in chat", with
 Use; open, declined and replaced ones aren't listed. An agreed add-on is listed without Use until
 add-on lines can be added from the panel.
+
+## Decision: Use follows the contract (2026-11-18)
+
+What Use does is worked out against the contract as it stands and the vendor's packages
+(`lib/mentionUse`), and the panel only offers Use when that changes something:
+
+- **Hours:** on an hourly package they're the quantity. On a package with hours included, the
+  hours past them go on one "Extra hours" line at the overtime rate (blank if there's none),
+  updated when a new number is said. Within the included hours, nothing changes.
+- **Add-ons by name:** a message naming one of the vendor's add-ons, as whole words in any case,
+  offers it. Use adds that add-on's line once, from the package on the contract if it has it. An
+  agreed add-on proposal (#59) works the same way.
+- **Discounts:** only a figure said as one ("$200 off", "a discount of $150") offers Use for the
+  discount. Any other amount stays shown only.
+
+Mentions are worked out with the add-ons once the packages have loaded, so the editor keeps the
+chat's raw messages, not the mentions.
