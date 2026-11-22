@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
-import { DetailProposalCard, ProposeDetailForm, isDetailProposal, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
+import { DetailProposalCard, ProposeDetailForm, isDetailProposal, packageInChat, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
 import { ApiError } from "@jorna/shared/lib/api";
 import { offerTarget, type OfferTarget } from "@jorna/shared/lib/offerTarget";
 import { answerDetail, getConversationMessages, proposeDetail, sendConversationMessage } from "@/lib/jorna";
@@ -122,6 +122,8 @@ export function ConversationThread({
   // Propose a detail (backend DECISIONS #59): only in a chat with one client.
   const [proposing, setProposing] = useState(false);
   const [addons, setAddons] = useState<AddOnChoice[]>([]);
+  // The vendor's packages, for the price's default unit (packageInChat).
+  const [packages, setPackages] = useState<Parameters<typeof packageInChat>[1]>([]);
   const canPropose = Boolean(conversation?.vendor_id && conversation.members?.length === 2);
   const bottomRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -185,6 +187,7 @@ export function ConversationThread({
           for (const a of svc.add_ons ?? []) if (a.id && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
         }
         setAddons([...seen.values()]);
+        setPackages(page?.items ?? []);
       })
       .catch(() => {});
   }
@@ -306,9 +309,10 @@ export function ConversationThread({
           <div className="mt-3">
             <ProposeDetailForm
               addons={addons}
+              pkg={packageInChat(messages, packages)}
               onClose={() => setProposing(false)}
-              onPropose={(field, value) =>
-                proposeDetail(conversationId, field, value).then(upsert, (err) => {
+              onPropose={(field, value, unit) =>
+                proposeDetail(conversationId, field, value, unit).then(upsert, (err) => {
                   throw new Error(err instanceof ApiError ? err.message : "Couldn't propose that. Try again.");
                 })
               }

@@ -21,6 +21,7 @@ const KIND_LABEL: Record<Mention["kind"], string> = {
   amount: "Amount",
   addon: "Add-on",
   discount: "Discount",
+  price: "Price",
 };
 
 function when(iso: string): string {
