@@ -175,6 +175,16 @@ describe("agreed proposals", () => {
   });
 });
 
+describe("agreed prices", () => {
+  it("carry their unit and package", () => {
+    const found = findMentions(
+      [msg("p1", "x", "2026-11-13T15:00:00Z", { kind: "detail_proposal", meta: { field: "price", value: "2400", label: "$2,400 per hour for DJ set", status: "agreed", proposed_by: "v", unit: "hour", package: { service_id: "svc-1", name: "DJ set" } } })],
+      TODAY,
+    );
+    expect(found).toEqual([expect.objectContaining({ kind: "price", value: "2400/hour", serviceId: "svc-1", usable: true, agreed: true })]);
+  });
+});
+
 describe("add-ons and discounts", () => {
   const ADDONS = [{ id: "ao-drone", name: "Drone coverage" }, { id: "ao-dhol", name: "Dhol" }];
 

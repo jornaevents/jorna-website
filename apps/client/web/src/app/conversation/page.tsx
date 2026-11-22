@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
-import { DetailProposalCard, ProposeDetailForm, isDetailProposal, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
+import { DetailProposalCard, ProposeDetailForm, isDetailProposal, packageInChat, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -127,6 +127,8 @@ function ConversationInner() {
   // Propose a detail to the vendor (backend DECISIONS #59).
   const [proposing, setProposing] = useState(false);
   const [addons, setAddons] = useState<AddOnChoice[]>([]);
+  // The vendor's packages, for the price's default unit (packageInChat).
+  const [packages, setPackages] = useState<Parameters<typeof packageInChat>[1]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -250,6 +252,7 @@ function ConversationInner() {
         const seen = new Map<string, AddOnChoice>();
         for (const svc of page.items) for (const a of svc.add_ons ?? []) if (a.id && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
         setAddons([...seen.values()]);
+        setPackages(page.items);
       })
       .catch(() => {});
   }
@@ -500,9 +503,10 @@ function ConversationInner() {
           <div className="mt-3">
             <ProposeDetailForm
               addons={addons}
+              pkg={packageInChat(messages, packages)}
               onClose={() => setProposing(false)}
-              onPropose={(field, value) =>
-                proposeDetail(conversationId!, field, value).then(upsert, (err) => {
+              onPropose={(field, value, unit) =>
+                proposeDetail(conversationId!, field, value, unit).then(upsert, (err) => {
                   throw new Error(err instanceof ApiError ? err.message : "Couldn't propose that. Try again.");
                 })
               }

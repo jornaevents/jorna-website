@@ -727,8 +727,9 @@ export function getConversationMessages(
 /** Send a message. The backend also broadcasts it over the socket. */
 /** Propose a date, times ("HH:MM-HH:MM"), a guest count or an add-on id in
  *  a client–vendor chat (backend DECISIONS #59). */
-export function proposeDetail(conversationId: string, field: string, value: string): Promise<GroupMessage> {
-  return apiFetch<GroupMessage>(`/conversations/${conversationId}/details`, { method: "POST", body: { field, value } });
+/** `unit` only for a price; left out, the backend uses the package's (DECISIONS #60). */
+export function proposeDetail(conversationId: string, field: string, value: string, unit?: string): Promise<GroupMessage> {
+  return apiFetch<GroupMessage>(`/conversations/${conversationId}/details`, { method: "POST", body: unit ? { field, value, unit } : { field, value } });
 }
 
 /** The other side's answer to a proposal: the same message, answered. */

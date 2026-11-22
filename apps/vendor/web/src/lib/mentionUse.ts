@@ -4,11 +4,14 @@
 // panel then shows the mention without a Use button.
 
 import { addonLine, newKey, type Draft, type LineDraft } from "@jorna/shared/lib/contractDraft";
+import type { LineUnit } from "@jorna/shared/lib/contractTypes";
 import type { Mention } from "./chatMentions";
 import type { ServiceItem } from "./types";
 
 /** The line hours past the package's included ones go on. */
 export const EXTRA_HOURS = "Extra hours";
+
+const LINE_UNITS: LineUnit[] = ["event", "person", "hour", "day", "item"];
 
 function hoursPatch(hours: number, draft: Draft, services: ServiceItem[]): Partial<Draft> | null {
   const pkg = draft.lines.find((l) => l.kind === "package");
@@ -53,6 +56,19 @@ function addonPatch(addonId: string, draft: Draft, services: ServiceItem[]): Par
   return line ? { lines: [...draft.lines, line] } : null;
 }
 
+/** An agreed price goes on the package line it was for; with no package
+ *  named, on the contract's package. Not added as a line of its own: the
+ *  vendor's package is what's being priced. */
+function pricePatch(m: Mention, draft: Draft): Partial<Draft> | null {
+  const [dollars, unit] = m.value.split("/");
+  if (!dollars || !LINE_UNITS.includes(unit as LineUnit)) return null;
+  const line = m.serviceId
+    ? draft.lines.find((l) => l.kind === "package" && l.serviceId === m.serviceId)
+    : draft.lines.find((l) => l.kind === "package");
+  if (!line || (Number(line.price) === Number(dollars) && line.unit === unit)) return null;
+  return { lines: draft.lines.map((l) => (l.key === line.key ? { ...l, price: dollars, unit: unit as LineUnit } : l)) };
+}
+
 export function mentionPatch(m: Mention, draft: Draft, services: ServiceItem[]): Partial<Draft> | null {
   if (!m.usable) return null;
   switch (m.kind) {
@@ -70,6 +86,8 @@ export function mentionPatch(m: Mention, draft: Draft, services: ServiceItem[]):
       return hoursPatch(Number(m.value), draft, services);
     case "addon":
       return addonPatch(m.value, draft, services);
+    case "price":
+      return pricePatch(m, draft);
     case "discount":
       return draft.discount === m.value ? null : { discount: m.value };
     default:

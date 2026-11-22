@@ -56,4 +56,15 @@ describe("mentionPatch", () => {
     expect(mentionPatch(mention("discount", "200"), draftWith(), SERVICES)).toEqual({ discount: "200" });
     expect(mentionPatch(mention("amount", "1800", false), draftWith(), SERVICES)).toBeNull();
   });
+
+  it("an agreed price sets its package line's price and unit", () => {
+    const priced = (value: string, serviceId?: string): Mention => ({ ...mention("price", value), ...(serviceId ? { serviceId } : {}) });
+    expect(mentionPatch(priced("1600/hour", "svc-1"), draftWith(), SERVICES)).toEqual({ lines: [pkgLine({ price: "1600", unit: "hour" })] });
+    // No package named: the contract's package.
+    expect(mentionPatch(priced("1600/event"), draftWith(), SERVICES)).toEqual({ lines: [pkgLine({ price: "1600" })] });
+    // Already says so, a package not on the contract, or no package line: nothing to do.
+    expect(mentionPatch(priced("1400/event"), draftWith(), SERVICES)).toBeNull();
+    expect(mentionPatch(priced("1600/event", "svc-other"), draftWith(), SERVICES)).toBeNull();
+    expect(mentionPatch(priced("1600/event"), draftWith({ lines: [] }), SERVICES)).toBeNull();
+  });
 });

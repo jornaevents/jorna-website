@@ -11,13 +11,14 @@
 import * as chrono from "chrono-node";
 import { isDetailProposal } from "@jorna/shared/components/DetailProposal";
 
-export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon" | "discount";
+export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon" | "discount" | "price";
 
 export interface Mention {
   /** Stable for this message and value, for React keys and dismissing. */
   id: string;
   kind: MentionKind;
-  /** What Use would set: an ISO date, "HH:MM", "HH:MM-HH:MM", a count. */
+  /** What Use would set: an ISO date, "HH:MM", "HH:MM-HH:MM", a count, or
+   *  for an agreed price "dollars/unit" ("2400/event"). */
   value: string;
   /** How it reads: "Sat, Mar 14, 2027", "4:00 PM – 10:00 PM", "180 guests". */
   label: string;
@@ -33,6 +34,8 @@ export interface Mention {
   /** Proposed and agreed in the chat (backend DECISIONS #59): exact, not
    *  just mentioned, so it's listed first. */
   agreed?: boolean;
+  /** An agreed price's package, when the chat said which (DECISIONS #60). */
+  serviceId?: string;
 }
 
 export interface ChatMessage {
@@ -128,12 +131,13 @@ export function findMentions(messages: ChatMessage[], today: string, addons: { i
   const since = sinceLatestInquiry(messages);
   for (const m of since) {
     if (m.kind !== "detail_proposal" || !isDetailProposal(m.meta) || m.meta.status !== "agreed") continue;
-    const { field, value, label, addon } = m.meta;
-    const kind: MentionKind = field === "addon" ? "addon" : field;
+    const { field, value, label, addon, unit } = m.meta;
+    const kind: MentionKind = field;
     agreed.push({
       id: `${m.message_id}:agreed`,
       kind,
-      value: field === "addon" ? (addon?.id ?? value) : value,
+      value: field === "addon" ? (addon?.id ?? value) : field === "price" ? `${value}/${unit ?? "event"}` : value,
+      ...(field === "price" && m.meta.package ? { serviceId: m.meta.package.service_id } : {}),
       label,
       quote: "Agreed in chat",
       messageId: m.message_id,
