@@ -88,4 +88,26 @@ test.describe("inquiry first, in the client's chat", () => {
     await expect(page.getByRole("heading", { name: "Lens and Light Studio" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);
   });
+
+  test("the form starts from what was agreed in chat", async ({ page, api }) => {
+    await loginAs(page, api);
+    const agreed = (id: string, field: string, value: string, label: string, status = "agreed") => ({
+      message_id: id, conversation_id: "c1", sender_id: "vendor-user", sender_name: "Lens and Light Studio",
+      kind: "detail_proposal", created_at: now, content: `Lens and Light Studio proposed ${label}.`,
+      meta: { field, value, label, status, proposed_by: "vendor-user" },
+    });
+    mockChat(api, thread({ has_inquiry: false }), [
+      agreed("p1", "guests", "150", "150 guests"),
+      agreed("p2", "times", "16:00-22:30", "4:00 PM – 10:30 PM"),
+      agreed("p3", "guests", "90", "90 guests", "declined"),
+    ]);
+
+    await page.goto("conversation/?id=c1");
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+    const sheet = page.getByRole("dialog", { name: "Send Lens and Light Studio an inquiry" });
+    await expect(sheet.getByText("What you and Lens and Light Studio agreed in chat is filled in below.")).toBeVisible();
+    await expect(sheet.locator('input[type="number"]')).toHaveValue("150");
+    await expect(sheet.getByLabel("Guest count slider")).toHaveValue("150");
+  });
 });
+

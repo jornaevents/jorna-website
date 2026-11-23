@@ -13,6 +13,7 @@ import { priceUnitKind, type EventItem } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { listEvents, listServices, sendInquiry } from "@/lib/jorna";
 import { DateField } from "@jorna/shared/components/DateField";
+import type { AgreedPrefill } from "@jorna/shared/lib/agreedInChat";
 
 // The inquiry form (backend DECISIONS #32, #45): a client account with a
 // confirmed email sends it, and it opens their thread with the vendor. Anyone
@@ -117,11 +118,15 @@ export function InquiryForm({
   vendorId,
   vendorName,
   prefill,
+  agreed,
   onSent,
 }: {
   vendorId: string;
   vendorName: string;
   prefill?: InquiryPrefill;
+  /** What the chat with this vendor agreed (lib/agreedInChat). It wins over
+   *  a saved draft and the prefill: both sides already said yes to it. */
+  agreed?: AgreedPrefill | null;
   onSent?: (conversationId: string | null) => void;
 }) {
   const { user, logout } = useAuth();
@@ -142,13 +147,13 @@ export function InquiryForm({
           }
         : null),
   );
-  const [date, setDate] = useState(draft?.date ?? "");
+  const [date, setDate] = useState(agreed?.date ?? draft?.date ?? "");
   const [eventType, setEventType] = useState(draft?.eventType ?? "");
   const [where, setWhere] = useState<Where>(draft?.where ?? "city");
   const [city, setCity] = useState(draft?.city ?? "");
   const [venue, setVenue] = useState<Address>(draft?.venue ?? EMPTY_ADDRESS);
   // "" until they pick one; a package is required (backend DECISIONS #47).
-  const [serviceId, setServiceId] = useState(prefill?.serviceId || draft?.serviceId || "");
+  const [serviceId, setServiceId] = useState(agreed?.serviceId || prefill?.serviceId || draft?.serviceId || "");
   // The packages the client can see, kept with the vendor they're for.
   // `failed`: the list didn't load, so there's nothing to pick from.
   const [packages, setPackages] = useState<{
@@ -156,10 +161,10 @@ export function InquiryForm({
     items: { id: string; name: string; perGuest: boolean }[];
     failed?: boolean;
   } | null>(null);
-  const [guests, setGuests] = useState(draft?.guests ?? "");
+  const [guests, setGuests] = useState(agreed?.guests != null ? String(agreed.guests) : (draft?.guests ?? ""));
   // When it starts and ends (backend DECISIONS #58): optional, both or neither.
-  const [timeStart, setTimeStart] = useState(draft?.timeStart ?? "");
-  const [timeEnd, setTimeEnd] = useState(draft?.timeEnd ?? "");
+  const [timeStart, setTimeStart] = useState(agreed?.timeStart ?? draft?.timeStart ?? "");
+  const [timeEnd, setTimeEnd] = useState(agreed?.timeEnd ?? draft?.timeEnd ?? "");
   // The client's own events, to start the form from one (Contract Builder
   // from Chat, A6): a date, place, guest count and type they've already given.
   const [events, setEvents] = useState<EventItem[] | null>(null);
@@ -331,6 +336,11 @@ export function InquiryForm({
 
   return (
     <form onSubmit={submit} noValidate className="grid gap-4">
+      {agreed ? (
+        <p className="rounded-xl bg-ground-2 px-3 py-2 text-sm text-ink-soft">
+          What you and {vendorName} agreed in chat is filled in below. You can still change it.
+        </p>
+      ) : null}
       {user ? (
         <p className="text-sm text-ink-soft">
           Sending as <span className="font-medium text-ink">{signedInName || user.email}</span>

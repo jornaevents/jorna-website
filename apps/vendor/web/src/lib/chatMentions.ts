@@ -9,7 +9,7 @@
 // hours and dollar amounts from plain patterns.
 
 import * as chrono from "chrono-node";
-import { isDetailProposal } from "@jorna/shared/components/DetailProposal";
+import { agreedInChat } from "@jorna/shared/lib/agreedInChat";
 
 export type MentionKind = "date" | "times" | "start" | "guests" | "hours" | "amount" | "addon" | "discount" | "price";
 
@@ -129,15 +129,16 @@ export function findMentions(messages: ChatMessage[], today: string, addons: { i
   const found: Mention[] = [];
   const agreed: Mention[] = [];
   const since = sinceLatestInquiry(messages);
-  for (const m of since) {
-    if (m.kind !== "detail_proposal" || !isDetailProposal(m.meta) || m.meta.status !== "agreed") continue;
-    const { field, value, label, addon, unit } = m.meta;
+  // Agreements reach back past the inquiry: one made before it still stands
+  // unless the inquiry said otherwise (lib/agreedInChat).
+  for (const { message: m, meta } of agreedInChat(messages)) {
+    const { field, value, label, addon, unit } = meta;
     const kind: MentionKind = field;
     agreed.push({
       id: `${m.message_id}:agreed`,
       kind,
       value: field === "addon" ? (addon?.id ?? value) : field === "price" ? `${value}/${unit ?? "event"}` : value,
-      ...(field === "price" && m.meta.package ? { serviceId: m.meta.package.service_id } : {}),
+      ...(field === "price" && meta.package ? { serviceId: meta.package.service_id } : {}),
       label,
       quote: "Agreed in chat",
       messageId: m.message_id,
@@ -224,10 +225,14 @@ export type MessagePage = (offset: number, limit: number) => Promise<{ items: Ch
  */
 export async function readSinceInquiry(page: MessagePage, max = 500, limit = 100): Promise<ChatMessage[]> {
   const all: ChatMessage[] = [];
+  // One page past the inquiry's: details agreed just before it still stand
+  // (lib/agreedInChat), and they're usually that close.
+  let found = false;
   for (let offset = 0; offset < max; offset += limit) {
     const res = await page(offset, limit);
     all.push(...res.items);
-    if (res.items.some((m) => isInquiry(m))) break;
+    if (found) break;
+    found = res.items.some((m) => isInquiry(m));
     if (res.items.length < limit || all.length >= res.total) break;
   }
   return all;
