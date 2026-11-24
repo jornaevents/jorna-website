@@ -99,8 +99,10 @@ test.describe("staging: contract from chat", () => {
     // 5. Send contract now opens a contract built from the inquiry.
     await expect(details.getByRole("link", { name: "Send contract" })).toBeVisible({ timeout: 20_000 });
     await details.getByRole("link", { name: "Send contract" }).click();
-    await expect(page).toHaveURL(new RegExp(`[?&]package=${vendor.serviceId}`));
-    await expect(page.getByRole("button", { name: "Remove Staging check package" })).toBeVisible();
+    // The editor loads before it hands off to the inquiry's package, then
+    // loads again; on staging the vendor's bookings alone can take 3s.
+    await expect(page).toHaveURL(new RegExp(`[?&]package=${vendor.serviceId}`), { timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "Remove Staging check package" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByLabel("City")).toHaveValue("Edison");
     await expect(page.getByLabel("Start time — hour")).toHaveValue("4");
     const note = page.getByRole("note");
