@@ -128,10 +128,10 @@ describe("readSinceInquiry", () => {
     return { page, asked };
   };
 
-  it("pages back until the page that holds the inquiry", async () => {
-    const { page, asked } = pages(thread(350, 120));
+  it("pages back to the page that holds the inquiry, and one more", async () => {
+    const { page, asked } = pages(thread(450, 220));
     const got = await readSinceInquiry(page);
-    expect(asked).toEqual([0, 100, 200]);
+    expect(asked).toEqual([0, 100, 200, 300]);
     expect(got.some((m) => Boolean((m.meta as { inquiry?: unknown } | null)?.inquiry))).toBe(true);
   });
 
@@ -182,6 +182,25 @@ describe("agreed prices", () => {
       TODAY,
     );
     expect(found).toEqual([expect.objectContaining({ kind: "price", value: "2400/hour", serviceId: "svc-1", usable: true, agreed: true })]);
+  });
+});
+
+describe("agreed before the inquiry", () => {
+  const agreed = (id: string, field: string, value: string, at: string): ChatMessage =>
+    msg(id, "x", at, { kind: "detail_proposal", meta: { field, value, label: value, status: "agreed", proposed_by: "c" } });
+  const inquiry = (at: string, fields: object): ChatMessage => msg("i1", "Inquiry", at, { meta: { inquiry: { lead_id: "l", ...fields } } });
+
+  it("still listed unless the inquiry changed it", () => {
+    const found = findMentions(
+      [
+        agreed("p1", "guests", "150", "2026-11-10T15:00:00Z"),
+        agreed("p2", "times", "16:00-22:00", "2026-11-10T16:00:00Z"),
+        inquiry("2026-11-11T15:00:00Z", { guest_count: 200 }),
+      ],
+      TODAY,
+    );
+    expect(kinds(found)).toEqual(["times=16:00-22:00"]);
+    expect(found[0]).toMatchObject({ agreed: true, usable: true });
   });
 });
 

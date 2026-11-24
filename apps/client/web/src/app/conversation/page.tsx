@@ -4,7 +4,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { InquiryCard } from "@jorna/shared/components/InquiryCard";
 import { InquiryRequestCard } from "@jorna/shared/components/InquiryRequestCard";
-import { DetailProposalCard, ProposeDetailForm, isDetailProposal, packageInChat, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
+import { DetailProposalCard, ProposeDetailForm, isDetailProposal, packageInChat, todayIso, type AddOnChoice } from "@jorna/shared/components/DetailProposal";
+import { agreedPrefill } from "@jorna/shared/lib/agreedInChat";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@jorna/shared/lib/api";
@@ -526,6 +527,7 @@ function ConversationInner() {
       <InquirySheet
         vendorId={sidebarVendor}
         vendorName={vendorName}
+        agreed={agreedPrefill(messages, todayIso())}
         onSent={inquirySent}
         onClose={() => setInquiring(false)}
       />

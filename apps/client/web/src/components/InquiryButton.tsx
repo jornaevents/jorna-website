@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Card } from "@jorna/shared/components/ui";
 import { useOverlay } from "@jorna/shared/components/useOverlay";
 import { InquiryForm, type InquiryPrefill } from "@/components/InquiryForm";
+import type { AgreedPrefill } from "@jorna/shared/lib/agreedInChat";
 
 /** "Send an inquiry" on a vendor's page: the inquiry form in a sheet. Anyone
  *  can fill it in; sending needs a client account (backend DECISIONS #45). */
@@ -42,12 +43,14 @@ export function InquirySheet({
   vendorId,
   vendorName,
   prefill,
+  agreed,
   onSent,
   onClose,
 }: {
   vendorId: string;
   vendorName: string;
   prefill?: InquiryPrefill;
+  agreed?: AgreedPrefill | null;
   onSent?: (conversationId: string | null) => void;
   onClose: () => void;
 }) {
@@ -72,7 +75,7 @@ export function InquirySheet({
           </button>
         </div>
         <div className="relative p-4 sm:p-5">
-          <InquiryForm vendorId={vendorId} vendorName={vendorName} prefill={prefill} onSent={onSent} />
+          <InquiryForm vendorId={vendorId} vendorName={vendorName} prefill={prefill} agreed={agreed} onSent={onSent} />
         </div>
       </Card>
     </div>
