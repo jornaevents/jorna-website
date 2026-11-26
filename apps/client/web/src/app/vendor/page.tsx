@@ -392,12 +392,18 @@ function VendorInner() {
         <>
           <div className="mt-12 rounded-2xl border border-card-edge bg-panel p-6 text-center">
             <p className="text-ink-soft">
-              Want this vendor on your team? Send them an inquiry, or build a bundle and we&apos;ll
-              match them to your date and budget.
+              Want this vendor on your team? Send them an inquiry with your date and
+              what you&apos;re planning, or ask them a question first.
             </p>
+            {/* No "Build my bundle" (/plan) here: it asked every vendor in a plan
+                at once with no inquiry, and every contract now starts from one
+                (backend DECISIONS #54). Suggestions live inside an event. */}
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <LinkButton href="/plan">Build my bundle</LinkButton>
-              <InquiryButton vendorId={vendor.vendor_id} vendorName={name || "this vendor"} />
+              <InquiryButton
+                vendorId={vendor.vendor_id}
+                vendorName={name || "this vendor"}
+                variant="primary"
+              />
               {/* A message thread needs an account; signed out, the inquiry is the way in. */}
               {user ? <AskVendor vendorId={vendor.vendor_id} /> : null}
             </div>
