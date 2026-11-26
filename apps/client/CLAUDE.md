@@ -1,35 +1,42 @@
-# Jorna website — agent instructions
+# Jorna client app — agent instructions
 
 Jorna is a marketplace for planning South Asian celebrations (matching
-clients with vendors, bundling services, escrow-backed booking/payment —
-escrow is currently **disabled for the MVP**, see `docs/DECISIONS.md`; every
-vendor is paid off-platform via Venmo/Zelle instead, `lib/flags.ts`'s
-`ESCROW_ENABLED`).
-**This repo is frontend-only**: a client-rendered Next.js web app — served at
-both `/` (its own Home page doubles as the marketing site) and `/app` — plus
-a small hand-written help page at `/help`, all deployed as static files to
-Cloudflare Pages. The backend (FastAPI, Python) lives in a separate
-repository (`Desiconnect/server`) and is not checked out here — treat it as
-an external API reachable only over HTTP.
+clients with vendors, bundling services, contracts and booking). Escrow is
+built but **disabled for the MVP** — vendors are paid off-platform via
+Venmo/Zelle (`@jorna/shared/lib/flags`'s `ESCROW_ENABLED`, see
+`docs/DECISIONS.md`).
+
+**This app is frontend-only**: a client-rendered Next.js static export
+(`basePath: "/client"`) for hosts. Since 2026-10-29 it's served at
+**jornaevents.com/client**, built and deployed by the vendor app
+(`apps/vendor`'s build runs this app's `next build` and copies `web/out` to
+its `public/client`), so one site and one sign-in cover both. This app's own
+Cloudflare Pages project (`jorna-events`, book.jornaevents.com) now
+publishes only `public/_redirects`, 301-ing every old address to the same
+page under `/client` (see `DEPLOY.md`). The backend (FastAPI, Python) is a
+separate repo, `jornaevents/jorna-backend` (`server/`) — treat it as an
+external API reachable only over HTTP.
+
+This app lives in the `jorna-website` monorepo — read the root `CLAUDE.md`
+too; code both apps use is in `packages/shared` (`@jorna/shared`).
 
 ## Layout
 
 ```
-public/            served by Cloudflare Pages — public/app/ is a GENERATED,
-                    gitignored build output; don't hand-edit it
-web/                Next.js 16 / React 19 / TS / Tailwind v4 source for /app
-scripts/            deploy + build tooling
+public/            what this app's own Pages project serves: only _redirects
+                    and _headers now (book.jornaevents.com → /client)
+web/                Next.js 16 / React 19 / TS / Tailwind v4 source for /client
+scripts/            deploy tooling for the redirect-only project
 docs/               architecture docs (read before cross-cutting changes)
+drafts/             legal/privacy/support/terms drafts — deliberately unpublished
 .claude/context/    current-task.md — working memory for in-progress tasks
-*.md (root)         DEPLOY.md, STRIPE_GO_LIVE.md and README.md are current
-                    ops/overview docs, kept accurate; the rest
-                    (CLIENT_FLOW_PLAN, WEB_PARITY_PLAN, MESSAGING_PROPOSAL,
-                    RESCHEDULE_PROPOSAL, VENDOR_DASHBOARD_BRIEF,
-                    DESIGN_BRIEF) are proposals and build plans, not
-                    always-current architecture. Most now carry their own
-                    "done"/"shipped" note at the top once verified against
-                    the code — but still check the code before trusting one
-                    as still accurate on any specific claim.
+*.md (root)         DEPLOY.md (read its top note first), STRIPE_GO_LIVE.md and
+                    README.md are ops/overview docs; the rest
+                    (BOOKING_AUDIT_ROADMAP, CLIENT_FLOW_PLAN, DESIGN_BRIEF,
+                    MESSAGING_PROPOSAL, RESCHEDULE_PROPOSAL,
+                    VENDOR_DASHBOARD_BRIEF, WEB_PARITY_PLAN) are proposals
+                    and build plans, not always-current architecture — check
+                    the code before trusting one on any specific claim.
 ```
 
 ## Documentation map
@@ -48,7 +55,7 @@ docs/               architecture docs (read before cross-cutting changes)
   isn't any; it's in the external backend repo).
 - `docs/DECISIONS.md` — why things are built the way they are.
 - `.claude/context/current-task.md` — handoff notes for whatever's currently
-  in progress (see "Context handoff" below).
+  in progress (see "Maintaining this context layer" below).
 
 ## How to explore this repo
 
@@ -74,44 +81,47 @@ docs/               architecture docs (read before cross-cutting changes)
 - Don't duplicate the task/attention rules in `planning.ts`;
   extend them instead.
 - All backend calls go through `web/src/lib/jorna.ts` (typed) →
-  `web/src/lib/api.ts` (transport). No ad-hoc `fetch()` in components.
+  `@jorna/shared/lib/api` (transport). No ad-hoc `fetch()` in components.
+  Pricing, negotiation, contract-draft and taxonomy logic is in
+  `@jorna/shared/lib` — look there before writing it in the app.
 - Price values are always the `price_min`/`price_max`/`price_unit`/
   `price_pending_quantity` shape — never format a bare number by hand.
-- `public/app/` is generated (gitignored); never edit it directly, and never
-  ship with a bare `wrangler deploy` — use `npm run deploy` (see
+- This app doesn't deploy itself any more — the vendor app's deploy ships
+  it. Never ship with a bare `wrangler deploy` (see
   `docs/DECISIONS.md` for why).
 
 ## Commands
 
 ```bash
-npm run install:app              # first time: install web/ dependencies
-npm --prefix web run dev         # dev server at localhost:3000/app
-npm --prefix web run lint        # eslint (web app only)
+npm run install:app              # first time: npm ci at the workspace root
+npm --prefix web run dev         # dev server at localhost:3000/client
+npm --prefix web run lint        # eslint (this app only)
 npm --prefix web run typecheck   # tsc --noEmit
 npm --prefix web run test        # vitest (pure-logic unit tests only)
-npm run test:e2e                 # playwright — see web/e2e/
-npm run build                    # next build + export into public/app
-npm run deploy                   # build + verified deploy to Cloudflare Pages
-npm run deploy:once              # build + single-shot deploy, unverified
+npm run test:e2e                 # playwright, mocked backend — see web/e2e/
+npm run build                    # next build into web/out (the vendor build copies it)
+npm run deploy                   # verified deploy of the redirect-only project
 ```
 
-A husky pre-commit hook (`.husky/pre-commit`, config in `lint-staged.config.mjs`)
-runs eslint on staged `web/` files plus a full `typecheck` before every
-commit — `npm install` at the repo root wires it up via the `prepare`
-script. It's a fast local gate, not a substitute for CI: it doesn't run
-Vitest or Playwright. `.github/dependabot.yml` opens weekly update PRs for
-`web/`, the root (wrangler), and GitHub Actions.
+A husky pre-commit hook (the monorepo root's `.husky/pre-commit`, config in
+`lint-staged.config.mjs`) runs eslint on staged `web/` files plus a full
+`typecheck` before every commit — `npm install` at the repo root wires it up
+via the `prepare` script. It's a fast local gate, not a substitute for CI: it doesn't run
+Vitest or Playwright. The root `.github/dependabot.yml` opens weekly update PRs.
 
-CI (`.github/workflows/ci.yml`) has three jobs: `build` (lint, typecheck,
-Vitest, `next build`) and `e2e` (Playwright, below) run on every push/PR to
-`main`; `deploy` runs only after both pass on an actual push to `main` and
-ships to Cloudflare Pages (see `DEPLOY.md`) — merging a PR is what puts a
-change into production, there's no separate manual deploy step in the
-normal flow. The Vitest suite stays narrow on purpose — pure-logic unit
-tests for `web/src/lib` (pricing, planning rules) — component-
-level and user-flow coverage lives in Playwright instead, so a UI change
-should get an E2E test or a manual pass through the dev server, not a
-component test here.
+CI is the monorepo root's `.github/workflows/ci.yml`, which runs
+`app.yml` for each app a change touches (a client change runs the vendor
+job too). Per app: `build` (lint, typecheck, Vitest, `next build`) and `e2e`
+(Playwright, below) on every PR, plus a PR preview at
+`pr-<n>.<project>.pages.dev` against the staging backend. On a push to
+`main`: deploy to staging (`staging.<project>.pages.dev`), then production
+(for this app, the redirect-only project) once someone approves the `production` environment in the
+Actions tab (approve only the newest waiting run). Merging is what starts a
+release — there's no separate manual deploy step in the normal flow. The
+Vitest suite stays narrow on purpose — pure-logic unit tests for
+`web/src/lib` (planning rules, …) — component-level and user-flow coverage lives in
+Playwright instead, so a UI change should get an E2E test or a manual pass
+through the dev server, not a component test here.
 
 `main` is a protected branch (GitHub branch protection: PR required, status
 checks must pass, no force-push/delete) — a direct `git push` to `main` is
@@ -122,19 +132,18 @@ Chromium against `next dev`, with every backend call intercepted at the
 network layer — `NEXT_PUBLIC_API_BASE_URL` points `next dev` at a fake,
 non-resolving host (`web/e2e/support/api-base.ts`) so a route with no
 registered mock fails loudly (404) instead of silently reaching the real
-production backend (see `web/src/lib/api.ts`'s default `API_BASE` — that's
-what a run with the real env var would hit). `web/e2e/support/api-mock.ts`
+production backend (see `@jorna/shared/lib/api`'s default `API_BASE` —
+that's what a run with the real env var would hit). `web/e2e/support/api-mock.ts`
 is the per-test mock router (`api.get/post/patch/put/delete`, `:id`-style
 path params, `api.error()` for non-2xx); `web/e2e/support/fixtures.ts`'s
 `loginAs()` seeds a signed-in session by writing `auth.tsx`'s localStorage
 keys directly, skipping the real login form for tests that don't need to
-exercise it. Add a spec next to the existing ones (`home`, `auth`,
-`marketplace`, `booking`) when a flow is worth covering beyond a manual dev-server
-check — favor the ones with real logic (gating, redirects, status-dependent
+exercise it. Add a spec next to the existing ones in `web/e2e/` when a
+flow is worth covering beyond a manual dev-server check — favor the ones with real logic (gating, redirects, status-dependent
 rendering) over pure layout.
 
 Note: `react-hooks/set-state-in-effect` is an error (it was a warning until
-[issue #2](https://github.com/jornaevents-commits/jorna-website/issues/2) was
+[issue #2](https://github.com/jornaevents/jorna-website/issues/2) was
 worked through). Don't set state synchronously in an effect: derive it during
 render, keep a loaded value with the key it was loaded for (see `nav.tsx`'s
 badges or `app/vendor/page.tsx`), or set it only when a promise settles (write
@@ -142,19 +151,20 @@ the load as a `.then` chain — the rule doesn't follow `await`).
 
 ## Issue & work tracking
 
-Work across all three repos is tracked in one place: the org's GitHub
-Project, ["Jorna Dev Board"](https://github.com/orgs/jornaevents/projects/1)
-(Status: Backlog → Todo → In Progress → In Review → Done, linked to all
-three repos). Open issues with `.github/ISSUE_TEMPLATE/bug_report.md` or
+Work is tracked in one place: the org's GitHub Project,
+["Jorna Dev Board"](https://github.com/orgs/jornaevents/projects/1)
+(Status: Backlog → Todo → In Progress → In Review → Done). Open issues with `.github/ISSUE_TEMPLATE/bug_report.md` or
 `feature_request.md` — both have a "cross-repo impact" section, since a
 web-app change sometimes needs a matching backend issue/PR in
-`jorna-backend` and/or `jorna-ios`.
+`jorna-backend`. (The iOS app, `jorna-ios`, is paused — don't plan for it
+unless asked.)
 
 This repo has the board's native "Auto-add to project" workflow enabled
 (GitHub Free caps that at one source repo per project, and this is the one),
 so a new issue or PR here lands on the board automatically. Still move its
 Status yourself as work progresses (In Progress → In Review once a PR is
-open → Done once merged).
+open → Done once merged) — a PR closes its issue only if its description
+says `Closes #N`.
 
 ## Maintaining this context layer
 
