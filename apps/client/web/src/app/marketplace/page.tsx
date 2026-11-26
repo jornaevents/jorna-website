@@ -30,7 +30,6 @@
 
 import { vendorName } from "@jorna/shared/lib/vendorName";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { signInUrl } from "@/lib/vendorSite";
@@ -160,10 +159,6 @@ function MarketplaceInner() {
   const shortlist = useSavedPackages();
 
   const [query, setQuery] = useState("");
-  // Set once by /book after a draft add; read straight off the URL rather than
-  // held in state, so it clears on the next navigation without any cleanup.
-  const addedBundleId = searchParams.get("added");
-  const addedName = searchParams.get("name");
   // A group or service key — what the chips pick and the API's `service`
   // takes. Groups for browsing, services for what's actually booked (#164:
   // the chips are named the way vendors name what they sell).
@@ -324,24 +319,6 @@ function MarketplaceInner() {
 
   return (
     <div className="mx-auto w-[min(1280px,100%-2rem)] py-6 desk:py-11">
-      {/* Adding a service as a draft lands back here, because assembling a plan
-          means adding the next thing. The confirmation names what went where so
-          the return doesn't read as the click having failed. */}
-      {addedBundleId ? (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green/30 bg-green/10 px-4 py-3 text-sm">
-          <p className="text-ink-soft">
-            <span className="text-ink">{addedName || "That package"}</span> was added
-            to your plan as a draft — no request sent yet.
-          </p>
-          <Link
-            href={`/bundle?id=${addedBundleId}`}
-            className="shrink-0 font-semibold text-gold hover:underline"
-          >
-            View plan →
-          </Link>
-        </div>
-      ) : null}
-
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <p className="eyebrow">Find your people</p>

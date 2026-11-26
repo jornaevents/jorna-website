@@ -13,7 +13,7 @@ export function InquiryButton({
   vendorName,
   variant = "ghost",
   size,
-  label = "Get quote",
+  label = "Send an inquiry",
   prefill,
   className,
 }: {

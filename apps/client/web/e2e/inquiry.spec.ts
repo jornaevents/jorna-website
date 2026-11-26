@@ -248,7 +248,8 @@ test.describe("inquiry form", () => {
     api.post("/vendors/vendor-1/inquiries", SENT);
 
     await page.goto("vendor/?id=vendor-1");
-    await page.getByRole("button", { name: "Get quote" }).click();
+    // The page's own button, below the package cards (each has one too).
+    await page.getByRole("button", { name: "Send an inquiry" }).last().click();
     const sheet = page.getByRole("dialog", { name: "Send Arjun Kapoor an inquiry" });
     await expect(sheet.getByText("Sending as Priya Shah")).toBeVisible();
     await fillRequired(sheet);

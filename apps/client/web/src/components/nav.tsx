@@ -96,7 +96,7 @@ export const EXPLORE: NavItem = {
   label: "Explore",
   icon: icon(I.explore),
   // A package and the form that adds it to a plan are both still shopping.
-  match: ["/marketplace", "/browse", "/compare", "/vendor", "/service", "/book"],
+  match: ["/marketplace", "/browse", "/compare", "/vendor", "/service"],
 };
 
 export const MESSAGES: NavItem = {
